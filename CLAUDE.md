@@ -103,14 +103,26 @@ images/{파일명}
    - 월별 방문 건수 **누적 세로 막대** — 목적별 세그먼트를 한 막대에 쌓음. 카드 상단에 색상 범례. 호버 시 `목적: N건` 툴팁.
 3. 🔐 연동 계정 정보 (마스킹 없이 직접 표시, 복사 버튼)
 4. 🎬 시연 시나리오 (9개 시나리오 카드)
-5. 💡 조명 스위치 안내 (공간별 카드)
+5. 💡 조명 스위치 안내 (공간별 카드) — 욕실(내부)은 3구 스위치 중 2구만 사용 (주 조명·간접조명 ON/OFF, 3번째는 미사용)
 6. ⚙️ 시스템 구성 (조명/Homey/ThinQ/난방 카드)
 7. 📦 구비 가전 (45개 품목 — 관리자 전용, Apps Script `?type=appliances`에서 fetch 후 메모리 캐시)
 
 **분석 섹션**
 8. 📈 ROI 분석 — `ThinQ_Real_ROI_Tool.html`을 iframe으로 임베드 (지연 로드, "새 창에서 열기" 버튼 제공)
    - ROI 툴 내부에 **시나리오 스냅샷 저장/불러오기** 패널 포함 (Apps Script `roi_snapshots` 탭 연동)
+   - 스냅샷 라벨이 ISO 8601 타임스탬프(`2026-05-18T00:00:00.000Z`)면 표시 시점에 `YYYY-MM-DD 시나리오`로 자동 변환 (`prettyScenarioLabel`). 시트 데이터는 그대로 유지.
    - iframe 하단에 **분석 툴 동작 원리** 설명 패널: BEP / 연간가치 / N년 ROI 산식 박스, V_R&D · V_Sales(A) · V_Sales(B) · V_PR · 비용 구조 · 해석 가이드 6개 카드. 수식 폰트는 Cambria Math 17px / 15.5px (첨자 0.7em baseline 보정).
+   - iframe 캐시 무력화: `ROI_BUILD` 상수에 빌드 토큰을 두고 `ThinQ_Real_ROI_Tool.html?v={token}`로 부착. ROI 툴 갱신 시 토큰을 올려야 사용자가 새 버전을 받음.
+
+### 모바일 반응형 (≤900px / ≤768px / ≤480px)
+- **사이드바 토글**: 좌상단 부유 `☰` 버튼.
+  - 데스크탑: 240px ↔ 64px(아이콘만) 토글. 상태는 localStorage(`thinqreal_admin_sidebar_collapsed`)에 영속화 → 재방문 시 자동 복원.
+  - 모바일(≤768px): 오프캔버스 드로어. 배경 백드롭 또는 네비 항목 탭으로 자동 닫힘.
+  - 토글 버튼은 데스크탑 expanded 상태에서만 `left:188px`로 사이드바 우측 안쪽에 위치, 그 외에는 `left:12px`.
+- **그리드**: KPI 4→2(≤1024)→1(≤480), 통계 2→1(≤900) + wide-card span 해제, 시연/조명/시스템 카드 → 1열(≤900).
+- **표**: `.table-card`가 `overflow-x:auto`로 변경, booking 680px / accounts 560px `min-width` 보장 → 좁은 화면에서 가로 스와이프로 모든 컬럼 확인.
+- **메인 패딩**: 40px → 24px(≤900) → 20px(≤768) → 16px(≤480).
+- **메인 사이트 내비바**: ≤900px에서 `overflow-x:auto` + `flex-shrink:0`로 항목 압축 없이 가로 스와이프 가능. `navbar-spacer`는 모바일에서 `display:none`.
 
 ### 데이터 로딩 — Stale-while-revalidate
 `loadData()`는 첫 진입 시:
@@ -159,6 +171,8 @@ Apps Script 콜드 스타트(1~3초) 자체는 서버 측 제약이라 완전히
 - Apps Script URL과 Sheets ID는 절대 변경하지 말 것 (배포 완료 상태)
 - 슬롯 시간표는 확정된 것이므로 변경 금지
 - 디자인 시스템(Apple HIG, 다크 올리브 그린 #3a5035) 유지
+- 관리자 사이드바 collapsed 상태 키: `thinqreal_admin_sidebar_collapsed` (localStorage). 디버그용으로 수동 초기화 가능.
+- ROI 툴 갱신 시 `thinqreal_admin.html`의 `ROI_BUILD` 토큰을 반드시 올릴 것 (`?v={token}` 캐시 키). 안 올리면 GitHub Pages/iframe 캐시로 사용자가 옛 버전을 받음.
 
 ## 알아두면 좋은 것
 | 상황 | 재작업 필요 여부 |
@@ -255,6 +269,34 @@ PDF `ThinQ Real_User Guide_260507_v3.pdf`(21p, 1.87MB)의 슬라이드 5~7, 16~1
 4. VPN (Cloudflare WARP 등) — 미들박스 우회 효과
 5. **새로고침을 정상 도구로 활용** — 세션은 서버에 보존되므로 진행 상황이 사라지지 않음. 응답이 오래 멈췄다 싶으면 새로고침하여 재접속
 6. 긴 작업은 **GitHub Actions** 트리거로 비동기 실행 (https://code.claude.com/docs/en/claude-code-on-the-web)
+
+## 작업 내역 (2026-05-19 후속 — 모바일 반응형)
+
+도메인 이전 직후, 아이폰17 등 모바일에서의 UI 문제를 정리하는 후속 세션. 메인·관리자 양쪽 모두 모바일 대응이 거의 없던 상태였다.
+
+### A. 메인 페이지 내비바 가로 스크롤 (index.html, 커밋 `8de10bd`)
+- 증상: 모바일에서 `홈 / 공간 소개 / 예약`까지만 보이고 `이용 안내 / 관리자 / 예약 신청`이 잘림.
+- 원인: `.navbar-links`와 `.navbar-spacer` 둘 다 `flex:1`이라 고정폭 컨테이너 안에서 서로 공간을 먹다 항목이 밀려남.
+- 처방(≤900px): `.navbar { overflow-x:auto; -webkit-overflow-scrolling:touch }` + 자식 모두 `flex-shrink:0` + `.navbar-links { flex:0 0 auto }` + `.navbar-spacer { display:none }` + 스크롤바 숨김. 가로 스와이프로 끝까지 확인 가능.
+
+### B. 관리자 페이지 반응형 + 사이드바 토글 (thinqreal_admin.html, 커밋 `b4284e2`)
+- 증상: 관리자 페이지에 `@media` 블록이 0개였음 → 모바일에서 240px 사이드바가 본문을 짓누르고 표가 화면 밖으로 흘러나감.
+- 처방:
+  - **사이드바 토글** 신설. 위 §관리자 §모바일 반응형 참조. 데스크탑은 240↔64 collapse(localStorage 영속화), 모바일은 오프캔버스 드로어 + 백드롭.
+  - **CSS 변수 도입**: `:root` → `.shell { --sidebar-w: 240px }`, collapsed 시 64px, 모바일 시 0px. `.sidebar { width: var(--sidebar-w) }`, `.main { margin-left: var(--sidebar-w) }`로 단일 소스 제어.
+  - **그리드 반응형**: KPI 4→2→1, 통계 2→1, 메인 패딩 단계적 축소.
+  - **표 가로 스크롤**: `.table-card`의 `overflow:hidden` → `overflow-x:auto`로 변경. `.booking-table`에 `min-width:680px`, `.accounts-table`에 `min-width:560px`로 컬럼 폭 보장.
+  - **ROI iframe**: 메인 패딩 축소 효과로 자동 풀폭. iframe 내부도 ≤600px에서 본문 패딩만 추가로 축소.
+
+### C. 카드 1열 + 데이터 보정 + ROI 라벨 (커밋 `03ae2e4`)
+- 시연 시나리오 / 조명 스위치 안내 / 시스템 구성 — 모바일(≤900px)에서 모두 1열로. 카드 본문이 더 이상 끊기지 않고 가로 폭을 다 씀.
+- **욕실(내부) 조명 카드 보정**: PDF 스위치 슬라이드에는 주 조명 ON/OFF, 간접조명 ON/OFF, 3번 미사용으로 그려져 있는데 카드에는 `기능 없음`만 단독 표시되던 문제. 실제 슬라이드와 일치하도록 3줄로 펼침.
+- **ROI 스냅샷 라벨 변환**: 라벨이 ISO 8601 타임스탬프 패턴(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}`)이면 표시 시점에 `YYYY-MM-DD 시나리오`로 변환 (`prettyScenarioLabel` 헬퍼). 시트 데이터는 그대로 두고 표시만 친화 포맷.
+- `ROI_BUILD` 토큰 `20260518a` → `20260519a` 올려서 iframe 캐시 무력화.
+
+### 핵심 제약 (다음 세션에서도 유지)
+- 모바일 사이드바 토글 버튼(좌상단 부유 `☰`)은 위치·z-index를 유지할 것. 페이지 헤더 `h1`이 가려지지 않도록 `.main`의 `padding-top:64px`(모바일) 도 함께 유지.
+- 욕실(내부) 카드의 "3구 미사용" 표기는 실제 스위치 하드웨어 사양이므로 임의 삭제 금지.
 
 ## 완료 내역 — 도메인 이전 (2026-05-19)
 
