@@ -714,6 +714,9 @@ body {
   .stats-card.wide { grid-column: span 1; }
   .month-chart { gap: var(--sp-8); height: 220px; }
   .roi-frame { min-height: 520px; height: calc(100svh - 160px); }
+  .scenario-grid { grid-template-columns: 1fr; }
+  .lighting-grid { grid-template-columns: 1fr; }
+  .system-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 768px) {
   /* Sidebar becomes off-canvas drawer */
@@ -961,7 +964,9 @@ body {
             <span class="lighting-room-name">욕실 (내부)</span>
           </div>
           <div class="lighting-func-list">
-            <div class="lighting-func-item"><div class="lighting-func-dot"></div><span class="lighting-func-text muted">기능 없음</span></div>
+            <div class="lighting-func-item"><div class="lighting-func-dot"></div><span class="lighting-func-text">주 조명 ON / OFF</span></div>
+            <div class="lighting-func-item"><div class="lighting-func-dot"></div><span class="lighting-func-text">간접조명 ON / OFF</span></div>
+            <div class="lighting-func-item"><div class="lighting-func-dot"></div><span class="lighting-func-text muted">3구 미사용 (기능 없음)</span></div>
           </div>
         </div>
         <div class="lighting-card">
@@ -1811,7 +1816,7 @@ function doLogout() {
 }
 
 // ROI 툴 캐시 무력화 토큰 (ROI 툴을 갱신할 때마다 이 숫자를 올리세요)
-const ROI_BUILD = '20260518a';
+const ROI_BUILD = '20260519a';
 
 // "새 창에서 열기" 링크에도 동일 토큰 부착
 (function attachRoiBuild() {
