@@ -1,0 +1,2101 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ThinQ Real ROI 분석툴</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  /* ===== Reset & Base ===== */
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :root {
+    --bg-primary: #FBFBFD;
+    --bg-secondary: #FFFFFF;
+    --bg-tertiary: #F5F5F7;
+    --text-primary: #1D1D1F;
+    --text-secondary: #515154;
+    --text-tertiary: #86868B;
+    --accent: #3a5035;
+    --accent-hover: #2d3e2a;
+    --accent-mid: #8fa889;
+    --teal: #5a7553;
+    --teal-light: #eef2ec;
+    --orange: #FF9500;
+    --orange-light: #FFF4E5;
+    --red: #FF3B30;
+    --green: #34C759;
+    --purple: #AF52DE;
+    --border: rgba(0, 0, 0, 0.08);
+    --border-strong: rgba(0, 0, 0, 0.12);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.04);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 18px;
+    --radius-xl: 24px;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.5;
+    letter-spacing: -0.01em;
+    padding: 32px 24px;
+  }
+
+  .container {
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  /* ===== Header ===== */
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  header h1 {
+    font-size: 40px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+  }
+  header .subtitle {
+    font-size: 17px;
+    color: var(--text-secondary);
+    font-weight: 400;
+  }
+
+  /* ===== Hero Result Card ===== */
+  .hero-result {
+    background: linear-gradient(135deg, #1D1D1F 0%, #2C2C2E 100%);
+    border-radius: var(--radius-xl);
+    padding: 48px 40px;
+    margin-bottom: 32px;
+    color: white;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-result::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(143, 168, 137, 0.18) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .hero-result-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 16px;
+  }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 32px;
+    align-items: end;
+    position: relative;
+    z-index: 1;
+  }
+  @media (max-width: 768px) {
+    .hero-grid {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+  }
+  .hero-bep .hero-value {
+    font-size: 64px;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    background: linear-gradient(135deg, #d4e4ce 0%, #8fa889 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  .hero-bep .hero-label {
+    font-size: 15px;
+    color: rgba(255,255,255,0.8);
+    font-weight: 500;
+  }
+  .hero-side {
+    padding-left: 32px;
+    border-left: 1px solid rgba(255,255,255,0.15);
+  }
+  @media (max-width: 768px) {
+    .hero-side { padding-left: 0; border-left: none; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 24px; }
+  }
+  .hero-side .hero-value {
+    font-size: 36px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    margin-bottom: 6px;
+    color: white;
+  }
+  .hero-side .hero-label {
+    font-size: 12px;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .hero-side .hero-sub {
+    font-size: 13px;
+    color: rgba(255,255,255,0.7);
+  }
+
+  /* ===== Summary Strip ===== */
+  .summary-strip {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: 24px 32px;
+    margin-bottom: 32px;
+    box-shadow: var(--shadow-sm);
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 20px;
+  }
+  @media (max-width: 1100px) {
+    .summary-strip { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 700px) {
+    .summary-strip { grid-template-columns: repeat(2, 1fr); }
+  }
+  .summary-item {
+    text-align: center;
+  }
+  .summary-item .label {
+    font-size: 11.5px;
+    color: var(--text-tertiary);
+    margin-bottom: 6px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+  .summary-item .value {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.015em;
+  }
+  .summary-item .value.muted {
+    color: var(--text-tertiary);
+    font-style: italic;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .summary-item.total .value {
+    color: var(--accent);
+    font-size: 20px;
+  }
+
+  /* ===== Charts ===== */
+  .charts-section {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+  @media (max-width: 900px) {
+    .charts-section { grid-template-columns: 1fr; }
+  }
+  .chart-card {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    box-shadow: var(--shadow-sm);
+  }
+  .chart-card h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    letter-spacing: -0.01em;
+  }
+  .chart-card .chart-desc {
+    font-size: 12.5px;
+    color: var(--text-tertiary);
+    margin-bottom: 20px;
+  }
+  .chart-wrapper {
+    position: relative;
+    height: 260px;
+  }
+
+  /* ===== Action Buttons ===== */
+  .actions {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 980px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    letter-spacing: -0.005em;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+  .btn-primary:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(58, 80, 53, 0.25);
+  }
+  .btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-strong);
+  }
+  .btn-secondary:hover {
+    background: var(--bg-tertiary);
+    transform: translateY(-1px);
+  }
+
+  /* ===== Input Panels ===== */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 900px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  .panel {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 24px;
+  }
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .panel-title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .panel h2 {
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.015em;
+  }
+  .panel-tag {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 980px;
+    font-weight: 500;
+  }
+  .panel-tag.teal { background: var(--teal-light); color: var(--teal); }
+  .panel-tag.orange { background: var(--orange-light); color: var(--orange); }
+  .panel-desc {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin-bottom: 24px;
+  }
+
+  /* ===== Variable Field ===== */
+  .variable {
+    margin-bottom: 24px;
+  }
+  .variable:last-child {
+    margin-bottom: 0;
+  }
+  .variable-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    gap: 12px;
+  }
+  .variable-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 500;
+    flex: 1;
+    min-width: 0;
+  }
+  .variable-label .symbol {
+    color: var(--teal);
+    font-weight: 600;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 12.5px;
+    background: var(--teal-light);
+    padding: 2px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+  }
+  .info-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    color: var(--text-tertiary);
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .info-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--accent);
+  }
+  .info-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+  .variable-value {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .variable-value input[type="number"] {
+    width: 90px;
+    padding: 6px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    text-align: right;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: inherit;
+    background: var(--bg-secondary);
+    transition: all 0.15s;
+  }
+  .variable-value input[type="number"]:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(58, 80, 53, 0.15);
+  }
+  .variable-value .unit {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-weight: 500;
+  }
+
+  /* ===== Slider (Apple-style) ===== */
+  input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: var(--bg-tertiary);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    background: white;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15), 0 1px 1px rgba(0,0,0,0.05);
+    transition: transform 0.1s;
+  }
+  input[type="range"]::-webkit-slider-thumb:active {
+    transform: scale(1.1);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    background: white;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  }
+
+  /* ===== Category Cards ===== */
+  .cat-card {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    padding: 16px 18px;
+    margin-bottom: 12px;
+    transition: all 0.15s;
+  }
+  .cat-card:hover {
+    background: white;
+    box-shadow: var(--shadow-sm);
+  }
+  .cat-card:last-child {
+    margin-bottom: 0;
+  }
+  .cat-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .cat-name-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cat-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .cat-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .cat-input-badge {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    background: var(--bg-secondary);
+    padding: 3px 10px;
+    border-radius: 980px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+  }
+  .cat-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+  }
+  .cat-field label {
+    display: block;
+    font-size: 10.5px;
+    color: var(--text-tertiary);
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+  .cat-field input {
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text-primary);
+    text-align: right;
+    background: var(--bg-secondary);
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .cat-field input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(58, 80, 53, 0.15);
+  }
+
+  /* ===== Modal Popup ===== */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 24px;
+    animation: fadeIn 0.2s ease-out;
+  }
+  .modal-overlay.active {
+    display: flex;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .modal {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-xl);
+    padding: 36px;
+    max-width: 520px;
+    width: 100%;
+    box-shadow: var(--shadow-lg);
+    animation: slideUp 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+    gap: 16px;
+  }
+  .modal-title-group {
+    flex: 1;
+  }
+  .modal-symbol {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 13px;
+    color: var(--teal);
+    background: var(--teal-light);
+    padding: 4px 10px;
+    border-radius: 6px;
+    display: inline-block;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .modal h3 {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+  }
+  .modal-close {
+    background: var(--bg-tertiary);
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .modal-close:hover {
+    background: var(--border-strong);
+  }
+  .modal-section {
+    margin-top: 24px;
+  }
+  .modal-section h4 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+  }
+  .modal-section p {
+    font-size: 15px;
+    color: var(--text-primary);
+    line-height: 1.6;
+  }
+  .modal-formula {
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    padding: 16px 20px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 14px;
+    color: var(--text-primary);
+    margin: 12px 0;
+  }
+  .modal-formula .accent {
+    color: var(--teal);
+    font-weight: 600;
+  }
+  .modal-list {
+    list-style: none;
+    padding: 0;
+  }
+  .modal-list li {
+    padding: 8px 0;
+    padding-left: 20px;
+    position: relative;
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+  .modal-list li::before {
+    content: "•";
+    position: absolute;
+    left: 6px;
+    color: var(--teal);
+    font-weight: 700;
+  }
+
+  /* ===== Footer ===== */
+  footer {
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 12px;
+    padding: 32px 0 16px;
+    font-weight: 400;
+  }
+
+  /* ===== Result animation ===== */
+  .hero-value, .summary-item .value {
+    transition: color 0.3s ease;
+  }
+
+  /* ===== Snapshots (시나리오 이력) ===== */
+  .snapshots-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+  }
+  .snapshots-empty {
+    text-align: center;
+    padding: 36px 16px;
+    color: var(--text-tertiary);
+    font-size: 14px;
+    line-height: 1.7;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+  }
+  .snapshot-item {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto auto;
+    column-gap: 16px;
+    row-gap: 4px;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .snapshot-item:hover {
+    border-color: var(--accent-mid);
+    box-shadow: var(--shadow-sm);
+  }
+  .snapshot-label {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+  .snapshot-author {
+    font-weight: 400;
+    color: var(--text-tertiary);
+    font-size: 13px;
+    margin-left: 6px;
+  }
+  .snapshot-time {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
+  .snapshot-meta {
+    grid-column: 1;
+    grid-row: 3;
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 6px;
+  }
+  .snapshot-meta strong {
+    color: var(--accent);
+    font-weight: 600;
+    margin-left: 4px;
+  }
+  .snapshot-actions {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .snapshot-btn {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--text-secondary);
+    padding: 7px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease, border-color .15s ease;
+    font-family: inherit;
+  }
+  .snapshot-btn:hover {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .snapshot-btn.danger:hover {
+    background: #fff0ef;
+    color: var(--red);
+    border-color: #ffb3b0;
+  }
+
+  /* 저장 다이얼로그 */
+  .snapshot-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 2000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .snapshot-dialog-overlay.active {
+    display: flex;
+  }
+  .snapshot-dialog {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    max-width: 460px;
+    width: 100%;
+    box-shadow: var(--shadow-lg);
+  }
+  .snapshot-dialog h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+  .snapshot-dialog p {
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .snapshot-dialog label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    margin-top: 12px;
+  }
+  .snapshot-dialog input[type="text"] {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    font-size: 15px;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    transition: border-color .15s ease;
+  }
+  .snapshot-dialog input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: white;
+  }
+  .snapshot-dialog-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 24px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>ThinQ Real ROI 분석툴</h1>
+    <p class="subtitle">변수를 조정하면 모든 수치가 실시간으로 업데이트됩니다</p>
+  </header>
+
+  <!-- Hero Result -->
+  <div class="hero-result">
+    <div class="hero-result-label">실시간 산출 결과</div>
+    <div class="hero-grid">
+      <div class="hero-bep">
+        <div class="hero-value" id="kpi-bep">1년 8개월</div>
+        <div class="hero-label">손익분기점까지 회수 예상</div>
+      </div>
+      <div class="hero-side">
+        <div class="hero-label">3년 누적 ROI</div>
+        <div class="hero-value" id="kpi-roi3">+76.7%</div>
+        <div class="hero-sub" id="kpi-roi3-sub">+2억 7,868만원</div>
+      </div>
+      <div class="hero-side">
+        <div class="hero-label">5년 누적 ROI</div>
+        <div class="hero-value" id="kpi-roi5">+194.8%</div>
+        <div class="hero-sub" id="kpi-roi5-sub">+7억 680만원</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Strip -->
+  <div class="summary-strip">
+    <div class="summary-item">
+      <div class="label">R&D 효율화</div>
+      <div class="value" id="sum-rnd">3,900만원</div>
+    </div>
+    <div class="summary-item">
+      <div class="label">영업 지원 (인프라)</div>
+      <div class="value" id="sum-sales-infra">1억원</div>
+    </div>
+    <div class="summary-item">
+      <div class="label">영업 지원 (기여이익)</div>
+      <div class="value" id="sum-sales-contrib">0원</div>
+    </div>
+    <div class="summary-item">
+      <div class="label">PR 가치</div>
+      <div class="value" id="sum-pr">7,500만원</div>
+    </div>
+    <div class="summary-item">
+      <div class="label">품질 가치</div>
+      <div class="value muted">정성 처리</div>
+    </div>
+    <div class="summary-item total">
+      <div class="label">연간 합계</div>
+      <div class="value" id="sum-total">2억 1,400만원</div>
+    </div>
+  </div>
+
+  <!-- Charts (실시간 산출 영역 바로 아래) -->
+  <div class="charts-section">
+    <div class="chart-card">
+      <h3>연도별 누적 손익</h3>
+      <p class="chart-desc">투자 시점부터 5년간 누적 손익 추이입니다. 점선과 만나는 시점이 손익분기점(BEP)입니다.</p>
+      <div class="chart-wrapper">
+        <canvas id="cumulativeChart" role="img" aria-label="연도별 누적 손익 추이 차트"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>가치 항목별 비중</h3>
+      <p class="chart-desc">연간 창출 가치가 어떤 항목에서 얼마만큼 나오는지를 보여줍니다.</p>
+      <div class="chart-wrapper">
+        <canvas id="breakdownChart" role="img" aria-label="가치 항목별 비중 도넛 차트"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="actions">
+    <button class="btn btn-primary" onclick="resetToDefaults()">기본값으로 초기화</button>
+    <button class="btn btn-secondary" onclick="resetToZeroContribution()">확정 산입 항목만 보기</button>
+    <button class="btn btn-secondary" onclick="loadSampleContribution()">기여 영업이익 반영 시</button>
+    <button class="btn btn-secondary" onclick="openSnapshotSaveDialog()">📌 현재 시나리오 저장</button>
+  </div>
+
+  <!-- Input Panels -->
+  <div class="main-grid">
+
+    <!-- Left Column -->
+    <div>
+      <!-- 비용 -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <h2>비용 구조</h2>
+            <span class="panel-tag">분모</span>
+          </div>
+        </div>
+        <p class="panel-desc">초기 투자비와 연간 운영비를 정의합니다.</p>
+
+        <div class="variable">
+          <div class="variable-header">
+            <span class="variable-label">
+              <span class="symbol">C_Invest</span>
+              리뉴얼 투자비 (Capex)
+              <button class="info-btn" onclick="showInfo('capex')" aria-label="설명 보기">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              </button>
+            </span>
+            <span class="variable-value"><input type="number" id="capex" value="354" min="0" max="1000" step="1"><span class="unit">백만원</span></span>
+          </div>
+          <input type="range" id="capex-slider" min="0" max="1000" step="1" value="354">
+        </div>
+
+        <div class="variable">
+          <div class="variable-header">
+            <span class="variable-label">
+              <span class="symbol">C_Oper</span>
+              연간 운영비 (Opex)
+              <button class="info-btn" onclick="showInfo('opex')" aria-label="설명 보기">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              </button>
+            </span>
+            <span class="variable-value"><input type="number" id="opex" value="9.2" min="0" max="100" step="0.1"><span class="unit">백만원/년</span></span>
+          </div>
+          <input type="range" id="opex-slider" min="0" max="100" step="0.1" value="9.2">
+        </div>
+      </div>
+
+      <!-- V_R&D -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <h2>R&D 효율화</h2>
+            <span class="panel-tag teal">V_R&D</span>
+          </div>
+          <button class="info-btn" onclick="showInfo('vrnd')" aria-label="설명 보기" style="padding:6px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          </button>
+        </div>
+        <p class="panel-desc">외부 인프라 대체 가치 — 내부 공간 활용으로 방어한 실지출</p>
+
+        <div class="variable">
+          <div class="variable-header">
+            <span class="variable-label">
+              <span class="symbol">C_ext_lab</span>
+              외부 스튜디오 일일 단가
+              <button class="info-btn" onclick="showInfo('cExtLab')" aria-label="설명 보기">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              </button>
+            </span>
+            <span class="variable-value"><input type="number" id="cExtLab" value="1.0" min="0" max="5" step="0.1"><span class="unit">백만원/일</span></span>
+          </div>
+          <input type="range" id="cExtLab-slider" min="0" max="5" step="0.1" value="1.0">
+        </div>
+
+        <div class="variable">
+          <div class="variable-header">
+            <span class="variable-label">
+              <span class="symbol">D_test</span>
+              연간 내부 사용일수
+              <button class="info-btn" onclick="showInfo('dTest')" aria-label="설명 보기">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              </button>
+            </span>
+            <span class="variable-value"><input type="number" id="dTest" value="39" min="0" max="200" step="1"><span class="unit">일</span></span>
+          </div>
+          <input type="range" id="dTest-slider" min="0" max="200" step="1" value="39">
+        </div>
+      </div>
+
+      <!-- V_Sales 인프라 -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <h2>영업 지원 — 인프라 효용</h2>
+            <span class="panel-tag teal">V_Sales (A)</span>
+          </div>
+          <button class="info-btn" onclick="showInfo('vsalesInfra')" aria-label="설명 보기" style="padding:6px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          </button>
+        </div>
+        <p class="panel-desc">외부 응대 공간 구축·운영 기회비용 절감</p>
+
+        <div class="variable">
+          <div class="variable-header">
+            <span class="variable-label">
+              <span class="symbol">C_venue</span>
+              외부 응대 공간 회당 비용
+              <button class="info-btn" onclick="showInfo('cVenue')" aria-label="설명 보기">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              </button>
+            </span>
+            <span class="variable-value"><input type="number" id="cVenue" value="2.0" min="0" max="10" step="0.1"><span class="unit">백만원/건</span></span>
+          </div>
+          <input type="range" id="cVenue-slider" min="0" max="10" step="0.1" value="2.0">
+        </div>
+
+        <div class="variable">
+          <div class="variable-header">
+            <span class="variable-label">
+              <span class="symbol">N_visit</span>
+              연간 외부 방문 건수
+              <button class="info-btn" onclick="showInfo('nVisit')" aria-label="설명 보기">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              </button>
+            </span>
+            <span class="variable-value"><input type="number" id="nVisit" value="30" min="0" max="200" step="1"><span class="unit">건</span></span>
+          </div>
+          <input type="range" id="nVisit-slider" min="0" max="200" step="1" value="30">
+        </div>
+
+        <div class="variable">
+          <div class="variable-header">
+            <span class="variable-label">
+              <span class="symbol">C_agency</span>
+              도슨트 절감
+              <button class="info-btn" onclick="showInfo('cAgency')" aria-label="설명 보기">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              </button>
+            </span>
+            <span class="variable-value"><input type="number" id="cAgency" value="40" min="0" max="200" step="1"><span class="unit">백만원/년</span></span>
+          </div>
+          <input type="range" id="cAgency-slider" min="0" max="200" step="1" value="40">
+        </div>
+      </div>
+
+      <!-- V_PR (PR 가치) -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <h2>PR 가치</h2>
+            <span class="panel-tag" style="background:#EEEDFE; color:#7F51E4;">V_PR</span>
+          </div>
+          <button class="info-btn" onclick="showInfo('vpr')" aria-label="설명 보기" style="padding:6px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          </button>
+        </div>
+        <p class="panel-desc">Press Tour 광고환산가치 (AVE 보수 산정)</p>
+
+        <div class="variable">
+          <div class="variable-header">
+            <span class="variable-label">
+              <span class="symbol">N_press</span>
+              Press Tour 건수
+              <button class="info-btn" onclick="showInfo('nPress')" aria-label="설명 보기">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              </button>
+            </span>
+            <span class="variable-value"><input type="number" id="nPress" value="3" min="0" max="50" step="1"><span class="unit">건</span></span>
+          </div>
+          <input type="range" id="nPress-slider" min="0" max="50" step="1" value="3">
+        </div>
+
+        <div class="variable">
+          <div class="variable-header">
+            <span class="variable-label">
+              <span class="symbol">R_media</span>
+              건당 매체 광고 정가
+              <button class="info-btn" onclick="showInfo('rMedia')" aria-label="설명 보기">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              </button>
+            </span>
+            <span class="variable-value"><input type="number" id="rMedia" value="50" min="0" max="500" step="1"><span class="unit">백만원/건</span></span>
+          </div>
+          <input type="range" id="rMedia-slider" min="0" max="500" step="1" value="50">
+        </div>
+
+        <div class="variable">
+          <div class="variable-header">
+            <span class="variable-label">
+              <span class="symbol">K_adj</span>
+              보수 계수
+              <button class="info-btn" onclick="showInfo('kAdj')" aria-label="설명 보기">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              </button>
+            </span>
+            <span class="variable-value"><input type="number" id="kAdj" value="0.5" min="0" max="1" step="0.05"></span>
+          </div>
+          <input type="range" id="kAdj-slider" min="0" max="1" step="0.05" value="0.5">
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column -->
+    <div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <h2>영업 지원 — 기여 영업이익</h2>
+            <span class="panel-tag orange">V_Sales (B)</span>
+          </div>
+          <button class="info-btn" onclick="showInfo('vsalesContrib')" aria-label="설명 보기" style="padding:6px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          </button>
+        </div>
+        <p class="panel-desc">각 부서로부터 수령한 데이터를 직접 입력하면 자동으로 산입됩니다.</p>
+
+        <div id="categories"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 저장된 시나리오 (이력 관리) -->
+  <div class="panel" style="margin-top:24px;">
+    <div class="panel-header">
+      <div class="panel-title-group">
+        <h2>저장된 시나리오</h2>
+        <span class="panel-tag">이력 관리</span>
+      </div>
+      <button class="snapshot-btn" onclick="refreshSnapshots()">🔄 새로고침</button>
+    </div>
+    <p class="panel-desc">실시간 시뮬레이션 결과를 시점별로 저장해 변수 변화 이력을 비교할 수 있습니다.</p>
+    <div id="snapshots-list" class="snapshots-list">
+      <div class="snapshots-empty">불러오는 중…</div>
+    </div>
+  </div>
+
+  <footer>
+    ThinQ Real ROI 분석툴 · 2026년 5월 · 데이터가 쌓일수록 더 강해지는 공간
+  </footer>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <span class="modal-symbol" id="modal-symbol"></span>
+        <h3 id="modal-title"></h3>
+      </div>
+      <button class="modal-close" onclick="closeModal()" aria-label="닫기">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- Snapshot Save Dialog -->
+<div class="snapshot-dialog-overlay" id="snapshot-dialog" onclick="closeSnapshotDialog(event)">
+  <div class="snapshot-dialog" onclick="event.stopPropagation()">
+    <h3>현재 시나리오 저장</h3>
+    <p>지금 입력된 변수와 산출 결과를 시점 기록으로 저장합니다.</p>
+    <label for="snapshot-label-input">시나리오 이름 <span style="color:var(--red);">*</span></label>
+    <input type="text" id="snapshot-label-input" placeholder="예: 2026년 5월 초안" maxlength="80">
+    <label for="snapshot-author-input">작성자 (선택)</label>
+    <input type="text" id="snapshot-author-input" placeholder="예: 이철호" maxlength="40">
+    <div class="snapshot-dialog-actions">
+      <button class="btn btn-secondary" onclick="closeSnapshotDialog()">취소</button>
+      <button class="btn btn-primary" onclick="saveSnapshot()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==================== 정보 팝업 콘텐츠 ====================
+const infoContent = {
+  capex: {
+    symbol: 'C_Invest',
+    title: '리뉴얼 투자비 (Capex)',
+    body: `
+      <div class="modal-section">
+        <h4>정의</h4>
+        <p>ThinQ Real 공간을 새롭게 구축하기 위해 한 번에 지출한 초기 투자비입니다. 공사·설치·기기 구입비를 모두 합한 금액으로, 분석에서는 분모(총 비용)의 핵심 구성요소입니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>기본값 산정 근거</h4>
+        <p><strong>354백만원</strong> — 2026년 5월 리뉴얼 시 실제 집행된 금액</p>
+        <ul class="modal-list">
+          <li>리뉴얼 공사비 (인테리어, 전기, 배관)</li>
+          <li>가전 및 IoT 기기 구입·설치비</li>
+        </ul>
+      </div>
+    `
+  },
+  opex: {
+    symbol: 'C_Oper',
+    title: '연간 운영비 (Opex)',
+    body: `
+      <div class="modal-section">
+        <h4>정의</h4>
+        <p>ThinQ Real 공간을 1년간 유지·관리하는 데 들어가는 비용입니다. 마곡 LG사이언스파크 내 입주로 인해 관리비·전기·수도는 별도로 발생하지 않습니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>기본값 산정 근거</h4>
+        <p><strong>9.2백만원/년</strong></p>
+        <ul class="modal-list">
+          <li>통신비 4.2백만원 (판교 ThinQ홈 월 35만원 적용)</li>
+          <li>유지보수비 5.0백만원 (리뉴얼 직후 보수적 추정)</li>
+        </ul>
+      </div>
+    `
+  },
+  vrnd: {
+    symbol: 'V_R&D',
+    title: 'R&D 효율화 가치',
+    body: `
+      <div class="modal-section">
+        <h4>개념</h4>
+        <p>외부 스마트홈 스튜디오를 빌리지 않고 ThinQ Real을 내부에서 활용함으로써 방어한 실지출 비용입니다.</p>
+        <div class="modal-formula">V_R&D = <span class="accent">C_ext_lab</span> × <span class="accent">D_test</span></div>
+      </div>
+      <div class="modal-section">
+        <h4>차별점</h4>
+        <p>ThinQ Real은 보안게이트 외부에 위치하여 사내 보안망 예외 처리가 되어 있어 인터넷 테스트가 자유롭습니다. 사내 다른 공간으로는 대체 불가능한 강점입니다.</p>
+      </div>
+    `
+  },
+  cExtLab: {
+    symbol: 'C_ext_lab',
+    title: '외부 스튜디오 일일 단가',
+    body: `
+      <div class="modal-section">
+        <h4>정의</h4>
+        <p>ThinQ Real이 없었다면 빌렸어야 할 외부 스마트홈 스튜디오의 1일 대관 비용입니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>기본값 산정 근거</h4>
+        <p><strong>1,000,000원/일</strong></p>
+        <ul class="modal-list">
+          <li>가전·IoT 완비 스마트홈 스튜디오 시세 기준</li>
+          <li>외부 랩 이용 경험이 없어 보수적 추정값 적용</li>
+          <li>일반 촬영 스튜디오(30~50만원)보다 높지만 기업용 스마트홈 랩 수준으로 책정</li>
+        </ul>
+      </div>
+    `
+  },
+  dTest: {
+    symbol: 'D_test',
+    title: '연간 내부 사용일수',
+    body: `
+      <div class="modal-section">
+        <h4>정의</h4>
+        <p>R&D 팀이 ThinQ Real에서 테스트·검증을 위해 사용한 연간 총 일수입니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>기본값 산정 근거</h4>
+        <p><strong>39일/년</strong></p>
+        <div class="modal-formula">2주 1건 × 연 26건 × 평균 1.5일/건 = 39일</div>
+        <ul class="modal-list">
+          <li>내부 개발팀 사용 빈도 약 2주 1건 기준</li>
+          <li>건당 사용일수는 1일(짧음) ~ 3일(임원보고 등) 평균 1.5일 적용</li>
+          <li>고객사 방문 건은 별도로 V_Sales에서 산정 (중복 방지)</li>
+        </ul>
+      </div>
+    `
+  },
+  vsalesInfra: {
+    symbol: 'V_Sales (A)',
+    title: 'V_Sales — 인프라 효용',
+    body: `
+      <div class="modal-section">
+        <h4>개념</h4>
+        <p>외부 응대 공간 구축 및 운영 대행 위탁 시 발생할 기회비용 절감액입니다. ThinQ Real 덕분에 호텔 세미나룸을 빌리거나 외부 도슨트를 고용할 필요가 없어진 가치를 산정합니다.</p>
+        <div class="modal-formula">(<span class="accent">C_venue</span> × <span class="accent">N_visit</span>) + <span class="accent">C_agency</span></div>
+      </div>
+      <div class="modal-section">
+        <h4>이 보고서에서의 처리</h4>
+        <p>이 항목은 실측 기반 데이터로 산출되어 <strong>확정 산입</strong>됩니다.</p>
+      </div>
+    `
+  },
+  cVenue: {
+    symbol: 'C_venue',
+    title: '외부 응대 공간 회당 비용',
+    body: `
+      <div class="modal-section">
+        <h4>정의</h4>
+        <p>ThinQ Real이 없었다면 외부에서 B2B 파트너사를 응대했을 때 발생할 회당 평균 비용입니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>기본값 산정 근거</h4>
+        <p><strong>2,000,000원/건</strong></p>
+        <ul class="modal-list">
+          <li>강남권 특급호텔 세미나룸 대관 기준 (반일~종일 150만~300만원)</li>
+          <li>도슨트 응대, 시연 준비 등 부대비용 포함</li>
+          <li>방문사 스펙트럼(BESTBUY, Home Depot, 사우디 건설사 등 글로벌 기업) 고려</li>
+        </ul>
+      </div>
+    `
+  },
+  nVisit: {
+    symbol: 'N_visit',
+    title: '연간 외부 방문 건수',
+    body: `
+      <div class="modal-section">
+        <h4>정의</h4>
+        <p>ThinQ Real을 방문한 외부 고객사·파트너사의 연간 총 건수입니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>기본값 산정 근거</h4>
+        <p><strong>30건 (2025년 실적)</strong></p>
+        <ul class="modal-list">
+          <li>국내 고객사 14건: KT, LG헬로비전, DL이앤씨, LX하우시스, LGU+ 등</li>
+          <li>해외 고객사 16건: BESTBUY, LOWE'S, Home Depot, Harvey Norman 등</li>
+          <li>Press Tour 3건 (미국·영국·중화)과 LGE 내부 3건은 별도 (산입 제외)</li>
+        </ul>
+      </div>
+    `
+  },
+  cAgency: {
+    symbol: 'C_agency × T_op',
+    title: '도슨트 절감',
+    body: `
+      <div class="modal-section">
+        <h4>정의</h4>
+        <p>전문 전시 도슨트 또는 운영 대행사를 고용했을 때 발생할 연간 인건비를 절감한 가치입니다. ThinQ Real은 별도 도슨트 없이 담당 팀원이 응대합니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>기본값 산정 근거</h4>
+        <p><strong>40,000,000원/년</strong> — 판교 ThinQ홈 도슨트 연봉 4천만원 기준</p>
+      </div>
+    `
+  },
+  vsalesContrib: {
+    symbol: 'V_Sales (B)',
+    title: 'V_Sales — 기여 영업이익',
+    body: `
+      <div class="modal-section">
+        <h4>개념</h4>
+        <p>ThinQ Real 방문이 실제 수주·계약·기획·홍보에 기여한 영업이익을 6개 카테고리로 분해하여 산정합니다.</p>
+        <div class="modal-formula">Σ ( <span class="accent">V_pipe,k</span> × <span class="accent">R_margin,k</span> × <span class="accent">W_attr,k</span> )</div>
+      </div>
+      <div class="modal-section">
+        <h4>핵심 원칙</h4>
+        <p><strong>ThinQ Real팀은 데이터 입력 주체가 아닌 취합·검증 주체입니다.</strong> 각 카테고리의 데이터는 해당 부서가 직접 입력하여 객관성을 확보합니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>각 변수 의미</h4>
+        <ul class="modal-list">
+          <li><strong>V_pipe</strong>: 해당 카테고리의 수주 또는 매출 기여 금액</li>
+          <li><strong>R_margin</strong>: 영업이익률 (%)</li>
+          <li><strong>W_attr</strong>: ThinQ Real이 해당 성과에 기여한 비율 (%)</li>
+        </ul>
+      </div>
+      <div class="modal-section">
+        <h4>현재 상태</h4>
+        <p>각 부서로부터 데이터를 수령하기 전이므로 기본값은 모두 0입니다. 데이터 수령 시 입력하여 ROI를 갱신할 수 있습니다.</p>
+      </div>
+    `
+  },
+  vpr: {
+    symbol: 'V_PR',
+    title: 'PR 가치 (Press Tour 광고환산가치)',
+    body: `
+      <div class="modal-section">
+        <h4>개념</h4>
+        <p>Press Tour를 통한 글로벌 매체 노출의 광고 환산 가치(AVE, Advertising Value Equivalency)입니다. 사업개발 관점에서 ThinQ Real이 만들어내는 PR 자산을 정량화합니다.</p>
+        <div class="modal-formula">V_PR = Σ ( <span class="accent">R_media,i</span> × <span class="accent">A_coverage,i</span> ) × <span class="accent">K_adj</span></div>
+      </div>
+      <div class="modal-section">
+        <h4>보수적 산정 원칙</h4>
+        <ul class="modal-list">
+          <li><strong>Multiplier 1.0 적용</strong> — AVE의 일반 권장 1.5배(뉴스 신뢰도 가산)을 의도적으로 배제</li>
+          <li><strong>보수 계수 0.5 적용</strong> — rate card 정가 대비 실제 거래가 30~70%의 중간값</li>
+        </ul>
+      </div>
+      <div class="modal-section">
+        <h4>AVE의 한계 (보고서에 명시 권장)</h4>
+        <p>AMEC 바르셀로나 원칙은 AVE를 "커뮤니케이션 가치"로 인정하지 않습니다. 본 산정은 그 한계를 인정하면서도 "재무팀이 이해 가능한 언어"로 PR 가치를 표현하는 데 유효합니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>향후 정확도 향상</h4>
+        <p>HS브랜드커뮤니케이션담당 실제 보도 클리핑 + 자체 AVE 산정값 수령 시 즉시 갱신, 매체별 차등 단가 적용 예정.</p>
+      </div>
+    `
+  },
+  nPress: {
+    symbol: 'N_press',
+    title: 'Press Tour 건수',
+    body: `
+      <div class="modal-section">
+        <h4>정의</h4>
+        <p>ThinQ Real을 방문해 보도가 이루어진 글로벌 Press Tour의 연간 건수입니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>기본값 산정 근거</h4>
+        <p><strong>3건 (2025년 실적)</strong></p>
+        <ul class="modal-list">
+          <li>미국 Press Tour</li>
+          <li>영국 Press Tour</li>
+          <li>아르헨티나 Press Tour</li>
+        </ul>
+      </div>
+    `
+  },
+  rMedia: {
+    symbol: 'R_media',
+    title: '건당 매체 광고 정가',
+    body: `
+      <div class="modal-section">
+        <h4>정의</h4>
+        <p>Press Tour 1건에 해당하는 매체 광고의 정가(Rate Card Price)입니다. 글로벌 매체 기준으로 추정한 보수적 단가입니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>기본값 산정 근거</h4>
+        <p><strong>5,000만원/건</strong> — 글로벌 매체 광고 단가 보수 추정값</p>
+        <p>실제 보도된 매체별 광고 단가 데이터 확보 시 정확한 값으로 갱신 권장.</p>
+      </div>
+    `
+  },
+  kAdj: {
+    symbol: 'K_adj',
+    title: '보수 계수',
+    body: `
+      <div class="modal-section">
+        <h4>정의</h4>
+        <p>rate card 정가와 실제 거래가의 차이를 반영하는 보정 계수입니다. PR 업계 표준에 따른 보수적 산정 방식입니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>기본값</h4>
+        <p><strong>0.5</strong></p>
+        <ul class="modal-list">
+          <li>광고 rate card 정가는 실제 거래가의 1.4~3.3배 수준</li>
+          <li>30~70% 범위의 중간값으로 보수적 적용</li>
+        </ul>
+      </div>
+      <div class="modal-section">
+        <h4>적용 가이드</h4>
+        <ul class="modal-list">
+          <li>0.3 — 매우 보수적 (실거래가 30% 가정)</li>
+          <li>0.5 — 표준 보수 (권장)</li>
+          <li>0.7 — 일반 추정</li>
+          <li>1.0 — rate card 정가 그대로 (위험)</li>
+        </ul>
+      </div>
+    `
+  },
+};
+
+// ==================== 카테고리별 정보 ====================
+const catInfo = {
+  iot: {
+    symbol: 'k = IoT',
+    title: 'IoT 영업이익 기여',
+    body: `
+      <div class="modal-section">
+        <h4>데이터 입력 주체</h4>
+        <p><strong>영업팀</strong>이 직접 입력합니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>산식</h4>
+        <div class="modal-formula">IoT 수주금액 × 영업이익률 × ThinQ Real 기여도</div>
+      </div>
+      <div class="modal-section">
+        <h4>해당 범위</h4>
+        <p>리뉴얼 이후 ThinQ Real을 방문한 고객사 중 IoT 관련 수주가 발생한 건의 영업이익입니다. 시점 인과관계가 명확한 건만 산입합니다.</p>
+      </div>
+    `
+  },
+  home: {
+    symbol: 'k = 가전',
+    title: '가전 영업이익 기여',
+    body: `
+      <div class="modal-section">
+        <h4>데이터 입력 주체</h4>
+        <p><strong>영업팀</strong>이 직접 입력합니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>산식</h4>
+        <div class="modal-formula">가전 수주금액 × 영업이익률 × ThinQ Real 기여도</div>
+      </div>
+      <div class="modal-section">
+        <h4>해당 범위</h4>
+        <p>ThinQ Real 방문 고객사에서 발생한 가전 제품 동반 수주 영업이익입니다.</p>
+      </div>
+    `
+  },
+  planning: {
+    symbol: 'k = 상품기획',
+    title: 'HS/ES 상품기획 기여',
+    body: `
+      <div class="modal-section">
+        <h4>데이터 입력 주체</h4>
+        <p><strong>HS/ES 상품기획팀</strong>이 직접 입력합니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>해당 범위</h4>
+        <p>ThinQ Real에서의 시연·검증을 통해 상품 기획에 반영되어 매출 또는 영업이익을 창출한 경우입니다.</p>
+      </div>
+    `
+  },
+  marketing: {
+    symbol: 'k = 마케팅',
+    title: '홍보·광고 마케팅 기여',
+    body: `
+      <div class="modal-section">
+        <h4>데이터 입력 주체</h4>
+        <p><strong>홍보·광고팀</strong>이 직접 입력합니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>해당 범위</h4>
+        <p>ThinQ Real을 활용한 광고 콘텐츠 제작, 미디어 노출, Press Tour 등을 통해 발생한 마케팅 ROI입니다.</p>
+      </div>
+    `
+  },
+  task: {
+    symbol: 'k = 신규Task',
+    title: '신규 Task 기여',
+    body: `
+      <div class="modal-section">
+        <h4>데이터 입력 주체</h4>
+        <p><strong>해당 Task 담당팀</strong>이 직접 입력합니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>해당 범위</h4>
+        <p>신규 프로젝트나 신사업 추진 과정에서 ThinQ Real이 활용된 경우의 기여 영업이익입니다.</p>
+      </div>
+    `
+  },
+  etc: {
+    symbol: 'k = 기타',
+    title: '기타 기여',
+    body: `
+      <div class="modal-section">
+        <h4>데이터 입력 주체</h4>
+        <p><strong>사안별 담당팀</strong>이 직접 입력합니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>해당 범위</h4>
+        <p>위 5개 카테고리에 속하지 않으나 ThinQ Real이 기여한 기타 영업이익 사례입니다.</p>
+      </div>
+    `
+  },
+};
+
+// ==================== Modal 함수 ====================
+function showInfo(key) {
+  const info = infoContent[key] || catInfo[key];
+  if (!info) return;
+  document.getElementById('modal-symbol').textContent = info.symbol;
+  document.getElementById('modal-title').textContent = info.title;
+  document.getElementById('modal-body').innerHTML = info.body;
+  document.getElementById('modal').classList.add('active');
+}
+function closeModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('modal').classList.remove('active');
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
+});
+
+// ==================== 카테고리 정의 ====================
+const categories = [
+  { id: 'iot',       name: 'IoT 영업이익',       input: '영업팀',       color: '#3a5035' },
+  { id: 'home',      name: '가전 영업이익',      input: '영업팀',       color: '#34C759' },
+  { id: 'planning',  name: 'HS/ES 상품기획',     input: '상품기획팀',   color: '#8fa889' },
+  { id: 'marketing', name: '홍보·광고 마케팅',   input: '홍보·광고팀',  color: '#FF9500' },
+  { id: 'task',      name: '신규 Task 기여',     input: 'Task 담당팀',  color: '#AF52DE' },
+  { id: 'etc',       name: '기타 기여',           input: '사안별 담당팀', color: '#86868B' },
+];
+
+// ==================== 카테고리 카드 렌더 ====================
+const catContainer = document.getElementById('categories');
+categories.forEach(c => {
+  const card = document.createElement('div');
+  card.className = 'cat-card';
+  card.innerHTML = `
+    <div class="cat-card-header">
+      <div class="cat-name-group">
+        <span class="cat-dot" style="background:${c.color}"></span>
+        <span class="cat-name">${c.name}</span>
+        <button class="info-btn" onclick="showInfo('${c.id}')" aria-label="설명 보기">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        </button>
+      </div>
+      <span class="cat-input-badge">${c.input}</span>
+    </div>
+    <div class="cat-fields">
+      <div class="cat-field">
+        <label>수주금액(백만)</label>
+        <input type="number" id="${c.id}-pipe" value="0" min="0" step="1">
+      </div>
+      <div class="cat-field">
+        <label>이익률(%)</label>
+        <input type="number" id="${c.id}-margin" value="0" min="0" max="100" step="0.1">
+      </div>
+      <div class="cat-field">
+        <label>기여도(%)</label>
+        <input type="number" id="${c.id}-attr" value="0" min="0" max="100" step="1">
+      </div>
+    </div>
+  `;
+  catContainer.appendChild(card);
+});
+
+// ==================== 슬라이더 ↔ 입력 동기화 ====================
+const linkedPairs = ['capex', 'opex', 'cExtLab', 'dTest', 'cVenue', 'nVisit', 'cAgency', 'nPress', 'rMedia', 'kAdj'];
+linkedPairs.forEach(id => {
+  const input = document.getElementById(id);
+  const slider = document.getElementById(id + '-slider');
+  input.addEventListener('input', () => { slider.value = input.value; calculate(); });
+  slider.addEventListener('input', () => { input.value = slider.value; calculate(); });
+});
+
+categories.forEach(c => {
+  ['pipe', 'margin', 'attr'].forEach(field => {
+    document.getElementById(`${c.id}-${field}`).addEventListener('input', calculate);
+  });
+});
+
+// ==================== 차트 ====================
+let cumulativeChart, breakdownChart;
+
+function initCharts() {
+  const ctx1 = document.getElementById('cumulativeChart').getContext('2d');
+  cumulativeChart = new Chart(ctx1, {
+    type: 'line',
+    data: {
+      labels: ['0년', '1년', '2년', '3년', '4년', '5년'],
+      datasets: [
+        {
+          label: '누적 손익',
+          data: [],
+          borderColor: '#3a5035',
+          backgroundColor: 'rgba(58, 80, 53, 0.08)',
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.3,
+          pointRadius: 5,
+          pointBackgroundColor: '#3a5035',
+          pointBorderColor: 'white',
+          pointBorderWidth: 2.5,
+          pointHoverRadius: 7,
+        },
+        {
+          label: '손익분기선',
+          data: [0, 0, 0, 0, 0, 0],
+          borderColor: '#FF9500',
+          borderWidth: 1.5,
+          borderDash: [6, 4],
+          fill: false,
+          pointRadius: 0,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            font: { size: 12, family: '-apple-system, BlinkMacSystemFont, sans-serif' },
+            boxWidth: 12,
+            usePointStyle: true,
+            padding: 16,
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(29, 29, 31, 0.95)',
+          padding: 12,
+          cornerRadius: 8,
+          titleFont: { size: 13, weight: '600' },
+          bodyFont: { size: 12 },
+          callbacks: {
+            label: (ctx) => {
+              const v = ctx.parsed.y;
+              return ctx.dataset.label + ': ' + (v >= 0 ? '+' : '') + (v / 1e6).toFixed(1) + '백만원';
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          ticks: {
+            font: { size: 11, family: '-apple-system, sans-serif' },
+            color: '#86868B',
+            callback: (v) => (v / 1e6).toFixed(0) + 'M'
+          },
+          grid: { color: 'rgba(0, 0, 0, 0.04)' },
+          border: { display: false },
+        },
+        x: {
+          ticks: { font: { size: 11, family: '-apple-system, sans-serif' }, color: '#86868B' },
+          grid: { display: false },
+          border: { display: false },
+        },
+      },
+    },
+  });
+
+  const ctx2 = document.getElementById('breakdownChart').getContext('2d');
+  breakdownChart = new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+      labels: ['R&D 효율화', '영업 지원 (인프라)', '영업 지원 (기여이익)', 'PR 가치'],
+      datasets: [{
+        data: [39, 100, 0, 75],
+        backgroundColor: ['#3a5035', '#8fa889', '#FF9500', '#AF52DE'],
+        borderWidth: 3,
+        borderColor: 'white',
+        hoverOffset: 8,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            font: { size: 12, family: '-apple-system, sans-serif' },
+            boxWidth: 12,
+            usePointStyle: true,
+            padding: 14,
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(29, 29, 31, 0.95)',
+          padding: 12,
+          cornerRadius: 8,
+          titleFont: { size: 13, weight: '600' },
+          bodyFont: { size: 12 },
+          callbacks: {
+            label: (ctx) => {
+              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              const pct = total > 0 ? (ctx.parsed / total * 100).toFixed(1) : 0;
+              return ctx.label + ': ' + ctx.parsed.toFixed(1) + '백만원 (' + pct + '%)';
+            },
+          }
+        }
+      },
+    },
+  });
+}
+
+// ==================== 계산 ====================
+function fmt(n) {
+  if (n === 0) return '0원';
+  const isNeg = n < 0;
+  const absN = Math.abs(n);
+  const eok = Math.floor(absN / 1e8);
+  const man = Math.floor((absN % 1e8) / 1e4);
+  let str = '';
+  if (eok > 0) str += eok + '억 ';
+  if (man > 0 || eok === 0) str += man.toLocaleString() + '만원';
+  else str = str.trim() + '원';
+  return (isNeg ? '-' : '') + str.trim();
+}
+
+function fmtBep(years) {
+  if (years === Infinity || years < 0) return '회수 불가';
+  if (years > 99) return '99년+';
+  const y = Math.floor(years);
+  const m = Math.round((years - y) * 12);
+  if (m === 12) return (y + 1) + '년';
+  if (y === 0) return m + '개월';
+  return y + '년 ' + m + '개월';
+}
+
+function calculate() {
+  const capex = (+document.getElementById('capex').value) * 1e6;
+  const opex = (+document.getElementById('opex').value) * 1e6;
+
+  const cExtLab = (+document.getElementById('cExtLab').value) * 1e6;
+  const dTest = +document.getElementById('dTest').value;
+  const vRnD = cExtLab * dTest;
+
+  const cVenue = (+document.getElementById('cVenue').value) * 1e6;
+  const nVisit = +document.getElementById('nVisit').value;
+  const cAgency = (+document.getElementById('cAgency').value) * 1e6;
+  const vSalesInfra = cVenue * nVisit + cAgency;
+
+  let vSalesContrib = 0;
+  categories.forEach(c => {
+    const pipe = (+document.getElementById(`${c.id}-pipe`).value) * 1e6;
+    const margin = (+document.getElementById(`${c.id}-margin`).value) / 100;
+    const attr = (+document.getElementById(`${c.id}-attr`).value) / 100;
+    vSalesContrib += pipe * margin * attr;
+  });
+
+  // V_PR (PR 가치) — AVE 기반 보수적 산정
+  const nPress = +document.getElementById('nPress').value;
+  const rMedia = (+document.getElementById('rMedia').value) * 1e6;
+  const kAdj = +document.getElementById('kAdj').value;
+  const vPR = nPress * rMedia * kAdj;
+
+  const annualValue = vRnD + vSalesInfra + vSalesContrib + vPR;
+
+  // PPT와 동일한 산식으로 통일
+  // - 총 비용 = Capex + Opex(1회분만)
+  // - BEP = Capex ÷ 연간 가치 (Opex 무시)
+  // - 누적 손익 = -총비용 + 연간 가치 × N년
+  const totalCost = capex + opex;
+  const roi3 = ((annualValue * 3 - totalCost) / totalCost) * 100;
+  const roi5 = ((annualValue * 5 - totalCost) / totalCost) * 100;
+  const profit3 = annualValue * 3 - totalCost;
+  const profit5 = annualValue * 5 - totalCost;
+
+  const bepYears = annualValue > 0 ? capex / annualValue : Infinity;
+
+  document.getElementById('kpi-bep').textContent = fmtBep(bepYears);
+  document.getElementById('kpi-roi3').textContent = (roi3 >= 0 ? '+' : '') + roi3.toFixed(1) + '%';
+  document.getElementById('kpi-roi5').textContent = (roi5 >= 0 ? '+' : '') + roi5.toFixed(1) + '%';
+  document.getElementById('kpi-roi3-sub').textContent = (profit3 >= 0 ? '+' : '') + fmt(profit3);
+  document.getElementById('kpi-roi5-sub').textContent = (profit5 >= 0 ? '+' : '') + fmt(profit5);
+
+  document.getElementById('sum-rnd').textContent = fmt(vRnD);
+  document.getElementById('sum-sales-infra').textContent = fmt(vSalesInfra);
+  document.getElementById('sum-sales-contrib').textContent = fmt(vSalesContrib);
+  document.getElementById('sum-pr').textContent = fmt(vPR);
+  document.getElementById('sum-total').textContent = fmt(annualValue);
+
+  // 누적 손익 차트 데이터 (PPT 산식과 동일)
+  // Y0 = -총비용, 이후 매년 annualValue씩 가산
+  const cumData = [];
+  for (let y = 0; y <= 5; y++) {
+    if (y === 0) cumData.push(-totalCost);
+    else cumData.push(-totalCost + annualValue * y);
+  }
+  cumulativeChart.data.datasets[0].data = cumData;
+  cumulativeChart.update('none');
+
+  breakdownChart.data.datasets[0].data = [
+    vRnD / 1e6,
+    vSalesInfra / 1e6,
+    vSalesContrib / 1e6,
+    vPR / 1e6,
+  ];
+  breakdownChart.update('none');
+}
+
+// ==================== 프리셋 ====================
+function resetToDefaults() {
+  const defaults = { capex:354, opex:9.2, cExtLab:1.0, dTest:39, cVenue:2.0, nVisit:30, cAgency:40, nPress:3, rMedia:50, kAdj:0.5 };
+  Object.entries(defaults).forEach(([id, val]) => {
+    document.getElementById(id).value = val;
+    document.getElementById(id + '-slider').value = val;
+  });
+  categories.forEach(c => {
+    document.getElementById(`${c.id}-pipe`).value = 0;
+    document.getElementById(`${c.id}-margin`).value = 0;
+    document.getElementById(`${c.id}-attr`).value = 0;
+  });
+  calculate();
+}
+
+function resetToZeroContribution() {
+  categories.forEach(c => {
+    document.getElementById(`${c.id}-pipe`).value = 0;
+    document.getElementById(`${c.id}-margin`).value = 0;
+    document.getElementById(`${c.id}-attr`).value = 0;
+  });
+  calculate();
+}
+
+function loadSampleContribution() {
+  document.getElementById('iot-pipe').value = 1575;
+  document.getElementById('iot-margin').value = 8;
+  document.getElementById('iot-attr').value = 20;
+  document.getElementById('home-pipe').value = 25200;
+  document.getElementById('home-margin').value = 4;
+  document.getElementById('home-attr').value = 30;
+  calculate();
+}
+
+// ==================== 시나리오 스냅샷 (이력 관리) ====================
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec';
+const SIMPLE_INPUTS = ['capex','opex','cExtLab','dTest','cVenue','nVisit','cAgency','nPress','rMedia','kAdj'];
+
+function collectInputs() {
+  const inputs = {};
+  SIMPLE_INPUTS.forEach(id => { inputs[id] = +document.getElementById(id).value; });
+  inputs.categories = {};
+  categories.forEach(c => {
+    inputs.categories[c.id] = {
+      pipe:   +document.getElementById(`${c.id}-pipe`).value,
+      margin: +document.getElementById(`${c.id}-margin`).value,
+      attr:   +document.getElementById(`${c.id}-attr`).value,
+    };
+  });
+  return inputs;
+}
+
+function applyInputs(inputs) {
+  if (!inputs) return;
+  SIMPLE_INPUTS.forEach(id => {
+    if (inputs[id] == null) return;
+    document.getElementById(id).value = inputs[id];
+    const slider = document.getElementById(id + '-slider');
+    if (slider) slider.value = inputs[id];
+  });
+  if (inputs.categories) {
+    categories.forEach(c => {
+      const ci = inputs.categories[c.id];
+      if (!ci) return;
+      ['pipe','margin','attr'].forEach(f => {
+        if (ci[f] != null) document.getElementById(`${c.id}-${f}`).value = ci[f];
+      });
+    });
+  }
+  calculate();
+}
+
+function collectOutputs() {
+  const capex = (+document.getElementById('capex').value) * 1e6;
+  const opex  = (+document.getElementById('opex').value)  * 1e6;
+  const cExtLab = (+document.getElementById('cExtLab').value) * 1e6;
+  const dTest = +document.getElementById('dTest').value;
+  const vRnD = cExtLab * dTest;
+  const cVenue = (+document.getElementById('cVenue').value) * 1e6;
+  const nVisit = +document.getElementById('nVisit').value;
+  const cAgency = (+document.getElementById('cAgency').value) * 1e6;
+  const vSalesInfra = cVenue * nVisit + cAgency;
+  let vSalesContrib = 0;
+  categories.forEach(c => {
+    const pipe = (+document.getElementById(`${c.id}-pipe`).value) * 1e6;
+    const margin = (+document.getElementById(`${c.id}-margin`).value) / 100;
+    const attr = (+document.getElementById(`${c.id}-attr`).value) / 100;
+    vSalesContrib += pipe * margin * attr;
+  });
+  const nPress = +document.getElementById('nPress').value;
+  const rMedia = (+document.getElementById('rMedia').value) * 1e6;
+  const kAdj = +document.getElementById('kAdj').value;
+  const vPR = nPress * rMedia * kAdj;
+  const annualValue = vRnD + vSalesInfra + vSalesContrib + vPR;
+  const totalCost = capex + opex;
+  const roi3 = ((annualValue * 3 - totalCost) / totalCost) * 100;
+  const roi5 = ((annualValue * 5 - totalCost) / totalCost) * 100;
+  const profit3 = annualValue * 3 - totalCost;
+  const profit5 = annualValue * 5 - totalCost;
+  const bepYears = annualValue > 0 ? capex / annualValue : null;
+  return {
+    bepYears,
+    bepText: document.getElementById('kpi-bep').textContent,
+    roi3, roi5, profit3, profit5,
+    annualValue, vRnD, vSalesInfra, vSalesContrib, vPR,
+    totalCost,
+  };
+}
+
+function openSnapshotSaveDialog() {
+  document.getElementById('snapshot-label-input').value = '';
+  document.getElementById('snapshot-author-input').value = '';
+  document.getElementById('snapshot-dialog').classList.add('active');
+  setTimeout(() => document.getElementById('snapshot-label-input').focus(), 50);
+}
+
+function closeSnapshotDialog(e) {
+  if (e && e.target && e.target.id !== 'snapshot-dialog') return;
+  document.getElementById('snapshot-dialog').classList.remove('active');
+}
+
+async function saveSnapshot() {
+  const labelEl = document.getElementById('snapshot-label-input');
+  const authorEl = document.getElementById('snapshot-author-input');
+  const label = (labelEl.value || '').trim();
+  const author = (authorEl.value || '').trim();
+  if (!label) { labelEl.focus(); return; }
+
+  const payload = {
+    type: 'roi_snapshot',
+    label,
+    author,
+    timestamp: new Date().toISOString(),
+    inputs: collectInputs(),
+    outputs: collectOutputs(),
+  };
+
+  document.getElementById('snapshot-dialog').classList.remove('active');
+  setSnapshotsStatus('저장 중…');
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    await refreshSnapshots();
+  } catch (err) {
+    setSnapshotsStatus('저장 실패: ' + err.message);
+  }
+}
+
+function setSnapshotsStatus(msg) {
+  document.getElementById('snapshots-list').innerHTML =
+    `<div class="snapshots-empty">${escapeHtml(msg)}</div>`;
+}
+
+function fmtSnapshotTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fmtMillions(v) {
+  if (v == null || !isFinite(v)) return '—';
+  return (v / 1e6).toFixed(1) + 'M';
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, m =>
+    ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
+}
+
+async function refreshSnapshots() {
+  setSnapshotsStatus('불러오는 중…');
+  try {
+    const res = await fetch(SCRIPT_URL + '?type=roi_snapshots');
+    const json = await res.json();
+    renderSnapshots(json.records || []);
+  } catch (err) {
+    setSnapshotsStatus('불러오기 실패: ' + err.message);
+  }
+}
+
+function renderSnapshots(records) {
+  const list = document.getElementById('snapshots-list');
+  window.__snapshots = records;
+  if (!records.length) {
+    list.innerHTML = '<div class="snapshots-empty">아직 저장된 시나리오가 없습니다.<br>위 "📌 현재 시나리오 저장" 버튼으로 첫 시점을 기록해 보세요.</div>';
+    return;
+  }
+  list.innerHTML = records.map(r => {
+    const o = r.outputs || {};
+    const roi3Text = (o.roi3 != null && isFinite(o.roi3))
+      ? (o.roi3 >= 0 ? '+' : '') + Number(o.roi3).toFixed(1) + '%'
+      : '—';
+    const authorHtml = r.author
+      ? `<span class="snapshot-author">· ${escapeHtml(r.author)}</span>`
+      : '';
+    return `
+      <div class="snapshot-item">
+        <div class="snapshot-label">${escapeHtml(r.label || '(제목 없음)')}${authorHtml}</div>
+        <div class="snapshot-time">${escapeHtml(fmtSnapshotTime(r.timestamp))}</div>
+        <div class="snapshot-meta">
+          <span>연간가치<strong>${fmtMillions(o.annualValue)}</strong></span>
+          <span>BEP<strong>${escapeHtml(o.bepText || '—')}</strong></span>
+          <span>3년 ROI<strong>${roi3Text}</strong></span>
+        </div>
+        <div class="snapshot-actions">
+          <button class="snapshot-btn" onclick="loadSnapshot('${escapeHtml(String(r.id))}')">불러오기</button>
+          <button class="snapshot-btn danger" onclick="deleteSnapshot('${escapeHtml(String(r.id))}')">삭제</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function loadSnapshot(id) {
+  const r = (window.__snapshots || []).find(x => String(x.id) === String(id));
+  if (!r) return;
+  applyInputs(r.inputs);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function deleteSnapshot(id) {
+  if (!confirm('이 시나리오를 삭제할까요? 되돌릴 수 없습니다.')) return;
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ type: 'roi_delete', id }),
+    });
+    refreshSnapshots();
+  } catch (err) {
+    alert('삭제 실패: ' + err.message);
+  }
+}
+
+// ==================== 초기 실행 ====================
+initCharts();
+calculate();
+refreshSnapshots();
+</script>
+</body>
+</html>
