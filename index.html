@@ -840,7 +840,16 @@ footer {
 
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 900px) {
-  .navbar { padding: 0 var(--sp-20); gap: var(--sp-16); }
+  .navbar {
+    padding: 0 var(--sp-20); gap: var(--sp-16);
+    overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .navbar::-webkit-scrollbar { display: none; }
+  .navbar-brand, .navbar-links, .navbar-cta, .navbar-admin { flex-shrink: 0; }
+  .navbar-links { flex: 0 0 auto; }
+  .navbar-spacer { display: none; }
   .navbar-links a { padding: 0 var(--sp-4); font-size: var(--t-caption); }
   .navbar-brand-logo { height: 18px; }
   .form-row { grid-template-columns: 1fr; gap: 0; }
