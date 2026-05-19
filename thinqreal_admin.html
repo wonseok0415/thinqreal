@@ -1,0 +1,2095 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ThinQ Real — 관리자</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --c-label:        #1d1d1f;
+  --c-label-2:      #6e6e73;
+  --c-label-3:      #aeaeb2;
+  --c-fill:         #f5f5f7;
+  --c-fill-2:       #e8e8ed;
+  --c-bg:           #ffffff;
+  --c-bg-2:         #f5f5f7;
+  --c-separator:    rgba(0,0,0,0.08);
+  --c-accent:       #3a5035;
+  --c-accent-hover: #2d3e2a;
+  --c-accent-light: #eef2ec;
+  --c-accent-mid:   #8fa889;
+  --c-red:          #ff3b30;
+  --c-red-light:    #fff1f0;
+  --c-orange:       #ff9500;
+  --c-orange-light: #fff8ee;
+  --t-title-1: 28px; --t-title-2: 22px; --t-title-3: 20px;
+  --t-headline: 17px; --t-body: 17px; --t-callout: 16px;
+  --t-subhead: 15px; --t-footnote: 13px; --t-caption: 12px;
+  --sp-4:4px; --sp-8:8px; --sp-12:12px; --sp-16:16px;
+  --sp-20:20px; --sp-24:24px; --sp-32:32px; --sp-40:40px; --sp-48:48px;
+  --radius-sm:8px; --radius-md:12px; --radius-lg:18px;
+  --ease: cubic-bezier(0.25,0.1,0.25,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+}
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+html { -webkit-font-smoothing:antialiased; }
+body {
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
+  font-size:var(--t-body); color:var(--c-label); background:var(--c-bg-2);
+}
+
+/* ── Login ── */
+.login-screen {
+  min-height:100svh; display:flex; align-items:center; justify-content:center;
+  background:var(--c-accent);
+  background-image:radial-gradient(ellipse at 65% 25%, #4e6b49 0%, var(--c-accent) 65%);
+}
+.login-card {
+  background:var(--c-bg); border-radius:var(--radius-lg);
+  padding:var(--sp-40); width:min(380px,calc(100vw - 48px));
+  box-shadow:0 24px 80px rgba(0,0,0,0.25);
+}
+.login-logo { font-size:var(--t-title-2); font-weight:600; color:var(--c-accent); letter-spacing:-0.025em; margin-bottom:var(--sp-4); }
+.login-subtitle { font-size:var(--t-caption); color:var(--c-label-3); letter-spacing:0.06em; text-transform:uppercase; margin-bottom:var(--sp-32); }
+.login-label { display:block; font-size:var(--t-caption); font-weight:500; color:var(--c-label-2); letter-spacing:0.02em; margin-bottom:var(--sp-8); }
+.login-input {
+  width:100%; min-height:44px; padding:0 var(--sp-12);
+  background:var(--c-fill); border:1.5px solid transparent; border-radius:var(--radius-sm);
+  font-size:var(--t-subhead); color:var(--c-label); outline:none; font-family:inherit;
+  transition:border-color .15s var(--ease),background .15s var(--ease); margin-bottom:var(--sp-16);
+}
+.login-input:focus { border-color:var(--c-accent); background:var(--c-bg); }
+.login-btn {
+  width:100%; min-height:50px; background:var(--c-accent); color:#fff; border:none;
+  border-radius:var(--radius-md); cursor:pointer; font-size:var(--t-subhead); font-weight:600;
+  font-family:inherit; letter-spacing:-0.016em;
+  transition:background .2s var(--ease),transform .15s var(--ease);
+}
+.login-btn:hover { background:var(--c-accent-hover); transform:scale(1.01); }
+.login-err { font-size:var(--t-caption); color:var(--c-red); text-align:center; margin-top:var(--sp-12); min-height:16px; }
+
+/* ── Shell ── */
+.shell { display:none; }
+.sidebar {
+  width:240px; background:var(--c-bg); border-right:1px solid var(--c-separator);
+  position:fixed; top:0; left:0; bottom:0;
+  display:flex; flex-direction:column; padding:var(--sp-24) 0; overflow-y:auto;
+}
+.sidebar-brand { padding:0 var(--sp-20) var(--sp-24); border-bottom:1px solid var(--c-separator); margin-bottom:var(--sp-12); }
+.sidebar-brand-name { font-size:var(--t-headline); font-weight:600; color:var(--c-accent); letter-spacing:-0.022em; }
+.sidebar-brand-sub { font-size:var(--t-caption); color:var(--c-label-3); margin-top:var(--sp-4); letter-spacing:0.02em; text-transform:uppercase; }
+.nav-section-label { font-size:11px; font-weight:600; color:var(--c-label-3); letter-spacing:0.08em; text-transform:uppercase; padding:var(--sp-12) var(--sp-20) var(--sp-8); display:block; }
+.nav-item {
+  display:flex; align-items:center; gap:var(--sp-12); min-height:44px;
+  padding:0 var(--sp-12); margin:1px var(--sp-8);
+  font-size:var(--t-subhead); color:var(--c-label-2); cursor:pointer;
+  border-radius:var(--radius-sm); text-decoration:none;
+  transition:background .15s var(--ease),color .15s var(--ease); letter-spacing:-0.016em;
+}
+.nav-item:hover { background:var(--c-fill); color:var(--c-label); }
+.nav-item.active { background:var(--c-accent-light); color:var(--c-accent); font-weight:500; }
+.nav-item-icon { font-size:15px; flex-shrink:0; }
+.nav-badge {
+  background:var(--c-red); color:#fff; font-size:11px; font-weight:600;
+  padding:1px 7px; border-radius:980px; margin-left:auto; min-width:20px; text-align:center;
+}
+.sidebar-footer { margin-top:auto; padding:var(--sp-20); border-top:1px solid var(--c-separator); }
+.sidebar-footer-text { font-size:var(--t-caption); color:var(--c-label-3); line-height:1.6; letter-spacing:-0.008em; }
+.logout-btn {
+  display:flex; align-items:center; justify-content:center; gap:var(--sp-8);
+  min-height:36px; padding:0 var(--sp-12); width:100%; margin-top:var(--sp-12);
+  background:none; border:1px solid var(--c-separator); border-radius:var(--radius-sm);
+  cursor:pointer; font-size:var(--t-caption); color:var(--c-label-2); font-family:inherit;
+  transition:all .15s var(--ease);
+}
+.logout-btn:hover { background:var(--c-fill); color:var(--c-label); }
+
+.main { margin-left:240px; padding:var(--sp-40); min-height:100svh; }
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
+
+/* ── ROI iframe ── */
+.roi-frame-wrap {
+  background:var(--c-bg); border:1px solid var(--c-separator);
+  border-radius:var(--radius-lg); overflow:hidden;
+}
+.roi-frame {
+  width:100%; height:calc(100svh - 200px); min-height:640px;
+  border:0; display:block; background:var(--c-bg);
+}
+.roi-open-btn {
+  display:inline-flex; align-items:center; gap:var(--sp-8);
+  min-height:36px; padding:0 var(--sp-16);
+  background:var(--c-fill); border:1px solid var(--c-separator);
+  border-radius:var(--radius-sm); cursor:pointer;
+  font-size:var(--t-footnote); color:var(--c-label-2);
+  font-family:inherit; text-decoration:none; letter-spacing:-0.012em;
+  transition:background .15s var(--ease), color .15s var(--ease);
+}
+.roi-open-btn:hover { background:var(--c-fill-2); color:var(--c-label); }
+
+/* ROI 동작 원리 설명 패널 */
+.roi-explain {
+  margin-top:var(--sp-32); padding:var(--sp-32);
+  background:var(--c-bg); border:1px solid var(--c-separator);
+  border-radius:var(--radius-lg);
+}
+.roi-explain-header { margin-bottom:var(--sp-24); }
+.roi-explain-header h2 {
+  font-size:var(--t-title-3); font-weight:600; letter-spacing:-0.022em;
+  margin-bottom:var(--sp-4);
+}
+.roi-explain-header p { color:var(--c-label-2); font-size:var(--t-subhead); letter-spacing:-0.016em; }
+.roi-explain-formula {
+  background:var(--c-fill); border-radius:var(--radius-md);
+  padding:var(--sp-20) var(--sp-24); margin-bottom:var(--sp-24);
+  display:flex; flex-direction:column; gap:var(--sp-8);
+}
+.roi-formula-line { display:flex; flex-wrap:wrap; align-items:baseline; gap:var(--sp-12); }
+.roi-formula-label {
+  font-size:var(--t-footnote); font-weight:600; color:var(--c-label-2);
+  min-width:160px; letter-spacing:-0.008em;
+}
+.roi-formula-expr {
+  font-family: 'Cambria Math', Cambria, 'Times New Roman', Georgia, serif;
+  font-size: 17px; font-weight: 500;
+  color: var(--c-accent);
+  letter-spacing: 0.005em; line-height: 1.55;
+}
+.roi-formula-expr sub {
+  font-family: 'Cambria Math', Cambria, 'Times New Roman', Georgia, serif;
+  font-size: 0.7em; vertical-align: baseline;
+  position: relative; bottom: -0.25em;
+  letter-spacing: 0;
+}
+.roi-explain-grid {
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
+  gap:var(--sp-16); margin-bottom:var(--sp-20);
+}
+.roi-explain-card {
+  background:var(--c-bg-2); border:1px solid var(--c-separator);
+  border-radius:var(--radius-md); padding:var(--sp-20);
+}
+.roi-explain-card header {
+  display:flex; align-items:center; gap:var(--sp-8); margin-bottom:var(--sp-12);
+}
+.roi-explain-card h3 {
+  font-size:var(--t-subhead); font-weight:600; letter-spacing:-0.016em;
+}
+.roi-card-tag {
+  display:inline-flex; align-items:center; padding:2px 10px; border-radius:980px;
+  font-size:11px; font-weight:600; letter-spacing:0.02em;
+  background:var(--c-fill); color:var(--c-label-2);
+}
+.roi-card-tag.tag-teal   { background:var(--c-accent-light); color:var(--c-accent); }
+.roi-card-tag.tag-orange { background:#fff4e5; color:#cc7000; }
+.roi-card-tag.tag-purple { background:#eeedfe; color:#7f51e4; }
+.roi-card-desc {
+  font-size:var(--t-footnote); color:var(--c-label-2);
+  line-height:1.6; margin-bottom:var(--sp-12);
+}
+.roi-card-eq {
+  font-family: 'Cambria Math', Cambria, 'Times New Roman', Georgia, serif;
+  font-size: 15.5px; font-weight: 500;
+  color: var(--c-accent); background:var(--c-bg);
+  padding: 10px var(--sp-12); border-radius:var(--radius-sm);
+  margin-bottom:var(--sp-12); border:1px solid var(--c-separator);
+  letter-spacing: 0.005em; line-height: 1.6;
+}
+.roi-card-eq sub {
+  font-size: 0.72em; vertical-align: baseline;
+  position: relative; bottom: -0.22em;
+}
+.roi-explain-card dl { display:grid; gap:var(--sp-8); }
+.roi-explain-card dt {
+  font-size:var(--t-caption); font-weight:600; color:var(--c-label);
+  letter-spacing:-0.008em;
+}
+.roi-explain-card dt sub {
+  font-size: 0.75em; vertical-align: baseline;
+  position: relative; bottom: -0.2em; font-weight: 500;
+}
+.roi-explain-card dd {
+  font-size:var(--t-caption); color:var(--c-label-2);
+  margin-left:0; margin-top:2px; line-height:1.55;
+}
+.roi-explain-card ul { padding-left:var(--sp-16); display:flex; flex-direction:column; gap:6px; }
+.roi-explain-card li {
+  font-size:var(--t-caption); color:var(--c-label-2); line-height:1.55;
+  letter-spacing:-0.008em;
+}
+.roi-explain-card li sub {
+  font-size: 0.75em; vertical-align: baseline;
+  position: relative; bottom: -0.2em;
+}
+.roi-explain-card li strong { color:var(--c-label); font-weight:600; }
+.roi-explain-footer {
+  font-size:var(--t-caption); color:var(--c-label-3);
+  border-top:1px solid var(--c-separator); padding-top:var(--sp-16);
+  line-height:1.6; letter-spacing:-0.008em;
+}
+
+.page-header { margin-bottom:var(--sp-32); }
+.page-header h1 { font-size:clamp(28px,4vw,40px); font-weight:600; letter-spacing:-0.03em; line-height:1.1; }
+.page-header p { font-size:var(--t-subhead); color:var(--c-label-2); margin-top:var(--sp-4); letter-spacing:-0.016em; }
+
+/* ── KPIs ── */
+.kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:var(--sp-16); margin-bottom:var(--sp-32); }
+.kpi-card { background:var(--c-bg); border-radius:var(--radius-md); padding:var(--sp-20) var(--sp-24); border:1px solid var(--c-separator); }
+.kpi-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--sp-12); }
+.kpi-card-label { font-size:var(--t-caption); font-weight:500; color:var(--c-label-2); letter-spacing:0.02em; text-transform:uppercase; }
+.kpi-icon { width:32px; height:32px; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; font-size:15px; }
+.kpi-num { font-size:36px; font-weight:600; letter-spacing:-0.04em; line-height:1; }
+.kpi-num.accent { color:var(--c-accent); }
+.kpi-num.orange { color:var(--c-orange); }
+.kpi-num.red    { color:var(--c-red); }
+.kpi-card-sub { font-size:var(--t-caption); color:var(--c-label-3); margin-top:var(--sp-4); letter-spacing:-0.008em; }
+
+/* ── Toolbar ── */
+.toolbar { display:flex; gap:var(--sp-12); align-items:center; margin-bottom:var(--sp-16); flex-wrap:wrap; }
+.toolbar-select,.toolbar-input {
+  min-height:36px; padding:0 var(--sp-12); background:var(--c-bg);
+  border:1px solid var(--c-separator); border-radius:var(--radius-sm); font-family:inherit;
+  font-size:var(--t-subhead); color:var(--c-label); outline:none;
+  transition:border-color .15s var(--ease); letter-spacing:-0.016em;
+}
+.toolbar-select:focus,.toolbar-input:focus { border-color:var(--c-accent); }
+.toolbar-spacer { flex:1; }
+.toolbar-btn {
+  min-height:36px; padding:0 var(--sp-16); background:var(--c-fill);
+  border:1px solid var(--c-separator); border-radius:var(--radius-sm);
+  cursor:pointer; font-family:inherit; font-size:var(--t-footnote); font-weight:500;
+  color:var(--c-label); letter-spacing:-0.008em;
+  display:flex; align-items:center; gap:var(--sp-8);
+  transition:background .15s var(--ease);
+}
+.toolbar-btn:hover { background:var(--c-fill-2); }
+
+/* ── Table ── */
+.table-card { background:var(--c-bg); border:1px solid var(--c-separator); border-radius:var(--radius-lg); overflow:hidden; }
+.booking-table { width:100%; border-collapse:collapse; }
+.booking-table thead tr { background:var(--c-bg-2); border-bottom:1px solid var(--c-separator); }
+.booking-table th { padding:var(--sp-12) var(--sp-16); text-align:left; font-size:var(--t-caption); font-weight:600; color:var(--c-label-2); letter-spacing:0.04em; text-transform:uppercase; white-space:nowrap; }
+.booking-table td { padding:var(--sp-12) var(--sp-16); font-size:var(--t-subhead); border-bottom:1px solid var(--c-separator); letter-spacing:-0.016em; vertical-align:middle; }
+.booking-table tbody tr:last-child td { border-bottom:none; }
+.booking-table tbody tr { cursor:pointer; transition:background .12s var(--ease); }
+.booking-table tbody tr:hover td { background:var(--c-fill); }
+
+.badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:980px; font-size:11px; font-weight:600; white-space:nowrap; }
+.badge::before { content:''; width:5px; height:5px; border-radius:50%; flex-shrink:0; }
+.badge-pending   { background:var(--c-orange-light); color:var(--c-orange); }
+.badge-pending::before   { background:var(--c-orange); }
+.badge-confirmed { background:var(--c-accent-light); color:var(--c-accent); }
+.badge-confirmed::before { background:var(--c-accent); }
+.badge-rejected  { background:var(--c-red-light);    color:var(--c-red); }
+.badge-rejected::before  { background:var(--c-red); }
+
+.row-actions { display:flex; gap:var(--sp-8); }
+.btn-confirm-sm {
+  min-height:32px; padding:0 var(--sp-12); background:var(--c-bg); color:var(--c-accent);
+  border:1px solid rgba(58,80,53,.3); border-radius:var(--radius-sm);
+  font-size:var(--t-caption); font-weight:500; cursor:pointer; font-family:inherit;
+  transition:transform .08s var(--ease), background .15s var(--ease), color .15s var(--ease), border-color .15s var(--ease);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.btn-confirm-sm:hover { background:var(--c-accent); color:#fff; border-color:var(--c-accent); }
+.btn-confirm-sm:active { background:var(--c-accent); color:#fff; border-color:var(--c-accent); transform:scale(0.95); }
+.btn-reject-sm {
+  min-height:32px; padding:0 var(--sp-12); background:var(--c-bg); color:var(--c-red);
+  border:1px solid rgba(255,59,48,.3); border-radius:var(--radius-sm);
+  font-size:var(--t-caption); font-weight:500; cursor:pointer; font-family:inherit;
+  transition:transform .08s var(--ease), background .15s var(--ease), color .15s var(--ease), border-color .15s var(--ease);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.btn-reject-sm:hover { background:var(--c-red); color:#fff; border-color:var(--c-red); }
+.btn-reject-sm:active { background:var(--c-red); color:#fff; border-color:var(--c-red); transform:scale(0.95); }
+.btn-confirm-sm[disabled], .btn-reject-sm[disabled] {
+  opacity:.55; cursor:wait; pointer-events:none;
+}
+.btn-detail-sm {
+  min-height:32px; padding:0 var(--sp-12); background:var(--c-fill); color:var(--c-label-2);
+  border:1px solid var(--c-separator); border-radius:var(--radius-sm);
+  font-size:var(--t-caption); font-weight:500; cursor:pointer; font-family:inherit;
+  transition:all .15s var(--ease);
+}
+.btn-detail-sm:hover { background:var(--c-fill-2); color:var(--c-label); }
+
+.empty-state { padding:64px var(--sp-24); text-align:center; }
+.empty-state-icon { font-size:40px; margin-bottom:var(--sp-12); }
+.empty-state-text { font-size:var(--t-subhead); color:var(--c-label-3); letter-spacing:-0.016em; line-height:1.6; }
+.empty-state-spinner {
+  width:32px; height:32px; margin:0 auto var(--sp-16);
+  border:3px solid var(--c-fill-2); border-top-color:var(--c-accent);
+  border-radius:50%; animation:spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ── Stats ── */
+.stats-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:var(--sp-16); }
+.stats-card { background:var(--c-bg); border:1px solid var(--c-separator); border-radius:var(--radius-md); padding:var(--sp-24); }
+.stats-card.wide { grid-column:span 2; }
+.stats-card-title { font-size:var(--t-headline); font-weight:600; letter-spacing:-0.022em; margin-bottom:var(--sp-20); }
+.bar-item { margin-bottom:var(--sp-16); }
+.bar-item:last-child { margin-bottom:0; }
+.bar-meta { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:var(--sp-8); gap:var(--sp-8); }
+.bar-name { font-size:var(--t-subhead); letter-spacing:-0.016em; display:inline-flex; align-items:center; gap:var(--sp-8); }
+.bar-name::before {
+  content:''; width:10px; height:10px; border-radius:3px;
+  background:var(--bar-color, var(--c-accent)); flex-shrink:0;
+}
+.bar-count { font-size:var(--t-caption); color:var(--c-label-3); font-weight:500; }
+.bar-track { height:8px; background:var(--c-fill-2); border-radius:4px; overflow:hidden; }
+.bar-fill { height:100%; border-radius:4px; background:var(--bar-color, var(--c-accent)); transition:width .7s var(--ease); }
+
+/* 월별 누적 막대 — 목적별 색상으로 세그먼트 쌓기 */
+.month-chart {
+  display:flex; align-items:flex-end; gap:var(--sp-16);
+  height:260px; padding:var(--sp-8) 0;
+}
+.month-col {
+  flex:1; min-width:0; height:100%;
+  display:flex; flex-direction:column; align-items:center; gap:var(--sp-4);
+}
+.month-bar-wrap {
+  flex:1; width:100%; min-width:24px;
+  display:flex; align-items:flex-end; justify-content:center;
+}
+.month-bar {
+  width:100%; max-width:60px;
+  display:flex; flex-direction:column;
+  border-radius:5px 5px 0 0; overflow:hidden;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,0.04);
+  background:var(--c-fill-2);
+  transition:height .7s var(--ease);
+}
+.month-segment {
+  width:100%;
+  transition:filter .15s var(--ease);
+  cursor:default;
+}
+.month-segment:hover { filter:brightness(0.92); }
+.month-segment + .month-segment { border-top:1px solid rgba(255,255,255,0.55); }
+.month-label { font-size:11px; color:var(--c-label-3); }
+.month-val { font-size:11px; font-weight:600; color:var(--c-accent); font-variant-numeric:tabular-nums; }
+
+/* 차트 범례 (목적별 색상 표) */
+.chart-legend {
+  display:flex; flex-wrap:wrap; gap:var(--sp-8) var(--sp-16);
+  margin-bottom:var(--sp-16); padding-bottom:var(--sp-16);
+  border-bottom:1px solid var(--c-separator);
+}
+.chart-legend:empty, .chart-legend.hidden { display:none; }
+.legend-item { display:inline-flex; align-items:center; gap:6px; font-size:var(--t-caption); color:var(--c-label-2); }
+.legend-swatch { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+
+/* ── Modal ── */
+.modal-backdrop {
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4);
+  backdrop-filter:blur(4px); z-index:500; align-items:center; justify-content:center;
+}
+.modal-backdrop.open { display:flex; }
+.modal {
+  background:var(--c-bg); border-radius:var(--radius-lg); padding:var(--sp-32);
+  width:min(520px,calc(100vw - 48px)); box-shadow:0 24px 80px rgba(0,0,0,0.2);
+  animation:modalIn .25s var(--ease-spring) both;
+}
+@keyframes modalIn { from{opacity:0;transform:scale(.95) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
+.modal-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:var(--sp-20); padding-bottom:var(--sp-16); border-bottom:1px solid var(--c-separator); }
+.modal-title { font-size:var(--t-title-3); font-weight:600; letter-spacing:-0.022em; }
+.modal-close {
+  width:28px; height:28px; border-radius:50%; background:var(--c-fill); border:none;
+  cursor:pointer; font-size:14px; color:var(--c-label-2);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  transition:background .15s var(--ease);
+}
+.modal-close:hover { background:var(--c-fill-2); }
+.detail-grid { display:grid; grid-template-columns:120px 1fr; gap:var(--sp-12) var(--sp-16); }
+.detail-label { font-size:var(--t-footnote); color:var(--c-label-3); font-weight:500; letter-spacing:0.02em; padding-top:2px; }
+.detail-value { font-size:var(--t-subhead); color:var(--c-label); letter-spacing:-0.016em; line-height:1.4; }
+.modal-actions { display:flex; gap:var(--sp-12); justify-content:flex-end; margin-top:var(--sp-24); }
+.modal-btn-close {
+  min-height:44px; padding:0 var(--sp-20); background:var(--c-fill); border:none;
+  border-radius:var(--radius-md); font-size:var(--t-subhead); font-weight:500; cursor:pointer;
+  font-family:inherit; color:var(--c-label); transition:background .15s var(--ease);
+}
+.modal-btn-close:hover { background:var(--c-fill-2); }
+.modal-btn-reject {
+  min-height:44px; padding:0 var(--sp-20); background:var(--c-red-light); color:var(--c-red);
+  border:none; border-radius:var(--radius-md); font-size:var(--t-subhead); font-weight:500;
+  cursor:pointer; font-family:inherit; transition:all .15s var(--ease);
+}
+.modal-btn-reject:hover { background:var(--c-red); color:#fff; }
+.modal-btn-confirm {
+  min-height:44px; padding:0 var(--sp-24); background:var(--c-accent); color:#fff; border:none;
+  border-radius:var(--radius-md); font-size:var(--t-subhead); font-weight:600; cursor:pointer;
+  font-family:inherit; transition:background .15s var(--ease);
+}
+.modal-btn-confirm:hover { background:var(--c-accent-hover); }
+
+/* ── Accounts tab ── */
+.accounts-section { margin-bottom: var(--sp-32); }
+.accounts-section-title {
+  font-size: var(--t-headline); font-weight: 600;
+  letter-spacing: -0.022em; margin-bottom: var(--sp-16);
+  padding-bottom: var(--sp-12); border-bottom: 1px solid var(--c-separator);
+  display: flex; align-items: center; gap: var(--sp-8);
+}
+.accounts-section-icon {
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center; font-size: 14px;
+}
+.accounts-table { width: 100%; border-collapse: collapse; }
+.accounts-table thead tr { background: var(--c-bg-2); border-bottom: 1px solid var(--c-separator); }
+.accounts-table th {
+  padding: var(--sp-12) var(--sp-16); text-align: left;
+  font-size: var(--t-caption); font-weight: 600; color: var(--c-label-2);
+  letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap;
+}
+.accounts-table td {
+  padding: var(--sp-12) var(--sp-16); font-size: var(--t-subhead);
+  border-bottom: 1px solid var(--c-separator); letter-spacing: -0.016em;
+  vertical-align: middle;
+}
+.accounts-table tbody tr:last-child td { border-bottom: none; }
+.accounts-table tbody tr:hover td { background: var(--c-fill); }
+.credential-cell { display: flex; align-items: center; gap: var(--sp-8); }
+.credential-value {
+  font-family: monospace; font-size: var(--t-footnote);
+  color: var(--c-label); letter-spacing: 0.02em;
+  display: none;
+}
+.copy-btn {
+  min-height: 28px; padding: 0 var(--sp-8);
+  background: none; border: none; cursor: pointer;
+  font-size: 13px; color: var(--c-label-3); transition: color .15s var(--ease);
+  flex-shrink: 0;
+}
+.copy-btn:hover { color: var(--c-accent); }
+.type-badge {
+  display: inline-flex; padding: 2px 8px; border-radius: 980px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap;
+}
+.type-password { background: var(--c-accent-light); color: var(--c-accent); }
+.type-pat      { background: #fff8ee; color: #b25000; }
+.type-apikey   { background: #f0f4ff; color: #3a52b0; }
+.region-badge {
+  display: inline-flex; padding: 2px 8px; border-radius: 980px;
+  font-size: 10px; font-weight: 600; background: var(--c-fill-2); color: var(--c-label-2);
+}
+.env-op  { background: var(--c-accent-light); color: var(--c-accent); }
+.env-qa  { background: #fff8ee; color: #b25000; }
+.note-text {
+  font-size: 11px; color: var(--c-label-3); letter-spacing: -0.008em;
+}
+.note-text a { color: var(--c-accent); text-decoration: none; }
+.note-text a:hover { text-decoration: underline; }
+.accounts-notice {
+  background: var(--c-orange-light); border: 1px solid rgba(255,149,0,0.2);
+  border-radius: var(--radius-md); padding: var(--sp-16) var(--sp-20);
+  margin-bottom: var(--sp-24); display: flex; gap: var(--sp-12); align-items: flex-start;
+}
+.accounts-notice-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.accounts-notice-text { font-size: var(--t-subhead); color: #7a4500; line-height: 1.6; letter-spacing: -0.016em; }
+
+/* ── Scenarios tab ── */
+.scenario-intro {
+  background: var(--c-accent); color: #fff;
+  border-radius: var(--radius-lg); padding: var(--sp-24) var(--sp-32);
+  margin-bottom: var(--sp-32);
+}
+.scenario-intro-label {
+  font-size: var(--t-caption); font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  opacity: 0.6; margin-bottom: var(--sp-8); display: block;
+}
+.scenario-intro-text {
+  font-size: var(--t-subhead); line-height: 1.7;
+  letter-spacing: -0.016em; opacity: 0.92;
+}
+.scenario-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-16);
+}
+.scenario-card {
+  background: var(--c-bg); border: 1px solid var(--c-separator);
+  border-radius: var(--radius-md); overflow: hidden;
+  transition: box-shadow .2s var(--ease), transform .2s var(--ease);
+}
+.scenario-card:hover {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  transform: translateY(-2px);
+}
+.scenario-card-header {
+  padding: var(--sp-16) var(--sp-20) var(--sp-12);
+  border-bottom: 1px solid var(--c-separator);
+  display: flex; align-items: flex-start; gap: var(--sp-12);
+}
+.scenario-num {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--c-accent); color: #fff;
+  font-size: var(--t-caption); font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 1px;
+}
+.scenario-title-ko {
+  font-size: var(--t-subhead); font-weight: 600;
+  letter-spacing: -0.016em; line-height: 1.3;
+  margin-bottom: 3px;
+}
+.scenario-title-en {
+  font-size: var(--t-caption); color: var(--c-label-3);
+  letter-spacing: -0.008em;
+}
+.scenario-card-body {
+  padding: var(--sp-16) var(--sp-20);
+  display: flex; flex-direction: column; gap: var(--sp-10);
+}
+.scenario-bullet {
+  display: flex; gap: var(--sp-8); align-items: flex-start;
+}
+.scenario-bullet-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--c-accent-mid); flex-shrink: 0; margin-top: 7px;
+}
+.scenario-bullet-text {
+  font-size: var(--t-footnote); color: var(--c-label-2);
+  line-height: 1.6; letter-spacing: -0.008em;
+}
+
+/* ── Lighting tab ── */
+.lighting-notice {
+  background: #fffbea; border: 1px solid #f0d060;
+  border-radius: var(--radius-md); padding: var(--sp-16) var(--sp-20);
+  margin-bottom: var(--sp-24); display: flex; gap: var(--sp-12); align-items: flex-start;
+}
+.lighting-notice-icon { font-size: 18px; flex-shrink: 0; }
+.lighting-notice-text { font-size: var(--t-subhead); color: #7a5c00; letter-spacing: -0.016em; line-height: 1.6; }
+.lighting-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-16);
+  margin-bottom: var(--sp-16);
+}
+.lighting-card {
+  background: var(--c-bg); border: 1px solid var(--c-separator);
+  border-radius: var(--radius-md); overflow: hidden;
+}
+.lighting-card-header {
+  padding: var(--sp-14) var(--sp-20);
+  background: var(--c-accent); color: #fff;
+  display: flex; align-items: center; gap: var(--sp-10);
+}
+.lighting-room-icon { font-size: 16px; }
+.lighting-room-name { font-size: var(--t-subhead); font-weight: 600; letter-spacing: -0.016em; }
+.lighting-func-list { padding: var(--sp-16) var(--sp-20); display: flex; flex-direction: column; gap: var(--sp-10); }
+.lighting-func-item { display: flex; align-items: flex-start; gap: var(--sp-10); }
+.lighting-func-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--c-accent-mid); flex-shrink: 0; margin-top: 6px;
+}
+.lighting-func-text { font-size: var(--t-subhead); color: var(--c-label); letter-spacing: -0.016em; line-height: 1.5; }
+.lighting-func-text.muted { color: var(--c-label-3); font-style: italic; }
+.lighting-footnote {
+  font-size: var(--t-caption); color: var(--c-label-3);
+  letter-spacing: -0.008em; padding: var(--sp-4) 0;
+}
+
+/* ── System tab ── */
+.system-intro {
+  background: var(--c-fill); border-radius: var(--radius-md);
+  padding: var(--sp-20) var(--sp-24); margin-bottom: var(--sp-24);
+  font-size: var(--t-subhead); color: var(--c-label-2);
+  line-height: 1.7; letter-spacing: -0.016em;
+}
+.system-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-16);
+  margin-bottom: var(--sp-16);
+}
+.system-card {
+  background: var(--c-bg); border: 1px solid var(--c-separator);
+  border-radius: var(--radius-md); overflow: hidden;
+}
+.system-card-header {
+  padding: var(--sp-14) var(--sp-20);
+  border-bottom: 1px solid var(--c-separator);
+  display: flex; align-items: center; gap: var(--sp-10);
+}
+.system-card-icon {
+  width: 30px; height: 30px; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center; font-size: 14px;
+  flex-shrink: 0;
+}
+.system-card-title { font-size: var(--t-subhead); font-weight: 600; letter-spacing: -0.016em; }
+.system-card-body { padding: var(--sp-16) var(--sp-20); display: flex; flex-direction: column; gap: var(--sp-10); }
+.system-item { display: flex; align-items: flex-start; gap: var(--sp-10); }
+.system-item-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--c-accent-mid); flex-shrink: 0; margin-top: 7px;
+}
+.system-item-text { font-size: var(--t-subhead); color: var(--c-label-2); letter-spacing: -0.016em; line-height: 1.5; }
+.system-item-text strong { color: var(--c-label); font-weight: 500; }
+.system-tag-row { display: flex; flex-wrap: wrap; gap: var(--sp-8); padding: var(--sp-4) 0; }
+.system-tag {
+  background: var(--c-accent-light); color: var(--c-accent);
+  padding: 3px 10px; border-radius: 980px;
+  font-size: 11px; font-weight: 500; letter-spacing: -0.008em;
+}
+.system-tag.orange { background: #fff8ee; color: #b25000; }
+.system-tag.blue   { background: #f0f4ff; color: #3a52b0; }
+
+/* ── Toast ── */
+.toast {
+  position:fixed; bottom:var(--sp-32); left:50%;
+  transform:translateX(-50%) translateY(80px);
+  z-index:999; background:rgba(29,29,31,.88); backdrop-filter:blur(12px); color:#fff;
+  padding:var(--sp-12) var(--sp-24); border-radius:980px;
+  font-size:var(--t-subhead); letter-spacing:-0.016em;
+  opacity:0; transition:all .4s var(--ease-spring); white-space:nowrap; pointer-events:none;
+}
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">ThinQ Real</div>
+    <div class="login-subtitle">Admin Dashboard</div>
+    <label class="login-label">비밀번호</label>
+    <input type="password" class="login-input" id="pwInput"
+      placeholder="비밀번호를 입력하세요"
+      onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">로그인</button>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- Shell -->
+<div class="shell" id="shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-brand-name">ThinQ Real</div>
+      <div class="sidebar-brand-sub">Admin Dashboard</div>
+    </div>
+    <span class="nav-section-label">관리</span>
+    <div class="nav-item active" id="nav-bookings" onclick="switchTab('bookings')">
+      <span class="nav-item-icon">📋</span>예약 관리
+      <span class="nav-badge" id="pendingBadge" style="display:none;">0</span>
+    </div>
+    <div class="nav-item" id="nav-stats" onclick="switchTab('stats')">
+      <span class="nav-item-icon">📊</span>통계
+    </div>
+    <div class="nav-item" id="nav-accounts" onclick="switchTab('accounts')">
+      <span class="nav-item-icon">🔐</span>연동 계정 정보
+    </div>
+    <div class="nav-item" id="nav-scenarios" onclick="switchTab('scenarios')">
+      <span class="nav-item-icon">🎬</span>시연 시나리오
+    </div>
+    <div class="nav-item" id="nav-lighting" onclick="switchTab('lighting')">
+      <span class="nav-item-icon">💡</span>조명 스위치 안내
+    </div>
+    <div class="nav-item" id="nav-system" onclick="switchTab('system')">
+      <span class="nav-item-icon">⚙️</span>시스템 구성
+    </div>
+    <div class="nav-item" id="nav-appliances" onclick="switchTab('appliances')">
+      <span class="nav-item-icon">📦</span>구비 가전
+    </div>
+    <span class="nav-section-label" style="margin-top:var(--sp-8);">분석</span>
+    <div class="nav-item" id="nav-roi" onclick="switchTab('roi')">
+      <span class="nav-item-icon">📈</span>ROI 분석
+    </div>
+    <span class="nav-section-label" style="margin-top:var(--sp-8);">도구</span>
+    <div class="nav-item" onclick="loadData()">
+      <span class="nav-item-icon">↺</span>새로고침
+    </div>
+    <div class="nav-item" onclick="exportCSV()">
+      <span class="nav-item-icon">⬇︎</span>CSV 내보내기
+    </div>
+    <a class="nav-item" href="thinqreal.html" target="_blank">
+      <span class="nav-item-icon">↗</span>메인 사이트
+    </a>
+    <div class="sidebar-footer">
+      <div class="sidebar-footer-text">HS플랫폼사업센터<br>AI홈솔루션엔지니어링팀</div>
+      <button class="logout-btn" onclick="doLogout()">로그아웃</button>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- Bookings -->
+    <div class="tab-panel active" id="tab-bookings">
+      <div class="page-header">
+        <h1>예약 관리</h1>
+        <p>신청된 예약을 검토하고 승인 또는 거절합니다.</p>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">전체 예약</span>
+            <div class="kpi-icon" style="background:var(--c-accent-light);">📋</div>
+          </div>
+          <div class="kpi-num accent" id="kpiTotal">0</div>
+          <div class="kpi-card-sub">누적 신청 건수</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">검토 대기</span>
+            <div class="kpi-icon" style="background:var(--c-orange-light);">⏳</div>
+          </div>
+          <div class="kpi-num orange" id="kpiPending">0</div>
+          <div class="kpi-card-sub">승인 대기 중</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">확정</span>
+            <div class="kpi-icon" style="background:var(--c-accent-light);">✓</div>
+          </div>
+          <div class="kpi-num accent" id="kpiConfirmed">0</div>
+          <div class="kpi-card-sub">승인 완료</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">거절</span>
+            <div class="kpi-icon" style="background:var(--c-red-light);">✕</div>
+          </div>
+          <div class="kpi-num red" id="kpiRejected">0</div>
+          <div class="kpi-card-sub">거절 처리됨</div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <select class="toolbar-select" id="filterStatus" onchange="renderTable()">
+          <option value="">전체 상태</option>
+          <option value="대기중">대기중</option>
+          <option value="확정">확정</option>
+          <option value="거절">거절</option>
+        </select>
+        <select class="toolbar-select" id="filterSlot" onchange="renderTable()">
+          <option value="">전체 회차</option>
+          <option value="1">1회차 (09:00)</option>
+          <option value="2">2회차 (13:00)</option>
+          <option value="3">3회차 (15:00)</option>
+        </select>
+        <input type="month" class="toolbar-input" id="filterMonth" onchange="renderTable()">
+        <span class="toolbar-spacer"></span>
+        <button class="toolbar-btn" onclick="exportCSV()">⬇︎ CSV 내보내기</button>
+      </div>
+      <div class="table-card">
+        <table class="booking-table">
+          <thead>
+            <tr>
+              <th>날짜</th><th>회차</th><th>신청자</th><th>소속</th>
+              <th>방문 목적</th><th>인원</th><th>신청일</th><th>상태</th><th>처리</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr><td colspan="9"><div class="empty-state"><div class="empty-state-spinner"></div><div class="empty-state-text">서버에서 예약 데이터를 가져오는 중…<br><span style="font-size:11px;color:var(--c-label-3);">첫 요청은 Apps Script 콜드 스타트로 1~3초 걸릴 수 있습니다.</span></div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="tab-panel" id="tab-stats">
+      <div class="page-header">
+        <h1>통계</h1>
+        <p>예약 데이터 기반 운영 현황입니다.</p>
+      </div>
+      <div class="stats-grid">
+        <div class="stats-card">
+          <div class="stats-card-title">방문 목적별</div>
+          <div id="purposeChart"></div>
+        </div>
+        <div class="stats-card">
+          <div class="stats-card-title">회차별 예약</div>
+          <div id="slotChart"></div>
+        </div>
+        <div class="stats-card wide">
+          <div class="stats-card-title">월별 방문 건수 <span style="font-size:var(--t-caption);font-weight:400;color:var(--c-label-3);margin-left:var(--sp-8);">목적별 누적</span></div>
+          <div class="chart-legend" id="monthLegend"></div>
+          <div class="month-chart" id="monthChart"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lighting tab -->
+    <div class="tab-panel" id="tab-lighting">
+      <div class="page-header">
+        <h1>조명 스위치 안내</h1>
+        <p>공간별 벽면 스위치 기능 안내입니다.</p>
+      </div>
+
+      <div class="lighting-notice">
+        <div class="lighting-notice-icon">⚠️</div>
+        <div class="lighting-notice-text">
+          <strong>퇴실 시 현관의 퇴실 모드를 반드시 누르고 나가주세요.</strong><br>
+          전체 조명, 가전, 커튼이 자동으로 OFF / CLOSE 됩니다.
+        </div>
+      </div>
+
+      <div style="margin-bottom:var(--sp-24);">
+        <img src="images/thinqreal_admin_lighting.png"
+             alt="조명 스위치 안내 슬라이드"
+             style="width:100%;border-radius:var(--radius-lg);
+                    border:1px solid var(--c-separator);
+                    box-shadow:0 4px 16px rgba(0,0,0,0.08);">
+      </div>
+
+      <div class="lighting-grid">
+        <div class="lighting-card">
+          <div class="lighting-card-header">
+            <span class="lighting-room-icon">🚪</span>
+            <span class="lighting-room-name">현관</span>
+          </div>
+          <div class="lighting-func-list">
+            <div class="lighting-func-item"><div class="lighting-func-dot"></div><span class="lighting-func-text">웰컴 Light ON / OFF</span></div>
+            <div class="lighting-func-item"><div class="lighting-func-dot"></div><span class="lighting-func-text">전체 조명 ON / OFF</span></div>
+            <div class="lighting-func-item"><div class="lighting-func-dot"></div><span class="lighting-func-text">퇴실 모드 <span style="font-size:11px;color:var(--c-label-3);">(전체 조명·가전 OFF, 커튼 CLOSE)</span></span></div>
+          </div>
+        </div>
+        <div class="lighting-card">
+          <div class="lighting-card-header">
+            <span class="lighting-room-icon">🛁</span>
+            <span class="lighting-room-name">욕실 (내부)</span>
+          </div>
+          <div class="lighting-func-list">
+            <div class="lighting-func-item"><div class="lighting-func-dot"></div><span class="lighting-func-text muted">기능 없음</span></div>
+          </div>
+        </div>
+        <div class="lighting-card">
+          <div class="lighting-card-header">
+            <span class="lighting-room-icon">🛋️</span>
+            <span class="lighting-room-name">거실</span>
+          </div>
+          <div class="lighting-func-list">
+            <div class="lighting-func-item"><div class="lighting-func-dot"></div><span class="lighting-func-text">주 조명 ON / OFF</span></div>
+            <div class="lighting-func-item"><div class="lighting-func-dot"></div><span class="lighting-func-text">간접조명 ON / OFF</span></div>
+            <div class="lighting-func-item"><div class="lighting-func-dot"></div><span class="lighting-func-text">커튼 OPEN / CLOSE</span></div>
+          </div>
+        </div>
+        <div class="lighting-card">
+          <div class="lighting-card-header">
+            <span class="lighting-room-icon">🛏️</span>
+            <span class="lighting-room-name">침실</span>
+          </div>
+          <div class="lighting-func-list">
+            <div class="lighting-func-item"><div class="lighting-func-dot"></div><span class="lighting-func-text">주 조명 ON / OFF</span></div>
+            <div class="lighting-func-item"><div class="lighting-func-dot"></div><span class="lighting-func-text">간접조명 ON / OFF</span></div>
+            <div class="lighting-func-item"><div class="lighting-func-dot"></div><span class="lighting-func-text">커튼 OPEN / CLOSE</span></div>
+          </div>
+        </div>
+        <div class="lighting-card">
+          <div class="lighting-card-header">
+            <span class="lighting-room-icon">🍳</span>
+            <span class="lighting-room-name">키친</span>
+          </div>
+          <div class="lighting-func-list">
+            <div class="lighting-func-item"><div class="lighting-func-dot"></div><span class="lighting-func-text">주 조명 ON / OFF</span></div>
+            <div class="lighting-func-item"><div class="lighting-func-dot"></div><span class="lighting-func-text">간접조명 ON / OFF</span></div>
+            <div class="lighting-func-item"><div class="lighting-func-dot"></div><span class="lighting-func-text">커튼 OPEN / CLOSE</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="lighting-footnote">* 외부 조명은 22:00에 자동 OFF, 07:00에 자동 ON 스케쥴링</p>
+    </div>
+
+    <!-- System tab -->
+    <div class="tab-panel" id="tab-system">
+      <div class="page-header">
+        <h1>시스템 구성</h1>
+        <p>ThinQ Real 공간의 조명·IoT·난방·오디오 시스템 구성입니다.</p>
+      </div>
+
+      <div class="system-intro">
+        북미나 BMS 대응이 가능한 듀얼 조명 배선 시스템과 효과적인 연출을 위한 DMX Light, Sound 시스템을 구성했습니다.<br>
+        <strong style="color:var(--c-label);">Homey Pro</strong>에서 자동화를 구성하고 <strong style="color:var(--c-accent);">ThinQ ON</strong>에서 다양하게 활용하는 방식으로 운영합니다.
+      </div>
+
+      <div style="margin-bottom:var(--sp-24);">
+        <img src="images/thinqreal_admin_system.png"
+             alt="시스템 구성 슬라이드"
+             style="width:100%;border-radius:var(--radius-lg);
+                    border:1px solid var(--c-separator);
+                    box-shadow:0 4px 16px rgba(0,0,0,0.08);">
+      </div>
+
+      <div class="system-grid">
+
+        <div class="system-card">
+          <div class="system-card-header">
+            <div class="system-card-icon" style="background:var(--c-accent-light);">💡</div>
+            <span class="system-card-title">조명 시스템</span>
+          </div>
+          <div class="system-card-body">
+            <div class="system-item"><div class="system-item-dot"></div><span class="system-item-text"><strong>유선 DALI 기반</strong> Sub-System 구성</span></div>
+            <div class="system-item"><div class="system-item-dot"></div><span class="system-item-text"><strong>DMX</strong> 제어를 통한 무빙/시퀀스 시나리오 연출</span></div>
+            <div class="system-item"><div class="system-item-dot"></div><span class="system-item-text"><strong>DMX to DALI Convertor</strong> 및 Addressable LED 지원</span></div>
+            <div class="system-item"><div class="system-item-dot"></div><span class="system-item-text">스위치 자동화: 색온도, 밝기 제어</span></div>
+            <div class="system-item"><div class="system-item-dot"></div><span class="system-item-text">유선 LAN 연결 / 유선 스마트 배선·스위치 교체 가능 (북미 등 대응)</span></div>
+            <div class="system-tag-row">
+              <span class="system-tag">DALI</span>
+              <span class="system-tag orange">DMX</span>
+              <span class="system-tag blue">Addressable LED</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="system-card">
+          <div class="system-card-header">
+            <div class="system-card-icon" style="background:#f0f4ff;">🏠</div>
+            <span class="system-card-title">Homey Pro 자동화</span>
+          </div>
+          <div class="system-card-body">
+            <div class="system-item"><div class="system-item-dot"></div><span class="system-item-text">모드용 Smart Switch를 활용한 자동화 구성</span></div>
+            <div class="system-item"><div class="system-item-dot"></div><span class="system-item-text">안정성 고려해 HA 또는 Homekit으로 호출</span></div>
+            <div class="system-item"><div class="system-item-dot"></div><span class="system-item-text">스위치 트리거 기반 시나리오 실행</span></div>
+            <div class="system-item"><div class="system-item-dot"></div><span class="system-item-text">Audio Effect Sync 지원</span></div>
+            <div class="system-tag-row">
+              <span class="system-tag">Home</span>
+              <span class="system-tag">Away</span>
+              <span class="system-tag orange">Cinema</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="system-card">
+          <div class="system-card-header">
+            <div class="system-card-icon" style="background:var(--c-accent-light);">📱</div>
+            <span class="system-card-title">ThinQ 연동</span>
+          </div>
+          <div class="system-card-body">
+            <div class="system-item"><div class="system-item-dot"></div><span class="system-item-text"><strong>가전 연결</strong> (전동창호 포함)</span></div>
+            <div class="system-item"><div class="system-item-dot"></div><span class="system-item-text"><strong>가상 가전 연결</strong> (우리단지 서비스)</span></div>
+            <div class="system-item"><div class="system-item-dot"></div><span class="system-item-text">영어 음성 시연 (가전, 필요시)</span></div>
+            <div class="system-item"><div class="system-item-dot"></div><span class="system-item-text">DALI to MATTER Bridge 지원</span></div>
+            <div class="system-tag-row">
+              <span class="system-tag">한국 OP</span>
+              <span class="system-tag orange">한국 QA</span>
+              <span class="system-tag blue">미국 OP</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="system-card">
+          <div class="system-card-header">
+            <div class="system-card-icon" style="background:#fff8ee;">🌡️</div>
+            <span class="system-card-title">난방 시스템</span>
+          </div>
+          <div class="system-card-body">
+            <div class="system-item"><div class="system-item-dot"></div><span class="system-item-text"><strong>HVM-300</strong> — 각방 밸브제어기</span></div>
+            <div class="system-item"><div class="system-item-dot"></div><span class="system-item-text"><strong>HCM-300WC</strong> — 통신형 온도조절기 (거실)</span></div>
+            <div class="system-item"><div class="system-item-dot"></div><span class="system-item-text"><strong>HCM-300S</strong> — 통신형 온도조절기 (안방, 선택)</span></div>
+            <div class="system-item"><div class="system-item-dot"></div><span class="system-item-text">DC 12V / 2Wire 통신 / Multi-Admin 지원</span></div>
+            <div class="system-tag-row">
+              <span class="system-tag">HVM-300</span>
+              <span class="system-tag orange">HCM-300WC</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Scenarios tab -->
+    <div class="tab-panel" id="tab-scenarios">
+      <div class="page-header">
+        <h1>시연 시나리오</h1>
+        <p>ThinQ Real 방문객 대상 LG AI Home 시연 흐름입니다.</p>
+      </div>
+
+      <div class="scenario-intro">
+        <span class="scenario-intro-label">Overview</span>
+        <p class="scenario-intro-text">고객의 일상적인 언어와 감정까지 소통하는 ThinQ ON을 통해, LG전자가 단순한 '가사 해방'을 넘어 '맞춤형 상황 제어와 선제적 케어'까지 제공하는 AI Home Solution 선도자임을 입증합니다.</p>
+      </div>
+
+      <div class="scenario-grid">
+          <div class="scenario-card">
+            <div class="scenario-card-header">
+              <div class="scenario-num">1</div>
+              <div>
+                <div class="scenario-title-ko">귀가 및 공간 개인화</div>
+                <div class="scenario-title-en">Welcome & Personalization</div>
+              </div>
+            </div>
+            <div class="scenario-card-body">
+              <div class="scenario-bullet">
+                <div class="scenario-bullet-dot"></div>
+                <span class="scenario-bullet-text">고객이 집에 들어서면 부재중이었던 집안의 보안 상태를 체크하여 안심 메시지 전달</span>
+              </div>              <div class="scenario-bullet">
+                <div class="scenario-bullet-dot"></div>
+                <span class="scenario-bullet-text">사용자의 취향에 맞춰 실내 온도, 조명, 음악을 자동으로 세팅하여 완벽한 맞춤형 웰컴 공간 제공</span>
+              </div>
+            </div>
+          </div>
+          <div class="scenario-card">
+            <div class="scenario-card-header">
+              <div class="scenario-num">2</div>
+              <div>
+                <div class="scenario-title-ko">감성 대화 및 일정 브리핑</div>
+                <div class="scenario-title-en">Empathy & Scheduling</div>
+              </div>
+            </div>
+            <div class="scenario-card-body">
+              <div class="scenario-bullet">
+                <div class="scenario-bullet-dot"></div>
+                <span class="scenario-bullet-text">ThinQ ON이 사용자의 감정 상태를 헤아리며 사람과 대화하듯 자연스러운 공감 대화</span>
+              </div>              <div class="scenario-bullet">
+                <div class="scenario-bullet-dot"></div>
+                <span class="scenario-bullet-text">대화의 흐름 속에서 캘린더와 연동하여 다가오는 일정을 스마트하게 브리핑</span>
+              </div>
+            </div>
+          </div>
+          <div class="scenario-card">
+            <div class="scenario-card-header">
+              <div class="scenario-num">3</div>
+              <div>
+                <div class="scenario-title-ko">맞춤형 의류 케어</div>
+                <div class="scenario-title-en">Styler Integration</div>
+              </div>
+            </div>
+            <div class="scenario-card-body">
+              <div class="scenario-bullet">
+                <div class="scenario-bullet-dot"></div>
+                <span class="scenario-bullet-text">앞서 확인한 일정과 당일 날씨 데이터를 종합 분석하여 최적의 외출복을 추천</span>
+              </div>              <div class="scenario-bullet">
+                <div class="scenario-bullet-dot"></div>
+                <span class="scenario-bullet-text">추천된 옷에 맞춰 스타일러의 케어 코스를 연동하여 완벽한 외출 준비</span>
+              </div>
+            </div>
+          </div>
+          <div class="scenario-card">
+            <div class="scenario-card-header">
+              <div class="scenario-num">4</div>
+              <div>
+                <div class="scenario-title-ko">주방 어시스턴트</div>
+                <div class="scenario-title-en">Recipe Recommendation</div>
+              </div>
+            </div>
+            <div class="scenario-card-body">
+              <div class="scenario-bullet">
+                <div class="scenario-bullet-dot"></div>
+                <span class="scenario-bullet-text">주방으로 이동한 사용자가 원하는 요리를 만들기 위해 ThinQ ON과 일상적인 언어로 대화</span>
+              </div>              <div class="scenario-bullet">
+                <div class="scenario-bullet-dot"></div>
+                <span class="scenario-bullet-text">대화의 맥락과 사용자의 의도를 파악하여 최적의 레시피를 찾아 제안</span>
+              </div>
+            </div>
+          </div>
+          <div class="scenario-card">
+            <div class="scenario-card-header">
+              <div class="scenario-num">5</div>
+              <div>
+                <div class="scenario-title-ko">스마트 쿠킹 및 자동 환기</div>
+                <div class="scenario-title-en">Smart Cooking & Air Care</div>
+              </div>
+            </div>
+            <div class="scenario-card-body">
+              <div class="scenario-bullet">
+                <div class="scenario-bullet-dot"></div>
+                <span class="scenario-bullet-text">추천 받은 레시피에 따라 오븐 상태 확인 및 요리 완료 알림을 통해 진행</span>
+              </div>              <div class="scenario-bullet">
+                <div class="scenario-bullet-dot"></div>
+                <span class="scenario-bullet-text">요리 완료 후 실내 공기질 저하를 스스로 감지하고, 환기 및 자동 창문을 열어 실내를 쾌적하게 환기</span>
+              </div>
+            </div>
+          </div>
+          <div class="scenario-card">
+            <div class="scenario-card-header">
+              <div class="scenario-num">6</div>
+              <div>
+                <div class="scenario-title-ko">휴식 환경 구성 및 선제적 홈 케어</div>
+                <div class="scenario-title-en">Ambiance & Proactive Care</div>
+              </div>
+            </div>
+            <div class="scenario-card-body">
+              <div class="scenario-bullet">
+                <div class="scenario-bullet-dot"></div>
+                <span class="scenario-bullet-text">완벽한 휴식을 위한 '영화관 모드'를 실행하여 TV와 조명 등 공간을 통합 제어</span>
+              </div>              <div class="scenario-bullet">
+                <div class="scenario-bullet-dot"></div>
+                <span class="scenario-bullet-text">영화 감상 중 주방 누수 센서가 이상을 감지하면 즉각적으로 알림을 주어 피해를 예방하는 선제적 케어</span>
+              </div>
+            </div>
+          </div>
+          <div class="scenario-card">
+            <div class="scenario-card-header">
+              <div class="scenario-num">7</div>
+              <div>
+                <div class="scenario-title-ko">상황 인지 기반 부분 청소</div>
+                <div class="scenario-title-en">Context-Aware Cleaning</div>
+              </div>
+            </div>
+            <div class="scenario-card-body">
+              <div class="scenario-bullet">
+                <div class="scenario-bullet-dot"></div>
+                <span class="scenario-bullet-text">맥락 기반으로 음식을 흘린 상황을 이해하고 로봇청소기를 호출</span>
+              </div>              <div class="scenario-bullet">
+                <div class="scenario-bullet-dot"></div>
+                <span class="scenario-bullet-text">전체 공간이 아닌 오염된 해당 구역만 신속하게 집중 청소하여 실질적인 가사 불편을 해결</span>
+              </div>
+            </div>
+          </div>
+          <div class="scenario-card">
+            <div class="scenario-card-header">
+              <div class="scenario-num">8</div>
+              <div>
+                <div class="scenario-title-ko">세탁 코스 제안 및 케어 경험</div>
+                <div class="scenario-title-en">Personalized Wash & Comprehensive Care</div>
+              </div>
+            </div>
+            <div class="scenario-card-body">
+              <div class="scenario-bullet">
+                <div class="scenario-bullet-dot"></div>
+                <span class="scenario-bullet-text">의류 재질 기반의 최적 세탁 코스 추천으로 스마트한 맞춤형 의류 케어 시연</span>
+              </div>              <div class="scenario-bullet">
+                <div class="scenario-bullet-dot"></div>
+                <span class="scenario-bullet-text">세탁 완료 후 통세척 코치 및 프레시 키퍼 기능으로 연계하여, 단순 세탁을 넘어선 종합적인 솔루션 제안</span>
+              </div>
+            </div>
+          </div>
+          <div class="scenario-card">
+            <div class="scenario-card-header">
+              <div class="scenario-num">9</div>
+              <div>
+                <div class="scenario-title-ko">외출 모드 전환 및 에너지 세이빙</div>
+                <div class="scenario-title-en">Away Mode & Energy Saving</div>
+              </div>
+            </div>
+            <div class="scenario-card-body">
+              <div class="scenario-bullet">
+                <div class="scenario-bullet-dot"></div>
+                <span class="scenario-bullet-text">집을 나서는 상황을 인식하여 조명과 불필요한 가전의 전원을 차단하고, 공조 기기를 외출 모드로 자동 전환</span>
+              </div>              <div class="scenario-bullet">
+                <div class="scenario-bullet-dot"></div>
+                <span class="scenario-bullet-text">로봇청소기가 청소를 시작하고 시큐리티 기능을 활성화하여 빈집을 안전하고 효율적으로 관리</span>
+              </div>
+            </div>
+          </div>
+      </div>
+    </div>
+
+    <!-- Accounts tab -->
+    <div class="tab-panel" id="tab-accounts">
+      <div class="page-header">
+        <h1>연동 계정 정보</h1>
+        <p>ThinQ Real 공간에 연동된 서비스 및 기기의 계정 정보입니다.</p>
+      </div>
+
+      <div class="accounts-notice">
+        <div class="accounts-notice-icon">⚠️</div>
+        <div class="accounts-notice-text">
+          본 페이지의 정보는 <strong>관리자 전용</strong>입니다. 외부 공유 및 무단 유출을 금지합니다.<br>
+          복사 후에는 클립보드를 비워주세요.
+        </div>
+      </div>
+
+      <!-- ThinQ 계정 -->
+      <div class="accounts-section">
+        <div class="accounts-section-title">
+          <div class="accounts-section-icon" style="background:var(--c-accent-light);">🏠</div>
+          ThinQ 계정
+        </div>
+        <div class="table-card">
+          <table class="accounts-table">
+            <thead>
+              <tr><th>서비스</th><th>지역</th><th>환경</th><th>ID / 계정</th><th>자격증명</th><th>비고</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-weight:500;">ThinQ</td>
+                <td><span class="region-badge">KR</span></td>
+                <td><span class="type-badge env-op">OP</span></td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">design0275.lge@gmail.com</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-thinq-kr-op" style="display:inline;">K1552134lch!</span>
+                  <button class="copy-btn" onclick="copyVal('v-thinq-kr-op')" title="복사">⎘</button>
+                </div></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">ThinQ</td>
+                <td><span class="region-badge">US</span></td>
+                <td><span class="type-badge env-op">OP</span></td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">thinq_real_op_us@yopmail.com</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-thinq-us-op" style="display:inline;">thinqrealopus1!</span>
+                  <button class="copy-btn" onclick="copyVal('v-thinq-us-op')" title="복사">⎘</button>
+                </div></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">ThinQ</td>
+                <td><span class="region-badge">KR</span></td>
+                <td><span class="type-badge env-qa">QA</span></td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">thinq_real_qa2@yopmail.com</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-thinq-kr-qa" style="display:inline;">AIhomeb2bse1!</span>
+                  <button class="copy-btn" onclick="copyVal('v-thinq-kr-qa')" title="복사">⎘</button>
+                </div></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">ThinQ</td>
+                <td><span class="region-badge">US</span></td>
+                <td><span class="type-badge env-qa">QA</span></td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">thinq_real_qa_us@yopmail.com</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-thinq-us-qa" style="display:inline;">thinqrealqaus1!</span>
+                  <button class="copy-btn" onclick="copyVal('v-thinq-us-qa')" title="복사">⎘</button>
+                </div></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">ThinQ Real Calendar</td>
+                <td>—</td>
+                <td>—</td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">thinq_real_calendar@gmail.com</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-calendar" style="display:inline;">Qwert12345!</span>
+                  <button class="copy-btn" onclick="copyVal('v-calendar')" title="복사">⎘</button>
+                </div></td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 토큰/키 -->
+      <div class="accounts-section">
+        <div class="accounts-section-title">
+          <div class="accounts-section-icon" style="background:#fff8ee;">🔑</div>
+          토큰 / API 키
+        </div>
+        <div class="table-card">
+          <table class="accounts-table">
+            <thead>
+              <tr><th>서비스</th><th>환경</th><th>유형</th><th>자격증명</th><th>비고</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-weight:500;">QA 계정용 PAT</td>
+                <td><span class="type-badge env-qa">QA</span></td>
+                <td><span class="type-badge type-pat">PAT</span></td>
+                <td><div class="credential-cell">
+                  
+                  <span class="credential-value" id="v-pat" style="display:inline;">thinqpat_c272e02831a4467748c6f58ee5345a0d69ba942aa4cca959037f</span>
+                  <button class="copy-btn" onclick="copyVal('v-pat')" title="복사">⎘</button>
+                </div></td>
+                <td><span class="note-text"><a href="http://jira.lge.com/issue/browse/CCCOL-5271" target="_blank">CCCOL-5271</a></span></td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">QA 계정용 API Key</td>
+                <td><span class="type-badge env-qa">QA</span></td>
+                <td><span class="type-badge type-apikey">API Key</span></td>
+                <td><div class="credential-cell">
+                  
+                  <span class="credential-value" id="v-apikey" style="display:inline;">FpAn7leUCD2DTwkI1GtuJ3z1Zwvtep9f49QowW4E</span>
+                  <button class="copy-btn" onclick="copyVal('v-apikey')" title="복사">⎘</button>
+                </div></td>
+                <td><span class="note-text"><a href="http://jira.lge.com/issue/browse/CCCOL-5271" target="_blank">CCCOL-5271</a></span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 연동 파트너 계정 -->
+      <div class="accounts-section">
+        <div class="accounts-section-title">
+          <div class="accounts-section-icon" style="background:#f0f4ff;">🔗</div>
+          연동 파트너 계정
+        </div>
+        <div class="table-card">
+          <table class="accounts-table">
+            <thead>
+              <tr><th>서비스</th><th>환경</th><th>ID / 계정</th><th>자격증명</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-weight:500;">Google</td>
+                <td>—</td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">allpaltv@gmail.com</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-google" style="display:inline;">K1552134lch!</span>
+                  <button class="copy-btn" onclick="copyVal('v-google')" title="복사">⎘</button>
+                </div></td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">Hejhome</td>
+                <td><span class="type-badge env-qa">QA</span></td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">design0275@gmail.com</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-hejhome" style="display:inline;">gkdl11!!</span>
+                  <button class="copy-btn" onclick="copyVal('v-hejhome')" title="복사">⎘</button>
+                </div></td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">Homey</td>
+                <td>—</td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">allpaltv@gmail.com</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-homey" style="display:inline;">K1552134lch!</span>
+                  <button class="copy-btn" onclick="copyVal('v-homey')" title="복사">⎘</button>
+                </div></td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">Homey (ThinQ QA)</td>
+                <td><span class="type-badge env-qa">QA</span></td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">b2bsecalendar@yopmail.com</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-homey-qa" style="display:inline;">AIhomeb2bse1!</span>
+                  <button class="copy-btn" onclick="copyVal('v-homey-qa')" title="복사">⎘</button>
+                </div></td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">Homey Pro</td>
+                <td>—</td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">dubai_test@yopmail.com</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-homeypro" style="display:inline;">qwerasdf00</span>
+                  <button class="copy-btn" onclick="copyVal('v-homeypro')" title="복사">⎘</button>
+                </div></td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">Philips</td>
+                <td>—</td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">thinq_real_philips@yopmail.com</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-philips" style="display:inline;">1Q2w3e4r5t6y</span>
+                  <button class="copy-btn" onclick="copyVal('v-philips')" title="복사">⎘</button>
+                </div></td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">Ring</td>
+                <td>—</td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">hj8462.kim@lge.com</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-ring" style="display:inline;">AIhomeb2bse1!</span>
+                  <button class="copy-btn" onclick="copyVal('v-ring')" title="복사">⎘</button>
+                </div></td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">Sonos</td>
+                <td>—</td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">thinq_real_sonos@yopmail.com</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-sonos" style="display:inline;">1q2w3e4r5t6y</span>
+                  <button class="copy-btn" onclick="copyVal('v-sonos')" title="복사">⎘</button>
+                </div></td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">시하스 (온도조절기)</td>
+                <td>—</td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">thinq_real_sihas@yopmail.com</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-sihas" style="display:inline;">1Q2w3e4r5t6y</span>
+                  <button class="copy-btn" onclick="copyVal('v-sihas')" title="복사">⎘</button>
+                </div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 네트워크/장비 -->
+      <div class="accounts-section">
+        <div class="accounts-section-title">
+          <div class="accounts-section-icon" style="background:#f0f4ff;">📡</div>
+          네트워크 / 장비
+        </div>
+        <div class="table-card">
+          <table class="accounts-table">
+            <thead>
+              <tr><th>장비</th><th>ID / 계정</th><th>자격증명</th><th>비고</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-weight:500;">메인 AP</td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">admin</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-ap" style="display:inline;">lge13245!</span>
+                  <button class="copy-btn" onclick="copyVal('v-ap')" title="복사">⎘</button>
+                </div></td>
+                <td></td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">샘플패드 — 아이패드</td>
+                <td>—</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-ipad" style="display:inline;">000000</span>
+                  <button class="copy-btn" onclick="copyVal('v-ipad')" title="복사">⎘</button>
+                </div></td>
+                <td><span class="note-text">디바이스 잠금해제</span></td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">샘플폰 — 갤럭시 S25</td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">b2bsegalaxy@gmail.com</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-galaxy" style="display:inline;">Qwert12345!</span>
+                  <button class="copy-btn" onclick="copyVal('v-galaxy')" title="복사">⎘</button>
+                </div></td>
+                <td><span class="note-text">Gmail·Google 동일 / 잠금해제: 000000</span></td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">샘플폰 — 아이폰 16</td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">b2bseiphone@gmail.com</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-iphone" style="display:inline;">Qwert12345!</span>
+                  <button class="copy-btn" onclick="copyVal('v-iphone')" title="복사">⎘</button>
+                </div></td>
+                <td><span class="note-text">Gmail·Apple 동일 / 잠금해제: 0000</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 콘텐츠/구독 -->
+      <div class="accounts-section">
+        <div class="accounts-section-title">
+          <div class="accounts-section-icon" style="background:var(--c-red-light);">🎵</div>
+          콘텐츠 / 구독
+        </div>
+        <div class="table-card">
+          <table class="accounts-table">
+            <thead>
+              <tr><th>서비스</th><th>ID / 계정</th><th>자격증명</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-weight:500;">멜론 (카카오계정)</td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">hj8462.kim@lge.com</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-melon" style="display:inline;">AIhomeb2bse1!</span>
+                  <button class="copy-btn" onclick="copyVal('v-melon')" title="복사">⎘</button>
+                </div></td>
+              </tr>
+              <tr>
+                <td style="font-weight:500;">지니뮤직</td>
+                <td style="font-family:monospace;font-size:var(--t-footnote);">aihomese</td>
+                <td><div class="credential-cell">
+                  <span class="type-badge type-password">PW</span>
+                  <span class="credential-value" id="v-genie" style="display:inline;">1q2w3e4r5t6y</span>
+                  <button class="copy-btn" onclick="copyVal('v-genie')" title="복사">⎘</button>
+                </div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 구비 가전 -->
+    <div class="tab-panel" id="tab-appliances">
+      <div class="page-header">
+        <h1>구비 가전</h1>
+        <p>ThinQ Real 공간에 구비된 가전·IoT·소품 전체 목록입니다. R&D 연구 목적의 예약 확정 메일에는 이 목록이 함께 발송됩니다.</p>
+      </div>
+      <div style="background:var(--c-bg-2); border:1px solid var(--c-separator); border-radius:var(--radius-md); padding:var(--sp-16) var(--sp-20); margin-bottom:var(--sp-20); color:var(--c-label-2); font-size:var(--t-subhead); line-height:1.6;">
+        리스트 품목 외 연구원들의 개인 장비·물품들이 있으므로 위치 변경이나 분실에 유의해 주세요. (총 <strong id="appliancesCount">45</strong>개 품목)
+      </div>
+      <div style="background:var(--c-bg); border:1px solid var(--c-separator); border-radius:var(--radius-md); overflow:hidden;">
+        <div style="overflow-x:auto;">
+          <table class="booking-table" id="appliancesTable">
+            <thead>
+              <tr>
+                <th style="width:48px; text-align:right;">#</th>
+                <th style="width:24%;">구분</th>
+                <th>제품명</th>
+                <th style="width:22%;">모델명</th>
+                <th style="width:14%;">제조사</th>
+              </tr>
+            </thead>
+            <tbody id="appliancesBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROI 분석 -->
+    <div class="tab-panel" id="tab-roi">
+      <div class="page-header" style="display:flex; align-items:flex-end; justify-content:space-between; gap:var(--sp-16); flex-wrap:wrap;">
+        <div>
+          <h1>ROI 분석</h1>
+          <p>ThinQ Real 운영의 투자 회수 시뮬레이션 도구입니다.</p>
+        </div>
+        <a class="roi-open-btn" id="roiOpenLink" href="ThinQ_Real_ROI_Tool.html" target="_blank" rel="noopener">새 창에서 열기 ↗</a>
+      </div>
+      <div class="roi-frame-wrap">
+        <iframe id="roiFrame" class="roi-frame" title="ThinQ Real ROI 분석툴" loading="lazy"></iframe>
+      </div>
+
+      <!-- ROI 동작 원리 설명 -->
+      <section class="roi-explain">
+        <header class="roi-explain-header">
+          <h2>분석 툴 동작 원리</h2>
+          <p>위 시뮬레이션이 사용하는 산식과 변수의 의미를 정리한 안내입니다.</p>
+        </header>
+
+        <div class="roi-explain-formula">
+          <div class="roi-formula-line"><span class="roi-formula-label">BEP (손익분기 회수기간)</span><span class="roi-formula-expr">=  C<sub>Invest</sub>  /  연간 창출 가치</span></div>
+          <div class="roi-formula-line"><span class="roi-formula-label">연간 창출 가치</span><span class="roi-formula-expr">=  V<sub>R&amp;D</sub>  +  V<sub>Sales (A)</sub>  +  V<sub>Sales (B)</sub>  +  V<sub>PR</sub></span></div>
+          <div class="roi-formula-line"><span class="roi-formula-label">N년 ROI</span><span class="roi-formula-expr">=  ( 연간가치 × N − (C<sub>Invest</sub> + C<sub>Oper</sub>) )  /  (C<sub>Invest</sub> + C<sub>Oper</sub>)  × 100</span></div>
+        </div>
+
+        <div class="roi-explain-grid">
+          <article class="roi-explain-card">
+            <header><span class="roi-card-tag">분모</span><h3>비용 구조</h3></header>
+            <dl>
+              <dt>C<sub>Invest</sub> · 리뉴얼 투자비 (Capex)</dt>
+              <dd>공간 리뉴얼·하드웨어 구축 등 1회성 자본 지출</dd>
+              <dt>C<sub>Oper</sub> · 연간 운영비 (Opex)</dt>
+              <dd>유지·관리·소모품 등 매년 발생하는 운영 비용</dd>
+            </dl>
+          </article>
+
+          <article class="roi-explain-card">
+            <header><span class="roi-card-tag tag-teal">V_R&amp;D</span><h3>R&D 효율화</h3></header>
+            <p class="roi-card-desc">외부 스튜디오 임차료를 자사 공간 활용으로 방어한 가치.</p>
+            <div class="roi-card-eq">V<sub>R&amp;D</sub> = C<sub>ext_lab</sub> × D<sub>test</sub></div>
+            <ul>
+              <li><strong>C<sub>ext_lab</sub></strong> · 외부 스튜디오 일일 단가 (백만원/일)</li>
+              <li><strong>D<sub>test</sub></strong> · 연간 내부 사용일수 (일)</li>
+            </ul>
+          </article>
+
+          <article class="roi-explain-card">
+            <header><span class="roi-card-tag tag-teal">V_Sales (A)</span><h3>영업 지원 — 인프라 효용</h3></header>
+            <p class="roi-card-desc">외부 응대 공간 구축·운영의 기회비용을 절감한 가치.</p>
+            <div class="roi-card-eq">V<sub>Sales(A)</sub> = C<sub>venue</sub> × N<sub>visit</sub> + C<sub>agency</sub></div>
+            <ul>
+              <li><strong>C<sub>venue</sub></strong> · 외부 응대 공간 회당 비용</li>
+              <li><strong>N<sub>visit</sub></strong> · 연간 외부 방문 건수</li>
+              <li><strong>C<sub>agency</sub></strong> · 도슨트 등 외주 절감</li>
+            </ul>
+          </article>
+
+          <article class="roi-explain-card">
+            <header><span class="roi-card-tag tag-orange">V_Sales (B)</span><h3>영업 지원 — 기여 영업이익</h3></header>
+            <p class="roi-card-desc">방문 응대를 통해 실제 수주에 기여한 정도를 카테고리별로 가산.</p>
+            <div class="roi-card-eq">V<sub>Sales(B)</sub> = Σ ( 수주금액 × 이익률 × 기여도 )</div>
+            <ul>
+              <li>카테고리 : IoT · 가전 · HS/ES 상품기획 · 홍보·광고 · 신규 Task · 기타</li>
+              <li>각 카테고리는 영업·기획·마케팅 등 담당팀의 데이터를 직접 입력</li>
+            </ul>
+          </article>
+
+          <article class="roi-explain-card">
+            <header><span class="roi-card-tag tag-purple">V_PR</span><h3>PR 가치 (AVE 기반)</h3></header>
+            <p class="roi-card-desc">Press Tour의 광고환산가치(AVE)를 보수적으로 산정.</p>
+            <div class="roi-card-eq">V<sub>PR</sub> = N<sub>press</sub> × R<sub>media</sub> × K<sub>adj</sub></div>
+            <ul>
+              <li><strong>N<sub>press</sub></strong> · Press Tour 건수</li>
+              <li><strong>R<sub>media</sub></strong> · 건당 매체 광고 정가</li>
+              <li><strong>K<sub>adj</sub></strong> · 보수 계수 (0–1) — 광고가 대비 PR 가치 보정</li>
+            </ul>
+          </article>
+
+          <article class="roi-explain-card">
+            <header><span class="roi-card-tag">해석 가이드</span><h3>지표 읽는 법</h3></header>
+            <ul>
+              <li><strong>BEP</strong> ≤ 3년이면 통상 ROI 관점에서 충분히 매력적</li>
+              <li><strong>3년 ROI ≥ 0</strong> 시점부터 누적 손익이 흑자 전환</li>
+              <li>R&amp;D·Sales(A)·PR은 기본값으로도 산입되지만, Sales(B)는 부서 입력이 있어야 가산되어 보수적 추정에 유리</li>
+              <li>시점별 시나리오는 하단 "저장된 시나리오"에 기록해 변경 이력 비교</li>
+            </ul>
+          </article>
+        </div>
+
+        <footer class="roi-explain-footer">
+          출처: ThinQ Real ROI 산정 모델 (사내 검토용). 변수와 산식의 자세한 의미는 시뮬레이션 도구의 각 ⓘ 아이콘에서도 확인할 수 있습니다.
+        </footer>
+      </section>
+    </div>
+
+  </main>
+</div>
+
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modalBg" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modalTitle">예약 상세</h2>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="detail-grid" id="modalGrid"></div>
+    <div class="modal-actions">
+      <button class="modal-btn-close" onclick="closeModal()">닫기</button>
+      <button class="modal-btn-reject"  id="modalRejectBtn"  onclick="updateStatusFromModal('거절')">거절</button>
+      <button class="modal-btn-confirm" id="modalConfirmBtn" onclick="updateStatusFromModal('확정')">확정</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec';
+const ADMIN_PW   = 'thinqreal2026';
+const SLOT_LABELS = { '1':'1회차  09:00–10:30', '2':'2회차  13:00–14:30', '3':'3회차  15:00–16:30' };
+
+let allBookings = [], currentModalId = null;
+
+function doLogin() {
+  if (document.getElementById('pwInput').value === ADMIN_PW) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('shell').style.display = 'block';
+    loadData();
+  } else {
+    document.getElementById('loginErr').textContent = '비밀번호가 올바르지 않습니다.';
+  }
+}
+function doLogout() {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('shell').style.display = 'none';
+  document.getElementById('pwInput').value = '';
+  document.getElementById('loginErr').textContent = '';
+}
+
+// ROI 툴 캐시 무력화 토큰 (ROI 툴을 갱신할 때마다 이 숫자를 올리세요)
+const ROI_BUILD = '20260518a';
+
+// "새 창에서 열기" 링크에도 동일 토큰 부착
+(function attachRoiBuild() {
+  const link = document.getElementById('roiOpenLink');
+  if (link) link.setAttribute('href', 'ThinQ_Real_ROI_Tool.html?v=' + ROI_BUILD);
+})();
+
+function switchTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  document.getElementById('nav-'+id).classList.add('active');
+  if (id === 'stats') renderStats();
+  if (id === 'appliances') renderAppliances();
+  if (id === 'roi') {
+    const f = document.getElementById('roiFrame');
+    // 캐시 무력화: 빌드 토큰을 쿼리로 부착해 GitHub Pages/iframe 캐시 우회
+    if (!f.getAttribute('src')) f.setAttribute('src', 'ThinQ_Real_ROI_Tool.html?v=' + ROI_BUILD);
+  }
+}
+
+// 구비 가전 — Apps Script의 APPLIANCES 상수를 단일 소스로 사용한다.
+// 첫 진입 시 ?type=appliances 로 조회하고 이후 메모리 캐시.
+let appliancesCache = null;
+async function renderAppliances() {
+  const body  = document.getElementById('appliancesBody');
+  const count = document.getElementById('appliancesCount');
+  if (appliancesCache) return;
+
+  body.innerHTML = `<tr><td colspan="5" style="padding:var(--sp-32);text-align:center;color:var(--c-label-3);">불러오는 중…</td></tr>`;
+  try {
+    const res = await fetch(SCRIPT_URL + '?type=appliances');
+    const json = await res.json();
+    if (!json.items) throw new Error(json.error || 'No items');
+    appliancesCache = json.items;
+    count.textContent = String(json.count);
+    body.innerHTML = json.items.map((it, i) => `
+      <tr>
+        <td style="text-align:right;color:var(--c-label-3);font-variant-numeric:tabular-nums;">${String(i+1).padStart(2,'0')}</td>
+        <td style="font-weight:500;">${it.category}</td>
+        <td style="color:var(--c-label-2);">${it.name}</td>
+        <td style="font-family:'SF Mono',ui-monospace,Menlo,monospace;font-size:12px;color:var(--c-label-2);">${it.model}</td>
+        <td style="color:var(--c-label-2);">${it.maker}</td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    body.innerHTML = `<tr><td colspan="5" style="padding:var(--sp-32);text-align:center;color:var(--c-red);">목록을 불러오지 못했어요. ${err.message}</td></tr>`;
+  }
+}
+
+// toggleReveal 제거 (마스킹 미사용)
+
+// ── 계정 정보 — 클립보드 복사 ────────────────────────────────
+function copyVal(id) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    toast('클립보드에 복사됐어요.');
+  }).catch(() => {
+    // fallback
+    const el = document.createElement('textarea');
+    el.value = text; el.style.position = 'fixed'; el.style.opacity = '0';
+    document.body.appendChild(el); el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    toast('클립보드에 복사됐어요.');
+  });
+}
+
+// 날짜 문자열을 YYYY-MM-DD 10자리로 정규화. Sheets가 Date 타입으로 자동변환한
+// 경우의 ISO 문자열("2026-05-19T00:00:00.000Z")도 깔끔하게 처리한다.
+function fmtDateOnly(v) {
+  if (v == null || v === '') return '';
+  const s = String(v);
+  if (s.includes('T')) return s.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+  return s;
+}
+
+// 한 예약 레코드를 정규화: id/date 정리 + slots를 항상 number[] 배열로 보장
+function normalizeRecord(b) {
+  let slotsArr = [];
+  if (b.slots) {
+    try {
+      const parsed = JSON.parse(b.slots);
+      if (Array.isArray(parsed)) slotsArr = parsed;
+    } catch(e) { /* 빈 값 또는 구형 데이터 */ }
+  }
+  if (!slotsArr.length && b.slot !== '' && b.slot != null) {
+    slotsArr = [b.slot];
+  }
+  slotsArr = slotsArr.map(n => Number(n)).filter(n => !isNaN(n));
+  return {
+    ...b,
+    id: b.id != null ? String(b.id) : '',
+    date: fmtDateOnly(b.date),
+    slotsArr,
+  };
+}
+
+// 회차 라벨 전체 표시 (모달·메일·CSV용): "1회차  09:00–10:30 · 2회차  13:00–14:30"
+function fmtSlots(b) {
+  if (b.slotsArr && b.slotsArr.length) {
+    return b.slotsArr.map(n => SLOT_LABELS[String(n)] || String(n)).join(' · ');
+  }
+  return SLOT_LABELS[b.slot] || b.slot || '';
+}
+
+// 회차 라벨 컴팩트 표시 (표용): 다중일 때 시간 생략 → "1회차 · 2회차 · 3회차"
+function fmtSlotsCompact(b) {
+  if (b.slotsArr && b.slotsArr.length > 1) {
+    return b.slotsArr.map(n => n + '회차').join(' · ');
+  }
+  return fmtSlots(b);
+}
+
+// 캐시: stale-while-revalidate.
+// 첫 진입 시 localStorage의 마지막 응답을 즉시 그려 빈 화면 시간을 없애고,
+// 백그라운드에서 fresh fetch로 갱신한다. Apps Script 콜드 스타트(1~3초)는
+// 서버 측 제약이라 완전히 없앨 수 없지만, 체감 속도는 0초에 가까워진다.
+const CACHE_KEY = 'thinqreal_bookings_v1';
+const CACHE_TTL_MS = 1000 * 60 * 30; // 30분 — 너무 오래된 캐시는 폐기
+
+function loadCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const { ts, records } = JSON.parse(raw);
+    if (!records || (Date.now() - ts) > CACHE_TTL_MS) return null;
+    return { ts, records };
+  } catch { return null; }
+}
+function saveCache(records) {
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), records })); }
+  catch { /* quota 초과 등 무시 */ }
+}
+
+async function loadData() {
+  // 1) 캐시가 있으면 즉시 표시
+  const cached = loadCache();
+  let usedCache = false;
+  if (cached) {
+    allBookings = cached.records.map(normalizeRecord);
+    updateKPIs(); renderTable();
+    usedCache = true;
+  }
+
+  // 2) 항상 fresh fetch로 갱신
+  try {
+    const res = await fetch(SCRIPT_URL + '?type=bookings');
+    const records = (await res.json()).records || [];
+    saveCache(records);
+    allBookings = records.map(normalizeRecord);
+    updateKPIs(); renderTable();
+    // 활성 탭이 stats면 차트도 다시 그림
+    if (document.getElementById('tab-stats').classList.contains('active')) renderStats();
+    toast(usedCache ? '최신 데이터로 갱신했습니다.' : '데이터를 불러왔습니다.');
+  } catch(e) {
+    allBookings = [
+      {id:'1',date:'2026-05-20',slot:'1',name:'김민준',org:'AI홈솔루션팀',phone:'010-1234-5678',email:'mj.kim@lge.com',purpose:'R&D 연구',count:'3',note:'',status:'대기중',timestamp:'2026-05-14T09:00:00'},
+      {id:'2',date:'2026-05-21',slot:'2',name:'이서연',org:'B2B영업팀',phone:'010-2345-6789',email:'sy.lee@lge.com',purpose:'B2B 파트너 시연',count:'8',note:'해외 바이어 동반',status:'확정',timestamp:'2026-05-13T14:30:00'},
+      {id:'3',date:'2026-05-22',slot:'3',name:'박도현',org:'AI연구소',phone:'010-3456-7890',email:'dh.park@lge.com',purpose:'R&D 연구',count:'2',note:'',status:'대기중',timestamp:'2026-05-14T11:00:00'},
+      {id:'4',date:'2026-05-23',slot:'1',name:'최유진',org:'Product팀',phone:'010-4567-8901',email:'yj.choi@lge.com',purpose:'내부 행사',count:'12',note:'',status:'확정',timestamp:'2026-05-12T16:00:00'},
+      {id:'5',date:'2026-04-15',slot:'2',name:'정우성',org:'마케팅팀',phone:'010-5678-9012',email:'ws.jung@lge.com',purpose:'Press Tour',count:'5',note:'',status:'거절',timestamp:'2026-04-10T10:00:00'},
+    ];
+    allBookings = allBookings.map(normalizeRecord);
+    updateKPIs(); renderTable();
+    toast('데모 데이터로 표시 중 — Apps Script 연결 필요');
+  }
+}
+
+function updateKPIs() {
+  const total     = allBookings.length;
+  const pending   = allBookings.filter(b=>b.status==='대기중').length;
+  const confirmed = allBookings.filter(b=>b.status==='확정').length;
+  const rejected  = allBookings.filter(b=>b.status==='거절').length;
+  document.getElementById('kpiTotal').textContent     = total;
+  document.getElementById('kpiPending').textContent   = pending;
+  document.getElementById('kpiConfirmed').textContent = confirmed;
+  document.getElementById('kpiRejected').textContent  = rejected;
+  const badge = document.getElementById('pendingBadge');
+  badge.textContent = pending;
+  badge.style.display = pending > 0 ? '' : 'none';
+}
+
+function renderTable() {
+  const status = document.getElementById('filterStatus').value;
+  const slot   = document.getElementById('filterSlot').value;
+  const month  = document.getElementById('filterMonth').value;
+  let data = [...allBookings];
+  if (status) data = data.filter(b=>b.status===status);
+  if (slot)   data = data.filter(b => (b.slotsArr || []).includes(Number(slot)));
+  if (month)  data = data.filter(b=>b.date&&b.date.startsWith(month));
+  data.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+  const tbody = document.getElementById('tableBody');
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-state-icon">🔍</div><div class="empty-state-text">조건에 맞는 예약이 없습니다.</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = data.map(b => {
+    const cls     = b.status==='대기중'?'pending':b.status==='확정'?'confirmed':'rejected';
+    const applied = b.timestamp ? new Date(b.timestamp).toLocaleDateString('ko-KR',{month:'short',day:'numeric'}) : '';
+    const actions = b.status==='대기중'
+      ? `<div class="row-actions" onclick="event.stopPropagation()"><button class="btn-confirm-sm" onclick="onActionClick(this,'${b.id}','확정')">확정</button><button class="btn-reject-sm" onclick="onActionClick(this,'${b.id}','거절')">거절</button></div>`
+      : `<button class="btn-detail-sm" onclick="event.stopPropagation();openModal('${b.id}')">상세</button>`;
+    return `<tr onclick="openModal('${b.id}')">
+      <td><strong style="letter-spacing:-0.02em;">${b.date||''}</strong></td>
+      <td style="color:var(--c-label-2);font-size:var(--t-footnote);white-space:nowrap;">${fmtSlotsCompact(b)}</td>
+      <td style="font-weight:500;">${b.name}</td>
+      <td style="color:var(--c-label-2);font-size:var(--t-footnote);">${b.org}</td>
+      <td>${b.purpose}</td>
+      <td style="text-align:center;">${b.count}명</td>
+      <td style="color:var(--c-label-3);font-size:var(--t-footnote);">${applied}</td>
+      <td><span class="badge badge-${cls}">${b.status}</span></td>
+      <td>${actions}</td>
+    </tr>`;
+  }).join('');
+}
+
+function openModal(id) {
+  const b = allBookings.find(x=>x.id===id); if (!b) return;
+  currentModalId = id;
+  document.getElementById('modalTitle').textContent = b.name + ' 님 예약 상세';
+  const cls = b.status==='대기중'?'pending':b.status==='확정'?'confirmed':'rejected';
+  document.getElementById('modalGrid').innerHTML = `
+    <span class="detail-label">날짜</span>    <span class="detail-value">${b.date}</span>
+    <span class="detail-label">회차</span>    <span class="detail-value">${fmtSlots(b)}</span>
+    <span class="detail-label">소속</span>    <span class="detail-value">${b.org}</span>
+    <span class="detail-label">연락처</span>  <span class="detail-value">${b.phone}</span>
+    <span class="detail-label">이메일</span>  <span class="detail-value" style="color:var(--c-accent);">${b.email}</span>
+    <span class="detail-label">방문 목적</span><span class="detail-value">${b.purpose}</span>
+    <span class="detail-label">방문 인원</span><span class="detail-value">${b.count}명</span>
+    <span class="detail-label">요청 사항</span><span class="detail-value" style="color:var(--c-label-2);">${b.note||'없음'}</span>
+    <span class="detail-label">현재 상태</span><span class="detail-value"><span class="badge badge-${cls}">${b.status}</span></span>
+    <span class="detail-label">신청 일시</span><span class="detail-value" style="color:var(--c-label-2);font-size:var(--t-footnote);">${new Date(b.timestamp).toLocaleString('ko-KR')}</span>
+  `;
+  const isPending = b.status === '대기중';
+  document.getElementById('modalRejectBtn').style.display  = isPending ? '' : 'none';
+  document.getElementById('modalConfirmBtn').style.display = isPending ? '' : 'none';
+  document.getElementById('modalBg').classList.add('open');
+}
+function closeModal() { document.getElementById('modalBg').classList.remove('open'); currentModalId = null; }
+function updateStatusFromModal(s) { if (currentModalId) { updateStatus(currentModalId,s); closeModal(); } }
+
+// 표 행의 확정/거절 버튼 클릭 핸들러 — 즉시 시각 피드백 후 처리
+function onActionClick(btn, id, status) {
+  // 같은 행의 두 버튼 모두 비활성화 (이중 클릭/잘못 누름 방지)
+  const group = btn.parentElement;
+  if (group) {
+    group.querySelectorAll('button').forEach(b => b.disabled = true);
+  } else {
+    btn.disabled = true;
+  }
+  btn.textContent = status === '확정' ? '확정 중…' : '거절 중…';
+  updateStatus(id, status);
+}
+
+// 처리 중인 예약 id 추적 — 같은 행의 버튼이 두 번 눌리는 것 방지
+const inflightUpdates = new Set();
+
+async function updateStatus(id, status) {
+  const sid = String(id);
+  if (inflightUpdates.has(sid)) return;  // 이미 처리 중
+  const b = allBookings.find(x => String(x.id) === sid);
+  if (!b) { toast('해당 예약을 찾을 수 없습니다.'); return; }
+
+  // 1) 낙관적 UI — 사용자가 즉시 결과를 보도록 로컬 먼저 갱신
+  const prevStatus = b.status;
+  b.status = status;
+  inflightUpdates.add(sid);
+  updateKPIs(); renderTable();
+
+  // 2) 진행 상태 토스트 — 메일 발송에 1~2초 걸리므로 길게 표시
+  toast(status === '확정'
+    ? '처리 중… 예약자에게 확정 메일을 발송하고 있습니다'
+    : '처리 중… 거절 메일을 발송하고 있습니다', 15000);
+
+  // 3) 서버 반영
+  try {
+    await fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({type:'update',id:sid,status,email:b.email,name:b.name,date:b.date,slotLabel:fmtSlots(b)}) });
+    toast(status === '확정'
+      ? '✓ 확정 처리 — 예약자에게 메일이 발송됐습니다'
+      : '✓ 거절 처리 완료 — 예약자에게 안내 메일이 발송됐습니다');
+  } catch(e) {
+    // 4) 실패 시 롤백
+    b.status = prevStatus;
+    updateKPIs(); renderTable();
+    toast('처리 실패: ' + (e.message || '네트워크 오류') + ' — 잠시 후 다시 시도해 주세요');
+  } finally {
+    inflightUpdates.delete(sid);
+  }
+}
+
+// 목적별 색상 — 디자인 시스템에서 추출. 결정적 매핑이라 항상 같은
+// 목적은 같은 색으로 표시되어 인식이 쉽다.
+const PURPOSE_COLORS = {
+  'R&D 연구':       '#3a5035', // accent (다크 올리브)
+  'B2B 파트너 시연': '#ff9500', // orange
+  '내부 행사':       '#7f51e4', // purple
+  'Press Tour':    '#0a84a3', // teal
+  '기타':           '#8fa889', // accent-mid
+};
+const PURPOSE_FALLBACK = ['#3a5035','#ff9500','#7f51e4','#0a84a3','#8fa889','#cc7000','#5e7858','#a86bda'];
+function colorFor(purpose, fallbackIdx) {
+  return PURPOSE_COLORS[purpose] || PURPOSE_FALLBACK[fallbackIdx % PURPOSE_FALLBACK.length];
+}
+
+function renderStats() {
+  // 1) 방문 목적별 — 목적별 고정 색상으로 막대 채움
+  const purposes = {};
+  allBookings.forEach(b=>{ purposes[b.purpose]=(purposes[b.purpose]||0)+1; });
+  const purposeEntries = Object.entries(purposes).sort((a,b)=>b[1]-a[1]);
+  const maxP = Math.max(...purposeEntries.map(e=>e[1]),1);
+  document.getElementById('purposeChart').innerHTML =
+    purposeEntries.length
+      ? purposeEntries.map(([k,v],i)=>{
+          const color = colorFor(k, i);
+          const pct = (v/maxP*100).toFixed(0);
+          return `<div class="bar-item" style="--bar-color:${color};">
+            <div class="bar-meta"><span class="bar-name">${k}</span><span class="bar-count">${v}건</span></div>
+            <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+          </div>`;
+        }).join('')
+      : '<p style="color:var(--c-label-3);font-size:var(--t-subhead);">데이터 없음</p>';
+
+  // 2) 회차별
+  const slots = {'1':0,'2':0,'3':0};
+  allBookings.forEach(b => {
+    (b.slotsArr || []).forEach(n => {
+      const k = String(n);
+      if (slots[k] !== undefined) slots[k]++;
+    });
+  });
+  const maxS = Math.max(...Object.values(slots),1);
+  document.getElementById('slotChart').innerHTML =
+    Object.entries(slots).map(([k,v])=>`<div class="bar-item">
+      <div class="bar-meta"><span class="bar-name" style="--bar-color:var(--c-accent);">${SLOT_LABELS[k]}</span><span class="bar-count">${v}건</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(v/maxS*100).toFixed(0)}%"></div></div>
+    </div>`).join('');
+
+  // 3) 월별 방문 — 목적별 누적 세로 막대
+  // months[m][purpose] = count
+  const months = {};
+  allBookings.forEach(b => {
+    if (!b.date) return;
+    const m = b.date.slice(0,7);
+    if (!months[m]) months[m] = {};
+    months[m][b.purpose] = (months[m][b.purpose] || 0) + 1;
+  });
+  const sortedMonths = Object.keys(months).sort();
+  const maxTotal = Math.max(
+    ...sortedMonths.map(m => Object.values(months[m]).reduce((a,c)=>a+c,0)),
+    1
+  );
+
+  // 활성 목적 (예약 기록에 등장한 것만) — purposeEntries 정렬 순서 재사용
+  const activePurposes = purposeEntries.map(e => e[0]);
+  const colorMap = {};
+  activePurposes.forEach((p, i) => { colorMap[p] = colorFor(p, i); });
+
+  // 범례
+  const legend = document.getElementById('monthLegend');
+  legend.innerHTML = activePurposes.length
+    ? activePurposes.map(p =>
+        `<span class="legend-item"><span class="legend-swatch" style="background:${colorMap[p]};"></span>${p}</span>`
+      ).join('')
+    : '';
+  legend.classList.toggle('hidden', activePurposes.length === 0);
+
+  // 막대
+  const container = document.getElementById('monthChart');
+  container.innerHTML = sortedMonths.length
+    ? sortedMonths.map(m => {
+        const monthPurposes = months[m];
+        const total = Object.values(monthPurposes).reduce((a,c)=>a+c,0);
+        const heightPct = Math.max((total/maxTotal*100), 4); // 최소 높이 4%
+
+        // 세그먼트는 activePurposes 순서대로 (아래→위)
+        const segments = activePurposes
+          .filter(p => monthPurposes[p])
+          .map(p => {
+            const segPct = (monthPurposes[p] / total * 100).toFixed(2);
+            return `<div class="month-segment" style="height:${segPct}%;background:${colorMap[p]};" title="${p}: ${monthPurposes[p]}건"></div>`;
+          })
+          .reverse() // CSS flex-direction column이라 위쪽이 첫 항목 — 역순으로 두면 첫 목적이 아래 쌓임
+          .join('');
+
+        return `<div class="month-col">
+          <div class="month-bar-wrap">
+            <div class="month-bar" style="height:${heightPct}%;" title="${m.slice(5)}월 총 ${total}건">${segments}</div>
+          </div>
+          <div class="month-val">${total}</div>
+          <div class="month-label">${m.slice(5)}월</div>
+        </div>`;
+      }).join('')
+    : '<p style="color:var(--c-label-3);font-size:var(--t-subhead);">데이터 없음</p>';
+}
+
+function exportCSV() {
+  const headers = ['날짜','회차','이름','소속','연락처','이메일','목적','인원','요청사항','상태','신청일시'];
+  const rows = allBookings.map(b=>[b.date,fmtSlots(b),b.name,b.org,b.phone,b.email,b.purpose,b.count,b.note||'',b.status,new Date(b.timestamp).toLocaleString('ko-KR')]);
+  const csv = [headers,...rows].map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download = 'thinqreal_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  toast('CSV 파일이 다운로드됩니다.');
+}
+
+function toast(msg, ms=3000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), ms);
+}
+</script>
+</body>
+</html>

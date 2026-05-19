@@ -1,0 +1,1667 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ThinQ Real</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Apple HIG Design Tokens ───────────────────────────── */
+:root {
+  /* Colors — Apple-style semantic layers */
+  --c-label:          #1d1d1f;
+  --c-label-2:        #6e6e73;
+  --c-label-3:        #aeaeb2;
+  --c-fill:           #f5f5f7;
+  --c-fill-2:         #e8e8ed;
+  --c-bg:             #ffffff;
+  --c-bg-2:           #f5f5f7;
+  --c-separator:      rgba(0,0,0,0.08);
+  /* Brand accent extracted from ThinQ Real space */
+  --c-accent:         #3a5035;
+  --c-accent-hover:   #2d3e2a;
+  --c-accent-light:   #eef2ec;
+  --c-accent-mid:     #8fa889;
+  /* Typography scale — Apple SF-style rhythm */
+  --t-large-title:    clamp(32px, 5vw, 52px);
+  --t-title-1:        clamp(24px, 3.5vw, 36px);
+  --t-title-2:        22px;
+  --t-title-3:        20px;
+  --t-headline:       17px;
+  --t-body:           17px;
+  --t-callout:        16px;
+  --t-subhead:        15px;
+  --t-footnote:       13px;
+  --t-caption:        12px;
+  /* Spacing — 8pt grid */
+  --sp-4: 4px; --sp-8: 8px; --sp-12: 12px; --sp-16: 16px;
+  --sp-20: 20px; --sp-24: 24px; --sp-32: 32px; --sp-40: 40px;
+  --sp-48: 48px; --sp-64: 64px; --sp-80: 80px;
+  /* Geometry */
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 18px; --radius-xl: 24px;
+  /* Motion */
+  --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── Reset & Base ────────────────────────────────────────── */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; -webkit-font-smoothing:antialiased; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  font-size: var(--t-body); line-height: 1.47059;
+  color: var(--c-label); background: var(--c-bg);
+  overflow-x: hidden;
+}
+img { display:block; max-width:100%; }
+button, input, select, textarea { font-family: inherit; }
+
+/* ── Navigation Bar ─ Apple-style translucent ────────────── */
+.navbar {
+  position: fixed; top:0; left:0; right:0; z-index: 200;
+  height: 52px;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--c-separator);
+  display: flex; align-items: center;
+  padding: 0 max(24px, calc(50vw - 580px));
+  gap: var(--sp-32);
+}
+.navbar-brand {
+  display: inline-flex; align-items: center; gap: var(--sp-8);
+  font-size: var(--t-headline); font-weight: 600;
+  color: var(--c-accent); letter-spacing: -0.022em;
+  cursor: pointer; flex-shrink: 0;
+  text-decoration: none;
+}
+.navbar-brand-logo {
+  height: 22px; width: auto; display: block;
+  object-fit: contain;
+}
+.navbar-brand-divider {
+  width: 1px; height: 18px; background: var(--c-separator);
+  display: inline-block;
+}
+.navbar-links {
+  display: flex; gap: var(--sp-24); align-items: center;
+  flex: 1;
+}
+.navbar-links a {
+  font-size: var(--t-subhead); font-weight: 400;
+  color: var(--c-label-2); text-decoration: none;
+  cursor: pointer; letter-spacing: -0.016em;
+  transition: color 0.2s var(--ease);
+  /* 44pt touch target */
+  min-height: 44px; display: flex; align-items: center;
+  padding: 0 var(--sp-8);
+  white-space: nowrap;
+}
+.navbar-links a:hover, .navbar-links a.active { color: var(--c-label); }
+.navbar-spacer { flex: 1; }
+.navbar-cta {
+  min-height: 36px; padding: 0 var(--sp-16);
+  background: var(--c-accent); color: #fff;
+  border: none; border-radius: 980px;
+  font-size: var(--t-caption); font-weight: 500;
+  cursor: pointer; letter-spacing: -0.01em;
+  transition: background 0.15s var(--ease), transform 0.1s var(--ease), box-shadow 0.15s var(--ease);
+  white-space: nowrap;
+}
+.navbar-cta:hover { background: var(--c-accent-hover); transform: scale(1.02); }
+.navbar-cta:active {
+  background: var(--c-accent-hover);
+  transform: scale(0.96);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.18);
+}
+.navbar-admin {
+  min-height: 36px; padding: 0 var(--sp-16);
+  background: var(--c-fill); color: var(--c-label);
+  border: none; border-radius: 980px;
+  font-size: var(--t-caption); font-weight: 500;
+  cursor: pointer; letter-spacing: -0.01em;
+  text-decoration: none; white-space: nowrap;
+  display: inline-flex; align-items: center;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease), transform 0.1s var(--ease), box-shadow 0.15s var(--ease);
+}
+.navbar-admin:hover { background: var(--c-fill-2); color: var(--c-accent); }
+.navbar-admin:active {
+  background: var(--c-fill-2);
+  transform: scale(0.96);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.10);
+}
+
+/* ── Pages ───────────────────────────────────────────────── */
+.page { display: none; padding-top: 52px; }
+.page.active { display: block; }
+
+/* ── Hero — full-bleed with Apple-style text lockup ─────── */
+.hero {
+  height: calc(100svh - 52px);
+  min-height: 560px;
+  position: relative; overflow: hidden;
+  display: flex; align-items: flex-end;
+}
+.hero-media {
+  position: absolute; inset: 0;
+  background-image: url('images/thinqreal_home_hero.png');
+  background-size: cover; background-position: center 30%;
+  animation: heroScale 1.4s var(--ease) both;
+}
+.hero-media::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0,0,0,0.72) 0%,
+    rgba(0,0,0,0.24) 50%,
+    rgba(0,0,0,0) 100%
+  );
+}
+@keyframes heroScale {
+  from { transform: scale(1.06); opacity: 0.7; }
+  to   { transform: scale(1.0);  opacity: 1; }
+}
+.hero-body {
+  position: relative; z-index: 2;
+  padding: var(--sp-80) max(24px, calc(50vw - 580px));
+  width: 100%;
+  animation: heroBody 1s var(--ease) 0.3s both;
+}
+@keyframes heroBody {
+  from { opacity:0; transform: translateY(20px); }
+  to   { opacity:1; transform: translateY(0); }
+}
+.hero-eyebrow {
+  font-size: var(--t-footnote); font-weight: 400;
+  color: rgba(255,255,255,0.6); letter-spacing: 0.02em;
+  margin-bottom: var(--sp-12);
+  text-transform: uppercase;
+}
+.hero-title {
+  font-size: var(--t-large-title); font-weight: 600;
+  color: #fff; letter-spacing: -0.03em;
+  line-height: 1.07143; max-width: 600px;
+  margin-bottom: var(--sp-16);
+}
+.hero-sub {
+  font-size: var(--t-callout); font-weight: 300;
+  color: rgba(255,255,255,0.75); max-width: 440px;
+  line-height: 1.6; margin-bottom: var(--sp-32);
+  letter-spacing: -0.01em;
+}
+.hero-actions { display: flex; gap: var(--sp-12); flex-wrap: wrap; }
+
+/* ── Buttons — Apple-style pill & ghost ─────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: 0 var(--sp-24);
+  font-size: var(--t-subhead); font-weight: 500;
+  letter-spacing: -0.016em;
+  border-radius: 980px; border: none; cursor: pointer;
+  transition: all 0.2s var(--ease);
+}
+.btn-filled {
+  background: var(--c-accent); color: #fff;
+}
+.btn-filled:hover { background: var(--c-accent-hover); transform: scale(1.02); }
+.btn-white {
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.28);
+}
+.btn-white:hover { background: rgba(255,255,255,0.28); }
+.btn-tonal {
+  background: var(--c-accent-light); color: var(--c-accent);
+}
+.btn-tonal:hover { background: var(--c-fill-2); }
+.btn-plain {
+  background: transparent; color: var(--c-accent);
+  min-height: 44px; padding: 0 var(--sp-8);
+}
+.btn-plain:hover { background: var(--c-accent-light); }
+
+/* ── Section wrapper ─────────────────────────────────────── */
+.section {
+  padding: var(--sp-80) max(24px, calc(50vw - 580px));
+}
+.section-sm {
+  padding: var(--sp-48) max(24px, calc(50vw - 580px));
+}
+.section-title {
+  font-size: var(--t-title-1); font-weight: 600;
+  letter-spacing: -0.028em; color: var(--c-label);
+  line-height: 1.16667;
+}
+.section-body {
+  font-size: var(--t-body); color: var(--c-label-2);
+  line-height: 1.52941; max-width: 560px; margin-top: var(--sp-12);
+  letter-spacing: -0.016em;
+}
+.label-overline {
+  font-size: var(--t-caption); font-weight: 500;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--c-accent); margin-bottom: var(--sp-8);
+  display: block;
+}
+
+/* ── Stats strip ─────────────────────────────────────────── */
+.stats-strip {
+  background: var(--c-bg-2);
+  padding: var(--sp-40) max(24px, calc(50vw - 580px));
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid var(--c-separator);
+  border-bottom: 1px solid var(--c-separator);
+}
+.stat-item { text-align: center; padding: var(--sp-8); }
+.stat-num {
+  font-size: 40px; font-weight: 600; letter-spacing: -0.04em;
+  color: var(--c-accent); line-height: 1;
+  display: block; margin-bottom: var(--sp-4);
+}
+.stat-label {
+  font-size: var(--t-footnote); color: var(--c-label-2);
+  letter-spacing: -0.008em;
+}
+
+/* ── Split content row ───────────────────────────────────── */
+.split {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 0; align-items: stretch;
+}
+.split-text {
+  padding-top: var(--sp-64);
+  padding-bottom: var(--sp-64);
+  padding-left: max(24px, calc(50vw - 580px));
+  padding-right: var(--sp-48);
+  max-width: calc(580px + max(24px, calc(50vw - 580px)));
+  display: flex; flex-direction: column; justify-content: center;
+}
+.split-media {
+  min-height: 460px;
+  background-size: cover; background-position: center;
+}
+
+/* ── Feature cards grid ──────────────────────────────────── */
+.cards-grid {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 2px;
+  background: var(--c-separator);
+}
+.feature-card {
+  background: var(--c-bg); padding: var(--sp-40) var(--sp-32);
+  transition: background 0.2s var(--ease);
+}
+.feature-card:hover { background: var(--c-fill); }
+.feature-icon {
+  width: 40px; height: 40px; border-radius: var(--radius-sm);
+  background: var(--c-accent-light); display: flex; align-items: center;
+  justify-content: center; font-size: 18px; margin-bottom: var(--sp-20);
+}
+.feature-title {
+  font-size: var(--t-headline); font-weight: 600;
+  letter-spacing: -0.022em; margin-bottom: var(--sp-8);
+}
+.feature-body {
+  font-size: var(--t-subhead); color: var(--c-label-2);
+  line-height: 1.6; letter-spacing: -0.016em;
+}
+
+/* ── CTA band ────────────────────────────────────────────── */
+.cta-band {
+  background: var(--c-accent); color: #fff;
+  padding: var(--sp-80) max(24px, calc(50vw - 580px));
+  text-align: center;
+}
+.cta-band .section-title { color: #fff; margin: 0 auto; max-width: 560px; }
+.cta-band .section-body  { color: rgba(255,255,255,0.72); margin: var(--sp-12) auto var(--sp-32); }
+
+/* ── SPACE PAGE ──────────────────────────────────────────── */
+.page-hero {
+  height: 400px;
+  background-size: cover; background-position: center;
+  position: relative; display: flex; align-items: flex-end;
+  overflow: hidden;
+}
+.page-hero::after {
+  content:''; position:absolute; inset:0;
+  background: linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 55%);
+}
+.page-hero-body {
+  position: relative; z-index: 2;
+  padding: var(--sp-48) max(24px, calc(50vw - 580px));
+}
+.page-title {
+  font-size: var(--t-title-1); font-weight: 600;
+  letter-spacing: -0.028em; color: #fff;
+}
+
+/* 텍스트 전용 히어로 — 사진 대신 그라데이션·타이포그래피로 구성 */
+.page-hero.text-only {
+  background: var(--c-accent);
+  background-image:
+    radial-gradient(ellipse 80% 60% at 12% 0%, rgba(255,255,255,0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 90% 100%, rgba(143,168,137,0.22) 0%, transparent 70%),
+    linear-gradient(135deg, #3a5035 0%, #2d3e2a 100%);
+  align-items: center;
+}
+.page-hero.text-only::after { display: none; }
+.page-hero.text-only::before {
+  content: attr(data-wordmark);
+  position: absolute;
+  right: max(24px, calc(50vw - 580px));
+  bottom: -56px;
+  font-size: clamp(180px, 26vw, 320px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: rgba(255,255,255,0.05);
+  line-height: 0.85;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+.page-hero.text-only .page-hero-body { padding-block: var(--sp-48); max-width: 100%; }
+.page-hero-accent-line {
+  width: 48px; height: 2px; background: var(--c-accent-mid);
+  margin-bottom: var(--sp-24); border-radius: 1px;
+}
+.page-hero.text-only .label-overline { color: var(--c-accent-mid); }
+.page-hero.text-only .page-title {
+  font-size: clamp(40px, 6vw, 64px);
+  line-height: 1.05; letter-spacing: -0.032em;
+}
+.page-hero-kicker {
+  margin-top: var(--sp-20);
+  font-size: var(--t-body); color: rgba(255,255,255,0.78);
+  letter-spacing: -0.016em; line-height: 1.55;
+  max-width: 560px;
+}
+
+/* Floor Plan — 텍스트 단독 섹션. 히어로 영역이 없는 예약 페이지와
+   같은 톤(올리브-light 배경)으로 시각 위계 통일. */
+.fp-section {
+  padding: var(--sp-64) max(24px, calc(50vw - 580px));
+  background: var(--c-accent-light);
+  text-align: center;
+}
+.fp-section > div {
+  max-width: 720px; margin: 0 auto;
+}
+.fp-section .tag-row { justify-content: center; }
+.tag-row { display:flex; flex-wrap:wrap; gap: var(--sp-8); margin-top: var(--sp-20); }
+.tag {
+  background: var(--c-accent-light); color: var(--c-accent);
+  padding: var(--sp-4) var(--sp-12); border-radius: 980px;
+  font-size: var(--t-caption); font-weight: 500; letter-spacing: -0.008em;
+}
+
+/* Room list */
+.room-list { }
+.room-row {
+  display: grid; grid-template-columns: 1fr 1fr;
+  min-height: 480px; border-top: 1px solid var(--c-separator);
+  overflow: hidden;
+}
+.room-row:nth-child(even) .room-media { order: -1; }
+.room-media {
+  background-size: cover; background-position: center;
+  min-height: 380px;
+}
+.room-info {
+  padding: var(--sp-48) max(24px, calc(50vw - 720px));
+  display: flex; flex-direction: column; justify-content: center;
+  background: var(--c-bg);
+}
+.room-info.alt { background: var(--c-bg-2); }
+.room-number {
+  font-size: var(--t-footnote); font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--c-accent); margin-bottom: var(--sp-8);
+}
+.room-name {
+  font-size: var(--t-title-2); font-weight: 600;
+  letter-spacing: -0.025em; margin-bottom: var(--sp-12);
+}
+.room-desc {
+  font-size: var(--t-subhead); color: var(--c-label-2);
+  line-height: 1.6; letter-spacing: -0.016em; max-width: 400px;
+  margin-bottom: var(--sp-20);
+}
+.appliance-list { display:flex; flex-wrap:wrap; gap: var(--sp-8); }
+.appliance-chip {
+  background: var(--c-fill-2); color: var(--c-label-2);
+  padding: var(--sp-4) var(--sp-12); border-radius: 980px;
+  font-size: var(--t-caption); letter-spacing: -0.008em;
+}
+
+/* ── RESERVATION PAGE ────────────────────────────────────── */
+/* 히어로 이미지가 없는 페이지이므로, 브랜드 톤(다크 올리브 계열)의
+   accent-light 배경을 페이지 상단에 깔아 다른 페이지와 같은 위계를
+   유지하면서도 부드럽게 구분되도록 한다. */
+#page-reserve {
+  background: linear-gradient(180deg,
+    var(--c-accent-light) 0%,
+    var(--c-accent-light) 280px,
+    var(--c-bg-2) 640px);
+}
+#page-reserve > .section-sm:first-of-type {
+  border-bottom: 1px solid rgba(58,80,53,0.12) !important;
+}
+.reservation-layout {
+  display: grid; grid-template-columns: 1fr 440px;
+  gap: var(--sp-40); padding: var(--sp-48) max(24px, calc(50vw - 580px));
+  align-items: start;
+}
+/* Calendar */
+.calendar-card {
+  background: var(--c-bg); border: 1px solid var(--c-separator);
+  border-radius: var(--radius-lg); overflow: hidden;
+}
+.cal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--sp-20) var(--sp-24);
+  border-bottom: 1px solid var(--c-separator);
+}
+.cal-month-label {
+  font-size: var(--t-headline); font-weight: 600;
+  letter-spacing: -0.022em;
+}
+.cal-nav-btn {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--c-fill); border: none; cursor: pointer;
+  font-size: 16px; color: var(--c-label);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s var(--ease);
+}
+.cal-nav-btn:hover { background: var(--c-fill-2); }
+.cal-grid {
+  padding: var(--sp-16) var(--sp-24) var(--sp-24);
+  display: grid; grid-template-columns: repeat(7,1fr); gap: 4px;
+}
+.cal-day-name {
+  text-align: center; font-size: var(--t-caption); font-weight: 500;
+  color: var(--c-label-3); padding: var(--sp-8) 0;
+  letter-spacing: 0.04em;
+}
+.cal-day {
+  min-height: 44px; display: flex; align-items: center; justify-content: center;
+  font-size: var(--t-subhead); letter-spacing: -0.01em;
+  border-radius: var(--radius-sm); cursor: pointer;
+  transition: all 0.15s var(--ease);
+  position: relative;
+}
+.cal-day:not(.past):not(.closed):not(.empty):hover {
+  background: var(--c-fill);
+}
+.cal-day.selected {
+  background: var(--c-accent); color: #fff; font-weight: 500;
+}
+.cal-day.today { font-weight: 600; color: var(--c-accent); }
+.cal-day.today::after {
+  content:''; position:absolute; bottom:5px; left:50%;
+  transform:translateX(-50%);
+  width:4px; height:4px; border-radius:50%; background:var(--c-accent);
+}
+.cal-day.today.selected { color:#fff; }
+.cal-day.today.selected::after { background:#fff; }
+.cal-day.past, .cal-day.closed { opacity:0.28; cursor:default; pointer-events:none; }
+
+/* Slots */
+.slots-card {
+  background: var(--c-bg); border: 1px solid var(--c-separator);
+  border-radius: var(--radius-lg); overflow: hidden;
+  margin-top: var(--sp-16);
+}
+.slots-header {
+  padding: var(--sp-16) var(--sp-24);
+  border-bottom: 1px solid var(--c-separator);
+  font-size: var(--t-subhead); font-weight: 600; letter-spacing: -0.016em;
+}
+.slot-list { padding: var(--sp-12) var(--sp-16); display:flex; flex-direction:column; gap: var(--sp-8); }
+.slot-item {
+  min-height: 60px; padding: 0 var(--sp-16);
+  display: flex; align-items: center; justify-content: space-between;
+  border-radius: var(--radius-md); cursor: pointer;
+  border: 1.5px solid transparent;
+  transition: all 0.15s var(--ease);
+}
+.slot-item:hover { background: var(--c-fill); }
+.slot-item.selected {
+  background: var(--c-accent-light);
+  border-color: var(--c-accent);
+}
+.slot-item.booked {
+  pointer-events: none; cursor: not-allowed;
+  background: rgba(255, 59, 48, 0.06);
+  border-color: rgba(255, 59, 48, 0.25);
+}
+.slot-item.booked .slot-label-text,
+.slot-item.booked .slot-time-text {
+  color: var(--c-label-3);
+  text-decoration: line-through;
+  text-decoration-color: rgba(255, 59, 48, 0.45);
+}
+.slot-item.booked .slot-booked-label {
+  color: #c92419;
+  font-weight: 600;
+}
+.slot-item.booked .slot-badge {
+  background: #ff3b30;
+  color: #fff;
+  border-color: #ff3b30;
+  font-weight: 600;
+}
+.slot-item.loading {
+  opacity: 0.55; pointer-events: none;
+  animation: slotPulse 0.9s ease-in-out infinite;
+}
+@keyframes slotPulse {
+  0%, 100% { opacity: 0.55; }
+  50%       { opacity: 0.85; }
+}
+.slot-booked-label {
+  font-size: 11px; color: var(--c-label-3);
+  letter-spacing: 0.01em; margin-top: 3px; font-weight: 500;
+}
+.slot-label-text {
+  font-size: var(--t-subhead); font-weight: 500;
+  letter-spacing: -0.016em;
+}
+.slot-time-text {
+  font-size: var(--t-footnote); color: var(--c-label-2);
+  margin-top: 2px; letter-spacing: -0.008em;
+}
+.slot-badge {
+  font-size: 12px; color: var(--c-label-2); border: 1px solid var(--c-separator);
+  padding: 4px 12px; border-radius: 980px; font-weight: 500; letter-spacing: -0.005em;
+  background: var(--c-bg);
+}
+.slot-item.selected .slot-badge {
+  background: var(--c-accent); color: #fff; border-color: var(--c-accent);
+}
+
+/* Form card */
+.form-card {
+  background: var(--c-bg); border: 1px solid var(--c-separator);
+  border-radius: var(--radius-lg); padding: var(--sp-24);
+  position: sticky; top: 68px;
+}
+.form-card-title {
+  font-size: var(--t-headline); font-weight: 600;
+  letter-spacing: -0.022em; margin-bottom: var(--sp-20);
+  padding-bottom: var(--sp-16); border-bottom: 1px solid var(--c-separator);
+}
+.form-summary-chip {
+  background: var(--c-accent-light); border-radius: var(--radius-md);
+  padding: var(--sp-12) var(--sp-16); margin-bottom: var(--sp-16);
+  display: none;
+}
+.form-summary-chip span { font-size: var(--t-caption); color: var(--c-label-2); display:block; margin-bottom:2px; }
+.form-summary-chip strong { font-size: var(--t-subhead); color: var(--c-accent); font-weight:600; letter-spacing:-0.016em; }
+.form-group { margin-bottom: var(--sp-16); }
+.form-label {
+  display: block; font-size: var(--t-caption); font-weight: 500;
+  color: var(--c-label-2); letter-spacing: 0.02em; margin-bottom: var(--sp-8);
+}
+.form-input, .form-select, .form-textarea {
+  width: 100%; min-height: 44px; padding: 0 var(--sp-12);
+  background: var(--c-fill); border: 1.5px solid transparent;
+  border-radius: var(--radius-sm); font-size: var(--t-subhead);
+  color: var(--c-label); outline: none;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
+  letter-spacing: -0.016em;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--c-accent); background: var(--c-bg);
+}
+/* placeholder는 본문보다 작고 자간을 좁혀 좁은 폼 폭에서도 잘리지 않게 */
+.form-input::placeholder, .form-textarea::placeholder {
+  color: var(--c-label-3); font-size: var(--t-footnote);
+  letter-spacing: -0.024em;
+}
+/* 빈 값일 때(= 미선택) 셀렉트도 placeholder처럼 회색으로 — required + :invalid 활용 */
+.form-select:required:invalid { color: var(--c-label-3); }
+.form-select option { color: var(--c-label); }
+.form-select option[value=""] { color: var(--c-label-3); }
+.form-textarea { min-height: 88px; padding: var(--sp-12); resize: vertical; line-height: 1.5; }
+.form-select { appearance: none; cursor: pointer; padding-right: 40px; }
+.form-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-12);
+}
+.form-select-wrap { position: relative; }
+.form-select-wrap::after {
+  content: ''; position: absolute;
+  right: 14px; top: 50%; width: 10px; height: 10px;
+  border-right: 2px solid var(--c-label-2);
+  border-bottom: 2px solid var(--c-label-2);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+  transition: border-color 0.15s var(--ease);
+}
+.form-select-wrap:focus-within::after { border-color: var(--c-accent); }
+.btn-submit {
+  width: 100%; min-height: 50px; background: var(--c-accent); color: #fff;
+  border: none; border-radius: var(--radius-md); cursor: pointer;
+  font-size: var(--t-subhead); font-weight: 600; letter-spacing: -0.016em;
+  transition: all 0.2s var(--ease);
+}
+.btn-submit:hover { background: var(--c-accent-hover); }
+.btn-submit:disabled { background: var(--c-label-3); cursor: not-allowed; }
+.form-hint {
+  font-size: var(--t-caption); color: var(--c-label-3);
+  text-align: center; margin-top: var(--sp-12);
+  letter-spacing: -0.008em; line-height: 1.5;
+}
+
+/* Success state */
+.success-state {
+  display: none; text-align: center; padding: var(--sp-40) var(--sp-20);
+}
+.success-icon {
+  width: 60px; height: 60px; border-radius: 50%;
+  background: var(--c-accent-light); display: flex;
+  align-items: center; justify-content: center;
+  font-size: 24px; margin: 0 auto var(--sp-16);
+}
+.success-title {
+  font-size: var(--t-title-3); font-weight: 600;
+  letter-spacing: -0.022em; margin-bottom: var(--sp-8);
+}
+.success-body {
+  font-size: var(--t-subhead); color: var(--c-label-2);
+  letter-spacing: -0.016em; line-height: 1.6;
+}
+
+/* ── GUIDE PAGE ──────────────────────────────────────────── */
+.guide-layout {
+  display: grid; grid-template-columns: 1fr 320px;
+  gap: var(--sp-48); padding: var(--sp-48) max(24px, calc(50vw - 580px));
+  align-items: start;
+}
+.guide-section { margin-bottom: var(--sp-48); }
+.guide-section-title {
+  font-size: var(--t-title-3); font-weight: 600;
+  letter-spacing: -0.022em; margin-bottom: var(--sp-16);
+  padding-bottom: var(--sp-12); border-bottom: 1px solid var(--c-separator);
+}
+.guide-list { list-style: none; }
+.guide-list li {
+  font-size: var(--t-subhead); color: var(--c-label-2);
+  padding: var(--sp-12) 0; padding-left: var(--sp-20);
+  border-bottom: 1px solid var(--c-separator);
+  position: relative; line-height: 1.5; letter-spacing: -0.016em;
+}
+.guide-list li::before {
+  content: ''; position: absolute; left: 0; top: 20px;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--c-accent-mid);
+}
+.process-steps {
+  display: flex; gap: 2px; border-radius: var(--radius-md);
+  overflow: hidden; margin-bottom: var(--sp-20);
+}
+.process-step {
+  flex: 1; padding: var(--sp-20) var(--sp-16);
+  background: var(--c-bg-2); text-align: center;
+}
+.process-step:nth-child(1) { background: var(--c-accent); color: #fff; }
+.process-step:nth-child(2) { background: #4e6b49; color: #fff; }
+.process-step:nth-child(3) { background: #638f5d; color: #fff; }
+.process-step:nth-child(4) { background: #8fa889; color: #fff; }
+.process-num {
+  font-size: var(--t-title-2); font-weight: 300;
+  letter-spacing: -0.02em; display: block; margin-bottom: var(--sp-4);
+  opacity: 0.8;
+}
+.process-label { font-size: var(--t-caption); font-weight: 500; letter-spacing: -0.008em; }
+
+.schedule-table { width: 100%; border-collapse: collapse; }
+.schedule-table th {
+  text-align: left; padding: var(--sp-12) var(--sp-16);
+  background: var(--c-accent); color: #fff;
+  font-size: var(--t-caption); font-weight: 500; letter-spacing: 0.02em;
+}
+.schedule-table td {
+  padding: var(--sp-12) var(--sp-16); font-size: var(--t-subhead);
+  border-bottom: 1px solid var(--c-separator); letter-spacing: -0.016em;
+}
+.schedule-table tr:nth-child(even) td { background: var(--c-bg-2); }
+.badge {
+  display: inline-block; padding: 2px 10px; border-radius: 980px;
+  font-size: 11px; font-weight: 500; letter-spacing: 0.02em;
+}
+.badge-break { background: #fff3cd; color: #856404; }
+.badge-closed { background: var(--c-fill-2); color: var(--c-label-3); }
+
+.wifi-card {
+  background: var(--c-fill); border-radius: var(--radius-md);
+  padding: var(--sp-20) var(--sp-24); font-size: var(--t-subhead);
+  color: var(--c-label-2); line-height: 2; letter-spacing: -0.016em;
+}
+.wifi-card strong { color: var(--c-label); }
+
+/* ── Caution category groups ─────────────────────────────── */
+.caution-group {
+  background: var(--c-bg); border: 1px solid var(--c-separator);
+  border-radius: var(--radius-md); margin-bottom: var(--sp-12);
+  overflow: hidden;
+}
+.caution-group-header {
+  display: flex; align-items: center; gap: var(--sp-12);
+  padding: var(--sp-12) var(--sp-20);
+  background: var(--c-bg-2);
+  border-bottom: 1px solid var(--c-separator);
+}
+.caution-cat {
+  font-size: var(--t-headline); font-weight: 600;
+  letter-spacing: -0.022em;
+  color: var(--c-accent);
+}
+.caution-cat-sub {
+  font-size: var(--t-subhead); color: var(--c-label);
+  letter-spacing: -0.016em;
+}
+.caution-group ul {
+  list-style: none; padding: var(--sp-12) var(--sp-20);
+}
+.caution-group ul li {
+  font-size: var(--t-subhead); color: var(--c-label);
+  padding: var(--sp-8) 0 var(--sp-8) var(--sp-16);
+  position: relative; line-height: 1.55; letter-spacing: -0.016em;
+}
+.caution-group ul li + li { border-top: 1px solid var(--c-separator); }
+.caution-group ul li::before {
+  content: ''; position: absolute; left: 0; top: 17px;
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--c-accent-mid);
+}
+.caution-group ul li .note {
+  display: block; margin-top: 2px;
+  font-size: var(--t-footnote); color: var(--c-label-2);
+  letter-spacing: -0.008em;
+}
+
+/* Contact sidebar */
+.contact-stack { display: flex; flex-direction: column; gap: var(--sp-12); }
+.contact-card {
+  background: var(--c-bg); border: 1px solid var(--c-separator);
+  border-radius: var(--radius-md); padding: var(--sp-16) var(--sp-20);
+}
+.contact-name {
+  font-size: var(--t-subhead); font-weight: 600;
+  letter-spacing: -0.016em; margin-bottom: 2px;
+}
+.contact-role {
+  font-size: var(--t-caption); color: var(--c-label-3);
+  letter-spacing: 0.02em; margin-bottom: var(--sp-8);
+}
+.contact-email {
+  font-size: var(--t-footnote); color: var(--c-accent);
+  letter-spacing: -0.008em;
+}
+.location-card {
+  background: var(--c-accent-light); border-radius: var(--radius-md);
+  padding: var(--sp-20) var(--sp-24); margin-top: var(--sp-20);
+  font-size: var(--t-subhead); color: var(--c-label-2);
+  line-height: 1.8; letter-spacing: -0.016em;
+}
+.location-card strong { color: var(--c-accent); font-weight: 600; }
+
+/* ── Footer ──────────────────────────────────────────────── */
+footer {
+  background: var(--c-bg-2); border-top: 1px solid var(--c-separator);
+  padding: var(--sp-40) max(24px, calc(50vw - 580px));
+}
+.footer-inner {
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: var(--sp-12);
+}
+.footer-brand {
+  font-size: var(--t-subhead); font-weight: 600;
+  color: var(--c-label); letter-spacing: -0.016em;
+}
+.footer-sub, .footer-copy {
+  font-size: var(--t-caption); color: var(--c-label-3); letter-spacing: -0.008em;
+}
+
+/* ── Toast ───────────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: var(--sp-32); left: 50%; transform: translateX(-50%) translateY(80px);
+  z-index: 999; background: rgba(29,29,31,0.88);
+  backdrop-filter: blur(12px); color: #fff;
+  padding: var(--sp-12) var(--sp-24); border-radius: 980px;
+  font-size: var(--t-subhead); letter-spacing: -0.016em;
+  opacity: 0; transition: all 0.4s var(--ease-spring);
+  white-space: nowrap;
+}
+.toast.show { opacity:1; transform: translateX(-50%) translateY(0); }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .navbar { padding: 0 var(--sp-20); gap: var(--sp-16); }
+  .navbar-links a { padding: 0 var(--sp-4); font-size: var(--t-caption); }
+  .navbar-brand-logo { height: 18px; }
+  .form-row { grid-template-columns: 1fr; gap: 0; }
+  .stats-strip { grid-template-columns: repeat(2,1fr); gap: 0; }
+  .split { grid-template-columns: 1fr; }
+  .split-text { padding: var(--sp-48) var(--sp-24); }
+  .split-media { min-height: 300px; }
+  .cards-grid { grid-template-columns: 1fr; }
+  .fp-section { padding: var(--sp-48) var(--sp-24); }
+  .room-row, .room-row:nth-child(even) { grid-template-columns: 1fr; }
+  .room-row:nth-child(even) .room-media { order: 0; }
+  .room-info { padding: var(--sp-32) var(--sp-24); }
+  .reservation-layout { grid-template-columns: 1fr; padding: var(--sp-32) var(--sp-20); }
+  .guide-layout { grid-template-columns: 1fr; padding: var(--sp-32) var(--sp-20); }
+  .process-steps { flex-direction: column; }
+  .section { padding: var(--sp-48) var(--sp-24); }
+  .section-sm { padding: var(--sp-32) var(--sp-24); }
+  .hero-body { padding: var(--sp-48) var(--sp-24); }
+  .page-hero-body { padding: var(--sp-32) var(--sp-24); }
+  .cta-band { padding: var(--sp-48) var(--sp-24); }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="navbar" id="navbar">
+  <span class="navbar-brand" onclick="showPage('home')">
+    <img src="images/LG_AI_Home_logo.png" alt="LG AI Home" class="navbar-brand-logo">
+    <span class="navbar-brand-divider"></span>
+    <span>ThinQ Real</span>
+  </span>
+  <div class="navbar-links">
+    <a onclick="showPage('home')"    id="nav-home"    class="active">홈</a>
+    <a onclick="showPage('space')"   id="nav-space">공간 소개</a>
+    <a onclick="showPage('reserve')" id="nav-reserve">예약</a>
+    <a onclick="showPage('guide')"   id="nav-guide">이용 안내</a>
+  </div>
+  <span class="navbar-spacer"></span>
+  <a class="navbar-admin" href="thinqreal_admin.html" target="_blank">관리자</a>
+  <button class="navbar-cta" onclick="showPage('reserve')">예약 신청</button>
+</nav>
+
+<!-- ══ HOME ══ -->
+<div id="page-home" class="page active">
+
+  <section class="hero">
+    <div class="hero-media"></div>
+    <div class="hero-body">
+      <span class="hero-eyebrow">LG Electronics · AI Home Research Space · 마곡 LG사이언스파크</span>
+      <h1 class="hero-title">미래의 집을,<br>지금 경험하세요.</h1>
+      <p class="hero-sub">30평형 실제 주거 공간에서 LG AI 가전과 홈 솔루션을 직접 연구하고 시연합니다.</p>
+      <div class="hero-actions">
+        <button class="btn btn-filled" onclick="showPage('reserve')">예약 신청하기</button>
+        <button class="btn btn-white"  onclick="showPage('space')">공간 둘러보기</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="stats-strip">
+    <div class="stat-item">
+      <span class="stat-num">30</span>
+      <span class="stat-label">평형 규모</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-num">7</span>
+      <span class="stat-label">개 공간 구성</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-num">3</span>
+      <span class="stat-label">회 일일 운영</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-num">24+</span>
+      <span class="stat-label">연동 기기</span>
+    </div>
+  </div>
+
+  <div class="split">
+    <div class="split-text">
+      <span class="label-overline">About</span>
+      <h2 class="section-title">AI 홈을<br>현실로 구현하는 공간</h2>
+      <p class="section-body">ThinQ Real은 실제 주거 환경에서 LG전자의 AI 가전과 홈 솔루션을 연구·검증·시연하는 공간입니다. 보안게이트 외부에 위치해 내외부 방문자 모두 별도 보안 절차 없이 이용할 수 있습니다.</p>
+      <div class="tag-row" style="margin-top:var(--sp-24);">
+        <span class="tag">R&D 연구</span>
+        <span class="tag">B2B 쇼룸</span>
+        <span class="tag">AI홈 시연</span>
+      </div>
+      <button class="btn btn-tonal" style="margin-top:var(--sp-24);align-self:flex-start;" onclick="showPage('space')">공간 자세히 보기</button>
+    </div>
+    <div class="split-media" style="background-image:url('images/thinqreal_about.png');"></div>
+  </div>
+
+  <section>
+    <div class="cards-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🤝</div>
+        <h3 class="feature-title">AI홈 쇼룸 지원</h3>
+        <p class="feature-body">건설사·인테리어사·이동통신사 등 B2B 파트너사에게 실제 주거 환경에서 LG AI 홈 솔루션을 직접 체험하는 프리미엄 시연 공간을 제공합니다.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔬</div>
+        <h3 class="feature-title">기술 연구 및 검증</h3>
+        <p class="feature-body">AI 기술과 생활 패턴 기반 자동화 시나리오를 실제 주거 환경에서 실험하고 AI 홈 솔루션에 반영합니다.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3 class="feature-title">데이터 축적 및 고도화</h3>
+        <p class="feature-body">실생활 기반 데이터를 지속 축적해 AI 기술 고도화의 기반을 만들고 엣지 케이스를 발견해 품질을 개선합니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-band">
+    <span class="label-overline" style="color:rgba(255,255,255,0.6);">Visit</span>
+    <h2 class="section-title">ThinQ Real을<br>직접 경험해 보세요</h2>
+    <p class="section-body">R&D 연구, B2B 파트너 시연, 내부 행사 등 다양한 목적으로 예약 가능합니다.</p>
+    <button class="btn btn-white" onclick="showPage('reserve')">예약 신청하기</button>
+  </section>
+
+  <footer>
+    <div class="footer-inner">
+      <span class="footer-brand">ThinQ Real</span>
+      <span class="footer-sub">마곡 LG사이언스파크 W6동 1층 · HS플랫폼사업센터 AI홈솔루션엔지니어링팀</span>
+      <span class="footer-copy">© 2026 LG Electronics</span>
+    </div>
+  </footer>
+</div>
+
+<!-- ══ SPACE ══ -->
+<div id="page-space" class="page">
+  <div class="page-hero" style="background-image:url('images/thinqreal_space_hero.jpeg');">
+    <div class="page-hero-body">
+      <span class="label-overline" style="color:rgba(255,255,255,0.6);margin-bottom:var(--sp-8);">Space</span>
+      <h1 class="page-title">공간 소개</h1>
+    </div>
+  </div>
+
+  <div class="fp-section">
+    <div>
+      <span class="label-overline">Floor Plan</span>
+      <h2 class="section-title">완전한<br>주거 공간 구성</h2>
+      <p class="section-body" style="margin-left:auto;margin-right:auto;">30평형 정방형 공간에 7개 공간을 구성했습니다. 난방을 제외한 모든 기기가 실제 동작하며 주요 벽면 하단의 히든 콘센트로 전원선이 노출되지 않습니다.</p>
+      <div class="tag-row">
+        <span class="tag">현관</span><span class="tag">거실</span><span class="tag">주방</span>
+        <span class="tag">침실</span><span class="tag">런드레스룸</span><span class="tag">욕실</span><span class="tag">복도</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="room-list">
+    <div class="room-row">
+      <div class="room-media" style="background-image:url('images/thinqreal_living_room.png');"></div>
+      <div class="room-info" style="padding-left:clamp(24px,6vw,80px);padding-right:clamp(24px,6vw,80px);">
+        <span class="room-number">01 / 거실</span>
+        <h3 class="room-name">Living Room</h3>
+        <p class="room-desc">LDK 스타일의 넓은 공간. 10인 이상 수용 가능하며 모든 가전·IoT를 연동해 다양한 Scene을 구성할 수 있습니다.</p>
+        <div class="appliance-list">
+          <span class="appliance-chip">스탠바이미2</span><span class="appliance-chip">86인치 QNED TV</span>
+          <span class="appliance-chip">시네빔 4K</span><span class="appliance-chip">사운드바</span>
+          <span class="appliance-chip">ThinQ ON</span><span class="appliance-chip">전동커튼</span><span class="appliance-chip">PDLC 창호</span>
+        </div>
+      </div>
+    </div>
+    <div class="room-row">
+      <div class="room-media" style="background-image:url('images/thinqreal_kitchen.png');"></div>
+      <div class="room-info alt" style="padding-left:clamp(24px,6vw,80px);padding-right:clamp(24px,6vw,80px);">
+        <span class="room-number">02 / 주방</span>
+        <h3 class="room-name">Kitchen</h3>
+        <p class="room-desc">아일랜드 키친 중심 구성. 에어 케어를 가장 효과적으로 시연할 수 있으며 조리 환경의 환기 솔루션을 직접 체험합니다.</p>
+        <div class="appliance-list">
+          <span class="appliance-chip">무드업 냉장고</span><span class="appliance-chip">김치냉장고</span>
+          <span class="appliance-chip">광파오븐</span><span class="appliance-chip">인덕션</span>
+          <span class="appliance-chip">식기세척기</span><span class="appliance-chip">정수기</span><span class="appliance-chip">와인셀러</span>
+        </div>
+      </div>
+    </div>
+    <div class="room-row">
+      <div class="room-media" style="background-image:url('images/thinqreal_bedroom.png');"></div>
+      <div class="room-info" style="padding-left:clamp(24px,6vw,80px);padding-right:clamp(24px,6vw,80px);">
+        <span class="room-number">03 / 침실</span>
+        <h3 class="room-name">Bedroom</h3>
+        <p class="room-desc">수면·휴식 관련 Scene을 위한 시스템과 설비가 구축된 공간. 스마트 베드와 다양한 IoT 기기가 유기적으로 연동됩니다.</p>
+        <div class="appliance-list">
+          <span class="appliance-chip">스마트 베드</span><span class="appliance-chip">스탠바이미</span>
+          <span class="appliance-chip">에어로 퍼니처</span><span class="appliance-chip">보이스 컨트롤러</span><span class="appliance-chip">모션/조도 센서</span>
+        </div>
+      </div>
+    </div>
+    <div class="room-row">
+      <div class="room-media" style="background-image:url('images/thinqreal_laundress_room.png');"></div>
+      <div class="room-info alt" style="padding-left:clamp(24px,6vw,80px);padding-right:clamp(24px,6vw,80px);">
+        <span class="room-number">04 / 런드레스룸</span>
+        <h3 class="room-name">Laundress Room</h3>
+        <p class="room-desc">워시타워의 저소음 세탁·건조와 스타일러의 공간 제습 기능을 어필할 수 있는 공간입니다.</p>
+        <div class="appliance-list">
+          <span class="appliance-chip">워시타워</span><span class="appliance-chip">스타일러</span><span class="appliance-chip">유리 슬라이딩 도어</span>
+        </div>
+      </div>
+    </div>
+    <div class="room-row">
+      <div class="room-media" style="background-image:url('images/thinqreal_bathroom.jpg');"></div>
+      <div class="room-info" style="padding-left:clamp(24px,6vw,80px);padding-right:clamp(24px,6vw,80px);">
+        <span class="room-number">05 / 욕실</span>
+        <h3 class="room-name">Bathroom</h3>
+        <p class="room-desc">바스에어의 듀얼 배기와 스마트 수전으로 욕실 Scene을 시연할 수 있습니다. 재실 센서와 온습도 센서가 자동 제어를 지원합니다.</p>
+        <div class="appliance-list">
+          <span class="appliance-chip">바스에어 (듀얼 배기)</span><span class="appliance-chip">스마트 수전</span>
+          <span class="appliance-chip">온습도 센서</span><span class="appliance-chip">재실 센서</span>
+          <span class="appliance-chip">다운라이트</span><span class="appliance-chip">간접조명</span>
+        </div>
+      </div>
+    </div>
+    <div class="room-row">
+      <div class="room-media" style="background-image:url('images/thinqreal_entrance_corridor.png');"></div>
+      <div class="room-info alt" style="padding-left:clamp(24px,6vw,80px);padding-right:clamp(24px,6vw,80px);">
+        <span class="room-number">06 / 현관 · 복도</span>
+        <h3 class="room-name">Entrance & Corridor</h3>
+        <p class="room-desc">집이 사용자를 미리 알고 반겨주는 Welcome 모드. 히든 LED·다운라이트·도어벨이 연동된 스마트 현관 경험을 제공합니다.</p>
+        <div class="appliance-list">
+          <span class="appliance-chip">틔운 오브제</span><span class="appliance-chip">도어락</span>
+          <span class="appliance-chip">Hidden LED</span><span class="appliance-chip">와인셀러</span><span class="appliance-chip">도어벨</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-inner">
+      <span class="footer-brand">ThinQ Real</span>
+      <span class="footer-sub">마곡 LG사이언스파크 W6동 1층 · HS플랫폼사업센터 AI홈솔루션엔지니어링팀</span>
+      <span class="footer-copy">© 2026 LG Electronics</span>
+    </div>
+  </footer>
+</div>
+
+<!-- ══ RESERVATION ══ -->
+<div id="page-reserve" class="page">
+  <div class="section-sm" style="border-bottom:1px solid var(--c-separator);">
+    <span class="label-overline">Reservation</span>
+    <h1 class="section-title">예약 신청</h1>
+    <p class="section-body" style="max-width:none;">날짜와 시간대를 선택하고 신청 정보를 입력해 주세요. 담당자 검토 후 확정 메일이 발송됩니다.</p>
+  </div>
+
+  <div class="reservation-layout">
+    <div>
+      <!-- Calendar -->
+      <div class="calendar-card">
+        <div class="cal-header">
+          <button class="cal-nav-btn" onclick="changeMonth(-1)">‹</button>
+          <span class="cal-month-label" id="calMonth"></span>
+          <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+      </div>
+
+      <!-- Slots -->
+      <div class="slots-card" id="slotsCard" style="display:none;">
+        <div class="slots-header" id="slotsHeader">시간대 선택</div>
+        <div class="slot-list">
+          <div class="slot-item" id="slot1" onclick="selectSlot(1)">
+            <div>
+              <div class="slot-label-text">1회차</div>
+              <div class="slot-time-text">09:00 – 10:30</div>
+              <div class="slot-booked-label" id="slot1-status"></div>
+            </div>
+            <span class="slot-badge" id="slot1-badge">오전</span>
+          </div>
+          <div class="slot-item" id="slot2" onclick="selectSlot(2)">
+            <div>
+              <div class="slot-label-text">2회차</div>
+              <div class="slot-time-text">13:00 – 14:30</div>
+              <div class="slot-booked-label" id="slot2-status"></div>
+            </div>
+            <span class="slot-badge" id="slot2-badge">오후</span>
+          </div>
+          <div class="slot-item" id="slot3" onclick="selectSlot(3)">
+            <div>
+              <div class="slot-label-text">3회차</div>
+              <div class="slot-time-text">15:00 – 16:30</div>
+              <div class="slot-booked-label" id="slot3-status"></div>
+            </div>
+            <span class="slot-badge" id="slot3-badge">오후</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <div class="form-card">
+      <div id="formContent">
+        <p class="form-card-title">신청 정보 입력</p>
+        <div class="form-summary-chip" id="formSummary">
+          <span>선택한 일정</span>
+          <strong id="summaryText">—</strong>
+        </div>
+        <div class="form-group">
+          <label class="form-label">방문자 이름 *</label>
+          <input class="form-input" id="fName" type="text" placeholder="홍길동">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">소속 *</label>
+            <input class="form-input" id="fOrg" type="text" placeholder="HS플랫폼사업센터">
+          </div>
+          <div class="form-group">
+            <label class="form-label">부서 *</label>
+            <input class="form-input" id="fDept" type="text" placeholder="AI홈솔루션엔지니어링팀">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">연락처 *</label>
+          <input class="form-input" id="fPhone" type="tel" placeholder="010-0000-0000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">이메일 *</label>
+          <input class="form-input" id="fEmail" type="email" placeholder="name@lge.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">방문 목적 *</label>
+          <div class="form-select-wrap">
+            <select class="form-select" id="fPurpose" required>
+              <option value="">선택해 주세요</option>
+              <option>R&D 연구</option>
+              <option>B2B 파트너 시연</option>
+              <option>내부 행사</option>
+              <option>Press Tour</option>
+              <option>기타</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">방문 인원 *</label>
+          <input class="form-input" id="fCount" type="number" placeholder="5" min="1" max="30">
+        </div>
+        <div class="form-group">
+          <label class="form-label">요청 사항</label>
+          <textarea class="form-textarea" id="fNote" placeholder="특별 요청사항을 입력해 주세요."></textarea>
+        </div>
+        <button class="btn-submit" id="submitBtn" onclick="submitBooking()">예약 신청하기</button>
+        <p class="form-hint">신청 후 담당자 검토를 거쳐 확정 메일이 발송됩니다.</p>
+      </div>
+      <div class="success-state" id="successState">
+        <div class="success-icon">✓</div>
+        <h3 class="success-title">신청 완료</h3>
+        <p class="success-body">담당자 검토 후 1–2 영업일 내<br>확정 메일을 보내드립니다.</p>
+        <button class="btn btn-tonal" style="margin-top:var(--sp-24);" onclick="resetForm()">새 예약 신청</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-inner">
+      <span class="footer-brand">ThinQ Real</span>
+      <span class="footer-sub">마곡 LG사이언스파크 W6동 1층 · HS플랫폼사업센터 AI홈솔루션엔지니어링팀</span>
+      <span class="footer-copy">© 2026 LG Electronics</span>
+    </div>
+  </footer>
+</div>
+
+<!-- ══ GUIDE ══ -->
+<div id="page-guide" class="page">
+  <div class="page-hero" style="background-image:url('images/thinqreal_guide_hero.png');">
+    <div class="page-hero-body">
+      <span class="label-overline" style="color:rgba(255,255,255,0.6);margin-bottom:var(--sp-8);">Guide</span>
+      <h1 class="page-title">이용 안내</h1>
+    </div>
+  </div>
+
+  <div class="guide-layout">
+    <div>
+      <div class="guide-section">
+        <h2 class="guide-section-title">예약 프로세스</h2>
+        <div class="process-steps">
+          <div class="process-step"><span class="process-num">01</span><span class="process-label">예약 신청</span></div>
+          <div class="process-step"><span class="process-num">02</span><span class="process-label">담당자 검토</span></div>
+          <div class="process-step"><span class="process-num">03</span><span class="process-label">확정 메일</span></div>
+          <div class="process-step"><span class="process-num">04</span><span class="process-label">방문 이용</span></div>
+        </div>
+        <p style="font-size:var(--t-subhead);color:var(--c-label-2);line-height:1.6;letter-spacing:-0.016em;">예약 신청 후 담당자 검토를 거쳐 확정 메일이 발송됩니다. 신청 시 방문 목적, 인원, 연락처를 정확히 입력해 주세요.</p>
+      </div>
+
+      <div class="guide-section">
+        <h2 class="guide-section-title">운영 시간</h2>
+        <table class="schedule-table">
+          <thead><tr><th>구분</th><th>시간</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td><strong>1회차</strong></td><td>09:00 – 10:30</td><td>90분</td></tr>
+            <tr><td><span class="badge badge-break">재정비</span></td><td>10:30 – 11:00</td><td>30분</td></tr>
+            <tr><td><span class="badge badge-closed">점심</span></td><td>11:30 – 13:00</td><td>예약 불가</td></tr>
+            <tr><td><strong>2회차</strong></td><td>13:00 – 14:30</td><td>90분</td></tr>
+            <tr><td><span class="badge badge-break">재정비</span></td><td>14:30 – 15:00</td><td>30분</td></tr>
+            <tr><td><strong>3회차</strong></td><td>15:00 – 16:30</td><td>90분</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:var(--t-caption);color:var(--c-label-3);margin-top:var(--sp-8);">* 토요일·일요일 및 공휴일 운영 없음</p>
+      </div>
+
+      <div class="guide-section">
+        <h2 class="guide-section-title">이용 유의사항</h2>
+        <p style="font-size:var(--t-subhead);color:var(--c-destructive, #d6232a);font-weight:600;margin-bottom:var(--sp-16);">⚠ 유의사항은 꼭 필독해 주시기 바라며, 미이행 시 향후 이용에 제재가 있을 예정입니다.</p>
+
+        <div class="caution-group">
+          <div class="caution-group-header">
+            <span class="caution-cat">공통</span>
+            <span class="caution-cat-sub">기본 유의사항</span>
+          </div>
+          <ul>
+            <li>모든 가전과 물품은 외부 반출이 불가합니다.</li>
+            <li>기기나 공간 파손 시 담당자에게 즉시 고지해 주세요.</li>
+            <li>사용한 장비·물품·쓰레기는 당일 퇴실 시 ThinQ Real 밖으로 철수해 주세요.</li>
+            <li>콘센트 사용을 제외한 수납장 개폐·사용은 금지입니다.</li>
+            <li>퇴실 시 반드시 현관의 퇴실 모드를 눌러 주세요.</li>
+            <li>외관 품질 유지를 위해 출입문·창문·가전·벽면에 손자국이 남지 않도록 협조 부탁드립니다. 최대한 손잡이를 활용해 주세요.</li>
+          </ul>
+        </div>
+
+        <div class="caution-group">
+          <div class="caution-group-header">
+            <span class="caution-cat">가전</span>
+            <span class="caution-cat-sub">가전·IoT·소품</span>
+          </div>
+          <ul>
+            <li>모든 가전과 물품은 외부 반출이 불가합니다.</li>
+            <li>내부에서 이동 가능한 가전의 경우 이동·사용 후 반드시 원복해 주세요.<span class="note">이동 시 공간 파손에 유의해 주세요.</span></li>
+            <li>타 ThinQ 계정에서 기기 연결은 엄격히 금지됩니다.</li>
+            <li>홈 카메라 위치 변경은 금지입니다.</li>
+            <li>센서·양면 테이프 등 부착은 금지입니다.<span class="note">일부 영역의 필름이 벗겨질 수 있으니 사전에 문의해 주세요.</span></li>
+          </ul>
+        </div>
+
+        <div class="caution-group">
+          <div class="caution-group-header">
+            <span class="caution-cat">공간</span>
+            <span class="caution-cat-sub">커튼·창호·가구·전기</span>
+          </div>
+          <ul>
+            <li><strong style="color:var(--c-label);">커튼</strong> — 전동 커튼이므로 살짝 당기거나 밀면 자동으로 열리고 닫힙니다. 수동으로 무리하게 동작 시 모터 고장이 발생할 수 있습니다.</li>
+            <li><strong style="color:var(--c-label);">창호 (거실·침실)</strong> — 전동 창호이므로 손잡이를 잡고 살짝 당기거나 밀면 자동으로 열리고 닫힙니다. 수동으로 무리하게 동작 시 모터 고장이 발생할 수 있습니다.</li>
+            <li><strong style="color:var(--c-label);">가구</strong> — 가구·소품 이동은 불가합니다.<span class="note">필요 시 사전 협의 후 반드시 원복해 주세요.</span></li>
+            <li><strong style="color:var(--c-label);">전기</strong> — 스위치 박스·분전반 등 전기·시설 관련 임의 작업은 금지입니다.<span class="note">필요 시 사전 협의해 주세요.</span></li>
+          </ul>
+        </div>
+
+        <div class="caution-group">
+          <div class="caution-group-header">
+            <span class="caution-cat">욕실</span>
+            <span class="caution-cat-sub">화장실·슬리퍼</span>
+          </div>
+          <ul>
+            <li>욕실 내 대·소변은 금지입니다.<span class="note">화장실은 현관 앞 엘리베이터를 이용해 지하 2·3층 또는 반대편 1로비 공용 화장실을 이용해 주세요.</span></li>
+            <li>실내에 구비된 슬리퍼만 착용해 주세요. 슬리퍼로 외출은 금지이며 퇴실 시 신발장에 수납해 주세요.</li>
+          </ul>
+        </div>
+
+        <div class="caution-group">
+          <div class="caution-group-header">
+            <span class="caution-cat">ThinQ</span>
+            <span class="caution-cat-sub">계정·홈초대</span>
+          </div>
+          <ul>
+            <li>ThinQ Real 전용 ThinQ·IoT 앱에 등록된 기기의 해제·재연결은 금지되며, 타 계정에서의 기기 연결도 금지입니다.</li>
+            <li>홈초대로 타 계정 이용 시, 공간 외부에서의 임의 사용(스마트 루틴·원격 제어 등)은 금지입니다.<span class="note">전기 낭비 방지 및 현장에서 타 용도로 사용 중일 수 있습니다.</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="guide-section">
+        <h2 class="guide-section-title">기타 이용 안내</h2>
+        <ul class="guide-list">
+          <li>
+            <strong style="color:var(--c-label);">세탁기 · 식기세척기 · 수전 사용 시</strong><br>
+            <span style="color:var(--c-label-2);">건물 수압이 강해 냉·온수 초기 사용 시 급수관 압력이 발생해 꿀렁일 수 있습니다. 물을 틀어놓고 30초~1분 지나면 정상 수압으로 급수됩니다.</span>
+          </li>
+          <li>
+            <strong style="color:var(--c-label);">촬영 시</strong><br>
+            <span style="color:var(--c-label-2);">카메라·삼각대·조명 이동 시 벽이나 천장의 도장면을 긁지 않도록 각별히 유의해 주세요.</span>
+          </li>
+          <li>
+            <strong style="color:var(--c-label);">창호 · 커튼 동작 시</strong><br>
+            <span style="color:var(--c-label-2);">전동 커튼·창호를 수동으로 무리하게 동작하면 모터에 무리가 갈 수 있습니다. 주방 창호는 리모컨으로만 동작해 주세요. 거실 창호 유리에는 PDLC 필름이 부착되어 있어 다른 부착물이 있을 경우 손상이 발생합니다.</span>
+          </li>
+          <li>
+            <strong style="color:var(--c-label);">조리 시</strong><br>
+            <span style="color:var(--c-label-2);">주방 후드를 사용하고 화재·안전에 유의해 주세요. 설거지 및 물기 제거 후 퇴실해 주세요. 설거지 시 별도 용품을 사용하고 구비된 어메니티 사용은 금지입니다.</span>
+          </li>
+          <li>
+            <strong style="color:var(--c-label);">침대 이용 시</strong><br>
+            <span style="color:var(--c-label-2);">베개·이불 등 정리정돈 후 퇴실해 주세요.</span>
+          </li>
+          <li>
+            <strong style="color:var(--c-label);">욕실 이용 시</strong><br>
+            <span style="color:var(--c-label-2);">물 사용 후 구비된 어메니티·수건 사용은 금지입니다.</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="guide-section">
+        <h2 class="guide-section-title">ThinQ 홈 초대 규정</h2>
+        <ul class="guide-list">
+          <li>홈 초대는 담당자에게 사전 요청 후 사용, 사용 후 삭제합니다.</li>
+          <li>실명으로 사용자 정보를 등록해 주세요. 실명이 아닐 경우 홈 멤버가 삭제됩니다.</li>
+          <li>기존에 연결된 기기의 삭제·재연결은 엄격히 금지됩니다.</li>
+          <li>공간 밖에서의 스마트루틴 및 원격 제어는 금지됩니다.</li>
+        </ul>
+      </div>
+
+      <div class="guide-section">
+        <h2 class="guide-section-title">주차 안내</h2>
+        <ul class="guide-list">
+          <li>
+            <strong style="color:var(--c-label);">마곡 LG사이언스파크 근무 직원</strong><br>
+            <span style="color:var(--c-label-2);">SP Portal (<a href="https://portal.lgsp.co.kr" target="_blank" style="color:var(--c-accent);text-decoration:none;">portal.lgsp.co.kr</a>)
+            → Support → 주차 → <strong>전용건물 방문자 주차</strong>에서 직접 신청</span>
+          </li>
+          <li>
+            <strong style="color:var(--c-label);">그 외 사업장 근무 직원 및 외부 고객</strong><br>
+            <span style="color:var(--c-label-2);">김현진 선임(<a href="mailto:hj8462.kim@lge.com" style="color:var(--c-accent);text-decoration:none;">hj8462.kim@lge.com</a>)에게 문의</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="guide-section">
+        <h2 class="guide-section-title">무선 인터넷</h2>
+        <div class="wifi-card">
+          <div><strong>SSID:</strong> LGE_AI_HOME_2.4G &nbsp;|&nbsp; <strong>PW:</strong> real2026</div>
+          <div><strong>SSID:</strong> LGE_AI_HOME &nbsp;|&nbsp; <strong>PW:</strong> real2026</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div>
+      <h2 class="guide-section-title">담당자</h2>
+      <div class="contact-stack">
+        <div class="contact-card">
+          <div class="contact-name">이철호</div>
+          <div class="contact-role">책임 연구원</div>
+          <div class="contact-email">ch275.lee@lge.com</div>
+        </div>
+        <div class="contact-card">
+          <div class="contact-name">서문수</div>
+          <div class="contact-role">선임 연구원</div>
+          <div class="contact-email">moonsu.seo@lge.com</div>
+        </div>
+        <div class="contact-card">
+          <div class="contact-name">김현진</div>
+          <div class="contact-role">선임 연구원</div>
+          <div class="contact-email">hj8462.kim@lge.com</div>
+        </div>
+      </div>
+      <div class="location-card">
+        <strong>마곡 LG사이언스파크</strong><br>
+        W6동 1층<br>
+        보안게이트 출구 앞<br>
+        주차장 엘리베이터 앞<br>
+        <span style="font-size:var(--t-caption);color:var(--c-label-3);display:block;margin-top:var(--sp-8);">보안게이트 밖 위치 — 별도 보안 절차 없이 방문 가능</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-inner">
+      <span class="footer-brand">ThinQ Real</span>
+      <span class="footer-sub">마곡 LG사이언스파크 W6동 1층 · HS플랫폼사업센터 AI홈솔루션엔지니어링팀</span>
+      <span class="footer-copy">© 2026 LG Electronics</span>
+    </div>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec';
+
+// ── Navigation ────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.navbar-links a').forEach(a => a.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  const n = document.getElementById('nav-' + id);
+  if (n) n.classList.add('active');
+  window.scrollTo({ top:0, behavior:'smooth' });
+  // 예약 페이지 진입 시점에 Apps Script를 깨워두면 첫 날짜 클릭 시
+  // 콜드 스타트 1~2초가 사라져 가용성 조회가 즉시 응답함.
+  if (id === 'book') warmupAppsScript();
+}
+
+// ── Toast ─────────────────────────────────────────────────
+function toast(msg, ms=3000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), ms);
+}
+
+// ── Calendar ──────────────────────────────────────────────
+const DAY_KO  = ['일','월','화','수','목','금','토'];
+const SLOT_LABELS = {
+  1: '1회차  09:00–10:30',
+  2: '2회차  13:00–14:30',
+  3: '3회차  15:00–16:30'
+};
+
+let currentDate   = new Date();
+let selectedDate  = null;
+let selectedSlots = new Set(); // 복수 선택
+
+function renderCalendar() {
+  const y = currentDate.getFullYear(), m = currentDate.getMonth();
+  document.getElementById('calMonth').textContent =
+    y + '년 ' + (m+1) + '월';
+
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+
+  DAY_KO.forEach(d => {
+    const el = document.createElement('div');
+    el.className = 'cal-day-name'; el.textContent = d; grid.appendChild(el);
+  });
+
+  const firstDay = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  for (let i = 0; i < firstDay; i++) {
+    const el = document.createElement('div');
+    el.className = 'cal-day empty'; grid.appendChild(el);
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const el = document.createElement('div');
+    el.className = 'cal-day';
+    const dt = new Date(y, m, d);
+    if (dt < today) el.classList.add('past');
+    const dow = dt.getDay();
+    if (dow === 0 || dow === 6) el.classList.add('closed'); // 일·토 휴무
+    if (dt.toDateString() === today.toDateString()) el.classList.add('today');
+    if (selectedDate && dt.toDateString() === selectedDate.toDateString()) el.classList.add('selected');
+    el.textContent = d;
+    if (!el.classList.contains('past') && !el.classList.contains('closed'))
+      el.onclick = () => selectDate(new Date(y, m, d));
+    grid.appendChild(el);
+  }
+}
+
+function changeMonth(dir) {
+  currentDate.setMonth(currentDate.getMonth() + dir);
+  renderCalendar();
+}
+
+function selectDate(date) {
+  selectedDate = date; selectedSlots = new Set();
+  renderCalendar();
+  const card = document.getElementById('slotsCard');
+  card.style.display = 'block';
+  const fmt = date.getFullYear() + '년 ' + (date.getMonth()+1) + '월 '
+    + date.getDate() + '일 (' + DAY_KO[date.getDay()] + ')';
+  document.getElementById('slotsHeader').textContent = fmt + '  시간대 선택 (중복 가능)';
+  document.getElementById('formSummary').style.display = 'none';
+  // 슬롯 초기화 후 가용성 조회
+  resetSlotUI();
+  fetchAvailability(date);
+}
+
+function resetSlotUI() {
+  [1,2,3].forEach(i => {
+    const el = document.getElementById('slot'+i);
+    el.classList.remove('selected','booked','loading');
+    document.getElementById('slot'+i+'-status').textContent = '';
+    document.getElementById('slot'+i+'-badge').textContent =
+      i === 1 ? '오전' : '오후';
+    el.onclick = () => selectSlot(i);
+  });
+}
+
+// 가용성 결과 캐시 — 같은 날짜 재클릭 시 즉시 표시 (15초 TTL).
+// 너무 길게 두면 다른 사람이 방금 예약한 슬롯이 가능으로 보여 충돌 가능.
+const availabilityCache = new Map();
+const AVAILABILITY_TTL = 15000;
+let appsScriptWarmedUp = false;
+
+// Apps Script는 첫 호출 시 콜드 스타트(~1.5초)가 있어 사용자가 처음 날짜를
+// 클릭할 때 체감이 느림. 가벼운 GET을 미리 한 번 보내 런타임을 깨워둔다.
+function warmupAppsScript() {
+  if (appsScriptWarmedUp || !SCRIPT_URL) return;
+  appsScriptWarmedUp = true;
+  // mail_status는 부수효과 없이 즉시 응답하는 가벼운 진단 엔드포인트
+  fetch(SCRIPT_URL + '?type=mail_status').catch(() => { appsScriptWarmedUp = false; });
+}
+
+function applyAvailability(booked) {
+  [1,2,3].forEach(i => {
+    const el     = document.getElementById('slot'+i);
+    const status = document.getElementById('slot'+i+'-status');
+    const badge  = document.getElementById('slot'+i+'-badge');
+    el.classList.remove('loading');
+    if (booked.has(i)) {
+      el.classList.add('booked');
+      el.onclick = null;
+      status.textContent = '예약 마감';
+      badge.textContent  = '마감';
+    } else {
+      el.classList.remove('booked');
+      el.onclick = () => selectSlot(i);
+      status.textContent = '';
+      badge.textContent  = i === 1 ? '오전' : '오후';
+    }
+  });
+}
+
+async function fetchAvailability(date) {
+  if (!SCRIPT_URL) return;
+
+  const dateStr = date.getFullYear() + '-'
+    + String(date.getMonth()+1).padStart(2,'0') + '-'
+    + String(date.getDate()).padStart(2,'0');
+
+  // 캐시 히트 → 즉시 적용, 네트워크 호출 없음
+  const cached = availabilityCache.get(dateStr);
+  if (cached && Date.now() - cached.t < AVAILABILITY_TTL) {
+    applyAvailability(cached.booked);
+    return;
+  }
+
+  // 로딩 상태 표시
+  [1,2,3].forEach(i => {
+    document.getElementById('slot'+i).classList.add('loading');
+    document.getElementById('slot'+i+'-status').textContent = '확인 중…';
+  });
+
+  try {
+    const res  = await fetch(SCRIPT_URL + '?type=availability&date=' + dateStr);
+    const data = await res.json(); // { bookedSlots: [1, 3] }
+    const booked = new Set(data.bookedSlots || []);
+    availabilityCache.set(dateStr, { t: Date.now(), booked });
+    applyAvailability(booked);
+  } catch(e) {
+    // 조회 실패 시 로딩 해제 후 정상 상태 유지
+    [1,2,3].forEach(i => {
+      document.getElementById('slot'+i).classList.remove('loading');
+      document.getElementById('slot'+i+'-status').textContent = '';
+    });
+  }
+}
+
+function selectSlot(n) {
+  // booked 상태면 무시
+  if (document.getElementById('slot'+n).classList.contains('booked')) return;
+  // 토글 — 이미 선택된 회차면 해제, 아니면 추가
+  if (selectedSlots.has(n)) {
+    selectedSlots.delete(n);
+    document.getElementById('slot'+n).classList.remove('selected');
+  } else {
+    selectedSlots.add(n);
+    document.getElementById('slot'+n).classList.add('selected');
+  }
+  updateSummary();
+}
+
+function updateSummary() {
+  if (selectedDate && selectedSlots.size > 0) {
+    const dateFmt = selectedDate.getFullYear() + '년 ' + (selectedDate.getMonth()+1) + '월 '
+      + selectedDate.getDate() + '일';
+    // 선택된 회차를 번호 순서대로 정렬해서 표시
+    const slotFmt = [...selectedSlots].sort((a,b)=>a-b)
+      .map(n => SLOT_LABELS[n].trim()).join(' · ');
+    document.getElementById('formSummary').style.display = 'block';
+    document.getElementById('summaryText').textContent = dateFmt + '  ' + slotFmt;
+  } else {
+    document.getElementById('formSummary').style.display = 'none';
+  }
+}
+
+// ── Submit ────────────────────────────────────────────────
+async function submitBooking() {
+  if (!selectedDate || selectedSlots.size === 0) { toast('날짜와 시간대를 선택해 주세요.'); return; }
+  const get = id => document.getElementById(id).value.trim();
+  const [name, orgCompany, orgDept, phone, email, purpose, count, note] =
+    ['fName','fOrg','fDept','fPhone','fEmail','fPurpose','fCount','fNote'].map(get);
+  if (!name || !orgCompany || !orgDept || !phone || !email || !purpose || !count) {
+    toast('필수 항목을 모두 입력해 주세요.'); return;
+  }
+  // 기존 Sheets 스키마(org 단일 컬럼)와 호환 유지 — "소속 · 부서" 형태로 합침
+  const org = orgCompany + ' · ' + orgDept;
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = '신청 중…';
+  const dateStr = selectedDate.toISOString().slice(0,10);
+  const sortedSlots = [...selectedSlots].sort((a,b)=>a-b);
+  const slotLabel = sortedSlots.map(n => SLOT_LABELS[n].trim()).join(' · ');
+  const payload = {
+    type:'booking', timestamp:new Date().toISOString(),
+    date:dateStr, slots:sortedSlots, slot:sortedSlots[0],
+    slotLabel,
+    name, org, phone, email, purpose, count, note, status:'대기중'
+  };
+  try {
+    await fetch(SCRIPT_URL, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+  } catch(e) {}
+  document.getElementById('formContent').style.display = 'none';
+  document.getElementById('successState').style.display = 'block';
+}
+
+function resetForm() {
+  selectedDate = null; selectedSlots = new Set();
+  ['fName','fOrg','fDept','fPhone','fEmail','fCount','fNote'].forEach(id =>
+    document.getElementById(id).value = '');
+  document.getElementById('fPurpose').value = '';
+  document.getElementById('formContent').style.display = 'block';
+  document.getElementById('successState').style.display = 'none';
+  document.getElementById('submitBtn').disabled = false;
+  document.getElementById('submitBtn').textContent = '예약 신청하기';
+  document.getElementById('slotsCard').style.display = 'none';
+  document.getElementById('formSummary').style.display = 'none';
+  resetSlotUI();
+  renderCalendar();
+}
+
+renderCalendar();
+</script>
+</body>
+</html>
