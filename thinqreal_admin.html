@@ -70,11 +70,56 @@ body {
 .login-err { font-size:var(--t-caption); color:var(--c-red); text-align:center; margin-top:var(--sp-12); min-height:16px; }
 
 /* ── Shell ── */
-.shell { display:none; }
+.shell { display:none; --sidebar-w: 240px; }
+.shell.sidebar-collapsed { --sidebar-w: 64px; }
 .sidebar {
-  width:240px; background:var(--c-bg); border-right:1px solid var(--c-separator);
-  position:fixed; top:0; left:0; bottom:0;
-  display:flex; flex-direction:column; padding:var(--sp-24) 0; overflow-y:auto;
+  width:var(--sidebar-w); background:var(--c-bg); border-right:1px solid var(--c-separator);
+  position:fixed; top:0; left:0; bottom:0; z-index:510;
+  display:flex; flex-direction:column; padding:var(--sp-24) 0; overflow-y:auto; overflow-x:hidden;
+  transition: width .25s var(--ease), transform .25s var(--ease);
+}
+.sidebar-toggle {
+  position:fixed; top:12px; left:12px; z-index:600;
+  width:40px; height:40px;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(255,255,255,0.92);
+  -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+  border:1px solid var(--c-separator); border-radius:var(--radius-sm);
+  cursor:pointer; font-size:18px; color:var(--c-label-2);
+  font-family:inherit;
+  transition: background .15s var(--ease), left .25s var(--ease), transform .1s var(--ease);
+}
+.sidebar-toggle:hover { background:var(--c-fill); }
+.sidebar-toggle:active { transform:scale(0.94); }
+/* Desktop: move toggle into sidebar header when expanded */
+@media (min-width: 769px) {
+  .shell:not(.sidebar-collapsed) .sidebar-toggle { left:188px; }
+}
+/* Collapsed (icon-only) state */
+.sidebar-collapsed .sidebar-brand,
+.sidebar-collapsed .nav-section-label,
+.sidebar-collapsed .sidebar-footer-text,
+.sidebar-collapsed .logout-btn { display:none; }
+.sidebar-collapsed .nav-item {
+  justify-content:center; padding:0; gap:0;
+  margin:1px var(--sp-8); position:relative;
+}
+.sidebar-collapsed .nav-item > *:not(.nav-item-icon):not(.nav-badge) { display:none; }
+.sidebar-collapsed .nav-badge {
+  position:absolute; top:4px; right:4px; margin:0;
+  min-width:8px; padding:0; width:8px; height:8px;
+  font-size:0; line-height:0;
+}
+.sidebar-collapsed .sidebar-footer {
+  padding:var(--sp-12) var(--sp-8);
+  border-top:1px solid var(--c-separator);
+}
+/* Backdrop for mobile drawer */
+.sidebar-backdrop {
+  display:none;
+  position:fixed; inset:0; background:rgba(0,0,0,0.4);
+  z-index:505;
+  -webkit-tap-highlight-color: transparent;
 }
 .sidebar-brand { padding:0 var(--sp-20) var(--sp-24); border-bottom:1px solid var(--c-separator); margin-bottom:var(--sp-12); }
 .sidebar-brand-name { font-size:var(--t-headline); font-weight:600; color:var(--c-accent); letter-spacing:-0.022em; }
@@ -105,7 +150,11 @@ body {
 }
 .logout-btn:hover { background:var(--c-fill); color:var(--c-label); }
 
-.main { margin-left:240px; padding:var(--sp-40); min-height:100svh; }
+.main {
+  margin-left:var(--sidebar-w); padding:var(--sp-40);
+  min-height:100svh;
+  transition: margin-left .25s var(--ease);
+}
 .tab-panel { display:none; }
 .tab-panel.active { display:block; }
 
@@ -267,8 +316,13 @@ body {
 .toolbar-btn:hover { background:var(--c-fill-2); }
 
 /* ── Table ── */
-.table-card { background:var(--c-bg); border:1px solid var(--c-separator); border-radius:var(--radius-lg); overflow:hidden; }
-.booking-table { width:100%; border-collapse:collapse; }
+.table-card {
+  background:var(--c-bg); border:1px solid var(--c-separator);
+  border-radius:var(--radius-lg);
+  overflow-x:auto; overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+}
+.booking-table { width:100%; border-collapse:collapse; min-width:680px; }
 .booking-table thead tr { background:var(--c-bg-2); border-bottom:1px solid var(--c-separator); }
 .booking-table th { padding:var(--sp-12) var(--sp-16); text-align:left; font-size:var(--t-caption); font-weight:600; color:var(--c-label-2); letter-spacing:0.04em; text-transform:uppercase; white-space:nowrap; }
 .booking-table td { padding:var(--sp-12) var(--sp-16); font-size:var(--t-subhead); border-bottom:1px solid var(--c-separator); letter-spacing:-0.016em; vertical-align:middle; }
@@ -443,7 +497,7 @@ body {
   width: 28px; height: 28px; border-radius: var(--radius-sm);
   display: flex; align-items: center; justify-content: center; font-size: 14px;
 }
-.accounts-table { width: 100%; border-collapse: collapse; }
+.accounts-table { width: 100%; border-collapse: collapse; min-width: 560px; }
 .accounts-table thead tr { background: var(--c-bg-2); border-bottom: 1px solid var(--c-separator); }
 .accounts-table th {
   padding: var(--sp-12) var(--sp-16); text-align: left;
@@ -649,6 +703,56 @@ body {
   opacity:0; transition:all .4s var(--ease-spring); white-space:nowrap; pointer-events:none;
 }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 900px) {
+  .main { padding: var(--sp-24); }
+  .stats-grid { grid-template-columns: 1fr; }
+  .stats-card.wide { grid-column: span 1; }
+  .month-chart { gap: var(--sp-8); height: 220px; }
+  .roi-frame { min-height: 520px; height: calc(100svh - 160px); }
+}
+@media (max-width: 768px) {
+  /* Sidebar becomes off-canvas drawer */
+  .shell { --sidebar-w: 0px; }
+  .sidebar {
+    width: 280px;
+    transform: translateX(-100%);
+    box-shadow: 0 0 32px rgba(0,0,0,0.12);
+  }
+  .shell.sidebar-open .sidebar { transform: translateX(0); }
+  .shell.sidebar-open .sidebar-backdrop { display: block; }
+  .main { margin-left: 0; padding: 64px var(--sp-20) var(--sp-32); }
+  /* Mobile: always show full sidebar when open (ignore desktop collapsed state) */
+  .sidebar-collapsed .sidebar-brand,
+  .sidebar-collapsed .nav-section-label,
+  .sidebar-collapsed .sidebar-footer-text,
+  .sidebar-collapsed .logout-btn { display: revert; }
+  .sidebar-collapsed .nav-item { justify-content: flex-start; padding: 0 var(--sp-12); gap: var(--sp-12); }
+  .sidebar-collapsed .nav-item > *:not(.nav-item-icon):not(.nav-badge) { display: revert; }
+  .sidebar-collapsed .nav-badge {
+    position: static; width: auto; height: auto;
+    min-width: 20px; padding: 1px 7px; font-size: 11px; line-height: normal;
+    margin-left: auto;
+  }
+  /* Sidebar toggle stays at fixed position; no desktop-offset rule applies */
+  .toolbar { gap: var(--sp-8); }
+  .toolbar-select, .toolbar-input { flex: 1 1 calc(50% - var(--sp-4)); min-width: 0; }
+  .toolbar-spacer { display: none; }
+  .toolbar-btn { width: 100%; justify-content: center; }
+  .roi-frame-wrap { border-radius: var(--radius-md); }
+  .roi-frame { min-height: 480px; height: calc(100svh - 140px); }
+}
+@media (max-width: 480px) {
+  .kpi-grid { grid-template-columns: 1fr; gap: var(--sp-12); }
+  .main { padding: 60px var(--sp-16) var(--sp-24); }
+  .page-header { margin-bottom: var(--sp-20); }
+  .page-header h1 { font-size: clamp(22px, 6vw, 28px); }
+  .kpi-num { font-size: 28px; }
+}
 </style>
 </head>
 <body>
@@ -669,6 +773,8 @@ body {
 
 <!-- Shell -->
 <div class="shell" id="shell">
+  <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="사이드바 토글" onclick="toggleSidebar()">☰</button>
+  <div class="sidebar-backdrop" onclick="closeSidebar()"></div>
   <aside class="sidebar">
     <div class="sidebar-brand">
       <div class="sidebar-brand-name">ThinQ Real</div>
@@ -1653,10 +1759,45 @@ const SLOT_LABELS = { '1':'1회차  09:00–10:30', '2':'2회차  13:00–14:30'
 
 let allBookings = [], currentModalId = null;
 
+// ── Sidebar toggle ─────────────────────────────────────────
+const SIDEBAR_KEY = 'thinqreal_admin_sidebar_collapsed';
+function isMobileLayout() { return window.matchMedia('(max-width: 768px)').matches; }
+function applySidebarInitialState() {
+  const shell = document.getElementById('shell');
+  if (isMobileLayout()) {
+    // Mobile: drawer always starts closed
+    shell.classList.remove('sidebar-open');
+    shell.classList.remove('sidebar-collapsed');
+  } else {
+    // Desktop: respect saved collapsed preference
+    const collapsed = localStorage.getItem(SIDEBAR_KEY) === '1';
+    shell.classList.toggle('sidebar-collapsed', collapsed);
+    shell.classList.remove('sidebar-open');
+  }
+}
+function toggleSidebar() {
+  const shell = document.getElementById('shell');
+  if (isMobileLayout()) {
+    shell.classList.toggle('sidebar-open');
+  } else {
+    shell.classList.toggle('sidebar-collapsed');
+    localStorage.setItem(SIDEBAR_KEY, shell.classList.contains('sidebar-collapsed') ? '1' : '0');
+  }
+}
+function closeSidebar() {
+  document.getElementById('shell').classList.remove('sidebar-open');
+}
+window.addEventListener('resize', () => {
+  // When crossing the mobile/desktop boundary, normalize state
+  const shell = document.getElementById('shell');
+  if (!isMobileLayout()) shell.classList.remove('sidebar-open');
+});
+
 function doLogin() {
   if (document.getElementById('pwInput').value === ADMIN_PW) {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('shell').style.display = 'block';
+    applySidebarInitialState();
     loadData();
   } else {
     document.getElementById('loginErr').textContent = '비밀번호가 올바르지 않습니다.';
@@ -1690,6 +1831,7 @@ function switchTab(id) {
     // 캐시 무력화: 빌드 토큰을 쿼리로 부착해 GitHub Pages/iframe 캐시 우회
     if (!f.getAttribute('src')) f.setAttribute('src', 'ThinQ_Real_ROI_Tool.html?v=' + ROI_BUILD);
   }
+  if (isMobileLayout()) closeSidebar();
 }
 
 // 구비 가전 — Apps Script의 APPLIANCES 상수를 단일 소스로 사용한다.
