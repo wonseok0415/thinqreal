@@ -261,8 +261,10 @@ PDF `ThinQ Real_User Guide_260507_v3.pdf`(21p, 1.87MB)의 슬라이드 5~7, 16~1
 ThinQ Real을 독립 도메인 `thinqreal.com`(hosting.kr 구입)으로 이전. 기존 `wonseok-lab/thinqreal/` 하위 경로 구조가 `thinqreal.com/thinqreal/thinqreal.html`처럼 지저분해지는 문제를 해결하기 위해, 별도 리포 `wonseok0415/thinqreal`을 만들어 **리포 루트 = 사이트 루트** 구조로 분리했다.
 
 ### 결정된 사항
-- **도메인**: `thinqreal.com` (hosting.kr 구입)
+- **도메인**: `thinqreal.com` (hosting.kr 등록)
+- **DNS 권한**: Cloudflare (`nico.ns.cloudflare.com`, `raphaela.ns.cloudflare.com`) — hosting.kr 권한 DNS의 파킹 레코드 누수 문제로 이전. 도메인 등록 자체는 hosting.kr에 그대로.
 - **신규 리포**: `wonseok0415/thinqreal` (루트 = 사이트 루트)
+- **루트 진입 파일**: `index.html` (구 `thinqreal.html`을 리네임)
 - **옛 경로 방침**: 옛 `wonseok-lab/thinqreal/`은 당분간 그대로 둠 (옛 북마크 사용자 대비). 추후 stub 리다이렉트 또는 삭제 여부는 운영하면서 재결정.
 
 ### 단계별 체크리스트 (이 PR 시점 기준)
@@ -275,21 +277,39 @@ ThinQ Real을 독립 도메인 `thinqreal.com`(hosting.kr 구입)으로 이전. 
    - **이미지 경로 일괄 교체**: `https://raw.githubusercontent.com/wonseok0415/wonseok-lab/main/thinqreal/images/` → `images/` (HTML/GS/MD 전체에서 잔존 0건 확인)
    - 본 `CLAUDE.md`의 "파일 구조" / "이미지 경로 규칙" / "호스팅" 섹션을 신규 리포 기준으로 갱신
 6. [x] `CNAME` (`thinqreal.com`) + `.nojekyll` 파일 추가
-7. [ ] 신규 리포 Settings → Pages → Source: `main` / `(root)` 선택 → 임시 주소(`wonseok0415.github.io/thinqreal/`)로 동작 확인 — **PR 머지 후 진행**
-8. [ ] hosting.kr DNS 레코드 추가 — **PR 머지 후 진행**:
-   ```
-   A    @    185.199.108.153
-   A    @    185.199.109.153
-   A    @    185.199.110.153
-   A    @    185.199.111.153
-   CNAME www  wonseok0415.github.io
-   ```
-9. [ ] 신규 리포 Settings → Pages → Custom domain: `thinqreal.com` → Save (이미 커밋된 `CNAME` 파일을 GitHub Pages가 인식)
-10. [ ] DNS 전파 후 Enforce HTTPS 체크
-11. [ ] **Apps Script `GUIDE_URL` 교체**: `https://wonseok0415.github.io/wonseok-lab/thinqreal/thinqreal.html#page-guide` → `https://thinqreal.com/#page-guide` → **Apps Script 재배포**
+7. [x] 신규 리포 Settings → Pages → Source: `main` / `(root)` 선택 → 임시 주소(`wonseok0415.github.io/thinqreal/`)로 1차 동작 확인 (커밋된 `CNAME`을 GitHub Pages가 자동 인식해 `thinqreal.com`으로 리다이렉트하므로 임시 주소 직접 검증은 사실상 불가 — DNS 완료 후 도메인으로 검증)
+8. [x] **DNS 권한 Cloudflare로 위임** (hosting.kr DNS 직접 설정은 권한 서버에 숨겨진 파킹 A 레코드(`75.2.85.42`, `99.83.196.71` AWS CloudFront)가 살아남아 GitHub IP와 번갈아 응답 → DNS check flapping. Cloudflare 무료 플랜으로 권한 자체를 옮겨 우회):
+   - Cloudflare에 `thinqreal.com` 추가 → 5개 레코드를 **모두 DNS only (회색 구름)** 으로 등록:
+     ```
+     A     thinqreal.com    185.199.108.153 / 109.153 / 110.153 / 111.153
+     CNAME www              wonseok0415.github.io
+     ```
+   - hosting.kr 네임서버를 `ns1~4.hosting.co.kr` → `nico.ns.cloudflare.com`, `raphaela.ns.cloudflare.com`로 교체 (도메인 등록은 hosting.kr에 그대로 유지, DNS만 위임)
+9. [x] 신규 리포 Settings → Pages → Custom domain: `thinqreal.com` (커밋된 `CNAME` 자동 인식)
+10. [x] DNS 전파 후 Enforce HTTPS 체크
+11. [x] **Apps Script `GUIDE_URL` 교체**: `https://wonseok0415.github.io/wonseok-lab/thinqreal/thinqreal.html#page-guide` → `https://thinqreal.com/#page-guide` → Apps Script "배포 관리 → 편집 → 새 버전 → 배포"로 **기존 URL 유지**한 채 재배포 완료
 12. [x] 본 CLAUDE.md를 "완료 내역"으로 정리하고 호스팅 정보 신규 도메인 기준으로 갱신
+13. [x] **루트 진입용 `index.html` 확보**: `thinqreal.html` → `index.html` 리네임 (GitHub Pages가 루트 진입 시 `index.html`을 찾으므로 필수). `thinqreal_admin.html`의 메인 사이트 링크는 `href="./"`로 갱신해 파일명 의존 제거.
 
 ### 주의사항 (이전 후에도 유지)
 - Apps Script URL, Sheets ID, 슬롯 시간표, 디자인 시스템은 **불변** (기존 §작업 시 주의사항 참조)
 - Apps Script 자체는 그대로 사용 (URL 변경 없음). `GUIDE_URL`만 교체 + 재배포 1회 필요.
 - 이전 후 이미지가 깨져 보이면 절대 URL 잔존 흔적이므로 `grep -rE 'raw\.githubusercontent\.com/wonseok0415/wonseok-lab'`로 검색해 모두 상대경로로 교체할 것.
+
+### 이번 이전에서 막혔던 핵심 함정 (다음 작업 참고)
+
+1. **hosting.kr "파킹 OFF"는 UI 표시일 뿐, 권한 DNS에는 파킹 A 레코드가 숨어서 살아있음**
+   - 증상: DNS Checker 공용 리졸버는 GitHub IP만 보임 → 우리는 다 됐다고 판단 → 그러나 사용자 브라우저는 hosting.kr 파킹 페이지 / GitHub Pages "DNS check unsuccessful"가 끊임없이 toggle
+   - 진단 결정타: `dig +trace thinqreal.com` 결과의 권한 응답에 `75.2.85.42`, `99.83.196.71` (AWS CloudFront 파킹 IP) 가 섞여 나옴. `for i in {1..10}; do dig +short thinqreal.com; done` 반복 시에도 파킹 IP가 간헐적으로 끼어듬.
+   - 처방: hosting.kr DNS 사용 포기, **DNS 권한을 Cloudflare 등 외부로 위임**해서 hosting.kr 권한 서버를 응답 경로에서 통째로 배제. 도메인 등록은 그대로 hosting.kr.
+
+2. **Cloudflare로 DNS 위임 시 반드시 "DNS only (회색 구름)"**
+   - 5개 레코드 모두 회색 구름. 오렌지 구름(`Proxied`)으로 두면 Cloudflare가 중간에 끼어 호스트 헤더가 바뀌고, GitHub Pages가 어느 리포의 사이트인지 식별 못 함 → 404 / 522.
+   - Cloudflare 가입 직후 자동 추가되는 레코드는 기본 Proxied로 잡히니, **각 레코드의 토글을 클릭해 회색으로 변경 필수**.
+   - 가입 마지막에 뜨는 "thinqreal.com is not fully protected ... Update one or more records to proxied"는 **의도된 상태**라 `I'll do this later`로 무시.
+
+3. **GitHub Pages는 루트 진입 시 `index.html`을 기본 탐색** — `thinqreal.html` 같은 파일명만 있고 `index.html`이 없으면 apex 진입 시 GitHub Pages 404 ("you must provide an index.html file"). 메인 페이지는 항상 `index.html`로 두기.
+
+4. **GitHub Pages "DNS check" 상태는 잘 캐싱되어 늦게 풀림** — 실제 DNS가 정상이어도 GitHub UI는 30분~수 시간 unsuccessful로 표시될 수 있음. `Check again` 클릭 + 빈 커밋 푸시로 재배포 트리거 + 시간 대기 조합으로 풀린다.
+
+5. **Apps Script 재배포는 "배포 관리 → 편집 → 새 버전 → 배포" 경로**가 정답. "새 배포"를 누르면 새 URL이 발급되어 `index.html` / `thinqreal_admin.html`의 `SCRIPT_URL`까지 다 교체해야 함. 코드만 갱신할 때는 반드시 편집 모드를 쓸 것.
