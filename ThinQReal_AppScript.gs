@@ -7,7 +7,7 @@
 //  2. 이 코드 전체 붙여넣기
 //  3. SHEET_ID를 실제 Google Sheets ID로 교체
 //  4. 배포 → 새 배포 → 웹 앱 → 액세스: 모든 사용자 → 배포
-//  5. 생성된 URL을 thinqreal.html과 thinqreal_admin.html의
+//  5. 생성된 URL을 index.html과 thinqreal_admin.html의
 //     SCRIPT_URL 변수에 붙여넣기
 // ============================================================
 
@@ -20,7 +20,7 @@ const ADMIN_EMAILS = 'ch275.lee@lge.com, moonsu.seo@lge.com, hj8462.kim@lge.com'
 const CC_EMAIL     = 'kang.wonseok@lge.com';  // 참조 수신자 (시스템 동작 모니터링)
 
 // 방문 전 이용 안내 페이지 URL (이용안내 탭으로 직접 이동)
-const GUIDE_URL = 'https://wonseok0415.github.io/wonseok-lab/thinqreal/thinqreal.html#page-guide';
+const GUIDE_URL = 'https://thinqreal.com/#page-guide';
 
 // R&D 연구 목적 예약자에게 함께 보내는 구비 가전 리스트 (총 45개)
 // [구분, 제품명, 모델명, 제조사]
