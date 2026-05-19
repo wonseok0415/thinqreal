@@ -10,7 +10,7 @@
 
 ```
 /
-├── thinqreal.html              # 메인 사이트 (홈/공간소개/예약/이용안내)
+├── index.html                  # 메인 사이트 (홈/공간소개/예약/이용안내) — 루트 진입 페이지
 ├── thinqreal_admin.html        # 관리자 대시보드 (8개 탭)
 ├── ThinQReal_AppScript.gs      # Google Apps Script 소스 (실배포는 script.google.com)
 ├── ThinQ_Real_ROI_Tool.html    # ROI 분석 시뮬레이션 (관리자 ROI 탭에서 iframe 임베드)

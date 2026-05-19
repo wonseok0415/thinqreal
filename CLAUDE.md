@@ -17,7 +17,7 @@
 리포 루트 = 사이트 루트 (GitHub Pages가 루트를 그대로 서빙).
 ```
 /  (wonseok0415/thinqreal)
-├── thinqreal.html              # 메인 사이트 (홈/공간소개/예약/이용안내) — 사이트 루트의 기본 진입
+├── index.html                  # 메인 사이트 (홈/공간소개/예약/이용안내) — 사이트 루트 기본 진입 (구 `thinqreal.html`을 GitHub Pages 관례에 맞춰 리네임)
 ├── thinqreal_admin.html        # 관리자 대시보드 (8개 탭)
 ├── ThinQReal_AppScript.gs      # Google Apps Script 소스 (실제 배포는 script.google.com에서 관리)
 ├── ThinQ_Real_ROI_Tool.html    # ROI 분석 시뮬레이션 툴 (관리자 ROI 탭에서 iframe 임베드)
@@ -87,7 +87,7 @@ images/{파일명}
 | 재정비 | 14:30–15:00 | |
 | 3회차 | 15:00–16:30 | 90분 |
 
-## 메인 사이트 구성 (thinqreal.html)
+## 메인 사이트 구성 (index.html)
 - **홈**: AI홈 쇼룸 지원 → 기술 연구 및 검증 → 데이터 축적 및 고도화 카드 (이 순서 유지)
 - **공간 소개**: 01 거실 → 02 주방 → 03 침실 → 04 런드레스룸 → 05 욕실 → 06 현관·복도
 - **예약하기**: 달력 → 슬롯 다중 선택(Set 방식 토글) → 폼 → Apps Script POST
