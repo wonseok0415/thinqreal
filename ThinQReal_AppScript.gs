@@ -115,9 +115,10 @@ function handleGetAppliances() {
 
 // ── 가용성 조회 ─────────────────────────────────────────────
 // 확정(status = '확정') 된 예약만 마감으로 처리
-// 대기중은 마감으로 처리하지 않음 (담당자가 거절할 수 있으므로)
+// 대기중은 마감으로 처리하지 않되, 회차별 대기 건수를 별도로 반환해
+// 메인 페이지에서 "N팀 예약 중" 안내로 노출할 수 있게 한다.
 function handleAvailability(date) {
-  if (!date) return jsonResponse({ bookedSlots: [] });
+  if (!date) return jsonResponse({ bookedSlots: [], pendingCounts: {} });
 
   const sheet = getSheet();
   const rows  = sheet.getDataRange().getValues();
@@ -127,28 +128,40 @@ function handleAvailability(date) {
   const statusIdx = headers.indexOf('status');
 
   const booked = new Set();
+  const pendingCounts = {};
 
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     // Sheets가 date 컬럼을 Date 타입으로 자동 변환하는 경우가 있어
     // 비교 전에 양쪽 모두 YYYY-MM-DD 문자열로 정규화한다.
     if (normalizeDate(row[dateIdx]) !== normalizeDate(date)) continue;
-    if (row[statusIdx] !== '확정') continue;
+
+    const status = row[statusIdx];
+    if (status !== '확정' && status !== '대기중') continue;
 
     // slots 컬럼은 "[1,2]" 형태의 JSON 문자열로 저장됨
+    let slots = [];
     try {
-      const slots = JSON.parse(row[slotIdx]);
-      slots.forEach(s => booked.add(Number(s)));
+      slots = JSON.parse(row[slotIdx]);
     } catch(err) {
       // 구형 데이터(slot 단일값) 대응
       const singleSlot = headers.indexOf('slot');
       if (singleSlot >= 0 && row[singleSlot]) {
-        booked.add(Number(row[singleSlot]));
+        slots = [Number(row[singleSlot])];
       }
     }
+
+    slots.forEach(s => {
+      const n = Number(s);
+      if (status === '확정') {
+        booked.add(n);
+      } else {
+        pendingCounts[n] = (pendingCounts[n] || 0) + 1;
+      }
+    });
   }
 
-  return jsonResponse({ bookedSlots: [...booked] });
+  return jsonResponse({ bookedSlots: [...booked], pendingCounts });
 }
 
 // 날짜 값을 YYYY-MM-DD 문자열로 정규화 (Date 객체·ISO 문자열·일반 문자열 모두 처리)
@@ -404,9 +417,12 @@ function buildConfirmText(data) {
     `   (보안게이트 밖에 위치해 별도 보안 절차 없이 방문 가능)`,
     ``,
     `📶 무선 인터넷`,
-    `   2.4 GHz : LGE_AI_HOME_2.4G`,
-    `   5 GHz   : LGE_AI_HOME`,
+    `   2.4 GHz : ThinQ_REAL_2.4G`,
+    `   5 GHz   : ThinQ_REAL`,
     `   비밀번호 : real2026`,
+    ``,
+    `🔐 도어락 비밀번호`,
+    `   56720275`,
     ``,
     `☎ 문의`,
     `   이철호 책임 연구원 : ch275.lee@lge.com`,
@@ -457,10 +473,12 @@ function buildConfirmHtml(data) {
       '<div style="color:#aeaeb2;font-size:12px;margin-top:2px;">보안게이트 밖에 위치해 별도 보안 절차 없이 방문 가능</div>') +
     infoRow('📶', '무선 인터넷',
       '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;">' +
-        '<tr><td style="padding:2px 16px 2px 0;color:#6e6e73;font-size:13px;">2.4&nbsp;GHz</td><td style="padding:2px 0;font-family:Consolas,Menlo,monospace;font-size:13px;color:#1d1d1f;">LGE_AI_HOME_2.4G</td></tr>' +
-        '<tr><td style="padding:2px 16px 2px 0;color:#6e6e73;font-size:13px;">5&nbsp;GHz</td><td style="padding:2px 0;font-family:Consolas,Menlo,monospace;font-size:13px;color:#1d1d1f;">LGE_AI_HOME</td></tr>' +
+        '<tr><td style="padding:2px 16px 2px 0;color:#6e6e73;font-size:13px;">2.4&nbsp;GHz</td><td style="padding:2px 0;font-family:Consolas,Menlo,monospace;font-size:13px;color:#1d1d1f;">ThinQ_REAL_2.4G</td></tr>' +
+        '<tr><td style="padding:2px 16px 2px 0;color:#6e6e73;font-size:13px;">5&nbsp;GHz</td><td style="padding:2px 0;font-family:Consolas,Menlo,monospace;font-size:13px;color:#1d1d1f;">ThinQ_REAL</td></tr>' +
         '<tr><td style="padding:2px 16px 2px 0;color:#6e6e73;font-size:13px;">비밀번호</td><td style="padding:2px 0;font-family:Consolas,Menlo,monospace;font-size:13px;color:#1d1d1f;">real2026</td></tr>' +
       '</table>') +
+    infoRow('🔐', '도어락 비밀번호',
+      '<div style="font-family:Consolas,Menlo,monospace;font-size:15px;color:#1d1d1f;letter-spacing:0.04em;">56720275</div>') +
     infoRow('☎', '문의',
       '<div>이철호 책임 연구원 · <a href="mailto:ch275.lee@lge.com" style="color:#3a5035;text-decoration:none;">ch275.lee@lge.com</a></div>' +
       '<div>서문수 선임 연구원 · <a href="mailto:moonsu.seo@lge.com" style="color:#3a5035;text-decoration:none;">moonsu.seo@lge.com</a></div>' +
