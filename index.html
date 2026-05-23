@@ -154,8 +154,9 @@ button, input, select, textarea { font-family: inherit; }
   position: absolute; inset: 0;
   background: linear-gradient(
     to top,
-    rgba(0,0,0,0.72) 0%,
-    rgba(0,0,0,0.24) 50%,
+    rgba(0,0,0,0.82) 0%,
+    rgba(0,0,0,0.55) 38%,
+    rgba(0,0,0,0.18) 70%,
     rgba(0,0,0,0) 100%
   );
 }
@@ -174,22 +175,25 @@ button, input, select, textarea { font-family: inherit; }
   to   { opacity:1; transform: translateY(0); }
 }
 .hero-eyebrow {
-  font-size: var(--t-footnote); font-weight: 400;
-  color: rgba(255,255,255,0.6); letter-spacing: 0.02em;
-  margin-bottom: var(--sp-12);
+  font-size: var(--t-footnote); font-weight: 500;
+  color: rgba(255,255,255,0.92); letter-spacing: 0.02em;
+  margin-bottom: var(--sp-20);
   text-transform: uppercase;
+  text-shadow: 0 1px 12px rgba(0,0,0,0.55);
 }
 .hero-title {
   font-size: var(--t-large-title); font-weight: 600;
   color: #fff; letter-spacing: -0.03em;
   line-height: 1.07143; max-width: 600px;
-  margin-bottom: var(--sp-16);
+  margin-bottom: var(--sp-20);
+  text-shadow: 0 2px 16px rgba(0,0,0,0.35);
 }
 .hero-sub {
-  font-size: var(--t-callout); font-weight: 300;
-  color: rgba(255,255,255,0.75); max-width: 440px;
+  font-size: var(--t-callout); font-weight: 400;
+  color: rgba(255,255,255,0.96); max-width: 480px;
   line-height: 1.6; margin-bottom: var(--sp-32);
   letter-spacing: -0.01em;
+  text-shadow: 0 1px 12px rgba(0,0,0,0.55);
 }
 .hero-actions { display: flex; gap: var(--sp-12); flex-wrap: wrap; }
 
@@ -251,6 +255,8 @@ button, input, select, textarea { font-family: inherit; }
 .split {
   display: grid; grid-template-columns: 1fr 1fr;
   gap: 0; align-items: stretch;
+  border-top: 1px solid var(--c-separator);
+  border-bottom: 1px solid var(--c-separator);
 }
 .split-text {
   padding-top: var(--sp-64);
