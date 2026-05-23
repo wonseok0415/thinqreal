@@ -889,7 +889,7 @@ body {
         <table class="booking-table">
           <thead>
             <tr>
-              <th>날짜</th><th>회차</th><th>신청자</th><th>소속</th>
+              <th>날짜</th><th>회차</th><th>책임자</th><th>주제</th>
               <th>방문 목적</th><th>인원</th><th>신청일</th><th>상태</th><th>처리</th>
             </tr>
           </thead>
@@ -1616,7 +1616,7 @@ body {
     <div class="tab-panel" id="tab-appliances">
       <div class="page-header">
         <h1>구비 가전</h1>
-        <p>ThinQ Real 공간에 구비된 가전·IoT·소품 전체 목록입니다. R&D 연구 목적의 예약 확정 메일에는 이 목록이 함께 발송됩니다.</p>
+        <p>ThinQ Real 공간에 구비된 가전·IoT·소품 전체 목록입니다. 내부 R&D · 테스트 목적의 예약 확정 메일에는 이 목록이 함께 발송됩니다.</p>
       </div>
       <div style="background:var(--c-bg-2); border:1px solid var(--c-separator); border-radius:var(--radius-md); padding:var(--sp-16) var(--sp-20); margin-bottom:var(--sp-20); color:var(--c-label-2); font-size:var(--t-subhead); line-height:1.6;">
         리스트 품목 외 연구원들의 개인 장비·물품들이 있으므로 위치 변경이나 분실에 유의해 주세요. (총 <strong id="appliancesCount">45</strong>개 품목)
@@ -1981,11 +1981,11 @@ async function loadData() {
     toast(usedCache ? '최신 데이터로 갱신했습니다.' : '데이터를 불러왔습니다.');
   } catch(e) {
     allBookings = [
-      {id:'1',date:'2026-05-20',slot:'1',name:'김민준',org:'AI홈솔루션팀',phone:'010-1234-5678',email:'mj.kim@lge.com',purpose:'R&D 연구',count:'3',note:'',status:'대기중',timestamp:'2026-05-14T09:00:00'},
-      {id:'2',date:'2026-05-21',slot:'2',name:'이서연',org:'B2B영업팀',phone:'010-2345-6789',email:'sy.lee@lge.com',purpose:'B2B 파트너 시연',count:'8',note:'해외 바이어 동반',status:'확정',timestamp:'2026-05-13T14:30:00'},
-      {id:'3',date:'2026-05-22',slot:'3',name:'박도현',org:'AI연구소',phone:'010-3456-7890',email:'dh.park@lge.com',purpose:'R&D 연구',count:'2',note:'',status:'대기중',timestamp:'2026-05-14T11:00:00'},
-      {id:'4',date:'2026-05-23',slot:'1',name:'최유진',org:'Product팀',phone:'010-4567-8901',email:'yj.choi@lge.com',purpose:'내부 행사',count:'12',note:'',status:'확정',timestamp:'2026-05-12T16:00:00'},
-      {id:'5',date:'2026-04-15',slot:'2',name:'정우성',org:'마케팅팀',phone:'010-5678-9012',email:'ws.jung@lge.com',purpose:'Press Tour',count:'5',note:'',status:'거절',timestamp:'2026-04-10T10:00:00'},
+      {id:'1',date:'2026-05-20',slot:'1',name:'김엘지',org:'Vision Intelligence 향상',subject:'Vision Intelligence 향상',phone:'010-1234-5678',email:'mj.kim@lge.com',purpose:'내부 R&D · 테스트',purposeKey:'rd',count:'2',usagePlan:'댁내 환경과 유사한 환경에서 vision intelligence 데이터 확보',expectedEffect:'차세대 AI 에이전트 핵심 기술 개발 시 로우데이터 확보',visitors:'[{"name":"서문수","rank":"선임"},{"name":"김엘지","rank":"책임"}]',status:'대기중',timestamp:'2026-05-14T09:00:00'},
+      {id:'2',date:'2026-05-21',slot:'2',name:'김지에스',org:'GS건설',subject:'GS건설',clientCompany:'GS건설',phone:'010-2345-6789',email:'sy.lee@lge.com',purpose:'고객/고객사 영업 활동',purposeKey:'customer',count:'1',usagePlan:'용인 구례지구 재개발 2,342세대 옵션상품 판매를 위한 AI홈 시연',expectedEffect:'프로젝트 진행 시 옵션 판매 매출 2,500~3,000억원 수주',visitors:'[{"name":"김재훈","rank":"사장"}]',status:'확정',timestamp:'2026-05-13T14:30:00'},
+      {id:'3',date:'2026-05-22',slot:'3',name:'김엘지',org:'ES본부 CEO 현장 경영',subject:'ES본부 CEO 현장 경영',phone:'010-3456-7890',email:'dh.park@lge.com',purpose:'내부 행사',purposeKey:'internal-event',count:'3',usagePlan:'CEO 현장 경영 시 신제품 시연 및 피드백',expectedEffect:'전략가전(콜드프리) 완성품 출시 최종 의사 결정 및 개선사항 취합',visitors:'[{"name":"김현진","rank":"선임"},{"name":"이철호","rank":"책임"},{"name":"김엘지","rank":"책임"}]',status:'대기중',timestamp:'2026-05-14T11:00:00'},
+      {id:'4',date:'2026-05-23',slot:'1',name:'김엘지',org:'CS 관련 간편 대응 영상 촬영',subject:'CS 관련 간편 대응 영상 촬영',phone:'010-4567-8901',email:'yj.choi@lge.com',purpose:'콘텐츠 제작',purposeKey:'content',count:'2',usagePlan:'RAC 관련 고객 간편 대응 영상 11종 자가 대응 영상 촬영',expectedEffect:'Case 영상별 평균 2,000회 조회수, 기사 방문 비용 약 50,000원 절감',visitors:'[{"org":"꿈나라 스튜디오","name":"박진우","rank":"감독"},{"org":"꿈나라 스튜디오","name":"이도현","rank":"PD"}]',status:'확정',timestamp:'2026-05-12T16:00:00'},
+      {id:'5',date:'2026-04-15',slot:'2',name:'김엘지',org:'북미 미디어 프레스 투어',subject:'북미 미디어 프레스 투어',phone:'010-5678-9012',email:'ws.jung@lge.com',purpose:'외부 행사',purposeKey:'external-event',count:'1',usagePlan:'미국 주요 일간지 기자들을 초청해 AI홈 시연 및 Q&A 진행',expectedEffect:'기사를 통한 LG전자 홍보 및 마케팅 가치 회당 약 3,000만원 예상',visitors:'[{"org":"워싱턴 포스트","name":"James","rank":"국장"}]',status:'거절',timestamp:'2026-04-10T10:00:00'},
     ];
     allBookings = allBookings.map(normalizeRecord);
     updateKPIs(); renderTable();
@@ -2041,23 +2041,80 @@ function renderTable() {
   }).join('');
 }
 
+function escapeHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtMultiline(s) {
+  return escapeHtml(s).replace(/\n/g,'<br>');
+}
+function renderVisitorsTable(visitorsRaw) {
+  let arr = [];
+  try { arr = JSON.parse(visitorsRaw || '[]'); } catch(e) { return '<span style="color:var(--c-label-3);">파싱 실패</span>'; }
+  if (!arr.length) return '<span style="color:var(--c-label-3);">정보 없음</span>';
+  const hasOrg = arr.some(v => v && v.org);
+  const cols = hasOrg ? ['소속','이름','직급'] : ['이름','직급'];
+  const rows = arr.map((v, i) => {
+    const cells = hasOrg ? [v.org, v.name, v.rank] : [v.name, v.rank];
+    return '<tr><td style="padding:4px 8px 4px 0;color:var(--c-label-3);font-size:11px;">' + (i+1) + '</td>'
+      + cells.map(c => '<td style="padding:4px 12px 4px 0;">' + escapeHtml(c||'-') + '</td>').join('')
+      + '</tr>';
+  }).join('');
+  const head = '<tr>'
+    + '<th style="padding:4px 8px 4px 0;color:var(--c-label-3);font-size:10px;font-weight:600;text-align:left;">#</th>'
+    + cols.map(c => '<th style="padding:4px 12px 4px 0;color:var(--c-label-3);font-size:10px;font-weight:600;text-align:left;">' + c + '</th>').join('')
+    + '</tr>';
+  return '<table style="border-collapse:collapse;font-size:var(--t-footnote);"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table>';
+}
+
 function openModal(id) {
   const b = allBookings.find(x=>x.id===id); if (!b) return;
   currentModalId = id;
-  document.getElementById('modalTitle').textContent = b.name + ' 님 예약 상세';
+  document.getElementById('modalTitle').textContent = (b.name || '예약') + ' 님 예약 상세';
   const cls = b.status==='대기중'?'pending':b.status==='확정'?'confirmed':'rejected';
-  document.getElementById('modalGrid').innerHTML = `
-    <span class="detail-label">날짜</span>    <span class="detail-value">${b.date}</span>
-    <span class="detail-label">회차</span>    <span class="detail-value">${fmtSlots(b)}</span>
-    <span class="detail-label">소속</span>    <span class="detail-value">${b.org}</span>
-    <span class="detail-label">연락처</span>  <span class="detail-value">${b.phone}</span>
-    <span class="detail-label">이메일</span>  <span class="detail-value" style="color:var(--c-accent);">${b.email}</span>
-    <span class="detail-label">방문 목적</span><span class="detail-value">${b.purpose}</span>
-    <span class="detail-label">방문 인원</span><span class="detail-value">${b.count}명</span>
-    <span class="detail-label">요청 사항</span><span class="detail-value" style="color:var(--c-label-2);">${b.note||'없음'}</span>
-    <span class="detail-label">현재 상태</span><span class="detail-value"><span class="badge badge-${cls}">${b.status}</span></span>
-    <span class="detail-label">신청 일시</span><span class="detail-value" style="color:var(--c-label-2);font-size:var(--t-footnote);">${new Date(b.timestamp).toLocaleString('ko-KR')}</span>
-  `;
+
+  // 목적 키 → 1번째 줄 라벨
+  const SUBJ_LABELS = {
+    'customer': '고객/고객사', 'rd': '프로젝트명',
+    'internal-event': '행사명', 'external-event': '행사명',
+    'content': '촬영명', 'other': '제목'
+  };
+  const subjLabel = SUBJ_LABELS[b.purposeKey] || (b.subject ? '주제' : '소속');
+  const subjVal   = b.subject || b.org || '';
+
+  // 신규 필드 — 옛 데이터는 없을 수 있으므로 조건부 표시
+  const usagePlan     = b.usagePlan || '';
+  const expectedEff   = b.expectedEffect || '';
+  const visitorsHtml  = b.visitors ? renderVisitorsTable(b.visitors) : '';
+  const showLegacy    = !b.subject && !b.usagePlan && !b.visitors;
+
+  let html = ''
+    + '<span class="detail-label">방문 목적</span><span class="detail-value"><strong>' + escapeHtml(b.purpose||'') + '</strong></span>'
+    + '<span class="detail-label">' + escapeHtml(subjLabel) + '</span><span class="detail-value">' + escapeHtml(subjVal) + '</span>'
+    + '<span class="detail-label">날짜</span>    <span class="detail-value">' + escapeHtml(b.date||'') + '</span>'
+    + '<span class="detail-label">회차</span>    <span class="detail-value">' + fmtSlots(b) + '</span>'
+    + '<span class="detail-label">책임자</span>  <span class="detail-value">' + escapeHtml(b.name||'') + '</span>'
+    + '<span class="detail-label">연락처</span>  <span class="detail-value">' + escapeHtml(b.phone||'') + '</span>'
+    + '<span class="detail-label">이메일</span>  <span class="detail-value" style="color:var(--c-accent);">' + escapeHtml(b.email||'') + '</span>'
+    + '<span class="detail-label">방문 인원</span><span class="detail-value">' + escapeHtml(String(b.count||0)) + '명</span>';
+
+  if (visitorsHtml) {
+    html += '<span class="detail-label">방문자 명단</span><span class="detail-value">' + visitorsHtml + '</span>';
+  }
+  if (usagePlan) {
+    html += '<span class="detail-label">활용 방안</span><span class="detail-value" style="color:var(--c-label);line-height:1.6;">' + fmtMultiline(usagePlan) + '</span>';
+  }
+  if (expectedEff) {
+    html += '<span class="detail-label">기대 효과</span><span class="detail-value" style="color:var(--c-label);line-height:1.6;">' + fmtMultiline(expectedEff) + '</span>';
+  }
+  if (showLegacy && b.note) {
+    html += '<span class="detail-label">요청 사항</span><span class="detail-value" style="color:var(--c-label-2);">' + fmtMultiline(b.note) + '</span>';
+  }
+  html += ''
+    + '<span class="detail-label">현재 상태</span><span class="detail-value"><span class="badge badge-' + cls + '">' + escapeHtml(b.status||'') + '</span></span>'
+    + '<span class="detail-label">신청 일시</span><span class="detail-value" style="color:var(--c-label-2);font-size:var(--t-footnote);">' + (b.timestamp ? new Date(b.timestamp).toLocaleString('ko-KR') : '') + '</span>';
+
+  document.getElementById('modalGrid').innerHTML = html;
   const isPending = b.status === '대기중';
   document.getElementById('modalRejectBtn').style.display  = isPending ? '' : 'none';
   document.getElementById('modalConfirmBtn').style.display = isPending ? '' : 'none';
@@ -2119,11 +2176,12 @@ async function updateStatus(id, status) {
 // 목적별 색상 — 디자인 시스템에서 추출. 결정적 매핑이라 항상 같은
 // 목적은 같은 색으로 표시되어 인식이 쉽다.
 const PURPOSE_COLORS = {
-  'R&D 연구':       '#3a5035', // accent (다크 올리브)
-  'B2B 파트너 시연': '#ff9500', // orange
-  '내부 행사':       '#7f51e4', // purple
-  'Press Tour':    '#0a84a3', // teal
-  '기타':           '#8fa889', // accent-mid
+  '고객/고객사 영업 활동': '#ff9500', // orange — B2B 영업
+  '내부 R&D · 테스트':    '#3a5035', // accent (다크 올리브)
+  '내부 행사':            '#7f51e4', // purple
+  '외부 행사':            '#0a84a3', // teal
+  '콘텐츠 제작':           '#cc7000', // amber
+  '기타':                 '#8fa889', // accent-mid
 };
 const PURPOSE_FALLBACK = ['#3a5035','#ff9500','#7f51e4','#0a84a3','#8fa889','#cc7000','#5e7858','#a86bda'];
 function colorFor(purpose, fallbackIdx) {
@@ -2222,9 +2280,23 @@ function renderStats() {
 }
 
 function exportCSV() {
-  const headers = ['날짜','회차','이름','소속','연락처','이메일','목적','인원','요청사항','상태','신청일시'];
-  const rows = allBookings.map(b=>[b.date,fmtSlots(b),b.name,b.org,b.phone,b.email,b.purpose,b.count,b.note||'',b.status,new Date(b.timestamp).toLocaleString('ko-KR')]);
-  const csv = [headers,...rows].map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
+  const headers = ['날짜','회차','목적','주제','책임자','연락처','이메일','인원','방문자명단','활용방안','기대효과','상태','신청일시'];
+  const rows = allBookings.map(b => {
+    let visitorSummary = '';
+    try {
+      const arr = JSON.parse(b.visitors || '[]');
+      visitorSummary = arr.map(v => [v.org, v.name, v.rank].filter(Boolean).join('/')).join('; ');
+    } catch(e) {}
+    return [
+      b.date, fmtSlots(b), b.purpose, b.subject || b.org,
+      b.name, b.phone, b.email, b.count,
+      visitorSummary, b.usagePlan || '', b.expectedEffect || '',
+      b.status, new Date(b.timestamp).toLocaleString('ko-KR')
+    ];
+  });
+  // CSV 셀 안 큰따옴표 이스케이프 + 줄바꿈 보존
+  const esc = c => '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"';
+  const csv = [headers, ...rows].map(r => r.map(esc).join(',')).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));
   a.download = 'thinqreal_'+new Date().toISOString().slice(0,10)+'.csv';

@@ -290,6 +290,30 @@ function handleUpdateStatus(data) {
 function sendAdminAlert(data, id) {
   const slotLabel = data.slotLabel || '';
   const subject   = `[ThinQ Real] 새 예약 신청 — ${data.date} ${slotLabel}`;
+
+  // 방문자 명단 정리
+  let visitorsLines = '';
+  try {
+    const vs = JSON.parse(data.visitors || '[]');
+    if (vs.length) {
+      visitorsLines = '\n  방문자  :\n' + vs.map((v, i) => {
+        const parts = [v.org, v.name, v.rank].filter(Boolean).join(' / ');
+        return '            ' + String(i + 1).padStart(2, ' ') + '. ' + parts;
+      }).join('\n');
+    }
+  } catch(e) {}
+
+  // 목적별 1번째 줄 라벨
+  const subjLabelMap = {
+    'customer':       '고객/고객사',
+    'rd':             '프로젝트명',
+    'internal-event': '행사명',
+    'external-event': '행사명',
+    'content':        '촬영명',
+    'other':          '제목'
+  };
+  const subjLabel = subjLabelMap[data.purposeKey] || '제목';
+
   const body = `
 새로운 예약 신청이 접수되었습니다.
 
@@ -297,13 +321,18 @@ function sendAdminAlert(data, id) {
   예약 ID : ${id}
   날  짜  : ${data.date}
   회  차  : ${slotLabel}
-  이  름  : ${data.name}
-  소  속  : ${data.org}
+  목  적  : ${data.purpose}
+  ${subjLabel.padEnd(7, ' ')}: ${data.subject || data.org || ''}
+  책임자  : ${data.name}
   연락처  : ${data.phone}
   이메일  : ${data.email}
-  목  적  : ${data.purpose}
-  인  원  : ${data.count}명
-  요청사항: ${data.note || '없음'}
+  인  원  : ${data.count}명${visitorsLines}
+
+  활용 방안 :
+${(data.usagePlan || '').split('\n').map(l => '    ' + l).join('\n')}
+
+  기대 효과 :
+${(data.expectedEffect || '').split('\n').map(l => '    ' + l).join('\n')}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 관리자 페이지에서 승인 또는 거절해 주세요.
@@ -685,24 +714,42 @@ function handleDeleteRoiSnapshot(data) {
   return jsonResponse({ error: 'Record not found' });
 }
 
-// 헤더가 없으면 자동 생성
+// 헤더가 없으면 자동 생성. 이미 있다면 신규 컬럼만 추가 (마이그레이션 지원).
 function getOrCreateHeaders(sheet) {
   const HEADERS = [
     'id', 'timestamp', 'date', 'slots', 'slot', 'slotLabel',
     'name', 'org', 'phone', 'email',
-    'purpose', 'count', 'note', 'status'
+    'purpose', 'count', 'note', 'status',
+    // 2026-05 폼 상세화로 추가된 컬럼
+    'subject', 'clientCompany', 'visitors', 'usagePlan', 'expectedEffect', 'purposeKey'
   ];
-  const firstRow = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
+  const lastCol  = Math.max(sheet.getLastColumn(), 1);
+  const firstRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+
   if (!firstRow[0]) {
+    // 빈 시트 — 헤더 전체 작성
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
-    // 헤더 행 스타일
     const headerRange = sheet.getRange(1, 1, 1, HEADERS.length);
     headerRange.setBackground('#3a5035');
     headerRange.setFontColor('#ffffff');
     headerRange.setFontWeight('bold');
     sheet.setFrozenRows(1);
+    return HEADERS;
   }
-  return HEADERS;
+
+  // 기존 헤더에 누락된 신규 컬럼만 끝에 추가
+  const existing = firstRow.map(v => String(v || ''));
+  const missing  = HEADERS.filter(h => existing.indexOf(h) < 0);
+  if (missing.length) {
+    const startCol = existing.length + 1;
+    sheet.getRange(1, startCol, 1, missing.length).setValues([missing]);
+    const newRange = sheet.getRange(1, startCol, 1, missing.length);
+    newRange.setBackground('#3a5035');
+    newRange.setFontColor('#ffffff');
+    newRange.setFontWeight('bold');
+    return existing.concat(missing);
+  }
+  return existing;
 }
 
 function jsonResponse(obj) {

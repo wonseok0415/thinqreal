@@ -644,6 +644,44 @@ button, input, select, textarea { font-family: inherit; }
 }
 .btn-submit:hover { background: var(--c-accent-hover); }
 .btn-submit:disabled { background: var(--c-label-3); cursor: not-allowed; }
+.form-row-triple {
+  display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: var(--sp-12);
+}
+.form-hint-inline {
+  display: block; font-size: var(--t-caption);
+  color: var(--c-label-3); margin-top: var(--sp-4);
+  letter-spacing: -0.008em; line-height: 1.5;
+}
+.visitor-count {
+  color: var(--c-label-2); font-weight: 400;
+  font-size: var(--t-footnote); margin-left: var(--sp-8);
+}
+.visitor-row {
+  display: grid; gap: var(--sp-8);
+  margin-bottom: var(--sp-8); align-items: center;
+}
+.visitor-row.cols-2 { grid-template-columns: 1fr 1fr 36px; }
+.visitor-row.cols-3 { grid-template-columns: 1fr 1fr 1fr 36px; }
+.btn-remove-visitor {
+  background: var(--c-fill); color: var(--c-label-2);
+  border: none; border-radius: 50%; width: 32px; height: 32px;
+  cursor: pointer; font-size: 18px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.btn-remove-visitor:hover { background: #ff3b30; color: #fff; }
+.btn-add-visitor {
+  background: var(--c-fill); color: var(--c-accent);
+  border: 1px dashed var(--c-accent-mid); border-radius: var(--radius-md);
+  padding: var(--sp-12) var(--sp-16); cursor: pointer;
+  font-size: var(--t-footnote); font-weight: 500;
+  width: 100%; transition: all 0.15s var(--ease);
+  margin-top: var(--sp-4);
+}
+.btn-add-visitor:hover:not(:disabled) {
+  background: var(--c-fill-2); border-color: var(--c-accent); color: var(--c-accent-hover);
+}
+.btn-add-visitor:disabled { opacity: 0.5; cursor: not-allowed; }
 .form-agreement {
   display: flex; align-items: flex-start; gap: var(--sp-12);
   padding: var(--sp-16); margin-bottom: var(--sp-16);
@@ -857,6 +895,9 @@ footer {
   .navbar-links a { padding: 0 var(--sp-4); font-size: var(--t-caption); }
   .navbar-brand-logo { height: 18px; }
   .form-row { grid-template-columns: 1fr; gap: 0; }
+  .form-row-triple { grid-template-columns: 1fr; gap: 0; }
+  .visitor-row.cols-3 { grid-template-columns: 1fr 1fr 36px; }
+  .visitor-row.cols-3 input:first-child { grid-column: 1 / -1; }
   .split { grid-template-columns: 1fr; }
   .split-text { padding: var(--sp-48) var(--sp-24); }
   .split-media { min-height: 300px; }
@@ -950,7 +991,7 @@ footer {
   <section class="cta-band">
     <span class="label-overline" style="color:rgba(255,255,255,0.6);">Visit</span>
     <h2 class="section-title">ThinQ Real을<br>직접 경험해 보세요</h2>
-    <p class="section-body">R&D 연구, B2B 파트너 시연, 내부 행사 등 다양한 목적으로 예약 가능합니다.</p>
+    <p class="section-body">고객사 영업 활동, 내부 R&D · 테스트, 내부·외부 행사, 콘텐츠 제작 등 다양한 목적으로 예약 가능합니다.</p>
     <button class="btn btn-white" onclick="showPage('reserve')">예약 신청하기</button>
   </section>
 
@@ -1130,58 +1171,78 @@ footer {
           <span>선택한 일정</span>
           <strong id="summaryText">—</strong>
         </div>
-        <div class="form-group">
-          <label class="form-label">방문자 이름 *</label>
-          <input class="form-input" id="fName" type="text" placeholder="홍길동">
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">소속 *</label>
-            <input class="form-input" id="fOrg" type="text" placeholder="HS플랫폼사업센터">
-          </div>
-          <div class="form-group">
-            <label class="form-label">부서 *</label>
-            <input class="form-input" id="fDept" type="text" placeholder="AI홈솔루션엔지니어링팀">
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">연락처 *</label>
-          <input class="form-input" id="fPhone" type="tel" placeholder="010-0000-0000" maxlength="15" inputmode="tel">
-        </div>
-        <div class="form-group">
-          <label class="form-label">이메일 *</label>
-          <input class="form-input" id="fEmail" type="email" placeholder="name@lge.com">
-        </div>
+
+        <!-- 방문 목적 — 트리거. 목적에 따라 아래 항목이 동적으로 바뀝니다. -->
         <div class="form-group">
           <label class="form-label">방문 목적 *</label>
           <div class="form-select-wrap">
-            <select class="form-select" id="fPurpose" required>
+            <select class="form-select" id="fPurpose" required onchange="renderFormByPurpose()">
               <option value="">선택해 주세요</option>
-              <option>R&D 연구</option>
-              <option>B2B 파트너 시연</option>
-              <option>내부 행사</option>
-              <option>Press Tour</option>
-              <option>기타</option>
+              <option value="customer">고객/고객사 영업 활동</option>
+              <option value="rd">내부 R&amp;D · 테스트</option>
+              <option value="internal-event">내부 행사</option>
+              <option value="external-event">외부 행사</option>
+              <option value="content">콘텐츠 제작</option>
+              <option value="other">기타</option>
             </select>
           </div>
+          <span class="form-hint-inline" id="purposeHint" style="display:none;"></span>
         </div>
-        <div class="form-group">
-          <label class="form-label">방문 인원 *</label>
-          <input class="form-input" id="fCount" type="number" placeholder="5" min="1" max="30">
+
+        <!-- 동적 영역 (방문 목적 선택 시 표시) -->
+        <div id="dynamicForm" style="display:none;">
+          <div class="form-row-triple">
+            <div class="form-group">
+              <label class="form-label" id="lblSubject">제목 *</label>
+              <input class="form-input" id="fSubject" type="text">
+            </div>
+            <div class="form-group">
+              <label class="form-label" id="lblLeader">부서 리더/책임자 *</label>
+              <input class="form-input" id="fLeader" type="text">
+            </div>
+            <div class="form-group">
+              <label class="form-label">담당자 연락처 *</label>
+              <input class="form-input" id="fPhone" type="tel" placeholder="010-0000-0000" maxlength="15" inputmode="tel">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">신청자 이메일 *</label>
+            <input class="form-input" id="fEmail" type="email" placeholder="name@lge.com">
+            <span class="form-hint-inline">예약 확정 메일이 이 주소로 발송됩니다.</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">
+              방문자 정보 <span id="visitorCount" class="visitor-count">0명</span>
+            </label>
+            <div id="visitorList"></div>
+            <button type="button" class="btn-add-visitor" id="btnAddVisitor" onclick="addVisitorRow()">
+              + 방문자 추가
+            </button>
+            <span class="form-hint-inline">최대 10명까지 입력 가능합니다.</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" id="lblUsagePlan">ThinQ Real 활용 방안 (구체적) *</label>
+            <textarea class="form-textarea" id="fUsagePlan" placeholder="구체적인 활용 방안을 입력해 주세요."></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">기대 효과 (정성/정량) *</label>
+            <textarea class="form-textarea" id="fExpectedEffect" placeholder="정성적·정량적 기대 효과를 입력해 주세요. (예: 매출 약 3,000만원 예상, 브랜드 이미지 제고 등)"></textarea>
+          </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">요청 사항</label>
-          <textarea class="form-textarea" id="fNote" placeholder="특별 요청사항을 입력해 주세요."></textarea>
-        </div>
-        <label class="form-agreement" for="fAgree">
+
+        <label class="form-agreement" for="fAgree" id="agreementBox" style="display:none;">
           <input type="checkbox" id="fAgree">
           <span class="form-agreement-text">
             예약한 시간 동안 ThinQ Real 이용 중 시설·집기의 파손이나 분실이 발생할 경우,
             시설환경팀이 선처리 후 해당 비용을 예약 팀에 청구함에 동의합니다.
           </span>
         </label>
-        <button class="btn-submit" id="submitBtn" onclick="submitBooking()">예약 신청하기</button>
-        <p class="form-hint">신청 후 담당자 검토를 거쳐 확정 메일이 발송됩니다.</p>
+        <button class="btn-submit" id="submitBtn" onclick="submitBooking()" style="display:none;">예약 신청하기</button>
+        <p class="form-hint" id="submitHint" style="display:none;">신청 후 담당자 검토를 거쳐 확정 메일이 발송됩니다.</p>
       </div>
       <div class="success-state" id="successState">
         <div class="success-icon">✓</div>
@@ -1615,36 +1676,238 @@ function updateSummary() {
   }
 }
 
+// ── Dynamic form by purpose ───────────────────────────────
+const MAX_VISITORS = 10;
+
+const PURPOSE_CONFIG = {
+  'customer': {
+    label: '고객/고객사 영업 활동',
+    hint: 'LG전자 제품 검토·구매·시연을 위한 고객사 방문입니다.',
+    subjectLabel: '고객/고객사 *',
+    subjectPlaceholder: '예: GS건설',
+    leaderLabel: '고객/고객사 담당자 *',
+    leaderPlaceholder: '예: 김지에스',
+    usagePlanLabel: '방문 목적 (구체적) *',
+    usagePlanPlaceholder: '예: GS건설과 협업하는 용인 구례지구 재개발 2,342세대 옵션상품 판매를 위한 AI홈 시연',
+    visitorCols: 2
+  },
+  'rd': {
+    label: '내부 R&D · 테스트',
+    hint: 'LG전자 내부 R&D · 데이터 수집 · 기능 검증 목적의 방문입니다.',
+    subjectLabel: '프로젝트명 *',
+    subjectPlaceholder: '예: Vision Intelligence 향상',
+    leaderLabel: '부서 리더/책임자 *',
+    leaderPlaceholder: '예: 김엘지',
+    usagePlanLabel: 'ThinQ Real 활용 방안 (구체적) *',
+    usagePlanPlaceholder: '예: 댁내 환경과 유사한 환경에서 vision intelligence 데이터 확보',
+    visitorCols: 2
+  },
+  'internal-event': {
+    label: '내부 행사',
+    hint: 'LG전자 임직원만 참석하는 사내 행사입니다.',
+    subjectLabel: '행사명 *',
+    subjectPlaceholder: '예: ES본부 CEO 현장 경영',
+    leaderLabel: '부서 리더/책임자 *',
+    leaderPlaceholder: '예: 김엘지',
+    usagePlanLabel: 'ThinQ Real 활용 방안 (구체적) *',
+    usagePlanPlaceholder: '예: CEO 현장 경영 시 신제품 시연 및 피드백',
+    visitorCols: 2
+  },
+  'external-event': {
+    label: '외부 행사',
+    hint: '기자단·VIP·언론 등 사외 인원이 방문하는 행사입니다.',
+    subjectLabel: '행사명 *',
+    subjectPlaceholder: '예: 북미 미디어 프레스 투어',
+    leaderLabel: '부서 리더/책임자 *',
+    leaderPlaceholder: '예: 김엘지',
+    usagePlanLabel: 'ThinQ Real 활용 방안 (구체적) *',
+    usagePlanPlaceholder: '예: 미국 주요 일간지 기자들을 초청해 AI홈 시연 및 Q&A 진행',
+    visitorCols: 3
+  },
+  'content': {
+    label: '콘텐츠 제작',
+    hint: '사진·영상·인쇄물 등 콘텐츠 제작을 위한 촬영·녹화 방문입니다.',
+    subjectLabel: '촬영명 *',
+    subjectPlaceholder: '예: CS 관련 간편 대응 영상 촬영',
+    leaderLabel: '부서 리더/책임자 *',
+    leaderPlaceholder: '예: 김엘지',
+    usagePlanLabel: 'ThinQ Real 활용 방안 (구체적) *',
+    usagePlanPlaceholder: '예: RAC 관련 고객 간편 대응 영상 11종 자가 대응 영상 촬영',
+    visitorCols: 3
+  },
+  'other': {
+    label: '기타',
+    hint: '위 카테고리에 해당하지 않는 방문입니다.',
+    subjectLabel: '제목 *',
+    subjectPlaceholder: '예: 리빙솔루션 상반기 워크샵',
+    leaderLabel: '부서 리더/책임자 *',
+    leaderPlaceholder: '예: 김엘지',
+    usagePlanLabel: 'ThinQ Real 활용 방안 *',
+    usagePlanPlaceholder: '예: 신입사원 오리엔테이션 및 워크샵 진행',
+    visitorCols: 3
+  }
+};
+
+let visitorRows = [];
+
+function escapeAttr(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')
+                      .replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderFormByPurpose() {
+  const val = document.getElementById('fPurpose').value;
+  const dyn       = document.getElementById('dynamicForm');
+  const submit    = document.getElementById('submitBtn');
+  const submitHt  = document.getElementById('submitHint');
+  const agreement = document.getElementById('agreementBox');
+  const hintEl    = document.getElementById('purposeHint');
+
+  if (!val) {
+    dyn.style.display = 'none';
+    submit.style.display = 'none';
+    submitHt.style.display = 'none';
+    agreement.style.display = 'none';
+    hintEl.style.display = 'none';
+    return;
+  }
+  const cfg = PURPOSE_CONFIG[val];
+  if (!cfg) return;
+
+  hintEl.textContent = cfg.hint;
+  hintEl.style.display = 'block';
+  dyn.style.display = '';
+  submit.style.display = '';
+  submitHt.style.display = '';
+  agreement.style.display = '';
+
+  document.getElementById('lblSubject').textContent  = cfg.subjectLabel;
+  document.getElementById('fSubject').placeholder    = cfg.subjectPlaceholder;
+  document.getElementById('lblLeader').textContent   = cfg.leaderLabel;
+  document.getElementById('fLeader').placeholder     = cfg.leaderPlaceholder;
+  document.getElementById('lblUsagePlan').textContent = cfg.usagePlanLabel;
+  document.getElementById('fUsagePlan').placeholder  = cfg.usagePlanPlaceholder;
+
+  const wrapper = document.getElementById('visitorList');
+  wrapper.dataset.cols = cfg.visitorCols;
+  if (visitorRows.length === 0) addVisitorRow();
+  else renderVisitorRows();
+}
+
+function addVisitorRow() {
+  if (visitorRows.length >= MAX_VISITORS) {
+    toast('방문자는 최대 ' + MAX_VISITORS + '명까지 입력할 수 있습니다.'); return;
+  }
+  visitorRows.push({ org: '', name: '', rank: '' });
+  renderVisitorRows();
+}
+
+function removeVisitorRow(idx) {
+  visitorRows.splice(idx, 1);
+  if (visitorRows.length === 0) addVisitorRow();
+  else renderVisitorRows();
+}
+
+function updateVisitorField(idx, key, val) {
+  if (visitorRows[idx]) visitorRows[idx][key] = val;
+}
+
+function renderVisitorRows() {
+  const wrapper = document.getElementById('visitorList');
+  const cols = Number(wrapper.dataset.cols || 3);
+  wrapper.innerHTML = visitorRows.map((v, i) => {
+    const orgCell = cols === 3
+      ? '<input class="form-input" type="text" placeholder="소속" value="' + escapeAttr(v.org) + '" oninput="updateVisitorField(' + i + ',\'org\',this.value)">'
+      : '';
+    return '<div class="visitor-row cols-' + cols + '">'
+      + orgCell
+      + '<input class="form-input" type="text" placeholder="이름" value="' + escapeAttr(v.name) + '" oninput="updateVisitorField(' + i + ',\'name\',this.value)">'
+      + '<input class="form-input" type="text" placeholder="직급" value="' + escapeAttr(v.rank) + '" oninput="updateVisitorField(' + i + ',\'rank\',this.value)">'
+      + '<button type="button" class="btn-remove-visitor" onclick="removeVisitorRow(' + i + ')" aria-label="삭제">×</button>'
+      + '</div>';
+  }).join('');
+  document.getElementById('visitorCount').textContent = visitorRows.length + '명';
+  document.getElementById('btnAddVisitor').disabled = visitorRows.length >= MAX_VISITORS;
+}
+
 // ── Submit ────────────────────────────────────────────────
 async function submitBooking() {
   if (!selectedDate || selectedSlots.size === 0) { toast('날짜와 시간대를 선택해 주세요.'); return; }
+  const purposeKey = document.getElementById('fPurpose').value;
+  if (!purposeKey) { toast('방문 목적을 선택해 주세요.'); return; }
+  const cfg = PURPOSE_CONFIG[purposeKey];
+
   const get = id => document.getElementById(id).value.trim();
-  const [name, orgCompany, orgDept, phone, email, purpose, count, note] =
-    ['fName','fOrg','fDept','fPhone','fEmail','fPurpose','fCount','fNote'].map(get);
-  if (!name || !orgCompany || !orgDept || !phone || !email || !purpose || !count) {
+  const subject  = get('fSubject');
+  const leader   = get('fLeader');
+  const phone    = get('fPhone');
+  const email    = get('fEmail');
+  const usagePlan      = get('fUsagePlan');
+  const expectedEffect = get('fExpectedEffect');
+
+  if (!subject || !leader || !phone || !email) {
     toast('필수 항목을 모두 입력해 주세요.'); return;
   }
+  if (!usagePlan || !expectedEffect) {
+    toast('활용 방안과 기대 효과를 입력해 주세요.'); return;
+  }
+
+  // 방문자 명단 검증
+  const visitors = visitorRows
+    .map(v => ({
+      org:  cfg.visitorCols === 3 ? (v.org  || '').trim() : '',
+      name: (v.name || '').trim(),
+      rank: (v.rank || '').trim()
+    }))
+    .filter(v => v.name || v.rank || v.org);
+
+  if (visitors.length === 0) {
+    toast('방문자 정보를 1명 이상 입력해 주세요.'); return;
+  }
+  for (const v of visitors) {
+    if (!v.name || !v.rank) {
+      toast('방문자 이름과 직급을 모두 입력해 주세요.'); return;
+    }
+    if (cfg.visitorCols === 3 && !v.org) {
+      toast('방문자 소속을 입력해 주세요.'); return;
+    }
+  }
+
   if (!document.getElementById('fAgree').checked) {
     toast('파손·분실 비용 청구 동의에 체크해 주세요.'); return;
   }
-  // 기존 Sheets 스키마(org 단일 컬럼)와 호환 유지 — "소속 · 부서" 형태로 합침
-  const org = orgCompany + ' · ' + orgDept;
+
   const btn = document.getElementById('submitBtn');
   btn.disabled = true; btn.textContent = '신청 중…';
+
   const dateStr = selectedDate.toISOString().slice(0,10);
   const sortedSlots = [...selectedSlots].sort((a,b)=>a-b);
   const slotLabel = sortedSlots.map(n => SLOT_LABELS[n].trim()).join(' · ');
+
   const payload = {
-    type:'booking', timestamp:new Date().toISOString(),
-    date:dateStr, slots:sortedSlots, slot:sortedSlots[0],
-    slotLabel,
-    name, org, phone, email, purpose, count, note, status:'대기중'
+    type: 'booking', timestamp: new Date().toISOString(),
+    date: dateStr, slots: sortedSlots, slot: sortedSlots[0], slotLabel,
+    // 기존 호환 필드 — 관리자 페이지 표시용
+    name:    leader,            // 책임자/담당자 이름
+    org:     subject,           // 1번째 줄 입력값 (대표 표시)
+    phone, email,
+    purpose: cfg.label,
+    count:   visitors.length,
+    note:    '',
+    status:  '대기중',
+    // 신규 필드
+    subject,
+    clientCompany:  purposeKey === 'customer' ? subject : '',
+    visitors:       JSON.stringify(visitors),
+    usagePlan,
+    expectedEffect,
+    purposeKey
   };
   try {
     await fetch(SCRIPT_URL, {
-      method:'POST', mode:'no-cors',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(payload)
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
   } catch(e) {}
   document.getElementById('formContent').style.display = 'none';
@@ -1653,10 +1916,13 @@ async function submitBooking() {
 
 function resetForm() {
   selectedDate = null; selectedSlots = new Set();
-  ['fName','fOrg','fDept','fPhone','fEmail','fCount','fNote'].forEach(id =>
-    document.getElementById(id).value = '');
+  ['fSubject','fLeader','fPhone','fEmail','fUsagePlan','fExpectedEffect'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
   document.getElementById('fPurpose').value = '';
   document.getElementById('fAgree').checked = false;
+  visitorRows = [];
+  renderFormByPurpose();
   document.getElementById('formContent').style.display = 'block';
   document.getElementById('successState').style.display = 'none';
   document.getElementById('submitBtn').disabled = false;

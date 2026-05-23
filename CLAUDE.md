@@ -359,6 +359,56 @@ PDF `ThinQ Real_User Guide_260507_v3.pdf`(21p, 1.87MB)의 슬라이드 5~7, 16~1
 - 연락처 `maxlength="15"`는 `010-0000-0000`(13자) + 국제번호 마진 기준이므로 임의 축소 금지.
 - 주차 안내에 특정 담당자 이메일을 다시 적지 말 것 — 사이드바 담당자 카드와 중복됨. "담당자에게 문의" 표현 유지.
 
+## 작업 내역 (2026-05-23 후속 — 예약 폼 상세화)
+
+담당자 요청으로 예약 폼이 단일 평탄 폼 → **방문 목적 기반 동적 폼**으로 재구성됨. PPT 슬라이드(case 1~6) 기준 6종 카테고리·필드 셋·방문자 명단 다중 입력.
+
+### A. 방문 목적 카테고리 6종으로 재정의
+기존 5종(`R&D 연구 / B2B 파트너 시연 / 내부 행사 / Press Tour / 기타`) → 6종으로 일괄 교체:
+| key | 라벨 (사용자·메일·통계 표시) | 1번째 줄 라벨 | 방문자 컬럼 |
+|-----|---------------------------|--------------|------------|
+| `customer` | 고객/고객사 영업 활동 | 고객/고객사 | 이름·직급 (2-col) |
+| `rd` | 내부 R&D · 테스트 | 프로젝트명 | 이름·직급 (2-col) |
+| `internal-event` | 내부 행사 | 행사명 | 이름·직급 (2-col) |
+| `external-event` | 외부 행사 | 행사명 | 소속·이름·직급 (3-col) |
+| `content` | 콘텐츠 제작 | 촬영명 | 소속·이름·직급 (3-col) |
+| `other` | 기타 | 제목 | 소속·이름·직급 (3-col) |
+
+`PURPOSE_CONFIG`(index.html) 단일 소스에서 라벨·플레이스홀더·힌트·컬럼 수 모두 정의. 카테고리 추가·변경은 이 객체만 수정.
+
+### B. 동적 폼 — 목적 선택 전엔 숨김
+- 방문 목적 select가 트리거. 선택 전에는 `dynamicForm` / 동의 체크박스 / 제출 버튼 모두 `display:none`.
+- 선택 시 1번째 줄 라벨·플레이스홀더·활용 방안 라벨이 카테고리에 맞춰 변경되고 `purposeHint`(카테고리 설명)가 select 아래 노출됨.
+
+### C. 방문자 명단 다중 입력 (최대 10명)
+- `+ 방문자 추가` 버튼으로 행 추가, `×` 버튼으로 삭제. 마지막 1명 삭제 시 자동으로 빈 행 1개 유지.
+- `visitorCols=2`(내부)는 이름·직급만, `visitorCols=3`(외부/콘텐츠/기타)은 소속까지.
+- 캡 `MAX_VISITORS=10` — 변경 시 상수와 form-hint 문구 동시 수정.
+- 모바일(≤768px) 3-col 행은 소속이 한 줄 차지하도록 grid override.
+
+### D. Sheets 스키마 확장 (마이그레이션 지원)
+`getOrCreateHeaders()`가 기존 14컬럼에 신규 6컬럼을 끝에 자동 append (이미 있으면 skip).
+- 신규 컬럼: `subject`, `clientCompany`, `visitors`(JSON), `usagePlan`, `expectedEffect`, `purposeKey`
+- 기존 호환 필드 유지: `name`(=책임자명), `org`(=subject 미러), `count`(=visitors.length)
+
+### E. 메일 / 관리자 화면 동기화
+- **담당자 알림 메일** (`sendAdminAlert`): 카테고리별 1번째 줄 라벨(`subjLabelMap`), 방문자 명단, 활용 방안·기대 효과 본문 포함.
+- **예약 확정 메일** (`buildConfirm*`): 변경 없음 — 받는 사람은 본인이 신청한 내용이므로 일정·위치·Wi-Fi·도어락만 보내면 충분.
+- **R&D 가전표 첨부 트리거**: `data.purpose.indexOf('R&D') >= 0` — 새 라벨 "내부 R&D · 테스트"도 "R&D" 포함하므로 정상 동작.
+- **관리자 상세 모달** (`openModal`): 방문자 명단을 HTML 테이블로 렌더(`renderVisitorsTable`), 활용 방안·기대 효과는 줄바꿈 보존(`fmtMultiline`). 신규 필드가 없는 옛 데이터는 `note`만 표시(`showLegacy`).
+- **예약 관리 표 컬럼**: `소속` → `주제`로 헤더 변경. `b.subject || b.org` 표시.
+- **CSV 내보내기**: 11컬럼 → 13컬럼으로 확장. 방문자 명단은 `소속/이름/직급; ...` 직렬화.
+- **통계 차트 색상**: `PURPOSE_COLORS` 6종 새 라벨로 매핑. 내부 R&D·테스트가 다크 올리브, 고객 영업이 오렌지.
+
+### F. 기존 테스트 데이터 처리
+사용자 결정으로 기존 Sheets 데이터 **전체 삭제** (테스트 용도였음). Sheets 직접 열어 헤더 행만 남기고 데이터 행 일괄 삭제.
+
+### 핵심 제약 (다음 세션에서도 유지)
+- `PURPOSE_CONFIG`(index.html)와 `PURPOSE_COLORS`(thinqreal_admin.html)는 **한국어 라벨 기준으로 동기화** 필수. 라벨 변경 시 두 곳 다 수정.
+- Apps Script `subjLabelMap`(sendAdminAlert) / 관리자 `SUBJ_LABELS`(openModal)도 `purposeKey` 매핑이라 카테고리 키 변경 시 함께 수정.
+- 방문자 캡 변경 시 `MAX_VISITORS` 상수, 폼 힌트 문구, CLAUDE.md 표 3곳 동기화.
+- 신규 컬럼 `purposeKey`(영어 키)와 `purpose`(한국어 라벨)는 별도 컬럼. 통계는 `purpose`(한국어) 기준이지만 카테고리 분기 로직은 항상 `purposeKey` 기반.
+
 ## 완료 내역 — 도메인 이전 (2026-05-19)
 
 ThinQ Real을 독립 도메인 `thinqreal.com`(hosting.kr 구입)으로 이전. 기존 `wonseok-lab/thinqreal/` 하위 경로 구조가 `thinqreal.com/thinqreal/thinqreal.html`처럼 지저분해지는 문제를 해결하기 위해, 별도 리포 `wonseok0415/thinqreal`을 만들어 **리포 루트 = 사이트 루트** 구조로 분리했다.
