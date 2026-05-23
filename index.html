@@ -247,26 +247,6 @@ button, input, select, textarea { font-family: inherit; }
   display: block;
 }
 
-/* ── Stats strip ─────────────────────────────────────────── */
-.stats-strip {
-  background: var(--c-bg-2);
-  padding: var(--sp-40) max(24px, calc(50vw - 580px));
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  border-top: 1px solid var(--c-separator);
-  border-bottom: 1px solid var(--c-separator);
-}
-.stat-item { text-align: center; padding: var(--sp-8); }
-.stat-num {
-  font-size: 40px; font-weight: 600; letter-spacing: -0.04em;
-  color: var(--c-accent); line-height: 1;
-  display: block; margin-bottom: var(--sp-4);
-}
-.stat-label {
-  font-size: var(--t-footnote); color: var(--c-label-2);
-  letter-spacing: -0.008em;
-}
-
 /* ── Split content row ───────────────────────────────────── */
 .split {
   display: grid; grid-template-columns: 1fr 1fr;
@@ -658,6 +638,22 @@ button, input, select, textarea { font-family: inherit; }
 }
 .btn-submit:hover { background: var(--c-accent-hover); }
 .btn-submit:disabled { background: var(--c-label-3); cursor: not-allowed; }
+.form-agreement {
+  display: flex; align-items: flex-start; gap: var(--sp-12);
+  padding: var(--sp-16); margin-bottom: var(--sp-16);
+  background: var(--c-bg-2); border: 1px solid var(--c-separator);
+  border-radius: var(--radius-md); cursor: pointer;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
+}
+.form-agreement:hover { border-color: var(--c-accent-mid); }
+.form-agreement input[type="checkbox"] {
+  flex-shrink: 0; width: 18px; height: 18px; margin: 2px 0 0; cursor: pointer;
+  accent-color: var(--c-accent);
+}
+.form-agreement-text {
+  font-size: var(--t-footnote); color: var(--c-label-2);
+  letter-spacing: -0.008em; line-height: 1.55;
+}
 .form-hint {
   font-size: var(--t-caption); color: var(--c-label-3);
   text-align: center; margin-top: var(--sp-12);
@@ -855,7 +851,6 @@ footer {
   .navbar-links a { padding: 0 var(--sp-4); font-size: var(--t-caption); }
   .navbar-brand-logo { height: 18px; }
   .form-row { grid-template-columns: 1fr; gap: 0; }
-  .stats-strip { grid-template-columns: repeat(2,1fr); gap: 0; }
   .split { grid-template-columns: 1fr; }
   .split-text { padding: var(--sp-48) var(--sp-24); }
   .split-media { min-height: 300px; }
@@ -902,33 +897,14 @@ footer {
     <div class="hero-media"></div>
     <div class="hero-body">
       <span class="hero-eyebrow">LG Electronics · AI Home Research Space · 마곡 LG사이언스파크</span>
-      <h1 class="hero-title">미래의 집을,<br>지금 경험하세요.</h1>
-      <p class="hero-sub">30평형 실제 주거 공간에서 LG AI 가전과 홈 솔루션을 직접 연구하고 시연합니다.</p>
+      <h1 class="hero-title">LG전자의 AI홈을<br>직접 경험해 보세요.</h1>
+      <p class="hero-sub">주거 공간에서 실제 동작하는 최신 가전들과 AI홈 솔루션을 직접 경험할 수 있습니다.</p>
       <div class="hero-actions">
         <button class="btn btn-filled" onclick="showPage('reserve')">예약 신청하기</button>
         <button class="btn btn-white"  onclick="showPage('space')">공간 둘러보기</button>
       </div>
     </div>
   </section>
-
-  <div class="stats-strip">
-    <div class="stat-item">
-      <span class="stat-num">30</span>
-      <span class="stat-label">평형 규모</span>
-    </div>
-    <div class="stat-item">
-      <span class="stat-num">7</span>
-      <span class="stat-label">개 공간 구성</span>
-    </div>
-    <div class="stat-item">
-      <span class="stat-num">3</span>
-      <span class="stat-label">회 일일 운영</span>
-    </div>
-    <div class="stat-item">
-      <span class="stat-num">24+</span>
-      <span class="stat-label">연동 기기</span>
-    </div>
-  </div>
 
   <div class="split">
     <div class="split-text">
@@ -1164,7 +1140,7 @@ footer {
         </div>
         <div class="form-group">
           <label class="form-label">연락처 *</label>
-          <input class="form-input" id="fPhone" type="tel" placeholder="010-0000-0000">
+          <input class="form-input" id="fPhone" type="tel" placeholder="010-0000-0000" maxlength="15" inputmode="tel">
         </div>
         <div class="form-group">
           <label class="form-label">이메일 *</label>
@@ -1191,6 +1167,13 @@ footer {
           <label class="form-label">요청 사항</label>
           <textarea class="form-textarea" id="fNote" placeholder="특별 요청사항을 입력해 주세요."></textarea>
         </div>
+        <label class="form-agreement" for="fAgree">
+          <input type="checkbox" id="fAgree">
+          <span class="form-agreement-text">
+            예약한 시간 동안 ThinQ Real 이용 중 시설·집기의 파손이나 분실이 발생할 경우,
+            시설환경팀이 선처리 후 해당 비용을 예약 팀에 청구함에 동의합니다.
+          </span>
+        </label>
         <button class="btn-submit" id="submitBtn" onclick="submitBooking()">예약 신청하기</button>
         <p class="form-hint">신청 후 담당자 검토를 거쳐 확정 메일이 발송됩니다.</p>
       </div>
@@ -1354,6 +1337,7 @@ footer {
         <ul class="guide-list">
           <li>홈 초대는 담당자에게 사전 요청 후 사용, 사용 후 삭제합니다.</li>
           <li>실명으로 사용자 정보를 등록해 주세요. 실명이 아닐 경우 홈 멤버가 삭제됩니다.</li>
+          <li>동시에 초대 가능한 인원은 <strong style="color:var(--c-label);">최대 20명</strong>으로 제한됩니다. 정원 초과 시 먼저 승인된 멤버부터 순차적으로 삭제될 수 있습니다.</li>
           <li>기존에 연결된 기기의 삭제·재연결은 엄격히 금지됩니다.</li>
           <li>공간 밖에서의 스마트루틴 및 원격 제어는 금지됩니다.</li>
         </ul>
@@ -1369,7 +1353,7 @@ footer {
           </li>
           <li>
             <strong style="color:var(--c-label);">그 외 사업장 근무 직원 및 외부 고객</strong><br>
-            <span style="color:var(--c-label-2);">김현진 선임(<a href="mailto:hj8462.kim@lge.com" style="color:var(--c-accent);text-decoration:none;">hj8462.kim@lge.com</a>)에게 문의</span>
+            <span style="color:var(--c-label-2);">담당자에게 문의해 주세요.</span>
           </li>
         </ul>
       </div>
@@ -1634,6 +1618,9 @@ async function submitBooking() {
   if (!name || !orgCompany || !orgDept || !phone || !email || !purpose || !count) {
     toast('필수 항목을 모두 입력해 주세요.'); return;
   }
+  if (!document.getElementById('fAgree').checked) {
+    toast('파손·분실 비용 청구 동의에 체크해 주세요.'); return;
+  }
   // 기존 Sheets 스키마(org 단일 컬럼)와 호환 유지 — "소속 · 부서" 형태로 합침
   const org = orgCompany + ' · ' + orgDept;
   const btn = document.getElementById('submitBtn');
@@ -1663,6 +1650,7 @@ function resetForm() {
   ['fName','fOrg','fDept','fPhone','fEmail','fCount','fNote'].forEach(id =>
     document.getElementById(id).value = '');
   document.getElementById('fPurpose').value = '';
+  document.getElementById('fAgree').checked = false;
   document.getElementById('formContent').style.display = 'block';
   document.getElementById('successState').style.display = 'none';
   document.getElementById('submitBtn').disabled = false;
