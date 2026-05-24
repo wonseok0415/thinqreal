@@ -375,12 +375,18 @@ button, input, select, textarea { font-family: inherit; }
 .fp-section > div {
   max-width: 720px; margin: 0 auto;
 }
-.fp-section .tag-row { justify-content: center; }
+.fp-section .tag-row { justify-content: center; gap: var(--sp-12); }
 .tag-row { display:flex; flex-wrap:wrap; gap: var(--sp-8); margin-top: var(--sp-20); }
 .tag {
   background: var(--c-accent-light); color: var(--c-accent);
   padding: var(--sp-4) var(--sp-12); border-radius: 980px;
   font-size: var(--t-caption); font-weight: 500; letter-spacing: -0.008em;
+}
+.fp-section .tag {
+  background: var(--c-bg); color: var(--c-accent);
+  padding: var(--sp-12) var(--sp-20); border: 1px solid var(--c-separator);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  font-size: var(--t-body); font-weight: 600; letter-spacing: -0.01em; line-height: 1;
 }
 
 /* Room list */
