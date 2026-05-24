@@ -390,6 +390,7 @@ body {
 .stats-card-title { font-size:var(--t-headline); font-weight:600; letter-spacing:-0.022em; margin-bottom:var(--sp-20); }
 .bar-item { margin-bottom:var(--sp-16); }
 .bar-item:last-child { margin-bottom:0; }
+.bar-item.bar-zero { opacity:.5; }
 .bar-meta { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:var(--sp-8); gap:var(--sp-8); }
 .bar-name { font-size:var(--t-subhead); letter-spacing:-0.016em; display:inline-flex; align-items:center; gap:var(--sp-8); }
 .bar-name::before {
@@ -2295,22 +2296,26 @@ function colorFor(purpose, fallbackIdx) {
 }
 
 function renderStats() {
-  // 1) 방문 목적별 — 목적별 고정 색상으로 막대 채움
+  // 1) 방문 목적별 — 정식 6개 카테고리를 항상 모두 표시 (0건 포함, 오해 방지)
   const purposes = {};
-  allBookings.forEach(b=>{ purposes[b.purpose]=(purposes[b.purpose]||0)+1; });
-  const purposeEntries = Object.entries(purposes).sort((a,b)=>b[1]-a[1]);
-  const maxP = Math.max(...purposeEntries.map(e=>e[1]),1);
+  allBookings.forEach(b=>{ if (b.purpose) purposes[b.purpose]=(purposes[b.purpose]||0)+1; });
+  // 고정 6개 순서 + 데이터에만 있는 비표준 라벨은 뒤에 덧붙여 누락 방지
+  const canonicalPurposes = Object.keys(PURPOSE_COLORS);
+  const extraPurposes = Object.keys(purposes)
+    .filter(p => canonicalPurposes.indexOf(p) < 0)
+    .sort((a,b)=>purposes[b]-purposes[a]);
+  const purposeKeys = canonicalPurposes.concat(extraPurposes);
+  const maxP = Math.max(...purposeKeys.map(k=>purposes[k]||0), 1);
   document.getElementById('purposeChart').innerHTML =
-    purposeEntries.length
-      ? purposeEntries.map(([k,v],i)=>{
-          const color = colorFor(k, i);
-          const pct = (v/maxP*100).toFixed(0);
-          return `<div class="bar-item" style="--bar-color:${color};">
-            <div class="bar-meta"><span class="bar-name">${k}</span><span class="bar-count">${v}건</span></div>
-            <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
-          </div>`;
-        }).join('')
-      : '<p style="color:var(--c-label-3);font-size:var(--t-subhead);">데이터 없음</p>';
+    purposeKeys.map((k,i)=>{
+      const v = purposes[k] || 0;
+      const color = colorFor(k, i);
+      const pct = (v/maxP*100).toFixed(0);
+      return `<div class="bar-item${v===0?' bar-zero':''}" style="--bar-color:${color};">
+        <div class="bar-meta"><span class="bar-name">${k}</span><span class="bar-count">${v}건</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+      </div>`;
+    }).join('');
 
   // 2) 회차별
   const slots = {'1':0,'2':0,'3':0};
@@ -2342,8 +2347,8 @@ function renderStats() {
     1
   );
 
-  // 활성 목적 (예약 기록에 등장한 것만) — purposeEntries 정렬 순서 재사용
-  const activePurposes = purposeEntries.map(e => e[0]);
+  // 활성 목적 (예약 기록에 등장한 것만, 건수 내림차순) — 월별 누적 차트용
+  const activePurposes = Object.keys(purposes).sort((a,b)=>purposes[b]-purposes[a]);
   const colorMap = {};
   activePurposes.forEach((p, i) => { colorMap[p] = colorFor(p, i); });
 
