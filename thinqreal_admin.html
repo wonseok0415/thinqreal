@@ -484,6 +484,36 @@ body {
   font-family:inherit; transition:background .15s var(--ease);
 }
 .modal-btn-confirm:hover { background:var(--c-accent-hover); }
+.modal-btn-danger {
+  min-height:44px; padding:0 var(--sp-16); background:transparent; color:var(--c-red);
+  border:1px solid var(--c-red); border-radius:var(--radius-md); font-size:var(--t-subhead);
+  font-weight:500; cursor:pointer; font-family:inherit; transition:all .15s var(--ease);
+  margin-right:auto; /* 파괴적 동작을 좌측으로 떼어 닫기·거절·확정과 분리 */
+}
+.modal-btn-danger:hover { background:var(--c-red); color:#fff; }
+.modal-delete-confirm {
+  margin-top:var(--sp-20); padding:var(--sp-20);
+  background:var(--c-red-light); border:1px solid var(--c-red); border-radius:var(--radius-md);
+}
+.modal-delete-warn { font-size:var(--t-subhead); font-weight:600; color:var(--c-red); margin-bottom:var(--sp-8); }
+.modal-delete-summary {
+  font-size:var(--t-footnote); color:var(--c-label); margin-bottom:var(--sp-16);
+  padding:var(--sp-8) var(--sp-12); background:var(--c-bg); border-radius:var(--radius-sm);
+}
+.modal-delete-label { display:block; font-size:var(--t-footnote); color:var(--c-label-2); margin-bottom:var(--sp-8); }
+.modal-delete-input {
+  width:100%; min-height:44px; padding:0 var(--sp-12); box-sizing:border-box;
+  border:1.5px solid var(--c-separator); border-radius:var(--radius-sm);
+  font-size:var(--t-subhead); font-family:inherit; background:var(--c-bg); color:var(--c-label);
+}
+.modal-delete-input:focus { border-color:var(--c-red); outline:none; }
+.modal-delete-actions { display:flex; gap:var(--sp-12); justify-content:flex-end; margin-top:var(--sp-16); }
+.modal-btn-delete-confirm {
+  min-height:44px; padding:0 var(--sp-24); background:var(--c-red); color:#fff; border:none;
+  border-radius:var(--radius-md); font-size:var(--t-subhead); font-weight:600; cursor:pointer;
+  font-family:inherit; transition:opacity .15s var(--ease);
+}
+.modal-btn-delete-confirm[disabled] { opacity:.4; cursor:not-allowed; }
 
 /* ── Accounts tab ── */
 .accounts-section { margin-bottom: var(--sp-32); }
@@ -1747,8 +1777,20 @@ body {
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
     <div class="detail-grid" id="modalGrid"></div>
-    <div class="modal-actions">
+    <div class="modal-delete-confirm" id="modalDeleteConfirm" style="display:none;">
+      <p class="modal-delete-warn">⚠️ 이 예약을 영구 삭제합니다. 되돌릴 수 없습니다.</p>
+      <p class="modal-delete-summary" id="modalDeleteSummary"></p>
+      <label class="modal-delete-label">확인을 위해 <strong>삭제</strong> 를 입력하세요</label>
+      <input type="text" class="modal-delete-input" id="modalDeleteInput" placeholder="삭제"
+             autocomplete="off" oninput="onDeleteInput()" onkeydown="if(event.key==='Enter')confirmDelete()">
+      <div class="modal-delete-actions">
+        <button class="modal-btn-close" onclick="cancelDelete()">취소</button>
+        <button class="modal-btn-delete-confirm" id="modalDeleteConfirmBtn" onclick="confirmDelete()" disabled>영구 삭제</button>
+      </div>
+    </div>
+    <div class="modal-actions" id="modalActions">
       <button class="modal-btn-close" onclick="closeModal()">닫기</button>
+      <button class="modal-btn-danger" id="modalDeleteBtn" onclick="startDelete()">영구 삭제</button>
       <button class="modal-btn-reject"  id="modalRejectBtn"  onclick="updateStatusFromModal('거절')">거절</button>
       <button class="modal-btn-confirm" id="modalConfirmBtn" onclick="updateStatusFromModal('확정')">확정</button>
     </div>
@@ -2118,10 +2160,74 @@ function openModal(id) {
   const isPending = b.status === '대기중';
   document.getElementById('modalRejectBtn').style.display  = isPending ? '' : 'none';
   document.getElementById('modalConfirmBtn').style.display = isPending ? '' : 'none';
+  // 삭제 확인 패널은 항상 닫힌 상태로 진입
+  document.getElementById('modalDeleteConfirm').style.display = 'none';
+  document.getElementById('modalActions').style.display = '';
   document.getElementById('modalBg').classList.add('open');
 }
 function closeModal() { document.getElementById('modalBg').classList.remove('open'); currentModalId = null; }
 function updateStatusFromModal(s) { if (currentModalId) { updateStatus(currentModalId,s); closeModal(); } }
+
+// ── 예약 영구 삭제 ─────────────────────────────────────────
+// '삭제' 타이핑 확인을 거쳐야만 실행 — 오삭제 방지.
+function startDelete() {
+  if (!currentModalId) return;
+  const b = allBookings.find(x => x.id === currentModalId);
+  if (!b) return;
+  document.getElementById('modalDeleteSummary').textContent =
+    [b.date, b.name, b.purpose].filter(Boolean).join('  ·  ');
+  document.getElementById('modalActions').style.display = 'none';
+  document.getElementById('modalDeleteConfirm').style.display = '';
+  const inp = document.getElementById('modalDeleteInput');
+  inp.value = '';
+  document.getElementById('modalDeleteConfirmBtn').disabled = true;
+  inp.focus();
+}
+function onDeleteInput() {
+  const v = document.getElementById('modalDeleteInput').value.trim();
+  document.getElementById('modalDeleteConfirmBtn').disabled = (v !== '삭제');
+}
+function cancelDelete() {
+  document.getElementById('modalDeleteConfirm').style.display = 'none';
+  document.getElementById('modalActions').style.display = '';
+  document.getElementById('modalDeleteInput').value = '';
+}
+function confirmDelete() {
+  if (document.getElementById('modalDeleteInput').value.trim() !== '삭제') return;
+  const id = currentModalId;
+  cancelDelete();
+  closeModal();
+  deleteBooking(id);
+}
+async function deleteBooking(id) {
+  const sid = String(id);
+  if (inflightUpdates.has(sid)) return;
+  const idx = allBookings.findIndex(x => String(x.id) === sid);
+  if (idx < 0) { toast('해당 예약을 찾을 수 없습니다.'); return; }
+  const removed = allBookings[idx];
+
+  // 1) 낙관적 UI — 즉시 목록에서 제거
+  allBookings.splice(idx, 1);
+  inflightUpdates.add(sid);
+  updateKPIs(); renderTable();
+  toast('삭제 처리 중…', 8000);
+
+  // 2) 서버 반영
+  try {
+    await fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'booking_delete', id:sid }) });
+    saveCache(allBookings);  // 재로드 시 지운 항목이 다시 보이지 않도록 캐시 동기화
+    toast('✓ 예약이 영구 삭제됐습니다');
+  } catch(e) {
+    // 3) 실패 시 원위치로 롤백
+    allBookings.splice(idx, 0, removed);
+    updateKPIs(); renderTable();
+    saveCache(allBookings);
+    toast('삭제 실패: ' + (e.message || '네트워크 오류') + ' — 잠시 후 다시 시도해 주세요');
+  } finally {
+    inflightUpdates.delete(sid);
+  }
+}
 
 // 표 행의 확정/거절 버튼 클릭 핸들러 — 즉시 시각 피드백 후 처리
 function onActionClick(btn, id, status) {

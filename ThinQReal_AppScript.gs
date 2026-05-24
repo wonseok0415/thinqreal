@@ -217,6 +217,7 @@ function doPost(e) {
 
   if (data.type === 'booking') return handleNewBooking(data);
   if (data.type === 'update')  return handleUpdateStatus(data);
+  if (data.type === 'booking_delete') return handleDeleteBooking(data);
   if (data.type === 'roi_snapshot') return handleNewRoiSnapshot(data);
   if (data.type === 'roi_delete')   return handleDeleteRoiSnapshot(data);
 
@@ -279,6 +280,22 @@ function handleUpdateStatus(data) {
   }
 
   return jsonResponse({ success: true });
+}
+
+
+// 예약 영구 삭제 — id로 행을 찾아 제거. 메일은 발송하지 않음 (테스트·실수 데이터 정리용).
+function handleDeleteBooking(data) {
+  const sheet   = getSheet();
+  const rows    = sheet.getDataRange().getValues();
+  const headers = rows[0];
+  const idIdx   = headers.indexOf('id');
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][idIdx]) === String(data.id)) {
+      sheet.deleteRow(i + 1); // Sheets는 1-based
+      return jsonResponse({ success: true });
+    }
+  }
+  return jsonResponse({ error: 'Record not found' });
 }
 
 

@@ -61,6 +61,7 @@ images/{파일명}
 | `GET ?type=appliances` | 구비 가전 45개 목록 — `APPLIANCES` 상수의 단일 소스 |
 | `POST type:booking` | Sheets 저장 + 담당자 알림 메일 |
 | `POST type:update` | 상태 변경 + 예약자 확정/거절 메일 |
+| `POST type:booking_delete` | 예약 행 영구 삭제 (id). **메일 미발송** (테스트·실수 데이터 정리용) |
 | `POST type:roi_snapshot` | ROI 시나리오 스냅샷 저장 (label/author/inputs/outputs) |
 | `POST type:roi_delete` | ROI 시나리오 스냅샷 삭제 (id) |
 
@@ -467,3 +468,21 @@ ThinQ Real을 독립 도메인 `thinqreal.com`(hosting.kr 구입)으로 이전. 
 4. **GitHub Pages "DNS check" 상태는 잘 캐싱되어 늦게 풀림** — 실제 DNS가 정상이어도 GitHub UI는 30분~수 시간 unsuccessful로 표시될 수 있음. `Check again` 클릭 + 빈 커밋 푸시로 재배포 트리거 + 시간 대기 조합으로 풀린다.
 
 5. **Apps Script 재배포는 "배포 관리 → 편집 → 새 버전 → 배포" 경로**가 정답. "새 배포"를 누르면 새 URL이 발급되어 `index.html` / `thinqreal_admin.html`의 `SCRIPT_URL`까지 다 교체해야 함. 코드만 갱신할 때는 반드시 편집 모드를 쓸 것.
+
+## 작업 내역 (2026-05-24 — 예약 영구 삭제 기능)
+
+테스트·실수로 입력된 예약을 관리자가 직접 제거할 수 있는 삭제 기능 추가. 결정 사항: **영구 삭제(하드) + "삭제" 타이핑 확인 + 상세 모달에만 배치**.
+
+### A. Apps Script (재배포 필요)
+- `POST type:booking_delete` 엔드포인트 + `handleDeleteBooking(data)` 신설. `handleDeleteRoiSnapshot` 패턴 그대로 — id로 `bookings` 시트 행을 찾아 `sheet.deleteRow()`. **메일은 발송하지 않음** (거절과 달리 예약자에게 알림 불필요).
+
+### B. 관리자 페이지 (thinqreal_admin.html)
+- 상세 모달 액션 줄에 빨간 테두리 `영구 삭제` 버튼(`.modal-btn-danger`) 추가. `margin-right:auto`로 좌측에 떼어 닫기·거절·확정과 분리(오클릭 방지). 모든 상태의 예약에 노출.
+- 클릭 시 모달 액션이 숨고 **삭제 확인 패널**(`#modalDeleteConfirm`)이 열림: ⚠️ 경고 + `[날짜·이름·목적]` 요약 + "삭제" 타이핑 입력란. 입력값이 정확히 `삭제`일 때만 빨간 `영구 삭제` 확정 버튼 활성화.
+- `startDelete`/`onDeleteInput`/`cancelDelete`/`confirmDelete`/`deleteBooking` 함수 신설. `deleteBooking`은 `updateStatus`와 동일한 **낙관적 UI + 실패 시 롤백** 패턴 사용. 성공·롤백 양쪽에서 `saveCache(allBookings)` 호출 → 재로드 시 지운 항목이 다시 보이지 않게 캐시 동기화.
+- `openModal` 진입 시 삭제 패널을 항상 닫고 액션을 복원.
+
+### 핵심 제약 (다음 세션에서도 유지)
+- 삭제 확인은 **"삭제" 정확 일치 타이핑**이 게이트 — 임의로 약화하지 말 것.
+- `booking_delete`는 **메일 미발송**이 의도된 동작 — 거절(`update`)과 혼동 금지.
+- 이 기능은 Apps Script **재배포 후에만** 동작함 (엔드포인트 신규 추가이므로).
