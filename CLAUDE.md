@@ -162,15 +162,17 @@ Apps Script 콜드 스타트(1~3초) 자체는 서버 측 제약이라 완전히
 | `thinqreal_home_hero.png` | 홈 페이지 메인 히어로 |
 | `thinqreal_about.png` | 홈 About 섹션 (split-media) |
 | `thinqreal_space_hero.jpeg` | 공간 소개 페이지 히어로 |
-| `thinqreal_living_room.png` | 01 거실 |
-| `thinqreal_kitchen.png` | 02 주방 |
-| `thinqreal_bedroom.png` | 03 침실 |
-| `thinqreal_laundress_room.png` | 04 런드레스룸 |
+| `thinqreal_living_room.jpg` | 01 거실 |
+| `thinqreal_kitchen.jpg` | 02 주방 |
+| `thinqreal_bedroom.jpg` | 03 침실 |
+| `thinqreal_laundress_room.jpg` | 04 런드레스룸 |
 | `thinqreal_bathroom.jpg` | 05 욕실 |
-| `thinqreal_entrance_corridor.png` | 06 현관·복도 |
+| `thinqreal_entrance_corridor.jpg` | 06 현관·복도 |
 | `thinqreal_guide_hero.png` | 이용 안내 페이지 히어로 |
 | `thinqreal_admin_lighting.png` | 관리자 — 조명 스위치 안내 슬라이드 |
 | `thinqreal_admin_system.png` | 관리자 — 시스템 구성 슬라이드 |
+
+> **이미지 포맷·최적화 (2026-05-24 갱신)**: 6개 공간 사진 렌더는 **JPEG(.jpg)** 로 보관 — 사진 콘텐츠라 PNG보다 훨씬 가볍다. 새 렌더를 받으면 GitHub에 원본(2560px·수 MB PNG)을 그대로 올리지 말고, **표시 폭에 맞춰 1920px·JPEG q85로 다운스케일**한 뒤 교체할 것(장당 ~200KB). 관리자 슬라이드(`admin_*`)는 도식 캡처라 PNG 유지(1800px). 욕실은 원래부터 `.jpg`.
 
 ## 작업 시 주의사항
 - 이미지는 절대 base64로 HTML에 삽입하지 말 것 (반드시 별도 파일 + GitHub URL)
