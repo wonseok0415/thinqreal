@@ -680,6 +680,17 @@ body {
   font-size: var(--t-caption); color: var(--c-label-3);
   letter-spacing: -0.008em; padding: var(--sp-4) 0;
 }
+/* Reference slide image — placed below the info cards, downscaled & centered */
+.ref-slide-wrap { margin-top: var(--sp-24); }
+.ref-slide {
+  display: block; width: 100%; max-width: 620px; margin: 0 auto;
+  border-radius: var(--radius-lg); border: 1px solid var(--c-separator);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+.ref-slide-cap {
+  text-align: center; font-size: var(--t-caption); color: var(--c-label-3);
+  margin-top: var(--sp-8); letter-spacing: -0.008em;
+}
 
 /* ── System tab ── */
 .system-intro {
@@ -969,14 +980,6 @@ body {
         </div>
       </div>
 
-      <div style="margin-bottom:var(--sp-24);">
-        <img src="images/thinqreal_admin_lighting.png"
-             alt="조명 스위치 안내 슬라이드"
-             style="width:100%;border-radius:var(--radius-lg);
-                    border:1px solid var(--c-separator);
-                    box-shadow:0 4px 16px rgba(0,0,0,0.08);">
-      </div>
-
       <div class="lighting-grid">
         <div class="lighting-card">
           <div class="lighting-card-header">
@@ -1035,6 +1038,12 @@ body {
         </div>
       </div>
       <p class="lighting-footnote">* 외부 조명은 22:00에 자동 OFF, 07:00에 자동 ON 스케쥴링</p>
+
+      <div class="ref-slide-wrap">
+        <img src="images/thinqreal_admin_lighting.png"
+             alt="조명 스위치 안내 슬라이드" class="ref-slide">
+        <p class="ref-slide-cap">공간별 벽면 스위치 배치도</p>
+      </div>
     </div>
 
     <!-- System tab -->
@@ -1047,14 +1056,6 @@ body {
       <div class="system-intro">
         북미나 BMS 대응이 가능한 듀얼 조명 배선 시스템과 효과적인 연출을 위한 DMX Light, Sound 시스템을 구성했습니다.<br>
         <strong style="color:var(--c-label);">Homey Pro</strong>에서 자동화를 구성하고 <strong style="color:var(--c-accent);">ThinQ ON</strong>에서 다양하게 활용하는 방식으로 운영합니다.
-      </div>
-
-      <div style="margin-bottom:var(--sp-24);">
-        <img src="images/thinqreal_admin_system.png"
-             alt="시스템 구성 슬라이드"
-             style="width:100%;border-radius:var(--radius-lg);
-                    border:1px solid var(--c-separator);
-                    box-shadow:0 4px 16px rgba(0,0,0,0.08);">
       </div>
 
       <div class="system-grid">
@@ -1131,6 +1132,12 @@ body {
           </div>
         </div>
 
+      </div>
+
+      <div class="ref-slide-wrap">
+        <img src="images/thinqreal_admin_system.png"
+             alt="시스템 구성 슬라이드" class="ref-slide">
+        <p class="ref-slide-cap">시스템 구성 다이어그램</p>
       </div>
     </div>
 
