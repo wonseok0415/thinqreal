@@ -818,33 +818,8 @@ button, input, select, textarea { font-family: inherit; }
   font-size: var(--t-footnote); color: var(--c-label-2);
   letter-spacing: -0.008em;
 }
-
-/* ── Info cards (기타 이용 안내 · 주차 안내) ───────────────── */
-.info-card-grid {
-  display: grid; grid-template-columns: repeat(2, 1fr);
-  gap: var(--sp-12);
-}
-.info-card {
-  background: var(--c-bg); border: 1px solid var(--c-separator);
-  border-radius: var(--radius-md); padding: var(--sp-16) var(--sp-20);
-}
-.info-card-title {
-  display: flex; align-items: baseline; gap: var(--sp-8);
-  font-size: var(--t-headline); font-weight: 600;
-  letter-spacing: -0.022em; color: var(--c-accent);
-  margin-bottom: var(--sp-8);
-}
-.info-card-title::before {
-  content: ''; flex: 0 0 auto;
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--c-accent-mid); transform: translateY(-2px);
-}
-.info-card-body {
-  font-size: var(--t-subhead); color: var(--c-label-2);
-  line-height: 1.55; letter-spacing: -0.016em;
-}
-.info-card-body a { color: var(--c-accent); text-decoration: none; }
-.info-card-body strong { color: var(--c-label); }
+.caution-group ul li .note a { color: var(--c-accent); text-decoration: none; }
+.caution-group ul li strong { color: var(--c-label); }
 
 /* Contact sidebar */
 .contact-stack { display: flex; flex-direction: column; gap: var(--sp-12); }
@@ -929,7 +904,6 @@ footer {
   .room-info { padding: var(--sp-32) var(--sp-24); }
   .reservation-layout { grid-template-columns: 1fr; padding: var(--sp-32) var(--sp-20); }
   .guide-layout { grid-template-columns: 1fr; padding: var(--sp-32) var(--sp-20); }
-  .info-card-grid { grid-template-columns: 1fr; }
   .process-steps { flex-direction: column; }
   .section { padding: var(--sp-48) var(--sp-24); }
   .section-sm { padding: var(--sp-32) var(--sp-24); }
@@ -1395,45 +1369,33 @@ footer {
 
       <div class="guide-section">
         <h2 class="guide-section-title">기타 이용 안내</h2>
-        <div class="info-card-grid">
-          <div class="info-card">
-            <div class="info-card-title">세탁기 · 식기세척기 · 수전 사용 시</div>
-            <div class="info-card-body">건물 수압이 강해 냉·온수 초기 사용 시 급수관 압력이 발생해 꿀렁일 수 있습니다. 물을 틀어놓고 30초~1분 지나면 정상 수압으로 급수됩니다.</div>
+        <div class="caution-group">
+          <div class="caution-group-header">
+            <span class="caution-cat">기타</span>
+            <span class="caution-cat-sub">가전·공간 이용 시</span>
           </div>
-          <div class="info-card">
-            <div class="info-card-title">촬영 시</div>
-            <div class="info-card-body">카메라·삼각대·조명 이동 시 벽이나 천장의 도장면을 긁지 않도록 각별히 유의해 주세요.</div>
-          </div>
-          <div class="info-card">
-            <div class="info-card-title">창호 · 커튼 동작 시</div>
-            <div class="info-card-body">전동 커튼·창호를 수동으로 무리하게 동작하면 모터에 무리가 갈 수 있습니다. 주방 창호는 리모컨으로만 동작해 주세요. 거실 창호 유리에는 PDLC 필름이 부착되어 있어 다른 부착물이 있을 경우 손상이 발생합니다.</div>
-          </div>
-          <div class="info-card">
-            <div class="info-card-title">조리 시</div>
-            <div class="info-card-body">주방 후드를 사용하고 화재·안전에 유의해 주세요. 설거지 및 물기 제거 후 퇴실해 주세요. 설거지 시 별도 용품을 사용하고 구비된 어메니티 사용은 금지입니다.</div>
-          </div>
-          <div class="info-card">
-            <div class="info-card-title">침대 이용 시</div>
-            <div class="info-card-body">베개·이불 등 정리정돈 후 퇴실해 주세요.</div>
-          </div>
-          <div class="info-card">
-            <div class="info-card-title">욕실 이용 시</div>
-            <div class="info-card-body">물 사용 후 구비된 어메니티·수건 사용은 금지입니다.</div>
-          </div>
+          <ul>
+            <li>세탁기 · 식기세척기 · 수전 사용 시<span class="note">건물 수압이 강해 냉·온수 초기 사용 시 급수관 압력이 발생해 꿀렁일 수 있습니다. 물을 틀어놓고 30초~1분 지나면 정상 수압으로 급수됩니다.</span></li>
+            <li>촬영 시<span class="note">카메라·삼각대·조명 이동 시 벽이나 천장의 도장면을 긁지 않도록 각별히 유의해 주세요.</span></li>
+            <li>창호 · 커튼 동작 시<span class="note">전동 커튼·창호를 수동으로 무리하게 동작하면 모터에 무리가 갈 수 있습니다. 주방 창호는 리모컨으로만 동작해 주세요. 거실 창호 유리에는 PDLC 필름이 부착되어 있어 다른 부착물이 있을 경우 손상이 발생합니다.</span></li>
+            <li>조리 시<span class="note">주방 후드를 사용하고 화재·안전에 유의해 주세요. 설거지 및 물기 제거 후 퇴실해 주세요. 설거지 시 별도 용품을 사용하고 구비된 어메니티 사용은 금지입니다.</span></li>
+            <li>침대 이용 시<span class="note">베개·이불 등 정리정돈 후 퇴실해 주세요.</span></li>
+            <li>욕실 이용 시<span class="note">물 사용 후 구비된 어메니티·수건 사용은 금지입니다.</span></li>
+          </ul>
         </div>
       </div>
 
       <div class="guide-section">
         <h2 class="guide-section-title">주차 안내</h2>
-        <div class="info-card-grid">
-          <div class="info-card">
-            <div class="info-card-title">마곡 LG사이언스파크 근무 직원</div>
-            <div class="info-card-body">SP Portal (<a href="https://portal.lgsp.co.kr" target="_blank">portal.lgsp.co.kr</a>) → Support → 주차 → <strong>전용건물 방문자 주차</strong>에서 직접 신청</div>
+        <div class="caution-group">
+          <div class="caution-group-header">
+            <span class="caution-cat">주차</span>
+            <span class="caution-cat-sub">방문자 주차 신청</span>
           </div>
-          <div class="info-card">
-            <div class="info-card-title">그 외 사업장 근무 직원 및 외부 고객</div>
-            <div class="info-card-body">담당자에게 문의해 주세요.</div>
-          </div>
+          <ul>
+            <li>마곡 LG사이언스파크 근무 직원<span class="note">SP Portal (<a href="https://portal.lgsp.co.kr" target="_blank">portal.lgsp.co.kr</a>) → Support → 주차 → <strong>전용건물 방문자 주차</strong>에서 직접 신청</span></li>
+            <li>그 외 사업장 근무 직원 및 외부 고객<span class="note">담당자에게 문의해 주세요.</span></li>
+          </ul>
         </div>
       </div>
 
