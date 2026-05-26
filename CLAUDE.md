@@ -27,6 +27,7 @@
 ├── CLAUDE.md                   # 이 파일
 └── images/                     # 이미지 (상대경로 참조)
     ├── thinqreal_*.png/jpeg    # 메인 사이트 이미지
+    ├── thinqreal_about.mp4     # 홈 ABOUT 패널 배경 영상 (정지 이미지 대체, 아래 영상 작업 내역 참조)
     └── thinqreal_admin_*.png   # 관리자 페이지 이미지
 ```
 
@@ -92,6 +93,7 @@ images/{파일명}
 
 ## 메인 사이트 구성 (index.html)
 - **홈**: AI홈 쇼룸 지원 → 기술 연구 및 검증 → 데이터 축적 및 고도화 카드 (이 순서 유지)
+  - **ABOUT 섹션 우측 패널은 `<video>` 배경**(`images/thinqreal_about.mp4`) — 정지 이미지에서 영상으로 교체됨. `autoplay muted loop playsinline` + `poster="images/thinqreal_about.png"`(자동재생 차단 시 폴백). 모바일 동일 재생. CSS `.split-media`는 `object-fit:cover`. 제작·갱신은 아래 "영상 작업 내역" 참조.
 - **공간 소개**: 01 거실 → 02 주방 → 03 침실 → 04 런드레스룸 → 05 욕실 → 06 현관·복도
 - **예약하기**: 달력 → 슬롯 다중 선택(Set 방식 토글) → 폼 → Apps Script POST
   - 슬롯별 상태 3종: **예약 마감**(확정 1건 이상, 클릭 불가, 적색) · **N팀 예약 중**(대기중만 N건, 클릭 가능하되 주황 톤으로 경합 안내) · **선택 가능**(아무 예약 없음). `?type=availability`가 `{ bookedSlots, pendingCounts }` 형태로 반환.
@@ -517,3 +519,35 @@ ThinQ Real을 독립 도메인 `thinqreal.com`(hosting.kr 구입)으로 이전. 
 - 시트 직접 입력 시 **헤더 20열**(`id`~`purposeKey`) 정합성 우선 확인 — 한 칸이라도 헤더명이 틀리면 관리자에서 조용히 누락됨.
 - 통계 방문 목적별 6개 항상 표시(0건 포함) 규칙 유지 — 임의로 "데이터 있는 것만" 으로 되돌리지 말 것.
 - 백필처럼 알림이 불필요한 대량 입력은 **시트 직접 입력**으로 — `POST type:booking`은 담당자 메일을 트리거하므로 지양.
+
+## 작업 내역 (2026-05-25~26 — ABOUT 영상화 + 예약 날짜 버그 수정)
+
+### A. 예약 날짜 오프바이원(하루 밀림) 버그 수정 (index.html)
+- **증상**: 고객이 5/27 1회차로 신청해도 시트엔 5/26로 저장됨.
+- **원인**: 예약 제출부(`submitBooking`)에서 `selectedDate.toISOString().slice(0,10)`로 날짜 생성. `toISOString()`이 **로컬 자정을 UTC로 변환**해 KST(UTC+9)에서 하루 빠짐(5/27 00:00 KST → 5/26 15:00 UTC). 빈자리 조회·달력 표시는 로컬 날짜를 써서 **조회는 맞고 저장만 어긋나는** 상태였음.
+- **수정**: 제출부도 로컬 `getFullYear/getMonth/getDate` 조합으로 변경(빈자리 조회 코드와 동일 패턴). Apps Script는 클라이언트 문자열을 그대로 저장·반환하므로 **재배포 불필요**, HTML만 배포.
+- **주의**: 날짜를 다룰 땐 `toISOString()` 금지(UTC 변환). 항상 로컬 Y/M/D 조합 사용. 기존에 잘못 저장된 예약은 코드로 자동 교정 안 되니 시트에서 +1일 수동 보정 필요.
+
+### B. 홈 ABOUT 패널 정지 이미지 → 영상 교체 (index.html + images/thinqreal_about.mp4)
+- ABOUT 우측 `.split-media` div(배경이미지) → `<video class="split-media" autoplay muted loop playsinline poster="images/thinqreal_about.png">`로 교체. CSS에 `object-fit:cover; width/height:100%` 추가. **모바일도 동일 재생**(playsinline+muted). poster는 자동재생 차단(iOS 저전력) 시 폴백.
+- 최종 영상(`thinqreal_about.mp4`): **거실→주방→침실→욕실** 순, 낮→밤 흐름, 1280×852 H.264 ~2.8MB, 23.6초 심리스 루프.
+
+### C. 영상 제작 파이프라인 (로컬 전용 — 리포에 스크립트 미커밋)
+이 클라우드 작업 환경에서 **Python(PIL) + `imageio`/`imageio-ffmpeg`(번들 ffmpeg)** 로 영상을 직접 생성. (`pip install Pillow imageio imageio-ffmpeg numpy` 필요. 외부 영상생성 모델은 못 씀 — Claude는 푸티지 생성 불가.)
+- **켄번스**: 정지 렌더에 줌/팬(`Image.resize(box=...)` 크롭) + 사인 이즈. 장면 내 모션은 한 줄기로 연속, 디졸브 구간은 앞뒤 끝(느린 구간)끼리만 겹치게 해 끊김 방지(되감김 버그 주의).
+- **그레이딩**: 따뜻한 톤(대비·채도 약간 + R↑/B↓) + 비네팅. 모든 클립에 동일 적용해 통일감.
+- **전환**: 슬라이드·딥투블랙·블러는 "흔들림"처럼 느껴져 **긴 디졸브로 통일**.
+- **Gemini(Veo) image-to-video 클립 혼합**: 담당자가 제공한 자동화 영상 3개(g2 거실 조명 OFF→ON, g3 주방, g1 침실 커튼→야경)를 기존 공간 렌더와 섞음. 클립은 cover-crop으로 16:9(1280×720)→3:2(1280×852) 맞춤(좌우 ~15% 크롭, 내용 중앙이라 무난).
+- **Veo 워터마크 제거**: Gemini ✦ 마크는 우하단 고정(1280×720 기준 중심 ≈1183,618). **`delogo=x=1153:y=588:w=64:h=64`** 로 주변 픽셀 보간 제거(크롭 없이). 밝은·어두운 배경 모두 깨끗. 보이지 않는 SynthID는 남음.
+- **속도 조절**: Veo 클립은 프레임 샘플링으로 리타이밍(예 10초→7초 빠르게, 또는 네이티브 10초로 느리게). 네이티브보다 더 느리게 하려면 인접 프레임 블렌드 보간 필요(약한 모션블러).
+- **최종 인코딩**: `ffmpeg -crf 23 -preset slow -pix_fmt yuv420p -movflags +faststart -an`. CRF 23이면 20초대 ~2.8MB.
+
+### D. ABOUT 영상 갱신 방법 (다음 세션 참고)
+1. 로컬에서 위 파이프라인으로 새 `*.mp4` 생성 → 2. `images/thinqreal_about.mp4` 교체(파일명 고정) → 3. 커밋·푸시(main). 마크업·CSS는 이미 `<video>`라 손댈 필요 없음. poster(`thinqreal_about.png`)도 유지. **`ROI_BUILD` 같은 캐시 토큰은 영상엔 없음** — 파일명이 같아 GitHub Pages/브라우저 캐시가 늦게 풀릴 수 있으니, 안 바뀌면 강력 새로고침 또는 쿼리스트링 고려.
+
+### E. 담당자 알림 카카오톡 — 논의만 (보류, 코드 변경 없음)
+- 예약 시 담당자 3명에게 메일 외 **카카오톡 알림** 가능성 검토. 비교표는 채팅에만 두고 **리포 미커밋**(내부 논의용).
+- 결론(보류): **카카오 "나에게 보내기"**(무료·사업자 불필요, 각자 1회 OAuth, 2개월 무알림 시 토큰 만료) vs **알림톡**(사업자·채널·대행사·건당 비용, 발신주체 브랜딩 가능) vs **텔레그램 봇**(무료·간단, 전원 설치 필요). 담당자 논의 후 방향 확정 예정. 실제 연동·테스트는 외부 통신이 막힌 이 환경 밖(Apps Script 콘솔)에서 해야 함.
+
+### F. 영상 후속 TODO
+- B/D 스토리("살아있는 집") 자동화 다양화: 조명 on/off·커튼 외에 **가전 on/off 등** 더 다양한 동작 추가(추후 Gemini Veo로 클립 확보 후 혼합). D(디테일 매크로)는 실제 촬영본 필요.
