@@ -670,9 +670,10 @@ function quickChartUrl(config, opts) {
     }
     return value;
   });
+  // split+join으로 치환 — replace의 두 번째 인자가 함수 소스 내 $/ 같은 특수 시퀀스로 해석될 위험 차단
   let out = json;
   Object.keys(fnMap).forEach(function(token) {
-    out = out.replace('"' + token + '"', fnMap[token]);
+    out = out.split('"' + token + '"').join(fnMap[token]);
   });
 
   return 'https://quickchart.io/chart?w=' + w + '&h=' + h + '&bkg=' + encodeURIComponent(bkg) +
@@ -1348,9 +1349,10 @@ function buildMonthlyReportHtml(d) {
         },
         plugins: {
           datalabels: {
-            display: 'auto',                  // 좁은 슬라이스는 자동 숨김
             color: '#ffffff',
             font: { size: 13, weight: 'bold' },
+            anchor: 'center',
+            align: 'center',
             formatter: function(value) { return value > 0 ? value + '건' : ''; }
           }
         }
@@ -1440,9 +1442,10 @@ function buildMonthlyReportHtml(d) {
           },
           plugins: {
             datalabels: {
-              display: 'auto',
               color: '#ffffff',
               font: { size: 12, weight: 'bold' },
+              anchor: 'center',
+              align: 'center',
               formatter: function(value) {
                 if (!value || value <= 0) return '';
                 var a = Math.abs(value);
