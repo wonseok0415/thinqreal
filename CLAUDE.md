@@ -659,3 +659,51 @@ CSE가 막혀 있는 동안 Google Sheets의 **`monthly_articles` 탭**에 담�
 - 헤더 6개 컬럼 순서 변경 금지 (위치 인덱스가 아닌 이름 기반 매칭이지만 일관성 유지)
 - `month` 값이 빈 행, `title`/`url` 둘 중 하나라도 빈 행은 자동 skip됨 (안전장치)
 - 수동 큐레이션이 있는 동안 CSE 호출 안 함 — CSE 디버깅하려면 시트의 해당 월 행을 일시 제거하거나 다음 달 미리 보기로 확인할 것
+
+### H. 임원 가독성 우선 — 본문 시각화 개편 (2026-05-28 후속)
+
+수신자(센터장 · 담당 · 실장 등 임원진) 가독성을 우선해, 메일 본문을 시각화 중심으로 정리:
+
+#### 섹션 헤더
+- 모든 섹션 제목 폰트 11px(uppercase) → **20px bold**로 확대
+- 부제 위치에 **한 줄 설명**을 명시(섹션 의도를 즉시 이해할 수 있도록)
+
+#### 핵심 지표 — 2개로 축소
+- 총 신청·확정·거절·방문 인원 4개 카드 → **확정 방문 · 총 방문 인원 2개 카드**로 축소
+- 큰 숫자(42px)와 단위(18px) 분리, 카드 한 장에 시선 집중
+
+#### 방문 목적별 분포 — 도넛 차트
+- 가로 막대 비교 → **QuickChart.io 도넛 차트** (PNG 이미지)
+- 색상은 관리자 페이지 `PURPOSE_COLORS`와 동기화 (6개 카테고리 고정 매핑, Apps Script에도 동일 상수 보관)
+- 우측 범례 + 슬라이스 내부에 건수 표시
+
+#### 방문 이력 — 3열로 축약
+- 일자/회차/목적/주제·소속/책임자/인원 6열 → **일자/목적/주제 및 소속 3열**
+- 한눈에 "언제 무엇을 누가" 만 보이도록
+
+#### ROI 누적 분석 결과 — 그래프 중심 재구성
+- 섹션 제목을 "ROI 신규 스냅샷" → **"N월 ROI 누적 분석 결과"** (월 동적)
+- 표시 데이터의 기준 시나리오:
+  - `collectMonthlyData`가 별도로 `roiLatest`를 계산 — 보고월 말 시점까지 저장된 시나리오 중 가장 최근 1건
+  - 보고월 이전 시나리오만 있어도 그것을 사용 (월별 누적 분석이라는 의미와 일치)
+- 본문 구성:
+  - 4개 KPI 카드 (연간 가치 / BEP / 3년 누적 ROI / 5년 누적 ROI)
+  - **가치 항목별 비중 도넛 차트** (vRnD·vSalesInfra·vSalesContrib·vPR 색상 매핑 `ROI_VALUE_LABELS`)
+  - **연도별 누적 손익 막대 그래프** (Y0~Y5, 음수는 빨강 #dc2626, 양수는 다크 올리브)
+  - 우하단에 "기준 시나리오: 라벨 · 작성자" 표기
+- 섹션 설명문: "영업 지원 · 기여 영업 이익은 실제 영업 진행 상황에 따라 매월 갱신되므로, 본 수치는 작성 시점의 시나리오를 기준으로 한 추정치입니다."
+
+#### 푸터 폰트 확대
+- 13px gray → **15px** (감사 인사 굵게 + 팀명 별도 줄)
+
+#### 차트 렌더링 방식
+- **QuickChart.io** (https://quickchart.io/chart?c=...) 외부 PNG로 렌더 — Gmail/Outlook/Apple Mail 모두 표준 `<img>` 지원이라 호환성 우수
+- Chart.js v2 spec을 JSON 직렬화 → URL 인코딩으로 GET 호출
+- `chartjs-plugin-datalabels`로 슬라이스/막대 내부에 값 표시
+- Apps Script `quickChartUrl(config, {w, h, bkg})` 헬퍼
+
+#### 핵심 제약 (다음 세션에서도 유지)
+- `PURPOSE_COLORS` 상수는 **Apps Script와 thinqreal_admin.html 양쪽 모두 동기화 필수** — 관리자 페이지에서 색이 바뀌면 메일 본문도 같이 바꿀 것
+- `ROI_VALUE_LABELS` 라벨/색상은 ROI 툴(`ThinQ_Real_ROI_Tool.html`)의 `collectOutputs` 키와 정확히 매칭해야 함 — vRnD, vSalesInfra, vSalesContrib, vPR
+- 누적 손익 막대 그래프는 `totalCost`가 outputs에 없으면 `annualValue * 3 - profit3`으로 역산 — ROI 툴이 totalCost를 항상 저장하도록 유지하는 게 안전 (현재 ROI 툴 line 1966 기준 저장됨)
+- QuickChart.io는 외부 서비스 — 가용성 문제가 생기면 차트 자리에 깨진 이미지가 표시될 수 있으므로 alt 텍스트는 의미 있게 유지

@@ -634,6 +634,34 @@ function buildRejectHtml(data) {
 const MONTHLY_REPORT_QUERY = 'LG전자 ThinQ Real';
 const PROP_LAST_SENT_KEY   = 'monthly_report_last_sent_month';
 
+// 방문 목적별 카테고리 색상 — 관리자 페이지 PURPOSE_COLORS와 동기화 (thinqreal_admin.html line 2296)
+const PURPOSE_COLORS = {
+  '고객/고객사 영업 활동': '#ff9500',
+  '내부 R&D · 테스트':    '#3a5035',
+  '내부 행사':            '#7f51e4',
+  '외부 행사':            '#0a84a3',
+  '콘텐츠 제작':           '#cc7000',
+  '기타':                 '#8fa889',
+};
+
+// ROI 가치 항목별 색상
+const ROI_VALUE_LABELS = {
+  vRnD:          { label: 'R&D 가치',          color: '#3a5035' },
+  vSalesInfra:   { label: '영업 지원 · 인프라', color: '#0a84a3' },
+  vSalesContrib: { label: '영업 지원 · 기여',   color: '#ff9500' },
+  vPR:           { label: 'PR 가치',           color: '#7f51e4' },
+};
+
+// QuickChart.io 차트 이미지 URL 생성 — 이메일 클라이언트 호환을 위해 외부 PNG로 렌더
+function quickChartUrl(config, opts) {
+  opts = opts || {};
+  const w = opts.w || 600;
+  const h = opts.h || 320;
+  const bkg = opts.bkg || 'white';
+  return 'https://quickchart.io/chart?w=' + w + '&h=' + h + '&bkg=' + encodeURIComponent(bkg) +
+    '&c=' + encodeURIComponent(JSON.stringify(config));
+}
+
 function installMonthlyReportTrigger() {
   ScriptApp.getProjectTriggers().forEach(t => {
     if (t.getHandlerFunction() === 'monthlyReportTrigger') ScriptApp.deleteTrigger(t);
@@ -735,12 +763,15 @@ function collectMonthlyData(month) {
     return c !== 0 ? c : String(a.slotLabel || '').localeCompare(String(b.slotLabel || ''));
   });
 
-  // 2) ROI 스냅샷 (timestamp가 해당 월에 속하는 모든 건)
+  // 2) ROI 스냅샷
+  //    - roi      : 이번 달에 신규 저장된 스냅샷 (변동 추적용, 현재 메일 본문에선 미사용)
+  //    - roiLatest: 보고월 말 시점까지 저장된 시나리오 중 가장 최근의 것 (분석 그래프 기준)
+  //                 → 5월 리포트는 5월 31일까지 저장된 시나리오 중 가장 최신을 사용
   const roiSheet = getRoiSheet();
   getOrCreateRoiHeaders(roiSheet);
   const rrows = roiSheet.getDataRange().getValues();
   const rheaders = rrows[0];
-  const roi = rrows.slice(1).map(row => {
+  const allRoi = rrows.slice(1).map(row => {
     const obj = {};
     rheaders.forEach((h, j) => {
       let v = row[j];
@@ -750,8 +781,16 @@ function collectMonthlyData(month) {
     try { obj.inputs  = JSON.parse(obj.inputs  || '{}'); } catch(err) { obj.inputs  = {}; }
     try { obj.outputs = JSON.parse(obj.outputs || '{}'); } catch(err) { obj.outputs = {}; }
     return obj;
-  }).filter(r => r.id && String(r.timestamp).slice(0, 7) === month)
+  }).filter(r => r.id);
+
+  const roi = allRoi
+    .filter(r => String(r.timestamp).slice(0, 7) === month)
     .sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+
+  const monthEnd = month + '-31T23:59:59';
+  const eligibleRoi = allRoi.filter(r => String(r.timestamp) <= monthEnd)
+    .sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
+  const roiLatest = eligibleRoi[0] || null;
 
   // 3) 관련 기사 — 수동 큐레이션 우선, 없으면 Google Custom Search
   const manualItems = getManualArticles(month);
@@ -775,6 +814,7 @@ function collectMonthlyData(month) {
     confirmed, rejected, pending,
     purposeCounts,
     roi,
+    roiLatest,
     articles,
   };
 }
@@ -1091,62 +1131,70 @@ function buildMonthlyReportText(d) {
   const L = [];
   L.push(`ThinQ Real ${d.year}년 ${d.monthNum}월 운영 리포트`);
   L.push('');
-  L.push('이번 달 ThinQ Real 운영 결과를 안내드립니다.');
+  L.push('이번 달 ThinQ Real의 운영 현황과 누적 성과를 안내드립니다.');
   L.push('');
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   L.push('📊 핵심 지표');
+  L.push('   이번 달 운영 성과의 핵심 지표');
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push(`   총 예약 신청     ${d.kpi.total}건`);
-  L.push(`   확정             ${d.kpi.confirmed}건`);
-  L.push(`   거절             ${d.kpi.rejected}건`);
-  L.push(`   대기중           ${d.kpi.pending}건`);
-  L.push(`   총 방문 인원     ${d.kpi.visitors}명 (확정 기준)`);
+  L.push(`   확정 방문        ${d.kpi.confirmed}건`);
+  L.push(`   총 방문 인원     ${d.kpi.visitors}명`);
   L.push('');
 
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push('🎯 방문 목적별 분포 (확정 기준)');
+  L.push('🎯 방문 목적별 분포');
+  L.push('   확정된 방문이 어떤 목적으로 진행되었는지의 비중');
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   const sorted = Object.keys(d.purposeCounts).map(k => [k, d.purposeCounts[k]])
     .sort((a, b) => b[1] - a[1]);
+  const tot = sorted.reduce((s, [, v]) => s + v, 0);
   if (!sorted.length) L.push('   (해당 없음)');
-  else sorted.forEach(([k, v]) => L.push(`   ${k}  —  ${v}건`));
+  else sorted.forEach(([k, v]) => {
+    const pct = tot ? Math.round(v/tot*100) : 0;
+    L.push(`   ${k}  —  ${v}건 (${pct}%)`);
+  });
   L.push('');
 
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push('📅 방문 이력 (확정)');
+  L.push('📅 방문 이력');
+  L.push(`   이번 달 확정된 방문 ${d.confirmed.length}건의 일자별 상세`);
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   if (!d.confirmed.length) {
     L.push('   (이번 달 확정된 방문 없음)');
   } else {
     d.confirmed.forEach(b => {
-      L.push(`   ${b.date}  ${b.slotLabel || ''}`);
-      L.push(`     목적: ${b.purpose || '-'}`);
-      if (b.subject || b.org) L.push(`     주제: ${b.subject || b.org}`);
-      if (b.clientCompany) L.push(`     소속: ${b.clientCompany}`);
-      L.push(`     책임자: ${b.name || '-'} · ${Number(b.count) || 1}명`);
+      const subj = [b.subject, b.clientCompany].filter(Boolean).join(' · ');
+      L.push(`   ${b.date}  ·  ${b.purpose || '-'}`);
+      L.push(`     ${subj || '-'}`);
       L.push('');
     });
   }
 
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push('💰 ROI 신규 스냅샷');
+  L.push(`💰 ${d.monthNum}월 ROI 누적 분석 결과`);
+  L.push('   저장된 시나리오 기반의 실시간 산출 결과');
+  L.push('   (영업 지원·기여 영업 이익은 실제 영업 진행에 따라 매월 갱신됨)');
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  if (!d.roi.length) {
-    L.push('   (이번 달 저장된 스냅샷 없음)');
+  if (!d.roiLatest) {
+    L.push('   (저장된 ROI 시나리오가 없습니다)');
   } else {
-    d.roi.forEach(r => {
-      L.push(`   • ${prettyRoiLabel(r.label)}`);
-      if (r.author) L.push(`     작성자: ${r.author}`);
-      const kpi = roiKpiLine(r.outputs);
-      if (kpi) L.push(`     ${kpi}`);
-      L.push('');
-    });
+    const o = d.roiLatest.outputs || {};
+    const annualValue = Number(o.annualValue) || 0;
+    if (annualValue) L.push(`   연간 창출 가치    ${fmtKRWReport(annualValue)}`);
+    if (o.bepText)   L.push(`   회수 기간 (BEP)   ${o.bepText}`);
+    else if (isFinite(o.bepYears)) L.push(`   회수 기간 (BEP)   ${Number(o.bepYears).toFixed(2)}년`);
+    if (isFinite(o.roi3)) L.push(`   3년 누적 ROI      ${(o.roi3 >= 0 ? '+' : '') + Number(o.roi3).toFixed(1)}%  (${fmtKRWReport(o.profit3 || 0)})`);
+    if (isFinite(o.roi5)) L.push(`   5년 누적 ROI      ${(o.roi5 >= 0 ? '+' : '') + Number(o.roi5).toFixed(1)}%  (${fmtKRWReport(o.profit5 || 0)})`);
+    L.push('');
+    L.push(`   기준 시나리오: ${prettyRoiLabel(d.roiLatest.label)}` +
+           (d.roiLatest.author ? ` · 작성자 ${d.roiLatest.author}` : ''));
   }
 
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  L.push('📰 관련 기사');
   L.push(d.articles.source === 'manual'
-    ? '📰 관련 기사 (담당자 큐레이션)'
-    : '📰 관련 기사 (Google "LG전자 ThinQ Real" 검색, 최근 1개월)');
+    ? '   담당자가 큐레이션한 이번 달 ThinQ Real 관련 보도 ' + d.articles.items.length + '건'
+    : '   Google 검색 결과 기준의 최근 1개월 ThinQ Real 관련 보도');
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   if (!d.articles.items.length) {
     L.push('   (' + (d.articles.skipReason || '검색 결과 없음') + ')');
@@ -1171,102 +1219,217 @@ function buildMonthlyReportText(d) {
 
 // ── HTML 빌더 ──────────────────────────────
 function buildMonthlyReportHtml(d) {
-  const sectionHeader = (icon, title, sub) =>
-    '<tr><td style="padding:24px 28px 8px;">' +
-      '<div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#6e6e73;font-weight:600;">' + icon + '&nbsp;&nbsp;' + escapeHtml(title) + '</div>' +
-      (sub ? '<div style="font-size:12px;color:#aeaeb2;margin-top:2px;">' + escapeHtml(sub) + '</div>' : '') +
+  // ── 섹션 헤더 (큰 제목 + 한 줄 설명) ──
+  const sectionHeader = (icon, title, description) =>
+    '<tr><td style="padding:32px 28px 6px;">' +
+      '<div style="font-size:20px;font-weight:700;color:#1d1d1f;line-height:1.3;">' + icon + '&nbsp;&nbsp;' + escapeHtml(title) + '</div>' +
+      (description ? '<div style="font-size:13.5px;color:#6e6e73;margin-top:8px;line-height:1.55;">' + escapeHtml(description) + '</div>' : '') +
     '</td></tr>';
 
-  const kpiCell = (label, value, accent) =>
-    '<td valign="top" align="center" style="padding:14px 8px;background:#f5f5f7;border-radius:10px;">' +
-      '<div style="font-size:22px;font-weight:600;color:' + (accent || '#1d1d1f') + ';line-height:1.1;">' + escapeHtml(String(value)) + '</div>' +
-      '<div style="font-size:11px;color:#6e6e73;margin-top:6px;letter-spacing:0.04em;">' + escapeHtml(label) + '</div>' +
+  // ── 1) 핵심 지표 (확정 건수 + 방문 인원만) ──
+  const kpiCell = (label, value, unit, accent) =>
+    '<td valign="top" align="center" style="padding:28px 8px;background:#f5f5f7;border-radius:14px;">' +
+      '<div style="line-height:1.05;">' +
+        '<span style="font-size:42px;font-weight:700;color:' + (accent || '#1d1d1f') + ';">' + escapeHtml(String(value)) + '</span>' +
+        '<span style="font-size:18px;font-weight:500;color:' + (accent || '#1d1d1f') + ';margin-left:6px;">' + escapeHtml(unit) + '</span>' +
+      '</div>' +
+      '<div style="font-size:14px;color:#6e6e73;margin-top:12px;font-weight:500;">' + escapeHtml(label) + '</div>' +
     '</td>';
 
   const kpiTable =
-    '<tr><td style="padding:0 28px 8px;">' +
-      '<table role="presentation" cellspacing="8" cellpadding="0" border="0" style="border-collapse:separate;width:100%;">' +
+    '<tr><td style="padding:0 28px 16px;">' +
+      '<table role="presentation" cellspacing="14" cellpadding="0" border="0" style="border-collapse:separate;width:100%;">' +
         '<tr>' +
-          kpiCell('총 신청', d.kpi.total + '건') +
-          kpiCell('확정', d.kpi.confirmed + '건', '#3a5035') +
-          kpiCell('거절', d.kpi.rejected + '건', '#6e6e73') +
-          kpiCell('방문 인원', d.kpi.visitors + '명', '#3a5035') +
+          kpiCell('확정 방문', d.kpi.confirmed, '건', '#3a5035') +
+          kpiCell('총 방문 인원', d.kpi.visitors, '명', '#3a5035') +
         '</tr>' +
       '</table>' +
     '</td></tr>';
 
-  // 목적별 분포
-  const purposeRows = Object.keys(d.purposeCounts)
-    .map(k => [k, d.purposeCounts[k]])
-    .sort((a, b) => b[1] - a[1]);
+  // ── 2) 방문 목적별 분포 (도넛 차트) ──
   let purposeBody;
-  if (!purposeRows.length) {
-    purposeBody = '<div style="font-size:13px;color:#aeaeb2;">해당 없음</div>';
+  const purposeKeys = Object.keys(d.purposeCounts);
+  if (!purposeKeys.length) {
+    purposeBody = '<div style="font-size:14px;color:#aeaeb2;padding:8px 0;">해당 없음</div>';
   } else {
-    const max = Math.max.apply(null, purposeRows.map(r => r[1]));
-    purposeBody = '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' +
-      purposeRows.map(([k, v]) => {
-        const pct = Math.max(6, Math.round((v / max) * 100));
-        return '<tr>' +
-          '<td style="padding:6px 12px 6px 0;font-size:13px;color:#1d1d1f;white-space:nowrap;width:1%;">' + escapeHtml(k) + '</td>' +
-          '<td style="padding:6px 8px;">' +
-            '<div style="background:#eef0e9;border-radius:4px;height:8px;width:100%;">' +
-              '<div style="background:#3a5035;height:8px;width:' + pct + '%;border-radius:4px;"></div>' +
-            '</div>' +
-          '</td>' +
-          '<td style="padding:6px 0 6px 8px;font-size:13px;color:#1d1d1f;font-variant-numeric:tabular-nums;white-space:nowrap;width:1%;">' + v + '건</td>' +
-        '</tr>';
-      }).join('') +
-    '</table>';
+    // 정식 6개 카테고리 순서로 정렬, 나머지는 뒤에
+    const canonical = Object.keys(PURPOSE_COLORS);
+    const sorted = canonical.filter(k => d.purposeCounts[k])
+      .concat(purposeKeys.filter(k => !PURPOSE_COLORS[k]));
+    const labels = sorted;
+    const values = sorted.map(k => d.purposeCounts[k]);
+    const colors = sorted.map(k => PURPOSE_COLORS[k] || '#5e7858');
+    const total = values.reduce((a,b) => a+b, 0);
+
+    const chartUrl = quickChartUrl({
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#ffffff' }]
+      },
+      options: {
+        cutoutPercentage: 55,
+        plugins: {
+          legend: { position: 'right', labels: { fontSize: 14, fontStyle: '500', padding: 12 } },
+          datalabels: {
+            color: '#ffffff',
+            font: { size: 15, weight: 'bold' },
+            formatter: function(value) { return value; }
+          }
+        }
+      }
+    }, { w: 640, h: 320 });
+
+    purposeBody =
+      '<div style="text-align:center;">' +
+        '<img src="' + escapeHtml(chartUrl) + '" alt="방문 목적별 분포" style="max-width:100%;width:640px;height:auto;display:inline-block;" />' +
+      '</div>' +
+      '<div style="font-size:13px;color:#6e6e73;text-align:center;margin-top:6px;">총 ' + total + '건 (확정 기준)</div>';
   }
 
-  // 방문 이력 테이블
+  // ── 3) 방문 이력 (일자 / 목적 / 주제·소속) ──
   let visitsBody;
   if (!d.confirmed.length) {
-    visitsBody = '<div style="font-size:13px;color:#aeaeb2;">이번 달 확정된 방문 없음</div>';
+    visitsBody = '<div style="font-size:14px;color:#aeaeb2;padding:8px 0;">이번 달 확정된 방문 없음</div>';
   } else {
-    const th = (txt) => '<th align="left" style="font-size:11px;color:#6e6e73;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;padding:8px 10px;border-bottom:1px solid #eeeeee;background:#fafafa;">' + escapeHtml(txt) + '</th>';
-    const td = (html, opts) => '<td style="padding:10px;font-size:13px;color:#1d1d1f;border-bottom:1px solid #f2f2f2;vertical-align:top;' + ((opts && opts.nowrap) ? 'white-space:nowrap;' : '') + '">' + html + '</td>';
+    const th = (txt) => '<th align="left" style="font-size:12px;color:#6e6e73;font-weight:600;letter-spacing:0.04em;padding:10px 12px;border-bottom:1px solid #e0e0e0;background:#fafafa;">' + escapeHtml(txt) + '</th>';
+    const td = (html, opts) => '<td style="padding:12px;font-size:14px;color:#1d1d1f;border-bottom:1px solid #f2f2f2;vertical-align:top;line-height:1.5;' + ((opts && opts.nowrap) ? 'white-space:nowrap;' : '') + '">' + html + '</td>';
     visitsBody = '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' +
-      '<thead><tr>' + th('일자') + th('회차') + th('목적') + th('주제 · 소속') + th('책임자') + th('인원') + '</tr></thead>' +
+      '<thead><tr>' + th('일자') + th('목적') + th('주제 및 소속') + '</tr></thead>' +
       '<tbody>' +
         d.confirmed.map(b => {
-          const subjLines = [];
-          if (b.subject) subjLines.push(escapeHtml(b.subject));
-          if (b.clientCompany) subjLines.push('<span style="color:#aeaeb2;font-size:12px;">' + escapeHtml(b.clientCompany) + '</span>');
-          const subjHtml = subjLines.length ? subjLines.join('<br>') : '<span style="color:#aeaeb2;">-</span>';
+          const subj = [b.subject, b.clientCompany].filter(Boolean).map(escapeHtml).join(' · ');
           return '<tr>' +
             td(escapeHtml(b.date), { nowrap: true }) +
-            td(escapeHtml(b.slotLabel || ''), { nowrap: true }) +
             td(escapeHtml(b.purpose || '-')) +
-            td(subjHtml) +
-            td(escapeHtml(b.name || '-')) +
-            td((Number(b.count) || 1) + '명', { nowrap: true }) +
+            td(subj || '<span style="color:#aeaeb2;">-</span>') +
           '</tr>';
         }).join('') +
       '</tbody>' +
     '</table>';
   }
 
-  // ROI 스냅샷
+  // ── 4) ROI 누적 분석 결과 (최근 시나리오 기준) ──
   let roiBody;
-  if (!d.roi.length) {
-    roiBody = '<div style="font-size:13px;color:#aeaeb2;">이번 달 저장된 스냅샷 없음</div>';
+  if (!d.roiLatest) {
+    roiBody = '<div style="font-size:14px;color:#aeaeb2;padding:8px 0;">저장된 ROI 시나리오가 없습니다. ROI 분석 툴에서 시나리오를 저장하면 다음 리포트부터 본 섹션에 분석 결과가 표시됩니다.</div>';
   } else {
-    roiBody = d.roi.map(r => {
-      const o = r.outputs || {};
-      const chips = [];
-      if (o.annualValue != null) chips.push(roiChip('연간가치', fmtKRWReport(o.annualValue)));
-      if (o.bepText) chips.push(roiChip('BEP', o.bepText));
-      else if (o.bepYears != null && isFinite(o.bepYears)) chips.push(roiChip('BEP', Number(o.bepYears).toFixed(2) + '년'));
-      if (o.roi3 != null && isFinite(o.roi3)) chips.push(roiChip('3년 ROI', (o.roi3 >= 0 ? '+' : '') + Number(o.roi3).toFixed(1) + '%'));
-      if (o.roi5 != null && isFinite(o.roi5)) chips.push(roiChip('5년 ROI', (o.roi5 >= 0 ? '+' : '') + Number(o.roi5).toFixed(1) + '%'));
-      return '<div style="border:1px solid #eeeeee;border-radius:10px;padding:14px 16px;margin-bottom:10px;">' +
-        '<div style="font-size:14px;font-weight:600;color:#1d1d1f;">' + escapeHtml(prettyRoiLabel(r.label)) + '</div>' +
-        (r.author ? '<div style="font-size:12px;color:#6e6e73;margin-top:2px;">작성자: ' + escapeHtml(String(r.author)) + '</div>' : '') +
-        (chips.length ? '<div style="margin-top:10px;">' + chips.join('') + '</div>' : '') +
-      '</div>';
-    }).join('');
+    const o = d.roiLatest.outputs || {};
+    const annualValue = Number(o.annualValue) || 0;
+    const totalCost = Number(o.totalCost) || (annualValue * 3 - (Number(o.profit3) || 0));
+    const roi3 = Number(o.roi3);
+    const profit3 = Number(o.profit3);
+
+    // ROI KPI 카드 (4개)
+    const roiKpi = (label, value, sub, color) =>
+      '<td valign="top" align="center" style="padding:18px 10px;background:#f5f5f7;border-radius:10px;">' +
+        '<div style="font-size:22px;font-weight:700;color:' + (color || '#3a5035') + ';line-height:1.1;">' + escapeHtml(value) + '</div>' +
+        (sub ? '<div style="font-size:11px;color:#6e6e73;margin-top:4px;">' + escapeHtml(sub) + '</div>' : '') +
+        '<div style="font-size:12px;color:#6e6e73;margin-top:8px;font-weight:500;">' + escapeHtml(label) + '</div>' +
+      '</td>';
+    const bepDisplay = o.bepText || (isFinite(o.bepYears) ? Number(o.bepYears).toFixed(2) + '년' : '—');
+    const roi3Display = isFinite(roi3) ? ((roi3 >= 0 ? '+' : '') + roi3.toFixed(1) + '%') : '—';
+    const roi5Display = isFinite(o.roi5) ? ((Number(o.roi5) >= 0 ? '+' : '') + Number(o.roi5).toFixed(1) + '%') : '—';
+    const roiKpiTable =
+      '<table role="presentation" cellspacing="10" cellpadding="0" border="0" style="border-collapse:separate;width:100%;">' +
+        '<tr>' +
+          roiKpi('연간 창출 가치', fmtKRWReport(annualValue), null, '#3a5035') +
+          roiKpi('회수 기간 (BEP)', bepDisplay, null, '#3a5035') +
+          roiKpi('3년 누적 ROI', roi3Display, isFinite(profit3) ? fmtKRWReport(profit3) : null, '#3a5035') +
+          roiKpi('5년 누적 ROI', roi5Display, isFinite(o.profit5) ? fmtKRWReport(Number(o.profit5)) : null, '#3a5035') +
+        '</tr>' +
+      '</table>';
+
+    // 가치 항목별 비중 도넛
+    const valItems = Object.keys(ROI_VALUE_LABELS)
+      .map(k => ({ key: k, value: Number(o[k]) || 0, label: ROI_VALUE_LABELS[k].label, color: ROI_VALUE_LABELS[k].color }))
+      .filter(it => it.value > 0);
+    let valueCompChart = '';
+    if (valItems.length) {
+      const vUrl = quickChartUrl({
+        type: 'doughnut',
+        data: {
+          labels: valItems.map(it => it.label),
+          datasets: [{ data: valItems.map(it => it.value), backgroundColor: valItems.map(it => it.color), borderWidth: 2, borderColor: '#ffffff' }]
+        },
+        options: {
+          cutoutPercentage: 55,
+          plugins: {
+            legend: { position: 'right', labels: { fontSize: 13, padding: 10 } },
+            datalabels: {
+              color: '#ffffff', font: { size: 13, weight: 'bold' },
+              formatter: function(value, ctx) {
+                var sum = ctx.chart.data.datasets[0].data.reduce(function(a,b){return a+b;}, 0);
+                return Math.round(value / sum * 100) + '%';
+              }
+            }
+          }
+        }
+      }, { w: 640, h: 280 });
+      valueCompChart = '<img src="' + escapeHtml(vUrl) + '" alt="가치 항목별 비중" style="max-width:100%;width:640px;height:auto;display:block;margin:0 auto;" />';
+    }
+
+    // 연도별 누적 손익 막대
+    const years = ['Y0', 'Y1', 'Y2', 'Y3', 'Y4', 'Y5'];
+    const cumValues = [
+      -totalCost,
+      -totalCost + annualValue * 1,
+      -totalCost + annualValue * 2,
+      -totalCost + annualValue * 3,
+      -totalCost + annualValue * 4,
+      -totalCost + annualValue * 5,
+    ];
+    const barColors = cumValues.map(v => v < 0 ? '#dc2626' : '#3a5035');
+    const cumUrl = quickChartUrl({
+      type: 'bar',
+      data: {
+        labels: years,
+        datasets: [{ label: '누적 손익', data: cumValues, backgroundColor: barColors, borderWidth: 0 }]
+      },
+      options: {
+        plugins: {
+          legend: { display: false },
+          datalabels: {
+            anchor: 'end', align: 'end', color: '#3a3a3c',
+            font: { size: 11 },
+            formatter: function(v) {
+              if (v === 0) return '0';
+              var abs = Math.abs(v);
+              if (abs >= 1e8) return (v/1e8).toFixed(1).replace(/\.0$/, '') + '억';
+              if (abs >= 1e4) return Math.round(v/1e4) + '만';
+              return Math.round(v);
+            }
+          }
+        },
+        scales: {
+          yAxes: [{
+            ticks: {
+              fontSize: 11,
+              callback: function(v) {
+                if (v === 0) return '0';
+                var abs = Math.abs(v);
+                if (abs >= 1e8) return (v/1e8).toFixed(1).replace(/\.0$/, '') + '억';
+                if (abs >= 1e4) return Math.round(v/1e4) + '만';
+                return v;
+              }
+            }
+          }],
+          xAxes: [{ ticks: { fontSize: 12, fontStyle: '500' } }]
+        }
+      }
+    }, { w: 640, h: 280 });
+    const cumChart = '<img src="' + escapeHtml(cumUrl) + '" alt="연도별 누적 손익" style="max-width:100%;width:640px;height:auto;display:block;margin:0 auto;" />';
+
+    const scenarioLabel = prettyRoiLabel(d.roiLatest.label) +
+      (d.roiLatest.author ? ' · 작성자 ' + escapeHtml(String(d.roiLatest.author)) : '');
+
+    roiBody =
+      roiKpiTable +
+      '<div style="margin-top:24px;font-size:13px;color:#6e6e73;font-weight:600;">가치 항목별 비중</div>' +
+      '<div style="margin-top:8px;">' + valueCompChart + '</div>' +
+      '<div style="margin-top:24px;font-size:13px;color:#6e6e73;font-weight:600;">연도별 누적 손익 전망</div>' +
+      '<div style="margin-top:8px;">' + cumChart + '</div>' +
+      '<div style="margin-top:16px;font-size:12px;color:#aeaeb2;text-align:right;">기준 시나리오: ' + scenarioLabel + '</div>';
   }
 
   // 기사
@@ -1301,28 +1464,38 @@ function buildMonthlyReportHtml(d) {
     }).join('');
   }
 
+  // 섹션별 한 줄 설명 (임원진 가독성 우선 — 무엇을 보여주는지 즉시 이해)
+  const descKpi = '이번 달 운영 성과의 핵심 지표';
+  const descPurpose = '확정된 방문이 어떤 목적으로 진행되었는지의 비중';
+  const descVisits = '이번 달 확정된 방문 ' + d.confirmed.length + '건의 일자별 상세';
+  const descRoi = '저장된 시나리오 기반의 실시간 산출 결과입니다. ' +
+                  '특히 영업 지원 · 기여 영업 이익은 실제 영업 진행 상황에 따라 매월 갱신되므로, ' +
+                  '본 수치는 작성 시점의 시나리오를 기준으로 한 추정치입니다.';
+  const descArticles = d.articles.source === 'manual'
+    ? '담당자가 큐레이션한 이번 달 ThinQ Real 관련 보도 ' + d.articles.items.length + '건'
+    : 'Google 검색 결과 기준의 최근 1개월 ThinQ Real 관련 보도';
+
   return (
     '<div style="background:#f5f5f7;padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,\'Helvetica Neue\',\'Apple SD Gothic Neo\',\'Malgun Gothic\',sans-serif;">' +
       '<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:collapse;max-width:760px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">' +
-        '<tr><td style="background:#3a5035;color:#ffffff;padding:24px 28px;">' +
-          '<div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.7;">ThinQ Real</div>' +
-          '<div style="font-size:20px;font-weight:600;margin-top:4px;">' + escapeHtml(d.year + '년 ' + d.monthNum + '월 운영 리포트') + '</div>' +
-          '<div style="font-size:13px;opacity:0.85;margin-top:6px;">이번 달 ThinQ Real 운영 결과를 안내드립니다.</div>' +
+        '<tr><td style="background:#3a5035;color:#ffffff;padding:28px 28px 24px;">' +
+          '<div style="font-size:13px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.75;">ThinQ Real</div>' +
+          '<div style="font-size:24px;font-weight:700;margin-top:6px;">' + escapeHtml(d.year + '년 ' + d.monthNum + '월 운영 리포트') + '</div>' +
+          '<div style="font-size:14px;opacity:0.88;margin-top:8px;line-height:1.55;">이번 달 ThinQ Real의 운영 현황과 누적 성과를 안내드립니다.</div>' +
         '</td></tr>' +
-        sectionHeader('📊', '핵심 지표', null) +
+        sectionHeader('📊', '핵심 지표', descKpi) +
         kpiTable +
-        sectionHeader('🎯', '방문 목적별 분포', '확정 기준') +
+        sectionHeader('🎯', '방문 목적별 분포', descPurpose) +
         '<tr><td style="padding:0 28px 16px;">' + purposeBody + '</td></tr>' +
-        sectionHeader('📅', '방문 이력', '확정 ' + d.confirmed.length + '건') +
+        sectionHeader('📅', '방문 이력', descVisits) +
         '<tr><td style="padding:0 28px 16px;">' + visitsBody + '</td></tr>' +
-        sectionHeader('💰', 'ROI 신규 스냅샷', '이번 달 저장 ' + d.roi.length + '건') +
+        sectionHeader('💰', d.monthNum + '월 ROI 누적 분석 결과', descRoi) +
         '<tr><td style="padding:0 28px 16px;">' + roiBody + '</td></tr>' +
-        sectionHeader('📰', '관련 기사', d.articles.source === 'manual'
-          ? '담당자 큐레이션 · ' + d.articles.items.length + '건'
-          : 'Google "LG전자 ThinQ Real" · 최근 1개월') +
+        sectionHeader('📰', '관련 기사', descArticles) +
         '<tr><td style="padding:0 28px 24px;">' + articlesBody + '</td></tr>' +
-        '<tr><td style="padding:20px 28px 28px;border-top:1px solid #eeeeee;font-size:13px;color:#6e6e73;line-height:1.6;">' +
-          '감사합니다.<br>HS플랫폼사업센터 AI홈솔루션엔지니어링팀' +
+        '<tr><td style="padding:28px;border-top:1px solid #eeeeee;font-size:15px;color:#3a3a3c;line-height:1.65;">' +
+          '<div style="font-weight:600;color:#1d1d1f;margin-bottom:4px;">감사합니다.</div>' +
+          '<div style="color:#6e6e73;">HS플랫폼사업센터 AI홈솔루션엔지니어링팀</div>' +
         '</td></tr>' +
       '</table>' +
     '</div>'
