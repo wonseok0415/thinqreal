@@ -15,6 +15,7 @@
 const SHEET_ID   = '1-Z158TV46MtSEArir9bW4h4KQ438NCuhb3qaGyOooA0';  // ← Sheets URL의 /d/ 뒤 ID
 const SHEET_NAME = 'bookings';               // 시트 탭 이름 (예약)
 const ROI_SHEET_NAME = 'roi_snapshots';      // 시트 탭 이름 (ROI 시나리오 이력)
+const ARTICLES_SHEET_NAME = 'monthly_articles'; // 시트 탭 이름 (월간 리포트 수동 큐레이션 기사)
 // 신규 예약 알림을 받는 담당자들 (콤마로 구분, MailApp이 다중 수신 처리)
 const ADMIN_EMAILS = 'ch275.lee@lge.com, moonsu.seo@lge.com, hj8462.kim@lge.com';
 const CC_EMAIL     = 'kang.wonseok@lge.com';  // 참조 수신자 (시스템 동작 모니터링)
@@ -752,8 +753,15 @@ function collectMonthlyData(month) {
   }).filter(r => r.id && String(r.timestamp).slice(0, 7) === month)
     .sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
 
-  // 3) 관련 기사 (Google Custom Search)
-  const articles = fetchThinqRealArticles();
+  // 3) 관련 기사 — 수동 큐레이션 우선, 없으면 Google Custom Search
+  const manualItems = getManualArticles(month);
+  let articles;
+  if (manualItems.length > 0) {
+    articles = { items: manualItems, skipReason: '', source: 'manual' };
+  } else {
+    articles = fetchThinqRealArticles();
+    articles.source = 'cse';
+  }
 
   return {
     month, year, monthNum,
@@ -769,6 +777,77 @@ function collectMonthlyData(month) {
     roi,
     articles,
   };
+}
+
+// 시트 탭 monthly_articles에서 이번 달 수동 큐레이션 기사 읽기
+// 담당자가 발송 전에 시트에 행을 추가해두면 메일 본문에 자동 포함됨
+function getArticlesSheet() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  return ss.getSheetByName(ARTICLES_SHEET_NAME) || ss.insertSheet(ARTICLES_SHEET_NAME);
+}
+
+function getOrCreateArticlesHeaders(sheet) {
+  const HEADERS = ['month', 'title', 'url', 'source', 'summary', 'published_at'];
+  const firstRow = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
+  if (!firstRow[0]) {
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+    const headerRange = sheet.getRange(1, 1, 1, HEADERS.length);
+    headerRange.setBackground('#3a5035');
+    headerRange.setFontColor('#ffffff');
+    headerRange.setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return HEADERS;
+}
+
+function getManualArticles(month) {
+  const sheet = getArticlesSheet();
+  getOrCreateArticlesHeaders(sheet);
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length < 2) return [];
+  const headers = rows[0].map(h => String(h || ''));
+  const idxMonth   = headers.indexOf('month');
+  const idxTitle   = headers.indexOf('title');
+  const idxUrl     = headers.indexOf('url');
+  const idxSource  = headers.indexOf('source');
+  const idxSummary = headers.indexOf('summary');
+  const idxPubAt   = headers.indexOf('published_at');
+  if (idxMonth < 0 || idxTitle < 0 || idxUrl < 0) return [];
+
+  const items = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const rowMonth = normalizeMonth(row[idxMonth]);
+    if (rowMonth !== month) continue;
+    const title = String(row[idxTitle] || '').trim();
+    const url   = String(row[idxUrl]   || '').trim();
+    if (!title || !url) continue;
+    items.push({
+      title: title,
+      link:  url,
+      source: idxSource  >= 0 ? String(row[idxSource]  || '').trim() : '',
+      snippet: idxSummary >= 0 ? String(row[idxSummary] || '').trim() : '',
+      publishedAt: idxPubAt >= 0 ? formatPublishedDate(row[idxPubAt]) : '',
+    });
+  }
+  return items;
+}
+
+// 셀 값이 Date 객체이거나 YYYY-MM-DD 형식 문자열이거나 비어 있을 때를 모두 처리
+function normalizeMonth(v) {
+  if (v == null || v === '') return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM');
+  }
+  return String(v).slice(0, 7);
+}
+
+function formatPublishedDate(v) {
+  if (v == null || v === '') return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  return String(v).slice(0, 10);
 }
 
 function fetchThinqRealArticles() {
@@ -894,14 +973,19 @@ function buildMonthlyReportText(d) {
   }
 
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push('📰 관련 기사 (Google "LG전자 ThinQ Real" 검색, 최근 1개월)');
+  L.push(d.articles.source === 'manual'
+    ? '📰 관련 기사 (담당자 큐레이션)'
+    : '📰 관련 기사 (Google "LG전자 ThinQ Real" 검색, 최근 1개월)');
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   if (!d.articles.items.length) {
     L.push('   (' + (d.articles.skipReason || '검색 결과 없음') + ')');
   } else {
     d.articles.items.forEach(it => {
       L.push(`   • ${it.title}`);
-      if (it.source) L.push(`     출처: ${it.source}`);
+      if (it.source || it.publishedAt) {
+        const meta = [it.source, it.publishedAt].filter(Boolean).join(' · ');
+        L.push(`     ${meta}`);
+      }
       if (it.snippet) L.push(`     ${it.snippet}`);
       L.push(`     ${it.link}`);
       L.push('');
@@ -1019,13 +1103,16 @@ function buildMonthlyReportHtml(d) {
   if (!d.articles.items.length) {
     articlesBody = '<div style="font-size:13px;color:#aeaeb2;">' + escapeHtml(d.articles.skipReason || '검색 결과 없음') + '</div>';
   } else {
-    articlesBody = d.articles.items.map(it => (
-      '<div style="padding:12px 0;border-bottom:1px solid #f2f2f2;">' +
-        '<a href="' + escapeHtml(it.link) + '" style="font-size:14px;color:#3a5035;text-decoration:none;font-weight:600;">' + escapeHtml(it.title) + '</a>' +
-        (it.source ? '<div style="font-size:11px;color:#aeaeb2;margin-top:2px;">' + escapeHtml(it.source) + '</div>' : '') +
-        (it.snippet ? '<div style="font-size:13px;color:#3a3a3c;margin-top:4px;line-height:1.5;">' + escapeHtml(it.snippet) + '</div>' : '') +
-      '</div>'
-    )).join('');
+    articlesBody = d.articles.items.map(it => {
+      const meta = [it.source, it.publishedAt].filter(Boolean).map(escapeHtml).join(' · ');
+      return (
+        '<div style="padding:12px 0;border-bottom:1px solid #f2f2f2;">' +
+          '<a href="' + escapeHtml(it.link) + '" style="font-size:14px;color:#3a5035;text-decoration:none;font-weight:600;">' + escapeHtml(it.title) + '</a>' +
+          (meta ? '<div style="font-size:11px;color:#aeaeb2;margin-top:2px;">' + meta + '</div>' : '') +
+          (it.snippet ? '<div style="font-size:13px;color:#3a3a3c;margin-top:4px;line-height:1.5;">' + escapeHtml(it.snippet) + '</div>' : '') +
+        '</div>'
+      );
+    }).join('');
   }
 
   return (
@@ -1044,7 +1131,9 @@ function buildMonthlyReportHtml(d) {
         '<tr><td style="padding:0 28px 16px;">' + visitsBody + '</td></tr>' +
         sectionHeader('💰', 'ROI 신규 스냅샷', '이번 달 저장 ' + d.roi.length + '건') +
         '<tr><td style="padding:0 28px 16px;">' + roiBody + '</td></tr>' +
-        sectionHeader('📰', '관련 기사', 'Google "LG전자 ThinQ Real" · 최근 1개월') +
+        sectionHeader('📰', '관련 기사', d.articles.source === 'manual'
+          ? '담당자 큐레이션 · ' + d.articles.items.length + '건'
+          : 'Google "LG전자 ThinQ Real" · 최근 1개월') +
         '<tr><td style="padding:0 28px 24px;">' + articlesBody + '</td></tr>' +
         '<tr><td style="padding:20px 28px 28px;border-top:1px solid #eeeeee;font-size:13px;color:#6e6e73;line-height:1.6;">' +
           '감사합니다.<br>HS플랫폼사업센터 AI홈솔루션엔지니어링팀' +

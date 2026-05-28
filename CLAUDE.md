@@ -600,3 +600,43 @@ ThinQ Real을 독립 도메인 `thinqreal.com`(hosting.kr 구입)으로 이전. 
 - 수신자 확정 후 `MONTHLY_REPORT_TO` Script Property에 입력. 코드는 수정하지 말 것 — 키·수신자 분리가 의도된 구조.
 - 중복 발송 방지 키 `monthly_report_last_sent_month`는 수동으로 비우면 같은 달에 다시 발송 가능 (테스트/재발송 시).
 - 한 달치 데이터 필터링은 booking의 `date` 필드와 ROI의 `timestamp` 필드 모두 **앞 7자(`YYYY-MM`)로 prefix 매칭**한다. 시트에 시간대 변환된 Date 객체가 들어가도 `normalizeDate`로 KST `YYYY-MM-DD`로 정규화하므로 안전.
+
+### F. CSE 시도 보류 (2026-05-28)
+`thinqreal-cse-v2` Cloud 프로젝트·신규 키·결제 계정 연결까지 시도했으나 `PERMISSION_DENIED: This project does not have the access to Custom Search JSON API` 가 일관되게 반환됨. 표준 변수 모두 통제(프로젝트 활성화 ✓ / API 키 ✓ / 키 제한 ✓ / PSE 엔진 정상 ✓ / 결제 계정 ✓)했음에도 차단되는 패턴이라, Google의 미공개 신규 계정 정책으로 결론. 며칠~몇 주 후 자동 풀릴 가능성 있어 대기 중. 운영은 아래 G(수동 큐레이션)으로 안정화.
+
+### G. 기사 섹션 — 수동 큐레이션 (CSE 대안)
+CSE가 막혀 있는 동안 Google Sheets의 **`monthly_articles` 탭**에 담당자가 행을 추가하면 그 내용이 메일 본문 📰 섹션에 자동 포함되도록 구현. CSE 키가 비어 있거나(현재 상태) 동작 안 해도, 시트에 행만 있으면 그게 우선 사용됨.
+
+#### 시트 구성 (`monthly_articles` 탭)
+첫 호출 시 Apps Script(`getOrCreateArticlesHeaders`)가 자동 생성. 컬럼:
+
+| 컬럼 | 필수 | 예시 |
+|---|---|---|
+| `month` | ✓ | `2026-05` (또는 Date 객체) — 발송 월과 매칭되는 행만 표시 |
+| `title` | ✓ | `LG 마곡 사이언스파크에 ThinQ Real 쇼룸 오픈` |
+| `url` | ✓ | `https://www.lgnewsroom.com/2026/05/...` |
+| `source` | 선택 | `LG뉴스룸`, `전자신문` 등 매체명 |
+| `summary` | 선택 | 기사 요약 한두 줄 |
+| `published_at` | 선택 | `2026-05-20` (또는 Date) |
+
+#### 운영 흐름
+1. 매월 마지막 금요일(자동 발송일) **직전 며칠 안에** 담당자가 `monthly_articles` 시트 열기
+2. 그 달에 보도된 기사 3~10건 정도 행으로 추가
+3. 자동 발송 시 Apps Script가 해당 월(`month` 컬럼) 행을 모두 수집하여 메일 본문에 포함
+4. 행이 없으면 CSE 호출 시도(현재는 키 없어 skip 표시), 그것도 없으면 빈 섹션 안내문
+
+#### 우선순위 로직 (`collectMonthlyData`)
+1. 시트의 `monthly_articles`에서 이번 달 행 조회 → 1건 이상이면 그것만 사용 (CSE 호출 안 함)
+2. 0건이면 `fetchThinqRealArticles()` 호출 → CSE 키 있으면 호출, 없으면 skip 표시
+
+→ 즉 CSE가 향후 복구돼도 시트에 행이 있으면 수동이 우선 적용. 담당자가 큐레이션 100% 통제 가능.
+
+#### 메일 본문 표시
+- 섹션 부제목: 수동이면 "담당자 큐레이션 · N건", CSE면 "Google ... · 최근 1개월"
+- 행마다 제목(링크) · 출처·게재일(있을 때) · 요약(있을 때) 순으로 표시
+
+#### 핵심 제약 (다음 세션에서도 유지)
+- 시트 탭 이름 `monthly_articles` 변경 금지 (`ARTICLES_SHEET_NAME` 상수와 일치 필요)
+- 헤더 6개 컬럼 순서 변경 금지 (위치 인덱스가 아닌 이름 기반 매칭이지만 일관성 유지)
+- `month` 값이 빈 행, `title`/`url` 둘 중 하나라도 빈 행은 자동 skip됨 (안전장치)
+- 수동 큐레이션이 있는 동안 CSE 호출 안 함 — CSE 디버깅하려면 시트의 해당 월 행을 일시 제거하거나 다음 달 미리 보기로 확인할 것
