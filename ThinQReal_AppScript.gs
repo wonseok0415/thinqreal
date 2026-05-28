@@ -644,12 +644,12 @@ const PURPOSE_COLORS = {
   '기타':                 '#8fa889',
 };
 
-// ROI 가치 항목별 색상
+// ROI 가치 항목별 색상/라벨 — ROI 툴(ThinQ_Real_ROI_Tool.html line 1723-1726)과 동기화
 const ROI_VALUE_LABELS = {
-  vRnD:          { label: 'R&D 가치',          color: '#3a5035' },
-  vSalesInfra:   { label: '영업 지원 · 인프라', color: '#0a84a3' },
-  vSalesContrib: { label: '영업 지원 · 기여',   color: '#ff9500' },
-  vPR:           { label: 'PR 가치',           color: '#7f51e4' },
+  vRnD:          { label: 'R&D 효율화',          color: '#3a5035' },
+  vSalesInfra:   { label: '영업 지원 (인프라)',   color: '#8fa889' },
+  vSalesContrib: { label: '영업 지원 (기여이익)', color: '#ff9500' },
+  vPR:           { label: 'PR 가치',             color: '#af52de' },
 };
 
 // QuickChart.io 차트 이미지 URL 생성 — 이메일 클라이언트 호환을 위해 외부 PNG로 렌더
@@ -1320,44 +1320,43 @@ function buildMonthlyReportHtml(d) {
     '</td></tr>';
 
   // ── 2) 방문 목적별 분포 (도넛 차트) ──
+  // 6개 카테고리를 항상 모두 레전드에 표시 — 0건 카테고리도 존재함을 임원진이 즉시 인지할 수 있도록.
+  // 0건 카테고리는 슬라이스 영역이 0이라 자동으로 안 그려지지만 범례 엔트리는 유지됨.
   let purposeBody;
   const purposeKeys = Object.keys(d.purposeCounts);
-  if (!purposeKeys.length) {
+  const purposeTotal = Object.keys(d.purposeCounts).reduce((s, k) => s + (d.purposeCounts[k] || 0), 0);
+  if (purposeTotal === 0) {
     purposeBody = '<div style="font-size:14px;color:#aeaeb2;padding:8px 0;">해당 없음</div>';
   } else {
-    // 정식 6개 카테고리 순서로 정렬, 나머지는 뒤에
     const canonical = Object.keys(PURPOSE_COLORS);
-    const sorted = canonical.filter(k => d.purposeCounts[k])
-      .concat(purposeKeys.filter(k => !PURPOSE_COLORS[k]));
-    const labels = sorted;
-    const values = sorted.map(k => d.purposeCounts[k]);
-    const colors = sorted.map(k => PURPOSE_COLORS[k] || '#5e7858');
-    const total = values.reduce((a,b) => a+b, 0);
+    const extras = purposeKeys.filter(k => !PURPOSE_COLORS[k] && d.purposeCounts[k] > 0);
+    const labels = canonical.concat(extras);
+    const values = canonical.map(k => d.purposeCounts[k] || 0).concat(extras.map(k => d.purposeCounts[k]));
+    const colors = canonical.map(k => PURPOSE_COLORS[k]).concat(extras.map(() => '#5e7858'));
 
     const chartUrl = quickChartUrl({
       type: 'doughnut',
       data: {
         labels: labels,
-        datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#ffffff' }]
+        datasets: [{ data: values, backgroundColor: colors, borderWidth: 3, borderColor: '#ffffff' }]
       },
       options: {
-        cutoutPercentage: 55,
-        legend: { position: 'right', labels: { fontSize: 13, padding: 12 } },
+        cutoutPercentage: 60,
+        legend: {
+          position: 'bottom',
+          labels: { fontSize: 11, padding: 10, boxWidth: 10, usePointStyle: true }
+        },
         plugins: {
-          datalabels: {
-            color: '#ffffff',
-            font: { size: 15, weight: 'bold' },
-            formatter: function(value) { return value + '건'; }
-          }
+          datalabels: { display: false }       // 클린 도넛 — 슬라이스 내부 라벨 없음
         }
       }
-    }, { w: 640, h: 320 });
+    }, { w: 480, h: 240 });
 
     purposeBody =
       '<div style="text-align:center;">' +
-        '<img src="' + escapeHtml(chartUrl) + '" alt="방문 목적별 분포" style="max-width:100%;width:640px;height:auto;display:inline-block;" />' +
+        '<img src="' + escapeHtml(chartUrl) + '" alt="방문 목적별 분포" style="max-width:100%;width:480px;height:auto;display:inline-block;" />' +
       '</div>' +
-      '<div style="font-size:13px;color:#6e6e73;text-align:center;margin-top:6px;">총 ' + total + '건 (확정 기준)</div>';
+      '<div style="font-size:13px;color:#6e6e73;text-align:center;margin-top:6px;">총 ' + purposeTotal + '건 (확정 기준)</div>';
   }
 
   // ── 3) 방문 이력 (일자 / 목적 / 주제·소속) ──
@@ -1413,41 +1412,37 @@ function buildMonthlyReportHtml(d) {
         '</tr>' +
       '</table>';
 
-    // 가치 항목별 비중 도넛 — 슬라이스 안엔 한국 단위(억/만)로 금액, 범례엔 항목명
-    const valItems = Object.keys(ROI_VALUE_LABELS)
-      .map(k => ({ key: k, value: Number(o[k]) || 0, label: ROI_VALUE_LABELS[k].label, color: ROI_VALUE_LABELS[k].color }))
-      .filter(it => it.value > 0);
+    // 가치 항목별 비중 도넛 — 4개 항목 모두 항상 표시 (0원인 항목도 레전드 노출)
+    // 색상·라벨은 ROI 툴 breakdownChart(ThinQ_Real_ROI_Tool.html line 1720+)와 동기화
+    const valItems = Object.keys(ROI_VALUE_LABELS).map(k => ({
+      key: k, value: Number(o[k]) || 0,
+      label: ROI_VALUE_LABELS[k].label, color: ROI_VALUE_LABELS[k].color
+    }));
+    const valTotal = valItems.reduce((s, it) => s + it.value, 0);
     let valueCompChart = '';
-    if (valItems.length) {
+    if (valTotal > 0) {
       const vUrl = quickChartUrl({
         type: 'doughnut',
         data: {
           labels: valItems.map(it => it.label),
-          datasets: [{ data: valItems.map(it => it.value), backgroundColor: valItems.map(it => it.color), borderWidth: 2, borderColor: '#ffffff' }]
+          datasets: [{ data: valItems.map(it => it.value), backgroundColor: valItems.map(it => it.color), borderWidth: 3, borderColor: '#ffffff' }]
         },
         options: {
-          cutoutPercentage: 55,
-          legend: { position: 'right', labels: { fontSize: 13, padding: 10 } },
+          cutoutPercentage: 65,
+          legend: {
+            position: 'bottom',
+            labels: { fontSize: 11, padding: 10, boxWidth: 10, usePointStyle: true }
+          },
           plugins: {
-            datalabels: {
-              color: '#ffffff', font: { size: 13, weight: 'bold' },
-              formatter: function(value) {
-                if (value === 0) return '0';
-                var a = Math.abs(value);
-                var sign = value < 0 ? '-' : '';
-                if (a >= 1e8) return sign + (a/1e8).toFixed(1).replace(/\.0$/, '') + '억';
-                if (a >= 1e4) return sign + Math.round(a/1e4).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '만';
-                return sign + a;
-              }
-            }
+            datalabels: { display: false }    // 클린 도넛 — 슬라이스 라벨 없음
           }
         }
-      }, { w: 640, h: 280 });
-      valueCompChart = '<img src="' + escapeHtml(vUrl) + '" alt="가치 항목별 비중" style="max-width:100%;width:640px;height:auto;display:block;margin:0 auto;" />';
+      }, { w: 480, h: 240 });
+      valueCompChart = '<img src="' + escapeHtml(vUrl) + '" alt="가치 항목별 비중" style="max-width:100%;width:480px;height:auto;display:block;margin:0 auto;" />';
     }
 
-    // 연도별 누적 손익 막대 — 범례 제거(단일 시리즈), 한국 단위 포맷
-    const years = ['Y0', 'Y1', 'Y2', 'Y3', 'Y4', 'Y5'];
+    // 연도별 누적 손익 라인 차트 — ROI 툴 cumulativeChart(line 1641+) 스타일 그대로
+    // 두 시리즈: 누적 손익(채움 영역) + 손익분기선(점선)
     const cumValues = [
       -totalCost,
       -totalCost + annualValue * 1,
@@ -1456,33 +1451,47 @@ function buildMonthlyReportHtml(d) {
       -totalCost + annualValue * 4,
       -totalCost + annualValue * 5,
     ];
-    const barColors = cumValues.map(v => v < 0 ? '#dc2626' : '#3a5035');
     const cumUrl = quickChartUrl({
-      type: 'bar',
+      type: 'line',
       data: {
-        labels: years,
-        datasets: [{ data: cumValues, backgroundColor: barColors, borderWidth: 0 }]
+        labels: ['0년', '1년', '2년', '3년', '4년', '5년'],
+        datasets: [
+          {
+            label: '누적 손익',
+            data: cumValues,
+            borderColor: '#3a5035',
+            backgroundColor: 'rgba(58, 80, 53, 0.08)',
+            borderWidth: 2.5,
+            fill: true,
+            lineTension: 0.3,
+            pointRadius: 5,
+            pointBackgroundColor: '#3a5035',
+            pointBorderColor: 'white',
+            pointBorderWidth: 2.5,
+          },
+          {
+            label: '손익분기선',
+            data: [0, 0, 0, 0, 0, 0],
+            borderColor: '#ff9500',
+            borderWidth: 1.5,
+            borderDash: [6, 4],
+            fill: false,
+            pointRadius: 0,
+          },
+        ],
       },
       options: {
-        legend: { display: false },
+        legend: {
+          position: 'bottom',
+          labels: { fontSize: 11, boxWidth: 12, padding: 16, usePointStyle: true }
+        },
         plugins: {
-          datalabels: {
-            anchor: 'end', align: 'end', color: '#3a3a3c',
-            font: { size: 11, weight: 'bold' },
-            formatter: function(v) {
-              if (v === 0) return '0';
-              var a = Math.abs(v);
-              var sign = v < 0 ? '-' : '';
-              if (a >= 1e8) return sign + (a/1e8).toFixed(1).replace(/\.0$/, '') + '억';
-              if (a >= 1e4) return sign + Math.round(a/1e4) + '만';
-              return sign + Math.round(a);
-            }
-          }
+          datalabels: { display: false }      // 라인 차트엔 데이터 라벨 없음 (Y축으로 충분)
         },
         scales: {
           yAxes: [{
             ticks: {
-              fontSize: 11,
+              fontSize: 10,
               callback: function(v) {
                 if (v === 0) return '0';
                 var a = Math.abs(v);
@@ -1491,23 +1500,33 @@ function buildMonthlyReportHtml(d) {
                 if (a >= 1e4) return sign + Math.round(a/1e4) + '만';
                 return v;
               }
-            }
+            },
+            gridLines: { color: 'rgba(0,0,0,0.04)' }
           }],
-          xAxes: [{ ticks: { fontSize: 12 } }]
+          xAxes: [{
+            ticks: { fontSize: 11 },
+            gridLines: { display: false }
+          }]
         }
       }
-    }, { w: 640, h: 280 });
-    const cumChart = '<img src="' + escapeHtml(cumUrl) + '" alt="연도별 누적 손익" style="max-width:100%;width:640px;height:auto;display:block;margin:0 auto;" />';
+    }, { w: 620, h: 280 });
+    const cumChart = '<img src="' + escapeHtml(cumUrl) + '" alt="연도별 누적 손익" style="max-width:100%;width:620px;height:auto;display:block;margin:0 auto;" />';
 
     const scenarioLabel = prettyRoiLabel(d.roiLatest.label) +
       (d.roiLatest.author ? ' · 작성자 ' + escapeHtml(String(d.roiLatest.author)) : '');
 
     roiBody =
       roiKpiTable +
-      '<div style="margin-top:24px;font-size:13px;color:#6e6e73;font-weight:600;">가치 항목별 비중</div>' +
-      '<div style="margin-top:8px;">' + valueCompChart + '</div>' +
-      '<div style="margin-top:24px;font-size:13px;color:#6e6e73;font-weight:600;">연도별 누적 손익 전망</div>' +
-      '<div style="margin-top:8px;">' + cumChart + '</div>' +
+      '<div style="margin-top:24px;">' +
+        '<div style="font-size:14px;font-weight:600;color:#1d1d1f;">가치 항목별 비중</div>' +
+        '<div style="font-size:12.5px;color:#6e6e73;margin-top:4px;">연간 창출 가치가 어떤 항목에서 얼마만큼 나오는지를 보여줍니다.</div>' +
+      '</div>' +
+      '<div style="margin-top:10px;">' + valueCompChart + '</div>' +
+      '<div style="margin-top:24px;">' +
+        '<div style="font-size:14px;font-weight:600;color:#1d1d1f;">연도별 누적 손익</div>' +
+        '<div style="font-size:12.5px;color:#6e6e73;margin-top:4px;">투자 시점부터 5년간 누적 손익 추이입니다. 점선과 만나는 시점이 손익분기점(BEP)입니다.</div>' +
+      '</div>' +
+      '<div style="margin-top:10px;">' + cumChart + '</div>' +
       '<div style="margin-top:16px;font-size:12px;color:#aeaeb2;text-align:right;">기준 시나리오: ' + scenarioLabel + '</div>';
   }
 
