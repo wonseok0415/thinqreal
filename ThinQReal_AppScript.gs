@@ -891,7 +891,7 @@ function enrichArticleFromUrl(item) {
     title: item.title || meta.title || item.link,
     link:  item.link,
     source: item.source || meta.source || extractDomain(item.link),
-    snippet: item.snippet || truncate(meta.description, 200),
+    snippet: item.snippet || truncate(meta.description, 120),
     publishedAt: item.publishedAt || meta.publishedAt || '',
     thumbnail: item.thumbnail || meta.image || '',
   };
@@ -1276,17 +1276,18 @@ function buildMonthlyReportHtml(d) {
   } else {
     articlesBody = d.articles.items.map(it => {
       const meta = [it.source, it.publishedAt].filter(Boolean).map(escapeHtml).join(' · ');
+      const snippetDisplay = truncate(it.snippet, 120); // 표시 시점에서도 한 번 더 컷
       const textCell =
-        '<a href="' + escapeHtml(it.link) + '" style="font-size:14px;color:#3a5035;text-decoration:none;font-weight:600;">' + escapeHtml(it.title) + '</a>' +
+        '<a href="' + escapeHtml(it.link) + '" target="_blank" rel="noopener" style="font-size:14px;color:#3a5035;text-decoration:underline;font-weight:600;">' + escapeHtml(it.title) + '</a>' +
         (meta ? '<div style="font-size:11px;color:#aeaeb2;margin-top:2px;">' + meta + '</div>' : '') +
-        (it.snippet ? '<div style="font-size:13px;color:#3a3a3c;margin-top:4px;line-height:1.5;">' + escapeHtml(it.snippet) + '</div>' : '');
+        (snippetDisplay ? '<div style="font-size:13px;color:#3a3a3c;margin-top:4px;line-height:1.5;">' + escapeHtml(snippetDisplay) + '</div>' : '');
       if (it.thumbnail) {
         // 썸네일 있는 경우 — 좌측 이미지 + 우측 텍스트 카드 레이아웃
         return (
           '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;padding:12px 0;border-bottom:1px solid #f2f2f2;">' +
             '<tr>' +
               '<td valign="top" style="width:120px;padding-right:14px;">' +
-                '<a href="' + escapeHtml(it.link) + '" style="text-decoration:none;display:block;">' +
+                '<a href="' + escapeHtml(it.link) + '" target="_blank" rel="noopener" style="text-decoration:none;display:block;">' +
                   '<img src="' + escapeHtml(it.thumbnail) + '" alt="" width="120" style="width:120px;height:80px;object-fit:cover;border-radius:6px;border:0;display:block;" />' +
                 '</a>' +
               '</td>' +
