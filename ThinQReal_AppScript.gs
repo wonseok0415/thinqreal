@@ -786,7 +786,12 @@ function fetchThinqRealArticles() {
   try {
     const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
     if (resp.getResponseCode() !== 200) {
-      return { items: [], skipReason: 'CSE 응답 코드 ' + resp.getResponseCode() };
+      let detail = '';
+      try {
+        const errBody = JSON.parse(resp.getContentText());
+        if (errBody && errBody.error && errBody.error.message) detail = ' — ' + errBody.error.message;
+      } catch(_) {}
+      return { items: [], skipReason: 'CSE 응답 코드 ' + resp.getResponseCode() + detail };
     }
     const body = JSON.parse(resp.getContentText());
     const items = (body.items || []).map(it => ({
