@@ -99,6 +99,12 @@ function doGet(e) {
   if (type === 'appliances') {
     return handleGetAppliances();
   }
+  if (type === 'monthly_report_preview') {
+    return handleMonthlyReportPreview(e.parameter);
+  }
+  if (type === 'monthly_report_send') {
+    return handleMonthlyReportSend(e.parameter);
+  }
 
   return jsonResponse({ error: 'Unknown type' });
 }
@@ -610,6 +616,463 @@ function buildRejectHtml(data) {
       '</table>' +
     '</div>'
   );
+}
+
+// ============================================================
+//  월간 운영 리포트 (매월 마지막 금요일 08:30 KST 자동 발송)
+//  - 트리거 설치는 1회: 스크립트 에디터에서 installMonthlyReportTrigger() 실행
+//  - 매일 08:30 시간 트리거가 동작 → 함수 내부에서 "오늘이 이번 달 마지막 금요일인가" 체크
+//  - 수신자/CSE 키는 Script Properties에서 관리 (코드에 키 미노출)
+//      MONTHLY_REPORT_TO   : 콤마 구분 수신자 (없으면 발송 스킵)
+//      GOOGLE_CSE_ID       : Programmable Search Engine ID (cx)  [선택]
+//      GOOGLE_CSE_KEY      : Custom Search API Key                [선택]
+//  - 수동 미리보기: GET ?type=monthly_report_preview&month=YYYY-MM
+//  - 수동 발송    : GET ?type=monthly_report_send&month=YYYY-MM&confirm=YES
+// ============================================================
+
+const MONTHLY_REPORT_QUERY = 'LG전자 ThinQ Real';
+const PROP_LAST_SENT_KEY   = 'monthly_report_last_sent_month';
+
+function installMonthlyReportTrigger() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'monthlyReportTrigger') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('monthlyReportTrigger')
+    .timeBased()
+    .everyDays(1)
+    .atHour(8)
+    .nearMinute(30)
+    .create();
+  return '월간 리포트 트리거 설치 완료 (매일 08:30 — 스크립트 TZ 기준)';
+}
+
+function monthlyReportTrigger() {
+  const now = new Date();
+  if (!isLastFridayOfMonth(now)) return;
+  const monthKey = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM');
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty(PROP_LAST_SENT_KEY) === monthKey) return; // 이번 달 중복 발송 방지
+  try {
+    const result = sendMonthlyReport({ month: monthKey });
+    if (result.sentTo) props.setProperty(PROP_LAST_SENT_KEY, monthKey);
+  } catch(err) {
+    Logger.log('Monthly report send error: ' + err.message);
+  }
+}
+
+// 스크립트 TZ 기준 오늘이 이번 달의 마지막 금요일인지 판정
+function isLastFridayOfMonth(d) {
+  const tz = Session.getScriptTimeZone();
+  const dow = Number(Utilities.formatDate(d, tz, 'u')); // 1=Mon ... 7=Sun
+  if (dow !== 5) return false;
+  const next = new Date(d.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const thisMonth = Utilities.formatDate(d,    tz, 'MM');
+  const nextMonth = Utilities.formatDate(next, tz, 'MM');
+  return nextMonth !== thisMonth;
+}
+
+// options: { month?: 'YYYY-MM', dryRun?: bool, to?: 'override@a, override@b' }
+function sendMonthlyReport(options) {
+  options = options || {};
+  const tz = Session.getScriptTimeZone();
+  const props = PropertiesService.getScriptProperties();
+  const month = options.month || Utilities.formatDate(new Date(), tz, 'yyyy-MM');
+  const to    = options.to    || props.getProperty('MONTHLY_REPORT_TO') || '';
+
+  const data = collectMonthlyData(month);
+  const text = buildMonthlyReportText(data);
+  const html = buildMonthlyReportHtml(data);
+  const subject = `[ThinQ Real] ${data.year}년 ${data.monthNum}월 운영 리포트`;
+
+  if (options.dryRun) return { subject, html, text, data, sentTo: '' };
+  if (!to) {
+    Logger.log('Monthly report skipped: MONTHLY_REPORT_TO 미설정');
+    return { subject, sentTo: '', skipped: 'no recipients' };
+  }
+  MailApp.sendEmail({
+    to: to, cc: CC_EMAIL, subject: subject,
+    body: text, htmlBody: html,
+    name: 'ThinQ Real',
+  });
+  Logger.log('Monthly report sent → ' + to + ' (' + month + ')');
+  return { subject, sentTo: to };
+}
+
+function collectMonthlyData(month) {
+  const [yStr, mStr] = month.split('-');
+  const year = Number(yStr), monthNum = Number(mStr);
+
+  // 1) 예약 (date 컬럼이 해당 월에 속하는 모든 건)
+  const bookingsSheet = getSheet();
+  const brows = bookingsSheet.getDataRange().getValues();
+  const bheaders = brows[0];
+  const bookings = brows.slice(1).map((row, i) => {
+    const obj = { _row: i + 2 };
+    bheaders.forEach((h, j) => {
+      let v = row[j];
+      if (Object.prototype.toString.call(v) === '[object Date]') {
+        v = (h === 'date') ? normalizeDate(v) : v.toISOString();
+      }
+      obj[h] = v == null ? '' : v;
+    });
+    return obj;
+  }).filter(b => b.date && String(b.date).slice(0, 7) === month);
+
+  const confirmed = bookings.filter(b => b.status === '확정');
+  const rejected  = bookings.filter(b => b.status === '거절');
+  const pending   = bookings.filter(b => b.status === '대기중');
+  const totalVisitors = confirmed.reduce((sum, b) => sum + (Number(b.count) || 0), 0);
+
+  const purposeCounts = {};
+  confirmed.forEach(b => {
+    const k = b.purpose || '기타';
+    purposeCounts[k] = (purposeCounts[k] || 0) + 1;
+  });
+
+  confirmed.sort((a, b) => {
+    const c = String(a.date).localeCompare(String(b.date));
+    return c !== 0 ? c : String(a.slotLabel || '').localeCompare(String(b.slotLabel || ''));
+  });
+
+  // 2) ROI 스냅샷 (timestamp가 해당 월에 속하는 모든 건)
+  const roiSheet = getRoiSheet();
+  getOrCreateRoiHeaders(roiSheet);
+  const rrows = roiSheet.getDataRange().getValues();
+  const rheaders = rrows[0];
+  const roi = rrows.slice(1).map(row => {
+    const obj = {};
+    rheaders.forEach((h, j) => {
+      let v = row[j];
+      if (Object.prototype.toString.call(v) === '[object Date]') v = v.toISOString();
+      obj[h] = v == null ? '' : v;
+    });
+    try { obj.inputs  = JSON.parse(obj.inputs  || '{}'); } catch(err) { obj.inputs  = {}; }
+    try { obj.outputs = JSON.parse(obj.outputs || '{}'); } catch(err) { obj.outputs = {}; }
+    return obj;
+  }).filter(r => r.id && String(r.timestamp).slice(0, 7) === month)
+    .sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+
+  // 3) 관련 기사 (Google Custom Search)
+  const articles = fetchThinqRealArticles();
+
+  return {
+    month, year, monthNum,
+    kpi: {
+      total: bookings.length,
+      confirmed: confirmed.length,
+      rejected: rejected.length,
+      pending: pending.length,
+      visitors: totalVisitors,
+    },
+    confirmed, rejected, pending,
+    purposeCounts,
+    roi,
+    articles,
+  };
+}
+
+function fetchThinqRealArticles() {
+  const props = PropertiesService.getScriptProperties();
+  const cx  = props.getProperty('GOOGLE_CSE_ID');
+  const key = props.getProperty('GOOGLE_CSE_KEY');
+  if (!cx || !key) {
+    return { items: [], skipReason: 'Google Custom Search 키 미설정 (Script Properties에 GOOGLE_CSE_ID / GOOGLE_CSE_KEY 등록 필요)' };
+  }
+  const url = 'https://www.googleapis.com/customsearch/v1'
+    + '?q=' + encodeURIComponent(MONTHLY_REPORT_QUERY)
+    + '&cx=' + encodeURIComponent(cx)
+    + '&key=' + encodeURIComponent(key)
+    + '&num=10&dateRestrict=m1&hl=ko&gl=kr';
+  try {
+    const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    if (resp.getResponseCode() !== 200) {
+      return { items: [], skipReason: 'CSE 응답 코드 ' + resp.getResponseCode() };
+    }
+    const body = JSON.parse(resp.getContentText());
+    const items = (body.items || []).map(it => ({
+      title:   it.title || '',
+      link:    it.link  || '',
+      source:  (it.displayLink || '').replace(/^www\./, ''),
+      snippet: it.snippet || '',
+    }));
+    return { items, skipReason: items.length ? '' : '검색 결과 없음' };
+  } catch(err) {
+    return { items: [], skipReason: 'CSE 호출 오류: ' + err.message };
+  }
+}
+
+// ROI outputs 객체 → 표시용 KPI 추출 (ROI 툴의 collectOutputs 키 기준)
+function roiKpiLine(o) {
+  if (!o || typeof o !== 'object') return '';
+  const parts = [];
+  if (o.annualValue != null) parts.push('연간가치 ' + fmtKRWReport(o.annualValue));
+  if (o.bepText) parts.push('BEP ' + o.bepText);
+  else if (o.bepYears != null && isFinite(o.bepYears)) parts.push('BEP ' + Number(o.bepYears).toFixed(2) + '년');
+  if (o.roi3 != null && isFinite(o.roi3)) parts.push('3년 ROI ' + (o.roi3 >= 0 ? '+' : '') + Number(o.roi3).toFixed(1) + '%');
+  if (o.roi5 != null && isFinite(o.roi5)) parts.push('5년 ROI ' + (o.roi5 >= 0 ? '+' : '') + Number(o.roi5).toFixed(1) + '%');
+  return parts.join('  ·  ');
+}
+
+function fmtKRWReport(n) {
+  const v = Number(n) || 0;
+  if (v === 0) return '0원';
+  const abs = Math.abs(v);
+  const eok = Math.floor(abs / 1e8);
+  const man = Math.floor((abs % 1e8) / 1e4);
+  let s = '';
+  if (eok > 0) s += eok + '억 ';
+  if (man > 0 || eok === 0) s += man.toLocaleString() + '만원';
+  else s = s.trim() + '원';
+  return (v < 0 ? '-' : '') + s.trim();
+}
+
+function prettyRoiLabel(label) {
+  const m = String(label || '').match(/^(\d{4}-\d{2}-\d{2})T\d{2}:\d{2}/);
+  return m ? (m[1] + ' 시나리오') : (label || '(이름 없음)');
+}
+
+// ── 텍스트 빌더 ────────────────────────────
+function buildMonthlyReportText(d) {
+  const L = [];
+  L.push(`ThinQ Real ${d.year}년 ${d.monthNum}월 운영 리포트`);
+  L.push('');
+  L.push('이번 달 ThinQ Real 운영 결과를 안내드립니다.');
+  L.push('');
+  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  L.push('📊 핵심 지표');
+  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  L.push(`   총 예약 신청     ${d.kpi.total}건`);
+  L.push(`   확정             ${d.kpi.confirmed}건`);
+  L.push(`   거절             ${d.kpi.rejected}건`);
+  L.push(`   대기중           ${d.kpi.pending}건`);
+  L.push(`   총 방문 인원     ${d.kpi.visitors}명 (확정 기준)`);
+  L.push('');
+
+  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  L.push('🎯 방문 목적별 분포 (확정 기준)');
+  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  const sorted = Object.keys(d.purposeCounts).map(k => [k, d.purposeCounts[k]])
+    .sort((a, b) => b[1] - a[1]);
+  if (!sorted.length) L.push('   (해당 없음)');
+  else sorted.forEach(([k, v]) => L.push(`   ${k}  —  ${v}건`));
+  L.push('');
+
+  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  L.push('📅 방문 이력 (확정)');
+  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  if (!d.confirmed.length) {
+    L.push('   (이번 달 확정된 방문 없음)');
+  } else {
+    d.confirmed.forEach(b => {
+      L.push(`   ${b.date}  ${b.slotLabel || ''}`);
+      L.push(`     목적: ${b.purpose || '-'}`);
+      if (b.subject || b.org) L.push(`     주제: ${b.subject || b.org}`);
+      if (b.clientCompany) L.push(`     소속: ${b.clientCompany}`);
+      L.push(`     책임자: ${b.name || '-'} · ${Number(b.count) || 1}명`);
+      L.push('');
+    });
+  }
+
+  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  L.push('💰 ROI 신규 스냅샷');
+  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  if (!d.roi.length) {
+    L.push('   (이번 달 저장된 스냅샷 없음)');
+  } else {
+    d.roi.forEach(r => {
+      L.push(`   • ${prettyRoiLabel(r.label)}`);
+      if (r.author) L.push(`     작성자: ${r.author}`);
+      const kpi = roiKpiLine(r.outputs);
+      if (kpi) L.push(`     ${kpi}`);
+      L.push('');
+    });
+  }
+
+  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  L.push('📰 관련 기사 (Google "LG전자 ThinQ Real" 검색, 최근 1개월)');
+  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  if (!d.articles.items.length) {
+    L.push('   (' + (d.articles.skipReason || '검색 결과 없음') + ')');
+  } else {
+    d.articles.items.forEach(it => {
+      L.push(`   • ${it.title}`);
+      if (it.source) L.push(`     출처: ${it.source}`);
+      if (it.snippet) L.push(`     ${it.snippet}`);
+      L.push(`     ${it.link}`);
+      L.push('');
+    });
+  }
+
+  L.push('');
+  L.push('감사합니다.');
+  L.push('HS플랫폼사업센터 AI홈솔루션엔지니어링팀');
+  return L.join('\n');
+}
+
+// ── HTML 빌더 ──────────────────────────────
+function buildMonthlyReportHtml(d) {
+  const sectionHeader = (icon, title, sub) =>
+    '<tr><td style="padding:24px 28px 8px;">' +
+      '<div style="font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#6e6e73;font-weight:600;">' + icon + '&nbsp;&nbsp;' + escapeHtml(title) + '</div>' +
+      (sub ? '<div style="font-size:12px;color:#aeaeb2;margin-top:2px;">' + escapeHtml(sub) + '</div>' : '') +
+    '</td></tr>';
+
+  const kpiCell = (label, value, accent) =>
+    '<td valign="top" align="center" style="padding:14px 8px;background:#f5f5f7;border-radius:10px;">' +
+      '<div style="font-size:22px;font-weight:600;color:' + (accent || '#1d1d1f') + ';line-height:1.1;">' + escapeHtml(String(value)) + '</div>' +
+      '<div style="font-size:11px;color:#6e6e73;margin-top:6px;letter-spacing:0.04em;">' + escapeHtml(label) + '</div>' +
+    '</td>';
+
+  const kpiTable =
+    '<tr><td style="padding:0 28px 8px;">' +
+      '<table role="presentation" cellspacing="8" cellpadding="0" border="0" style="border-collapse:separate;width:100%;">' +
+        '<tr>' +
+          kpiCell('총 신청', d.kpi.total + '건') +
+          kpiCell('확정', d.kpi.confirmed + '건', '#3a5035') +
+          kpiCell('거절', d.kpi.rejected + '건', '#6e6e73') +
+          kpiCell('방문 인원', d.kpi.visitors + '명', '#3a5035') +
+        '</tr>' +
+      '</table>' +
+    '</td></tr>';
+
+  // 목적별 분포
+  const purposeRows = Object.keys(d.purposeCounts)
+    .map(k => [k, d.purposeCounts[k]])
+    .sort((a, b) => b[1] - a[1]);
+  let purposeBody;
+  if (!purposeRows.length) {
+    purposeBody = '<div style="font-size:13px;color:#aeaeb2;">해당 없음</div>';
+  } else {
+    const max = Math.max.apply(null, purposeRows.map(r => r[1]));
+    purposeBody = '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' +
+      purposeRows.map(([k, v]) => {
+        const pct = Math.max(6, Math.round((v / max) * 100));
+        return '<tr>' +
+          '<td style="padding:6px 12px 6px 0;font-size:13px;color:#1d1d1f;white-space:nowrap;width:1%;">' + escapeHtml(k) + '</td>' +
+          '<td style="padding:6px 8px;">' +
+            '<div style="background:#eef0e9;border-radius:4px;height:8px;width:100%;">' +
+              '<div style="background:#3a5035;height:8px;width:' + pct + '%;border-radius:4px;"></div>' +
+            '</div>' +
+          '</td>' +
+          '<td style="padding:6px 0 6px 8px;font-size:13px;color:#1d1d1f;font-variant-numeric:tabular-nums;white-space:nowrap;width:1%;">' + v + '건</td>' +
+        '</tr>';
+      }).join('') +
+    '</table>';
+  }
+
+  // 방문 이력 테이블
+  let visitsBody;
+  if (!d.confirmed.length) {
+    visitsBody = '<div style="font-size:13px;color:#aeaeb2;">이번 달 확정된 방문 없음</div>';
+  } else {
+    const th = (txt) => '<th align="left" style="font-size:11px;color:#6e6e73;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;padding:8px 10px;border-bottom:1px solid #eeeeee;background:#fafafa;">' + escapeHtml(txt) + '</th>';
+    const td = (html, opts) => '<td style="padding:10px;font-size:13px;color:#1d1d1f;border-bottom:1px solid #f2f2f2;vertical-align:top;' + ((opts && opts.nowrap) ? 'white-space:nowrap;' : '') + '">' + html + '</td>';
+    visitsBody = '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' +
+      '<thead><tr>' + th('일자') + th('회차') + th('목적') + th('주제 · 소속') + th('책임자') + th('인원') + '</tr></thead>' +
+      '<tbody>' +
+        d.confirmed.map(b => {
+          const subjLines = [];
+          if (b.subject) subjLines.push(escapeHtml(b.subject));
+          if (b.clientCompany) subjLines.push('<span style="color:#aeaeb2;font-size:12px;">' + escapeHtml(b.clientCompany) + '</span>');
+          const subjHtml = subjLines.length ? subjLines.join('<br>') : '<span style="color:#aeaeb2;">-</span>';
+          return '<tr>' +
+            td(escapeHtml(b.date), { nowrap: true }) +
+            td(escapeHtml(b.slotLabel || ''), { nowrap: true }) +
+            td(escapeHtml(b.purpose || '-')) +
+            td(subjHtml) +
+            td(escapeHtml(b.name || '-')) +
+            td((Number(b.count) || 1) + '명', { nowrap: true }) +
+          '</tr>';
+        }).join('') +
+      '</tbody>' +
+    '</table>';
+  }
+
+  // ROI 스냅샷
+  let roiBody;
+  if (!d.roi.length) {
+    roiBody = '<div style="font-size:13px;color:#aeaeb2;">이번 달 저장된 스냅샷 없음</div>';
+  } else {
+    roiBody = d.roi.map(r => {
+      const o = r.outputs || {};
+      const chips = [];
+      if (o.annualValue != null) chips.push(roiChip('연간가치', fmtKRWReport(o.annualValue)));
+      if (o.bepText) chips.push(roiChip('BEP', o.bepText));
+      else if (o.bepYears != null && isFinite(o.bepYears)) chips.push(roiChip('BEP', Number(o.bepYears).toFixed(2) + '년'));
+      if (o.roi3 != null && isFinite(o.roi3)) chips.push(roiChip('3년 ROI', (o.roi3 >= 0 ? '+' : '') + Number(o.roi3).toFixed(1) + '%'));
+      if (o.roi5 != null && isFinite(o.roi5)) chips.push(roiChip('5년 ROI', (o.roi5 >= 0 ? '+' : '') + Number(o.roi5).toFixed(1) + '%'));
+      return '<div style="border:1px solid #eeeeee;border-radius:10px;padding:14px 16px;margin-bottom:10px;">' +
+        '<div style="font-size:14px;font-weight:600;color:#1d1d1f;">' + escapeHtml(prettyRoiLabel(r.label)) + '</div>' +
+        (r.author ? '<div style="font-size:12px;color:#6e6e73;margin-top:2px;">작성자: ' + escapeHtml(String(r.author)) + '</div>' : '') +
+        (chips.length ? '<div style="margin-top:10px;">' + chips.join('') + '</div>' : '') +
+      '</div>';
+    }).join('');
+  }
+
+  // 기사
+  let articlesBody;
+  if (!d.articles.items.length) {
+    articlesBody = '<div style="font-size:13px;color:#aeaeb2;">' + escapeHtml(d.articles.skipReason || '검색 결과 없음') + '</div>';
+  } else {
+    articlesBody = d.articles.items.map(it => (
+      '<div style="padding:12px 0;border-bottom:1px solid #f2f2f2;">' +
+        '<a href="' + escapeHtml(it.link) + '" style="font-size:14px;color:#3a5035;text-decoration:none;font-weight:600;">' + escapeHtml(it.title) + '</a>' +
+        (it.source ? '<div style="font-size:11px;color:#aeaeb2;margin-top:2px;">' + escapeHtml(it.source) + '</div>' : '') +
+        (it.snippet ? '<div style="font-size:13px;color:#3a3a3c;margin-top:4px;line-height:1.5;">' + escapeHtml(it.snippet) + '</div>' : '') +
+      '</div>'
+    )).join('');
+  }
+
+  return (
+    '<div style="background:#f5f5f7;padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,\'Helvetica Neue\',\'Apple SD Gothic Neo\',\'Malgun Gothic\',sans-serif;">' +
+      '<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:collapse;max-width:760px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">' +
+        '<tr><td style="background:#3a5035;color:#ffffff;padding:24px 28px;">' +
+          '<div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.7;">ThinQ Real</div>' +
+          '<div style="font-size:20px;font-weight:600;margin-top:4px;">' + escapeHtml(d.year + '년 ' + d.monthNum + '월 운영 리포트') + '</div>' +
+          '<div style="font-size:13px;opacity:0.85;margin-top:6px;">이번 달 ThinQ Real 운영 결과를 안내드립니다.</div>' +
+        '</td></tr>' +
+        sectionHeader('📊', '핵심 지표', null) +
+        kpiTable +
+        sectionHeader('🎯', '방문 목적별 분포', '확정 기준') +
+        '<tr><td style="padding:0 28px 16px;">' + purposeBody + '</td></tr>' +
+        sectionHeader('📅', '방문 이력', '확정 ' + d.confirmed.length + '건') +
+        '<tr><td style="padding:0 28px 16px;">' + visitsBody + '</td></tr>' +
+        sectionHeader('💰', 'ROI 신규 스냅샷', '이번 달 저장 ' + d.roi.length + '건') +
+        '<tr><td style="padding:0 28px 16px;">' + roiBody + '</td></tr>' +
+        sectionHeader('📰', '관련 기사', 'Google "LG전자 ThinQ Real" · 최근 1개월') +
+        '<tr><td style="padding:0 28px 24px;">' + articlesBody + '</td></tr>' +
+        '<tr><td style="padding:20px 28px 28px;border-top:1px solid #eeeeee;font-size:13px;color:#6e6e73;line-height:1.6;">' +
+          '감사합니다.<br>HS플랫폼사업센터 AI홈솔루션엔지니어링팀' +
+        '</td></tr>' +
+      '</table>' +
+    '</div>'
+  );
+}
+
+function roiChip(label, value) {
+  return '<span style="display:inline-block;margin:0 8px 6px 0;padding:5px 10px;background:#f5f5f7;border-radius:999px;font-size:12px;color:#1d1d1f;">' +
+    '<span style="color:#6e6e73;">' + escapeHtml(label) + '</span>&nbsp;<strong>' + escapeHtml(String(value)) + '</strong>' +
+  '</span>';
+}
+
+// 미리보기 / 수동 발송 엔드포인트
+function handleMonthlyReportPreview(params) {
+  const result = sendMonthlyReport({ month: params.month, dryRun: true });
+  return HtmlService.createHtmlOutput(result.html).setTitle(result.subject);
+}
+
+function handleMonthlyReportSend(params) {
+  if (params.confirm !== 'YES') {
+    // 확인 가드 — 실수 발송 방지
+    const result = sendMonthlyReport({ month: params.month, dryRun: true });
+    return jsonResponse({
+      success: false,
+      hint: '실제 발송하려면 동일 URL에 &confirm=YES 를 추가하세요.',
+      previewSubject: result.subject,
+    });
+  }
+  const result = sendMonthlyReport({ month: params.month, to: params.to });
+  return jsonResponse({ success: true, subject: result.subject, sentTo: result.sentTo || '(skipped)' });
 }
 
 // ============================================================

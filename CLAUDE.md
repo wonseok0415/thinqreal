@@ -60,6 +60,8 @@ images/{파일명}
 | `GET ?type=mail_status` | 메일 발송 설정 + 남은 일일 할당량 (메일 미발송, 진단용) |
 | `GET ?type=mail_test` | 테스트 메일 1통 발송 (실패 시 사유 응답) |
 | `GET ?type=appliances` | 구비 가전 45개 목록 — `APPLIANCES` 상수의 단일 소스 |
+| `GET ?type=monthly_report_preview&month=YYYY-MM` | 월간 리포트 HTML 본문 미리보기 (메일 미발송, month 생략 시 이번 달) |
+| `GET ?type=monthly_report_send&month=YYYY-MM&confirm=YES` | 월간 리포트 수동 발송. `confirm=YES` 없으면 가드로 미발송. `&to=` 로 수신자 override |
 | `POST type:booking` | Sheets 저장 + 담당자 알림 메일 |
 | `POST type:update` | 상태 변경 + 예약자 확정/거절 메일 |
 | `POST type:booking_delete` | 예약 행 영구 삭제 (id). **메일 미발송** (테스트·실수 데이터 정리용) |
@@ -551,3 +553,50 @@ ThinQ Real을 독립 도메인 `thinqreal.com`(hosting.kr 구입)으로 이전. 
 
 ### F. 영상 후속 TODO
 - B/D 스토리("살아있는 집") 자동화 다양화: 조명 on/off·커튼 외에 **가전 on/off 등** 더 다양한 동작 추가(추후 Gemini Veo로 클립 확보 후 혼합). D(디테일 매크로)는 실제 촬영본 필요.
+
+## 작업 내역 (2026-05-28 — 월간 운영 리포트 자동 발송)
+
+매월 마지막 금요일 08:30 KST에 ThinQ Real 운영 결과(예약·방문 이력·ROI 스냅샷·관련 기사)를 메일로 자동 발송하는 기능 추가. 본문 톤은 기존 예약 확정/거절 메일과 동일한 다크 올리브 카드형. 외부 키 3종은 Apps Script Script Properties로 분리되어 있어 코드 수정 없이 운영 가능.
+
+### A. 메일 본문 구성 (`buildMonthlyReportHtml/Text`)
+- 헤더: `YYYY년 N월 운영 리포트` (다크 올리브 #3a5035)
+- 📊 **핵심 지표** — 총 신청 / 확정 / 거절 / 방문 인원 4종 KPI 카드
+- 🎯 **방문 목적별 분포** (확정 기준) — 라벨·비율 막대·건수 (내림차순)
+- 📅 **방문 이력** (확정) — 테이블: 일자·회차·목적·주제·소속·책임자·인원
+- 💰 **ROI 신규 스냅샷** — 해당 월 timestamp의 스냅샷만 추출 (라벨·작성자·연간가치·BEP·3년/5년 ROI 칩)
+- 📰 **관련 기사** — Google Custom Search JSON API로 `LG전자 ThinQ Real` 최근 1개월 결과 최대 10건 (제목·출처·요약·링크)
+- 푸터: HS플랫폼사업센터 AI홈솔루션엔지니어링팀
+
+### B. 자동 발송 트리거
+- `installMonthlyReportTrigger()` — 스크립트 에디터에서 **1회 직접 실행** → 매일 08:30 시간 트리거 등록 (기존 등록 있으면 자동 교체).
+- `monthlyReportTrigger()` — 매일 호출됨. `isLastFridayOfMonth(now)` 체크 + Script Property `monthly_report_last_sent_month`로 이번 달 이미 보냈으면 skip → 동일 달 중복 발송 방지.
+- **마지막 금요일 판정**: 오늘이 금요일(`u=5`)이고 +7일 후가 다음 달이면 마지막 금요일. 스크립트 TZ 기준.
+
+### C. Script Properties (스크립트 에디터 → 프로젝트 설정 → 스크립트 속성)
+| 키 | 용도 | 미설정 시 동작 |
+|---|---|---|
+| `MONTHLY_REPORT_TO` | 콤마 구분 수신자 메일 주소 | 트리거가 skip, Logger 로그만 (PROP_LAST_SENT_KEY 미갱신 → 재시도 가능) |
+| `GOOGLE_CSE_ID` | Programmable Search Engine ID (cx) | 기사 섹션 본문에 "Google Custom Search 키 미설정"으로 표시, 다른 섹션은 정상 |
+| `GOOGLE_CSE_KEY` | Custom Search JSON API Key | 동상 |
+
+**Google Custom Search 설정 절차** (무료, 일 100 쿼리 한도. 월 1회 호출이라 여유 충분):
+1. https://programmablesearchengine.google.com → 새 검색 엔진 → "전체 웹 검색" 활성화
+2. "검색 엔진 ID" 복사 → `GOOGLE_CSE_ID`에 저장
+3. https://console.cloud.google.com → API 라이브러리 → "Custom Search API" 활성화
+4. 사용자 인증 정보 → API 키 생성 → `GOOGLE_CSE_KEY`에 저장
+5. Apps Script 프로젝트 설정 → 스크립트 속성에 두 값 등록
+
+### D. 발신자 (현행 유지)
+- `MailApp.sendEmail(..., { name: 'ThinQ Real' })` — 표시 이름만 'ThinQ Real'로 설정. 실제 발신 주소는 스크립트 소유자 Gmail (`kang.wonseok@lge.com`).
+- 별도 도메인 메일(`thinqreal@thinqreal.com`)을 발신자로 쓰려면 **Google Workspace 가입(~$7/월) + Send-as alias 등록 + `GmailApp.sendEmail({from: ...})` 변경**이 필요. 본 세션에서는 추가 비용 없이 현행 유지로 합의.
+
+### E. 미리보기 / 수동 발송
+- `GET ?type=monthly_report_preview&month=YYYY-MM` — HTML 본문 그대로 브라우저에 렌더 (메일 미발송). `month` 생략 시 이번 달.
+- `GET ?type=monthly_report_send&month=YYYY-MM` — **`confirm=YES`가 없으면 가드로 미발송**, 제목만 반환. `&confirm=YES` 명시 시 실제 발송. `&to=foo@bar.com`로 수신자 override (테스트용).
+
+### 핵심 제약 (다음 세션에서도 유지)
+- 이 기능은 **Apps Script 재배포 후에만 동작** (엔드포인트·트리거 함수 신규). 재배포는 "배포 관리 → 편집 → 새 버전 → 배포"로 기존 URL 유지.
+- 재배포 후 **`installMonthlyReportTrigger()` 1회 수동 실행 필수** — 트리거는 자동 등록되지 않음.
+- 수신자 확정 후 `MONTHLY_REPORT_TO` Script Property에 입력. 코드는 수정하지 말 것 — 키·수신자 분리가 의도된 구조.
+- 중복 발송 방지 키 `monthly_report_last_sent_month`는 수동으로 비우면 같은 달에 다시 발송 가능 (테스트/재발송 시).
+- 한 달치 데이터 필터링은 booking의 `date` 필드와 ROI의 `timestamp` 필드 모두 **앞 7자(`YYYY-MM`)로 prefix 매칭**한다. 시트에 시간대 변환된 Date 객체가 들어가도 `normalizeDate`로 KST `YYYY-MM-DD`로 정규화하므로 안전.
