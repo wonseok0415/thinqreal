@@ -615,21 +615,28 @@ CSE가 막혀 있는 동안 Google Sheets의 **`monthly_articles` 탭**에 담�
 | `month` | ✓ | `2026-05` (또는 Date 객체) — 발송 월과 매칭되는 행만 표시 |
 | `url` | ✓ | `https://www.lgnewsroom.com/2026/05/...` |
 | `title` | 자동 채움 | `LG 마곡 사이언스파크에 ThinQ Real 쇼룸 오픈` — 비어 있으면 URL에서 자동 추출 |
-| `source` | 자동 채움 | `LG뉴스룸`, `전자신문` 등 매체명 — 비어 있으면 자동 추출 |
-| `summary` | 자동 채움 | 기사 요약 — 비어 있으면 자동 추출 (최대 200자) |
-| `published_at` | 자동 채움 | `2026-05-20` — 비어 있으면 자동 추출 |
+| `source` | 자동 채움 | `LG뉴스룸`, `전자신문` 등 매체명 |
+| `summary` | 자동 채움 | 기사 요약 (최대 200자, 초과 시 `…`) |
+| `published_at` | 자동 채움 | `2026-05-20` |
+| `thumbnail` | 자동 채움 | 기사 대표 이미지 URL (`og:image`) — 메일 본문에 카드형으로 표시 |
 
-#### URL 자동 추출 (Lazy 입력)
-`title`이 비어 있으면 Apps Script가 URL을 fetch해서 **OpenGraph 메타 태그**(`og:title`, `og:description`, `og:site_name`, `article:published_time`)에서 자동으로 채워. 담당자가 채워둔 필드는 보존, 비어 있는 필드만 자동 채움. 운영 모드:
-- **Lazy**: `month` + `url`만 입력 → 나머지 자동 추출
+#### URL 자동 추출 + 시트 write-back (Lazy 입력)
+`title`이 비어 있으면 Apps Script가 URL을 fetch해서 **OpenGraph 메타 태그**(`og:title`, `og:description`, `og:site_name`, `article:published_time`, `og:image`)에서 자동 추출 → **추출 성공 시 시트의 빈 칸에 자동 write-back** (담당자가 직접 채운 값은 보존).
+
+운영 모드:
+- **Lazy**: `month` + `url`만 입력 → 나머지 자동 추출 + 시트에 채워짐
 - **수동**: `title`까지 입력 → fetch 안 함, 입력값 그대로
-- **혼합**: `title` 비우고 `summary`만 채움 → title은 자동, summary는 입력값 사용
+- **혼합**: 일부만 채우고 나머지 비우기 → 비운 칸만 자동
 
-자동 추출 한계:
-- 사이트가 봇 차단 시 fetch 실패 → `title`은 URL 자체, `source`는 도메인으로 폴백
-- 자바스크립트 렌더링 사이트(SPA)는 OG 태그가 서버에 없으면 추출 실패
-- 한글 인코딩이 UTF-8 아니면 깨질 수 있음 (드뭄, 대부분 UTF-8)
+#### 한글 인코딩 처리
+국내 일부 뉴스 사이트(예: news.nate.com 일부 페이지)가 EUC-KR/MS949 인코딩을 쓸 때 한글이 깨지는 문제 → 응답 헤더(`Content-Type: charset=`)와 HTML `<meta charset>`을 순서대로 검사해 적절한 인코딩으로 재디코딩. UTF-8 / EUC-KR / MS949(=CP949·Windows-949) 자동 처리.
+
+#### 자동 추출 한계
+- 사이트가 봇 차단 시 fetch 실패 → `title`은 URL 자체, `source`는 도메인으로 폴백 (시트엔 write-back 안 함)
+- 자바스크립트 렌더링 사이트(SPA)는 OG 태그가 서버 응답에 없으면 추출 실패
+- Apps Script가 지원 안 하는 charset은 UTF-8로 폴백 (드물게 깨질 수 있음)
 - `description`은 200자 초과 시 말줄임표(`…`)로 잘림
+- 썸네일(`og:image`)이 없으면 카드 레이아웃 대신 텍스트만 표시 (다단 호환)
 
 #### 운영 흐름
 1. 매월 마지막 금요일(자동 발송일) **직전 며칠 안에** 담당자가 `monthly_articles` 시트 열기

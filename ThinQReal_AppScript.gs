@@ -787,31 +787,49 @@ function getArticlesSheet() {
 }
 
 function getOrCreateArticlesHeaders(sheet) {
-  const HEADERS = ['month', 'title', 'url', 'source', 'summary', 'published_at'];
-  const firstRow = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
+  const HEADERS = ['month', 'title', 'url', 'source', 'summary', 'published_at', 'thumbnail'];
+  const lastCol  = Math.max(sheet.getLastColumn(), 1);
+  const firstRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+
   if (!firstRow[0]) {
+    // 빈 시트 — 헤더 전체 작성
     sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
     const headerRange = sheet.getRange(1, 1, 1, HEADERS.length);
     headerRange.setBackground('#3a5035');
     headerRange.setFontColor('#ffffff');
     headerRange.setFontWeight('bold');
     sheet.setFrozenRows(1);
+    return HEADERS;
   }
-  return HEADERS;
+
+  // 기존 헤더에 누락된 신규 컬럼만 끝에 추가 (마이그레이션)
+  const existing = firstRow.map(v => String(v || ''));
+  const missing  = HEADERS.filter(h => existing.indexOf(h) < 0);
+  if (missing.length) {
+    const startCol = existing.length + 1;
+    sheet.getRange(1, startCol, 1, missing.length).setValues([missing]);
+    const newRange = sheet.getRange(1, startCol, 1, missing.length);
+    newRange.setBackground('#3a5035');
+    newRange.setFontColor('#ffffff');
+    newRange.setFontWeight('bold');
+    return existing.concat(missing);
+  }
+  return existing;
 }
 
 function getManualArticles(month) {
   const sheet = getArticlesSheet();
-  getOrCreateArticlesHeaders(sheet);
+  const headers = getOrCreateArticlesHeaders(sheet);
   const rows = sheet.getDataRange().getValues();
   if (rows.length < 2) return [];
-  const headers = rows[0].map(h => String(h || ''));
-  const idxMonth   = headers.indexOf('month');
-  const idxTitle   = headers.indexOf('title');
-  const idxUrl     = headers.indexOf('url');
-  const idxSource  = headers.indexOf('source');
-  const idxSummary = headers.indexOf('summary');
-  const idxPubAt   = headers.indexOf('published_at');
+  const hdrRow = rows[0].map(h => String(h || ''));
+  const idxMonth   = hdrRow.indexOf('month');
+  const idxTitle   = hdrRow.indexOf('title');
+  const idxUrl     = hdrRow.indexOf('url');
+  const idxSource  = hdrRow.indexOf('source');
+  const idxSummary = hdrRow.indexOf('summary');
+  const idxPubAt   = hdrRow.indexOf('published_at');
+  const idxThumb   = hdrRow.indexOf('thumbnail');
   if (idxMonth < 0 || idxTitle < 0 || idxUrl < 0) return [];
 
   const items = [];
@@ -822,17 +840,37 @@ function getManualArticles(month) {
     const title = String(row[idxTitle] || '').trim();
     const url   = String(row[idxUrl]   || '').trim();
     if (!url) continue;                 // url은 필수
+
+    const origSource  = idxSource  >= 0 ? String(row[idxSource]  || '').trim() : '';
+    const origSummary = idxSummary >= 0 ? String(row[idxSummary] || '').trim() : '';
+    const origPubAt   = idxPubAt   >= 0 ? formatPublishedDate(row[idxPubAt]) : '';
+    const origThumb   = idxThumb   >= 0 ? String(row[idxThumb]   || '').trim() : '';
+
     const baseItem = {
       title: title,
       link:  url,
-      source: idxSource  >= 0 ? String(row[idxSource]  || '').trim() : '',
-      snippet: idxSummary >= 0 ? String(row[idxSummary] || '').trim() : '',
-      publishedAt: idxPubAt >= 0 ? formatPublishedDate(row[idxPubAt]) : '',
+      source: origSource,
+      snippet: origSummary,
+      publishedAt: origPubAt,
+      thumbnail: origThumb,
     };
-    // title 비어 있으면 URL HTML을 fetch해서 OpenGraph 메타 태그에서 자동 추출
+
+    // title 비어 있으면 URL HTML을 fetch해서 메타 태그에서 자동 추출
     // 담당자가 title을 직접 채워두면 그 의도를 존중하고 fetch 안 함
     const enriched = baseItem.title ? baseItem : enrichArticleFromUrl(baseItem);
     if (!enriched.title) continue;      // 자동 추출도 실패하면 skip
+
+    // 시트의 빈 칸에 추출값을 write-back (담당자가 채운 값은 보존)
+    const updates = [];
+    if (idxTitle   >= 0 && !title       && enriched.title)       updates.push([idxTitle,   enriched.title]);
+    if (idxSource  >= 0 && !origSource  && enriched.source)      updates.push([idxSource,  enriched.source]);
+    if (idxSummary >= 0 && !origSummary && enriched.snippet)     updates.push([idxSummary, enriched.snippet]);
+    if (idxPubAt   >= 0 && !origPubAt   && enriched.publishedAt) updates.push([idxPubAt,   enriched.publishedAt]);
+    if (idxThumb   >= 0 && !origThumb   && enriched.thumbnail)   updates.push([idxThumb,   enriched.thumbnail]);
+    if (updates.length) {
+      updates.forEach(u => sheet.getRange(i + 1, u[0] + 1).setValue(u[1]));
+    }
+
     items.push(enriched);
   }
   return items;
@@ -855,9 +893,12 @@ function enrichArticleFromUrl(item) {
     source: item.source || meta.source || extractDomain(item.link),
     snippet: item.snippet || truncate(meta.description, 200),
     publishedAt: item.publishedAt || meta.publishedAt || '',
+    thumbnail: item.thumbnail || meta.image || '',
   };
 }
 
+// 인코딩 감지(헤더 → HTML meta charset → UTF-8 폴백) 후 메타 태그 파싱
+// EUC-KR/MS949 사용하는 일부 국내 뉴스 사이트의 한글 깨짐 방지
 function fetchUrlMeta(url) {
   try {
     const resp = UrlFetchApp.fetch(url, {
@@ -870,7 +911,40 @@ function fetchUrlMeta(url) {
       },
     });
     if (resp.getResponseCode() !== 200) return null;
-    return parseMetaTags(resp.getContentText());
+
+    const blob = resp.getBlob();
+    const utf8Text = blob.getDataAsString('UTF-8');
+
+    // 1) Content-Type 헤더에서 charset 찾기
+    let charset = '';
+    const hdrs = resp.getAllHeaders() || {};
+    const ct = String(hdrs['Content-Type'] || hdrs['content-type'] || '');
+    const ctMatch = ct.match(/charset\s*=\s*([^\s;]+)/i);
+    if (ctMatch) charset = ctMatch[1].toUpperCase().replace(/^["']|["']$/g, '');
+
+    // 2) 헤더에 없으면 HTML meta에서 (ASCII 헤드 부분은 어떤 인코딩이든 정상 노출됨)
+    if (!charset) {
+      const metaCs = utf8Text.match(/<meta[^>]+charset\s*=\s*["']?([a-zA-Z0-9_\-]+)/i);
+      if (metaCs) charset = metaCs[1].toUpperCase();
+    }
+
+    // 3) 정규화 (Apps Script Blob가 인식하는 이름으로)
+    if (/^UTF.?8$/i.test(charset)) charset = 'UTF-8';
+    else if (charset === 'CP949' || charset === 'WINDOWS-949') charset = 'MS949';
+
+    // 4) UTF-8이 아니면 원본 바이트를 해당 charset으로 다시 디코딩
+    let html;
+    if (!charset || charset === 'UTF-8') {
+      html = utf8Text;
+    } else {
+      try {
+        html = blob.getDataAsString(charset);
+      } catch(e) {
+        Logger.log('Unsupported charset ' + charset + ' for ' + url + ' → UTF-8 fallback');
+        html = utf8Text;
+      }
+    }
+    return parseMetaTags(html);
   } catch(err) {
     Logger.log('fetchUrlMeta error for ' + url + ': ' + err.message);
     return null;
@@ -878,7 +952,7 @@ function fetchUrlMeta(url) {
 }
 
 function parseMetaTags(html) {
-  const result = { title: '', description: '', source: '', publishedAt: '' };
+  const result = { title: '', description: '', source: '', publishedAt: '', image: '' };
 
   // <title> 폴백
   const titleTag = html.match(/<title[^>]*>([^<]+)<\/title>/i);
@@ -900,6 +974,9 @@ function parseMetaTags(html) {
       if (!result.description) result.description = content;
     }
     else if (prop === 'og:site_name') result.source = content;
+    else if (prop === 'og:image' || prop === 'twitter:image' || prop === 'twitter:image:src') {
+      if (!result.image) result.image = content;
+    }
     else if (prop === 'article:published_time' || prop === 'article:published' ||
              prop === 'datepublished' || prop === 'pubdate') {
       result.publishedAt = String(content).slice(0, 10);
@@ -1199,13 +1276,27 @@ function buildMonthlyReportHtml(d) {
   } else {
     articlesBody = d.articles.items.map(it => {
       const meta = [it.source, it.publishedAt].filter(Boolean).map(escapeHtml).join(' · ');
-      return (
-        '<div style="padding:12px 0;border-bottom:1px solid #f2f2f2;">' +
-          '<a href="' + escapeHtml(it.link) + '" style="font-size:14px;color:#3a5035;text-decoration:none;font-weight:600;">' + escapeHtml(it.title) + '</a>' +
-          (meta ? '<div style="font-size:11px;color:#aeaeb2;margin-top:2px;">' + meta + '</div>' : '') +
-          (it.snippet ? '<div style="font-size:13px;color:#3a3a3c;margin-top:4px;line-height:1.5;">' + escapeHtml(it.snippet) + '</div>' : '') +
-        '</div>'
-      );
+      const textCell =
+        '<a href="' + escapeHtml(it.link) + '" style="font-size:14px;color:#3a5035;text-decoration:none;font-weight:600;">' + escapeHtml(it.title) + '</a>' +
+        (meta ? '<div style="font-size:11px;color:#aeaeb2;margin-top:2px;">' + meta + '</div>' : '') +
+        (it.snippet ? '<div style="font-size:13px;color:#3a3a3c;margin-top:4px;line-height:1.5;">' + escapeHtml(it.snippet) + '</div>' : '');
+      if (it.thumbnail) {
+        // 썸네일 있는 경우 — 좌측 이미지 + 우측 텍스트 카드 레이아웃
+        return (
+          '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;padding:12px 0;border-bottom:1px solid #f2f2f2;">' +
+            '<tr>' +
+              '<td valign="top" style="width:120px;padding-right:14px;">' +
+                '<a href="' + escapeHtml(it.link) + '" style="text-decoration:none;display:block;">' +
+                  '<img src="' + escapeHtml(it.thumbnail) + '" alt="" width="120" style="width:120px;height:80px;object-fit:cover;border-radius:6px;border:0;display:block;" />' +
+                '</a>' +
+              '</td>' +
+              '<td valign="top">' + textCell + '</td>' +
+            '</tr>' +
+          '</table>'
+        );
+      }
+      // 썸네일 없는 경우 — 텍스트만
+      return '<div style="padding:12px 0;border-bottom:1px solid #f2f2f2;">' + textCell + '</div>';
     }).join('');
   }
 
