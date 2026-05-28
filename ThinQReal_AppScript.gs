@@ -653,13 +653,30 @@ const ROI_VALUE_LABELS = {
 };
 
 // QuickChart.io 차트 이미지 URL 생성 — 이메일 클라이언트 호환을 위해 외부 PNG로 렌더
+// 함수(formatter 등)는 JSON.stringify가 제거하므로 토큰으로 치환 후 원본 함수 소스로 복원 (JSON5 형식)
 function quickChartUrl(config, opts) {
   opts = opts || {};
   const w = opts.w || 600;
   const h = opts.h || 320;
   const bkg = opts.bkg || 'white';
+
+  let counter = 0;
+  const fnMap = {};
+  const json = JSON.stringify(config, function(key, value) {
+    if (typeof value === 'function') {
+      const token = '___FN_' + (counter++) + '___';
+      fnMap[token] = value.toString();
+      return token;
+    }
+    return value;
+  });
+  let out = json;
+  Object.keys(fnMap).forEach(function(token) {
+    out = out.replace('"' + token + '"', fnMap[token]);
+  });
+
   return 'https://quickchart.io/chart?w=' + w + '&h=' + h + '&bkg=' + encodeURIComponent(bkg) +
-    '&c=' + encodeURIComponent(JSON.stringify(config));
+    '&c=' + encodeURIComponent(out);
 }
 
 function installMonthlyReportTrigger() {
@@ -1226,14 +1243,14 @@ function buildMonthlyReportHtml(d) {
       (description ? '<div style="font-size:13.5px;color:#6e6e73;margin-top:8px;line-height:1.55;">' + escapeHtml(description) + '</div>' : '') +
     '</td></tr>';
 
-  // ── 1) 핵심 지표 (확정 건수 + 방문 인원만) ──
+  // ── 1) 핵심 지표 (확정 건수 + 방문 인원만, 폰트는 ROI KPI 카드와 통일) ──
   const kpiCell = (label, value, unit, accent) =>
-    '<td valign="top" align="center" style="padding:28px 8px;background:#f5f5f7;border-radius:14px;">' +
-      '<div style="line-height:1.05;">' +
-        '<span style="font-size:42px;font-weight:700;color:' + (accent || '#1d1d1f') + ';">' + escapeHtml(String(value)) + '</span>' +
-        '<span style="font-size:18px;font-weight:500;color:' + (accent || '#1d1d1f') + ';margin-left:6px;">' + escapeHtml(unit) + '</span>' +
+    '<td valign="top" align="center" style="padding:18px 10px;background:#f5f5f7;border-radius:10px;">' +
+      '<div style="line-height:1.1;">' +
+        '<span style="font-size:22px;font-weight:700;color:' + (accent || '#1d1d1f') + ';">' + escapeHtml(String(value)) + '</span>' +
+        '<span style="font-size:13px;font-weight:500;color:' + (accent || '#1d1d1f') + ';margin-left:4px;">' + escapeHtml(unit) + '</span>' +
       '</div>' +
-      '<div style="font-size:14px;color:#6e6e73;margin-top:12px;font-weight:500;">' + escapeHtml(label) + '</div>' +
+      '<div style="font-size:12px;color:#6e6e73;margin-top:8px;font-weight:500;">' + escapeHtml(label) + '</div>' +
     '</td>';
 
   const kpiTable =
@@ -1269,12 +1286,12 @@ function buildMonthlyReportHtml(d) {
       },
       options: {
         cutoutPercentage: 55,
+        legend: { position: 'right', labels: { fontSize: 13, padding: 12 } },
         plugins: {
-          legend: { position: 'right', labels: { fontSize: 14, fontStyle: '500', padding: 12 } },
           datalabels: {
             color: '#ffffff',
             font: { size: 15, weight: 'bold' },
-            formatter: function(value) { return value; }
+            formatter: function(value) { return value + '건'; }
           }
         }
       }
@@ -1340,7 +1357,7 @@ function buildMonthlyReportHtml(d) {
         '</tr>' +
       '</table>';
 
-    // 가치 항목별 비중 도넛
+    // 가치 항목별 비중 도넛 — 슬라이스 안엔 한국 단위(억/만)로 금액, 범례엔 항목명
     const valItems = Object.keys(ROI_VALUE_LABELS)
       .map(k => ({ key: k, value: Number(o[k]) || 0, label: ROI_VALUE_LABELS[k].label, color: ROI_VALUE_LABELS[k].color }))
       .filter(it => it.value > 0);
@@ -1354,13 +1371,17 @@ function buildMonthlyReportHtml(d) {
         },
         options: {
           cutoutPercentage: 55,
+          legend: { position: 'right', labels: { fontSize: 13, padding: 10 } },
           plugins: {
-            legend: { position: 'right', labels: { fontSize: 13, padding: 10 } },
             datalabels: {
               color: '#ffffff', font: { size: 13, weight: 'bold' },
-              formatter: function(value, ctx) {
-                var sum = ctx.chart.data.datasets[0].data.reduce(function(a,b){return a+b;}, 0);
-                return Math.round(value / sum * 100) + '%';
+              formatter: function(value) {
+                if (value === 0) return '0';
+                var a = Math.abs(value);
+                var sign = value < 0 ? '-' : '';
+                if (a >= 1e8) return sign + (a/1e8).toFixed(1).replace(/\.0$/, '') + '억';
+                if (a >= 1e4) return sign + Math.round(a/1e4).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '만';
+                return sign + a;
               }
             }
           }
@@ -1369,7 +1390,7 @@ function buildMonthlyReportHtml(d) {
       valueCompChart = '<img src="' + escapeHtml(vUrl) + '" alt="가치 항목별 비중" style="max-width:100%;width:640px;height:auto;display:block;margin:0 auto;" />';
     }
 
-    // 연도별 누적 손익 막대
+    // 연도별 누적 손익 막대 — 범례 제거(단일 시리즈), 한국 단위 포맷
     const years = ['Y0', 'Y1', 'Y2', 'Y3', 'Y4', 'Y5'];
     const cumValues = [
       -totalCost,
@@ -1384,20 +1405,21 @@ function buildMonthlyReportHtml(d) {
       type: 'bar',
       data: {
         labels: years,
-        datasets: [{ label: '누적 손익', data: cumValues, backgroundColor: barColors, borderWidth: 0 }]
+        datasets: [{ data: cumValues, backgroundColor: barColors, borderWidth: 0 }]
       },
       options: {
+        legend: { display: false },
         plugins: {
-          legend: { display: false },
           datalabels: {
             anchor: 'end', align: 'end', color: '#3a3a3c',
-            font: { size: 11 },
+            font: { size: 11, weight: 'bold' },
             formatter: function(v) {
               if (v === 0) return '0';
-              var abs = Math.abs(v);
-              if (abs >= 1e8) return (v/1e8).toFixed(1).replace(/\.0$/, '') + '억';
-              if (abs >= 1e4) return Math.round(v/1e4) + '만';
-              return Math.round(v);
+              var a = Math.abs(v);
+              var sign = v < 0 ? '-' : '';
+              if (a >= 1e8) return sign + (a/1e8).toFixed(1).replace(/\.0$/, '') + '억';
+              if (a >= 1e4) return sign + Math.round(a/1e4) + '만';
+              return sign + Math.round(a);
             }
           }
         },
@@ -1407,14 +1429,15 @@ function buildMonthlyReportHtml(d) {
               fontSize: 11,
               callback: function(v) {
                 if (v === 0) return '0';
-                var abs = Math.abs(v);
-                if (abs >= 1e8) return (v/1e8).toFixed(1).replace(/\.0$/, '') + '억';
-                if (abs >= 1e4) return Math.round(v/1e4) + '만';
+                var a = Math.abs(v);
+                var sign = v < 0 ? '-' : '';
+                if (a >= 1e8) return sign + (a/1e8).toFixed(1).replace(/\.0$/, '') + '억';
+                if (a >= 1e4) return sign + Math.round(a/1e4) + '만';
                 return v;
               }
             }
           }],
-          xAxes: [{ ticks: { fontSize: 12, fontStyle: '500' } }]
+          xAxes: [{ ticks: { fontSize: 12 } }]
         }
       }
     }, { w: 640, h: 280 });
