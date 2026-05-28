@@ -821,16 +821,110 @@ function getManualArticles(month) {
     if (rowMonth !== month) continue;
     const title = String(row[idxTitle] || '').trim();
     const url   = String(row[idxUrl]   || '').trim();
-    if (!title || !url) continue;
-    items.push({
+    if (!url) continue;                 // url은 필수
+    const baseItem = {
       title: title,
       link:  url,
       source: idxSource  >= 0 ? String(row[idxSource]  || '').trim() : '',
       snippet: idxSummary >= 0 ? String(row[idxSummary] || '').trim() : '',
       publishedAt: idxPubAt >= 0 ? formatPublishedDate(row[idxPubAt]) : '',
-    });
+    };
+    // title 비어 있으면 URL HTML을 fetch해서 OpenGraph 메타 태그에서 자동 추출
+    // 담당자가 title을 직접 채워두면 그 의도를 존중하고 fetch 안 함
+    const enriched = baseItem.title ? baseItem : enrichArticleFromUrl(baseItem);
+    if (!enriched.title) continue;      // 자동 추출도 실패하면 skip
+    items.push(enriched);
   }
   return items;
+}
+
+// URL의 HTML을 fetch해서 OpenGraph 메타 태그로 빈 필드 자동 채우기
+// 담당자가 이미 채워둔 필드는 보존, 비어 있는 필드만 자동으로 채움
+function enrichArticleFromUrl(item) {
+  const meta = fetchUrlMeta(item.link);
+  if (!meta) {
+    // fetch 실패 시 도메인이라도 source로 (마지막 안전망)
+    return Object.assign({}, item, {
+      title: item.title || item.link,
+      source: item.source || extractDomain(item.link),
+    });
+  }
+  return {
+    title: item.title || meta.title || item.link,
+    link:  item.link,
+    source: item.source || meta.source || extractDomain(item.link),
+    snippet: item.snippet || truncate(meta.description, 200),
+    publishedAt: item.publishedAt || meta.publishedAt || '',
+  };
+}
+
+function fetchUrlMeta(url) {
+  try {
+    const resp = UrlFetchApp.fetch(url, {
+      muteHttpExceptions: true,
+      followRedirects: true,
+      validateHttpsCertificates: true,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; ThinQRealBot/1.0; +https://thinqreal.com)',
+        'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.5',
+      },
+    });
+    if (resp.getResponseCode() !== 200) return null;
+    return parseMetaTags(resp.getContentText());
+  } catch(err) {
+    Logger.log('fetchUrlMeta error for ' + url + ': ' + err.message);
+    return null;
+  }
+}
+
+function parseMetaTags(html) {
+  const result = { title: '', description: '', source: '', publishedAt: '' };
+
+  // <title> 폴백
+  const titleTag = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+  if (titleTag) result.title = decodeHtmlEntities(titleTag[1]).trim();
+
+  // 모든 <meta> 태그 순회 — property/name 속성과 content 추출
+  const metaTags = html.match(/<meta\s+[^>]+>/gi) || [];
+  for (let i = 0; i < metaTags.length; i++) {
+    const tag = metaTags[i];
+    const propM = tag.match(/(?:property|name)\s*=\s*["']([^"']+)["']/i);
+    const contM = tag.match(/content\s*=\s*["']([^"']*)["']/i);
+    if (!propM || !contM) continue;
+    const prop = propM[1].toLowerCase();
+    const content = decodeHtmlEntities(contM[1]).trim();
+    if (!content) continue;
+
+    if (prop === 'og:title') result.title = content;            // OG가 더 정확하면 덮어씀
+    else if (prop === 'og:description' || prop === 'description') {
+      if (!result.description) result.description = content;
+    }
+    else if (prop === 'og:site_name') result.source = content;
+    else if (prop === 'article:published_time' || prop === 'article:published' ||
+             prop === 'datepublished' || prop === 'pubdate') {
+      result.publishedAt = String(content).slice(0, 10);
+    }
+  }
+  return result;
+}
+
+function decodeHtmlEntities(s) {
+  return String(s)
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#(\d+);/g, (m, n) => String.fromCharCode(parseInt(n, 10)));
+}
+
+function extractDomain(url) {
+  const m = String(url).match(/^https?:\/\/([^\/]+)/i);
+  return m ? m[1].replace(/^www\./, '') : '';
+}
+
+function truncate(s, n) {
+  if (!s) return '';
+  const str = String(s);
+  return str.length <= n ? str : (str.slice(0, n - 1) + '…');
 }
 
 // 셀 값이 Date 객체이거나 YYYY-MM-DD 형식 문자열이거나 비어 있을 때를 모두 처리
