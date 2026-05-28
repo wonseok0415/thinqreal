@@ -1347,7 +1347,12 @@ function buildMonthlyReportHtml(d) {
           labels: { fontSize: 11, padding: 10, boxWidth: 10, usePointStyle: true }
         },
         plugins: {
-          datalabels: { display: false }       // 클린 도넛 — 슬라이스 내부 라벨 없음
+          datalabels: {
+            display: 'auto',                  // 좁은 슬라이스는 자동 숨김
+            color: '#ffffff',
+            font: { size: 13, weight: 'bold' },
+            formatter: function(value) { return value > 0 ? value + '건' : ''; }
+          }
         }
       }
     }, { w: 480, h: 240 });
@@ -1434,7 +1439,18 @@ function buildMonthlyReportHtml(d) {
             labels: { fontSize: 11, padding: 10, boxWidth: 10, usePointStyle: true }
           },
           plugins: {
-            datalabels: { display: false }    // 클린 도넛 — 슬라이스 라벨 없음
+            datalabels: {
+              display: 'auto',
+              color: '#ffffff',
+              font: { size: 12, weight: 'bold' },
+              formatter: function(value) {
+                if (!value || value <= 0) return '';
+                var a = Math.abs(value);
+                if (a >= 1e8) return (a/1e8).toFixed(1).replace(/\.0$/, '') + '억';
+                if (a >= 1e4) return Math.round(a/1e4) + '만';
+                return a;
+              }
+            }
           }
         }
       }, { w: 480, h: 240 });
