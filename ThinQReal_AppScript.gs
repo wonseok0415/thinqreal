@@ -1143,12 +1143,58 @@ function prettyRoiLabel(label) {
   return m ? (m[1] + ' 시나리오') : (label || '(이름 없음)');
 }
 
+// ── 임원 요약 한 줄 빌더 (HTML/Text 공용) ──
+// asHtml: true → <strong> 강조 포함, false → 평문
+function buildExecSummary(d, asHtml) {
+  const m = d.monthNum + '월';
+  const strong = (s) => asHtml ? '<strong>' + s + '</strong>' : s;
+  const esc = (s) => asHtml ? escapeHtml(s) : s;
+
+  // 방문 부분
+  let visitPart;
+  if (d.kpi.confirmed > 0) {
+    visitPart = m + '에는 ' + strong(d.kpi.confirmed + '건의 방문') +
+                '(총 ' + strong(d.kpi.visitors + '명') + ')이 진행되었습니다.';
+  } else {
+    visitPart = m + '에는 확정된 방문이 없었습니다.';
+  }
+
+  // ROI 부분 (시나리오 있을 때만)
+  let roiPart = '';
+  if (d.roiLatest) {
+    const o = d.roiLatest.outputs || {};
+    const roi5 = Number(o.roi5);
+    const bep = o.bepText;
+    if (isFinite(roi5)) {
+      const sign = roi5 >= 0 ? '+' : '';
+      const roi5Txt = sign + roi5.toFixed(1) + '%';
+      if (bep) {
+        roiPart = ' 최신 시나리오 기준 5년 누적 ROI는 ' + strong(roi5Txt) +
+                  ', 회수 기간은 ' + strong(esc(bep)) + '입니다.';
+      } else {
+        roiPart = ' 최신 시나리오 기준 5년 누적 ROI는 ' + strong(roi5Txt) + '입니다.';
+      }
+    }
+  }
+
+  // 둘 다 없을 때만 전용 안내
+  if (d.kpi.confirmed === 0 && !roiPart) {
+    return m + '에는 ThinQ Real 운영 활동이 기록되지 않았습니다.';
+  }
+  return visitPart + roiPart;
+}
+
 // ── 텍스트 빌더 ────────────────────────────
 function buildMonthlyReportText(d) {
   const L = [];
   L.push(`ThinQ Real ${d.year}년 ${d.monthNum}월 운영 리포트`);
   L.push('');
   L.push('이번 달 ThinQ Real의 운영 현황과 누적 성과를 안내드립니다.');
+  L.push('');
+  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  L.push('▶ 요약');
+  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  L.push('   ' + buildExecSummary(d, false));
   L.push('');
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   L.push('📊 핵심 지표');
@@ -1236,6 +1282,16 @@ function buildMonthlyReportText(d) {
 
 // ── HTML 빌더 ──────────────────────────────
 function buildMonthlyReportHtml(d) {
+  // ── 임원 요약 한 줄 (헤더 직후, 30초 안에 운영 상황 파악) ──
+  const execSummaryText = buildExecSummary(d, true);
+  const execSummaryRow =
+    '<tr><td style="padding:24px 28px 0;">' +
+      '<div style="background:#f5f7f4;border-left:4px solid #3a5035;padding:18px 22px;border-radius:0 6px 6px 0;">' +
+        '<div style="font-size:11px;font-weight:600;color:#3a5035;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">요약</div>' +
+        '<div style="font-size:15px;color:#1d1d1f;line-height:1.75;">' + execSummaryText + '</div>' +
+      '</div>' +
+    '</td></tr>';
+
   // ── 섹션 헤더 (큰 제목 + 한 줄 설명) ──
   const sectionHeader = (icon, title, description) =>
     '<tr><td style="padding:32px 28px 6px;">' +
@@ -1506,6 +1562,7 @@ function buildMonthlyReportHtml(d) {
           '<div style="font-size:24px;font-weight:700;margin-top:6px;">' + escapeHtml(d.year + '년 ' + d.monthNum + '월 운영 리포트') + '</div>' +
           '<div style="font-size:14px;opacity:0.88;margin-top:8px;line-height:1.55;">이번 달 ThinQ Real의 운영 현황과 누적 성과를 안내드립니다.</div>' +
         '</td></tr>' +
+        execSummaryRow +
         sectionHeader('📊', '핵심 지표', descKpi) +
         kpiTable +
         sectionHeader('🎯', '방문 목적별 분포', descPurpose) +
