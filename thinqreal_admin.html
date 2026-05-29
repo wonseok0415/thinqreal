@@ -2069,7 +2069,11 @@ function renderTable() {
   if (status) data = data.filter(b=>b.status===status);
   if (slot)   data = data.filter(b => (b.slotsArr || []).includes(Number(slot)));
   if (month)  data = data.filter(b=>b.date&&b.date.startsWith(month));
-  data.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+  data.sort((a,b)=>{
+    const dateCmp = (b.date||'').localeCompare(a.date||'');
+    if (dateCmp !== 0) return dateCmp;
+    return new Date(b.timestamp)-new Date(a.timestamp);
+  });
   const tbody = document.getElementById('tableBody');
   if (!data.length) {
     tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-state-icon">🔍</div><div class="empty-state-text">조건에 맞는 예약이 없습니다.</div></div></td></tr>`;

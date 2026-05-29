@@ -726,3 +726,45 @@ CSE가 막혀 있는 동안 Google Sheets의 **`monthly_articles` 탭**에 담�
 - [ ] **Option B — 전월 대비 증감 표시 (6월 작업 예정)**: 핵심 지표 카드(확정 방문·총 방문 인원)에 전월 대비 ±증감(델타) 추가. 사용자가 5/28 "A 먼저, B는 6월에" 로 합의한 후속 작업.
 - [ ] **CSE 재시도 대기**: Google 신규 계정 정책 추정 403이 며칠~몇 주 후 자동 해소될 수 있음. 풀리면 `GOOGLE_CSE_ID`/`GOOGLE_CSE_KEY` 동작 재확인. 단 시트 수동 큐레이션이 있는 달엔 CSE 호출 안 하므로(§G), 디버깅하려면 해당 월 시트 행을 비우거나 빈 달 미리보기로 확인.
 - 중복발송 가드 키(`monthly_report_last_sent_month`)는 **자동 트리거만** 막음 — `monthly_report_send` 수동 호출은 매번 새로 발송됨(테스트 자유로움). 같은 달 자동 재발송이 필요하면 이 키를 수동으로 비울 것.
+
+## 작업 내역 (2026-05-29 후속 — 실제 방문 데이터 19건 백필 + 표 정렬 보정)
+
+예약 시스템 구축 전(2026-03-24~2026-06-25)에 외부 채널로 잡힌 방문 22건 중 19건을 시트에 직접 백필. 진행 중 발견된 두 가지 함정 정리.
+
+### A. 시트 헤더 정확한 20컬럼 순서 (재발 방지)
+CLAUDE.md 이전 기록의 "헤더 20열(id~purposeKey)" 추상 표기가 추측을 유도했음. 실제 `getOrCreateHeaders`(ThinQReal_AppScript.gs:1770)의 정확한 컬럼 순서:
+
+```
+1.id  2.timestamp  3.date  4.slots  5.slot  6.slotLabel
+7.name  8.org  9.phone  10.email  11.purpose  12.count  13.note  14.status
+15.subject  16.clientCompany  17.visitors  18.usagePlan  19.expectedEffect  20.purposeKey
+```
+
+**중요 함정**:
+- `slots`(JSON 배열, 예 `[2]` 또는 `[2,3]`)·`slot`(단일 번호)·`slotLabel`(텍스트, 예 `2회차 13:00~14:30`) **3개 컬럼이 모두 있어야** 함. 한 개라도 빠지면 시트 가져오기 시 모든 후속 컬럼이 한 칸씩 밀려서 들어감.
+- `ip`/`ua` 컬럼은 **존재하지 않음**. 첫 백필에서 이걸 잘못 추가해 컬럼이 어긋났음.
+- 백필 CSV 생성 시 헤더 배열은 위 20개를 그대로 순서대로 사용할 것. 추측 금지.
+
+### B. 표 정렬 키 변경 — timestamp → date 우선
+**기존**: `data.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp))` — timestamp(신청 시점) 내림차순.
+
+**문제**: 백필 행처럼 timestamp가 같으면 19건 사이 정렬이 시트 행 순서로 떨어져 방문일이 뒤죽박죽으로 보임.
+
+**변경**: 방문일(`date`) 우선 + 같은 날이면 timestamp 보조. 운영상 "최근 방문 → 옛 방문" 순서가 더 자연스럽기도 함.
+```js
+data.sort((a,b)=>{
+  const dateCmp = (b.date||'').localeCompare(a.date||'');
+  if (dateCmp !== 0) return dateCmp;
+  return new Date(b.timestamp)-new Date(a.timestamp);
+});
+```
+`localeCompare`로 `YYYY-MM-DD` 문자열 직접 비교 → Date 객체 생성 비용 없이 안전.
+
+### C. ID 형식 일관성 — 13자리 시퀀스
+정식 예약 POST는 `String(Date.now())`(13자리 ms)로 id 부여. 기존 백필 5건은 `1779900000001~05` 패턴. 새 19건 백필 시 id를 같은 13자리 시퀀스(`1779900000006~24`)로 부여해야 시트 일관성 유지. UUID 형식도 기능엔 무관(Apps Script `update`/`delete`는 String 비교만 함)하지만 시각적 혼란·정렬 이질감 발생.
+
+### 핵심 제약 (다음 세션에서도 유지)
+- 시트 백필용 CSV 만들 땐 위 §A의 20컬럼 순서를 **정확히** 따를 것. 추측 금지, ThinQReal_AppScript.gs:1770의 `HEADERS` 배열이 단일 소스.
+- `slots`는 JSON 배열 문자열(`"[2]"`), `slot`은 숫자(`2`), `slotLabel`은 텍스트 — 3개 모두 채울 것.
+- 같은 날 2건 이상이면 회차 충돌 회피용으로 슬롯을 분산(1·2·3 중 비어있는 자리). 단일 슬롯 백필은 디폴트 2회차.
+- 표 정렬은 `date` 우선이므로, 백필 행의 `timestamp`는 작업 시점 그대로 둬도 표는 방문일 순으로 깔끔히 보임. timestamp는 본래 의미(신청 시점)로 보존.
