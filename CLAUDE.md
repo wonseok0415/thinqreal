@@ -707,3 +707,22 @@ CSE가 막혀 있는 동안 Google Sheets의 **`monthly_articles` 탭**에 담�
 - `ROI_VALUE_LABELS` 라벨/색상은 ROI 툴(`ThinQ_Real_ROI_Tool.html`)의 `collectOutputs` 키와 정확히 매칭해야 함 — vRnD, vSalesInfra, vSalesContrib, vPR
 - 누적 손익 막대 그래프는 `totalCost`가 outputs에 없으면 `annualValue * 3 - profit3`으로 역산 — ROI 툴이 totalCost를 항상 저장하도록 유지하는 게 안전 (현재 ROI 툴 line 1966 기준 저장됨)
 - QuickChart.io는 외부 서비스 — 가용성 문제가 생기면 차트 자리에 깨진 이미지가 표시될 수 있으므로 alt 텍스트는 의미 있게 유지
+
+### I. 수신자 관리 — Script Property `MONTHLY_REPORT_TO` (코드 미포함, 운영 분리)
+수신자 명단은 **리포·코드에 두지 않고** Apps Script Script Property `MONTHLY_REPORT_TO`(콤마 구분 문자열)에만 둔다. 명단 변경 시 콘솔에서 값만 교체 → **코드 수정·재배포 불필요**. 임시 제외/복원도 문자열만 바꾸면 됨.
+
+- **현재 운영 명단**: HS플랫폼사업센터 AI홈솔루션엔지니어링팀 20명 (센터장 1·담당 1·실장 1·팀장 1·책임 12·선임 4).
+- **테스트/일부 발송**: `?type=monthly_report_send&...&to=foo@bar.com` 의 `&to=` override가 `MONTHLY_REPORT_TO`보다 우선 → 본인에게만 안전 발송 가능 (Script Property 안 건드림).
+- **수신자 오타 이력**(2026-05-28~29 정정, 다음 입력 시 주의): 김재훈 `jsh.kim`→`jhs.kim`, 이철호 `ch275`→`ch275.lee`, 박진우 `jin0618.park`→`jn0618.park`.
+
+### J. 첫 정식 발송 완료 (2026-05-29 09:16 KST) ✅
+- 매월 마지막 금요일 트리거가 **2026-05-29(5월 마지막 금요일) 08:30 트리거로 정상 자동 발송됨** — 첫 운영 실증 성공.
+- 첫 회차는 임원 검토 부담 고려해 **17명**(센터장 정기현·담당 노범준·실장 박제원 3명 임시 제외) 으로 발송. 본문(요약·KPI 2카드·목적 도넛·방문이력 3열·ROI 누적 그래프·기사 5건)·차트 모두 정상 렌더 확인.
+- 5월 기사 섹션은 `monthly_articles` 시트 **수동 큐레이션 5건**으로 채움 (CSE는 보류 상태라 호출 안 함 — §G 우선순위 로직대로).
+- 발송 직후 토스트/로그 정상, 중복발송 가드(`monthly_report_last_sent_month`=`2026-05`) 기록됨.
+
+#### 발송 후속 운영 메모 (다음 세션 반드시 확인)
+- [ ] **6월부터 20명 전체로 복원** — 첫 회차 임시 제외했던 3명을 다시 포함. `MONTHLY_REPORT_TO`에 20명 문자열 저장 (§I). 아직 17명 상태일 수 있으니 6월 발송 전 확인 필수.
+- [ ] **Option B — 전월 대비 증감 표시 (6월 작업 예정)**: 핵심 지표 카드(확정 방문·총 방문 인원)에 전월 대비 ±증감(델타) 추가. 사용자가 5/28 "A 먼저, B는 6월에" 로 합의한 후속 작업.
+- [ ] **CSE 재시도 대기**: Google 신규 계정 정책 추정 403이 며칠~몇 주 후 자동 해소될 수 있음. 풀리면 `GOOGLE_CSE_ID`/`GOOGLE_CSE_KEY` 동작 재확인. 단 시트 수동 큐레이션이 있는 달엔 CSE 호출 안 하므로(§G), 디버깅하려면 해당 월 시트 행을 비우거나 빈 달 미리보기로 확인.
+- 중복발송 가드 키(`monthly_report_last_sent_month`)는 **자동 트리거만** 막음 — `monthly_report_send` 수동 호출은 매번 새로 발송됨(테스트 자유로움). 같은 달 자동 재발송이 필요하면 이 키를 수동으로 비울 것.
