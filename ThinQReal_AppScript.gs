@@ -1181,7 +1181,7 @@ function fmtKRWReport(n) {
   const eok = Math.floor(abs / 1e8);
   const man = Math.floor((abs % 1e8) / 1e4);
   let s = '';
-  if (eok > 0) s += eok + '억 ';
+  if (eok > 0) s += eok.toLocaleString() + '억 ';
   if (man > 0 || eok === 0) s += man.toLocaleString() + '만원';
   else s = s.trim() + '원';
   return (v < 0 ? '-' : '') + s.trim();
@@ -1331,10 +1331,21 @@ function buildMonthlyReportText(d) {
 
 // ── HTML 빌더 ──────────────────────────────
 function buildMonthlyReportHtml(d) {
+  // ── Outlook 외부 이미지 차단 대응 안내 (헤더 직후, 사내 메일 환경 가독성 보조) ──
+  // Outlook 데스크탑은 외부 이미지를 기본 차단해 차트가 깨져 보임 → 보낸 사람 신뢰 또는 이미지 다운로드 안내
+  const outlookHintRow =
+    '<tr><td style="padding:14px 28px 0;">' +
+      '<div style="background:#fff8e6;border:1px solid #f5d57a;border-radius:6px;padding:11px 14px;font-size:12.5px;color:#7a5a00;line-height:1.55;">' +
+        '<span style="font-weight:600;">📌 Outlook에서 차트·이미지가 보이지 않나요?</span> ' +
+        '메일 상단의 외부 콘텐츠 차단 알림에서 <strong>[콘텐츠 다운로드]</strong> 를 클릭하시거나, ' +
+        '보낸 사람을 우클릭 후 <strong>[보낸 사람 신뢰]</strong> 로 설정하시면 정상적으로 표시됩니다.' +
+      '</div>' +
+    '</td></tr>';
+
   // ── 임원 요약 한 줄 (헤더 직후, 30초 안에 운영 상황 파악) ──
   const execSummaryText = buildExecSummary(d, true);
   const execSummaryRow =
-    '<tr><td style="padding:24px 28px 0;">' +
+    '<tr><td style="padding:18px 28px 0;">' +
       '<div style="background:#f5f7f4;border-left:4px solid #3a5035;padding:18px 22px;border-radius:0 6px 6px 0;">' +
         '<div style="font-size:11px;font-weight:600;color:#3a5035;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">요약</div>' +
         '<div style="font-size:15px;color:#1d1d1f;line-height:1.75;">' + execSummaryText + '</div>' +
@@ -1497,9 +1508,9 @@ function buildMonthlyReportHtml(d) {
               formatter: function(value) {
                 if (!value || value <= 0) return '';
                 var a = Math.abs(value);
-                if (a >= 1e8) return (a/1e8).toFixed(1).replace(/\.0$/, '') + '억';
-                if (a >= 1e4) return Math.round(a/1e4) + '만';
-                return a;
+                if (a >= 1e8) return (a/1e8).toFixed(1).replace(/\.0$/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '억';
+                if (a >= 1e4) return Math.round(a/1e4).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '만';
+                return a.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
               }
             }
           }
@@ -1563,9 +1574,9 @@ function buildMonthlyReportHtml(d) {
                 if (v === 0) return '0';
                 var a = Math.abs(v);
                 var sign = v < 0 ? '-' : '';
-                if (a >= 1e8) return sign + (a/1e8).toFixed(1).replace(/\.0$/, '') + '억';
-                if (a >= 1e4) return sign + Math.round(a/1e4) + '만';
-                return v;
+                if (a >= 1e8) return sign + (a/1e8).toFixed(1).replace(/\.0$/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '억';
+                if (a >= 1e4) return sign + Math.round(a/1e4).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '만';
+                return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
               }
             },
             gridLines: { color: 'rgba(0,0,0,0.04)' }
@@ -1649,6 +1660,7 @@ function buildMonthlyReportHtml(d) {
           '<div style="font-size:24px;font-weight:700;margin-top:6px;">' + escapeHtml(d.year + '년 ' + d.monthNum + '월 운영 리포트') + '</div>' +
           '<div style="font-size:14px;opacity:0.88;margin-top:8px;line-height:1.55;">이번 달 ThinQ Real의 운영 현황과 누적 성과를 안내드립니다.</div>' +
         '</td></tr>' +
+        outlookHintRow +
         execSummaryRow +
         sectionHeader('📊', '핵심 지표', descKpi) +
         kpiTable +
