@@ -2091,15 +2091,15 @@ function renderTable() {
       ? `<div class="row-actions" onclick="event.stopPropagation()"><button class="btn-confirm-sm" onclick="onActionClick(this,'${b.id}','확정')">확정</button><button class="btn-reject-sm" onclick="onActionClick(this,'${b.id}','거절')">거절</button></div>`
       : `<button class="btn-detail-sm" onclick="event.stopPropagation();openModal('${b.id}')">상세</button>`;
     return `<tr onclick="openModal('${b.id}')">
-      <td><strong style="letter-spacing:-0.02em;">${b.date||''}</strong></td>
-      <td style="color:var(--c-label-2);font-size:var(--t-footnote);white-space:nowrap;">${fmtSlotsCompact(b)}</td>
+      <td style="white-space:nowrap;"><strong>${b.date||''}</strong></td>
+      <td style="color:var(--c-label-2);white-space:nowrap;">${fmtSlotsCompact(b)}</td>
       <td style="font-weight:500;">${b.name}</td>
-      <td style="color:var(--c-label-2);font-size:var(--t-footnote);">${b.org}</td>
+      <td style="color:var(--c-label-2);">${b.org}</td>
       <td>${b.purpose}</td>
-      <td style="text-align:center;">${b.count}명</td>
-      <td style="color:var(--c-label-3);font-size:var(--t-footnote);">${applied}</td>
-      <td><span class="badge badge-${cls}">${b.status}</span></td>
-      <td>${actions}</td>
+      <td style="text-align:center;white-space:nowrap;">${b.count}명</td>
+      <td style="color:var(--c-label-3);white-space:nowrap;">${applied}</td>
+      <td style="white-space:nowrap;"><span class="badge badge-${cls}">${b.status}</span></td>
+      <td style="white-space:nowrap;">${actions}</td>
     </tr>`;
   }).join('');
 }
