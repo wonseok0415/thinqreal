@@ -623,10 +623,11 @@ function buildRejectHtml(data) {
 //  월간 운영 리포트 (매월 마지막 금요일 08:30 KST 자동 발송)
 //  - 트리거 설치는 1회: 스크립트 에디터에서 installMonthlyReportTrigger() 실행
 //  - 매일 08:30 시간 트리거가 동작 → 함수 내부에서 "오늘이 이번 달 마지막 금요일인가" 체크
-//  - 수신자/CSE 키는 Script Properties에서 관리 (코드에 키 미노출)
+//  - 수신자/검색 키는 Script Properties에서 관리 (코드에 키 미노출)
 //      MONTHLY_REPORT_TO   : 콤마 구분 수신자 (없으면 발송 스킵)
-//      GOOGLE_CSE_ID       : Programmable Search Engine ID (cx)  [선택]
-//      GOOGLE_CSE_KEY      : Custom Search API Key                [선택]
+//      SERPER_API_KEY      : Serper.dev API Key (Google 결과 우회) [1순위]
+//      GOOGLE_CSE_ID       : Programmable Search Engine ID (cx)    [폴백]
+//      GOOGLE_CSE_KEY      : Custom Search API Key                  [폴백]
 //  - 수동 미리보기: GET ?type=monthly_report_preview&month=YYYY-MM
 //  - 수동 발송    : GET ?type=monthly_report_send&month=YYYY-MM&confirm=YES
 // ============================================================
@@ -817,7 +818,7 @@ function collectMonthlyData(month) {
     articles = { items: manualItems, skipReason: '', source: 'manual' };
   } else {
     articles = fetchThinqRealArticles();
-    articles.source = 'cse';
+    articles.source = articles.provider || 'auto';
   }
 
   return {
@@ -1081,11 +1082,58 @@ function formatPublishedDate(v) {
 
 function fetchThinqRealArticles() {
   const props = PropertiesService.getScriptProperties();
+
+  // 1순위: Serper.dev (Google 결과 우회, 무료 2,500 calls/월)
+  const serperKey = props.getProperty('SERPER_API_KEY');
+  if (serperKey) return fetchArticlesViaSerper(serperKey);
+
+  // 2순위: Google Custom Search (폴백 — CSE 정책 해소 시 자동 사용)
   const cx  = props.getProperty('GOOGLE_CSE_ID');
   const key = props.getProperty('GOOGLE_CSE_KEY');
-  if (!cx || !key) {
-    return { items: [], skipReason: 'Google Custom Search 키 미설정 (Script Properties에 GOOGLE_CSE_ID / GOOGLE_CSE_KEY 등록 필요)' };
+  if (cx && key) return fetchArticlesViaCSE(cx, key);
+
+  return { items: [], skipReason: '기사 검색 API 키 미설정 (Script Properties에 SERPER_API_KEY 또는 GOOGLE_CSE_ID/GOOGLE_CSE_KEY 등록 필요)' };
+}
+
+function fetchArticlesViaSerper(apiKey) {
+  const payload = {
+    q: MONTHLY_REPORT_QUERY,
+    gl: 'kr',
+    hl: 'ko',
+    num: 10,
+    tbs: 'qdr:m'   // 최근 1개월
+  };
+  try {
+    const resp = UrlFetchApp.fetch('https://google.serper.dev/news', {
+      method: 'post',
+      headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+    if (resp.getResponseCode() !== 200) {
+      let detail = '';
+      try {
+        const errBody = JSON.parse(resp.getContentText());
+        if (errBody && errBody.message) detail = ' — ' + errBody.message;
+      } catch(_) {}
+      return { items: [], provider: 'serper', skipReason: 'Serper 응답 코드 ' + resp.getResponseCode() + detail };
+    }
+    const body = JSON.parse(resp.getContentText());
+    const items = (body.news || []).map(it => ({
+      title:       it.title    || '',
+      link:        it.link     || '',
+      source:      it.source   || '',
+      snippet:     it.snippet  || '',
+      thumbnail:   it.imageUrl || '',
+      publishedAt: it.date     || '',
+    }));
+    return { items, provider: 'serper', skipReason: items.length ? '' : '검색 결과 없음' };
+  } catch(err) {
+    return { items: [], provider: 'serper', skipReason: 'Serper 호출 오류: ' + err.message };
   }
+}
+
+function fetchArticlesViaCSE(cx, key) {
   const url = 'https://www.googleapis.com/customsearch/v1'
     + '?q=' + encodeURIComponent(MONTHLY_REPORT_QUERY)
     + '&cx=' + encodeURIComponent(cx)
@@ -1099,7 +1147,7 @@ function fetchThinqRealArticles() {
         const errBody = JSON.parse(resp.getContentText());
         if (errBody && errBody.error && errBody.error.message) detail = ' — ' + errBody.error.message;
       } catch(_) {}
-      return { items: [], skipReason: 'CSE 응답 코드 ' + resp.getResponseCode() + detail };
+      return { items: [], provider: 'cse', skipReason: 'CSE 응답 코드 ' + resp.getResponseCode() + detail };
     }
     const body = JSON.parse(resp.getContentText());
     const items = (body.items || []).map(it => ({
@@ -1108,9 +1156,9 @@ function fetchThinqRealArticles() {
       source:  (it.displayLink || '').replace(/^www\./, ''),
       snippet: it.snippet || '',
     }));
-    return { items, skipReason: items.length ? '' : '검색 결과 없음' };
+    return { items, provider: 'cse', skipReason: items.length ? '' : '검색 결과 없음' };
   } catch(err) {
-    return { items: [], skipReason: 'CSE 호출 오류: ' + err.message };
+    return { items: [], provider: 'cse', skipReason: 'CSE 호출 오류: ' + err.message };
   }
 }
 

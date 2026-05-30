@@ -601,6 +601,29 @@ ThinQ Real을 독립 도메인 `thinqreal.com`(hosting.kr 구입)으로 이전. 
 - 중복 발송 방지 키 `monthly_report_last_sent_month`는 수동으로 비우면 같은 달에 다시 발송 가능 (테스트/재발송 시).
 - 한 달치 데이터 필터링은 booking의 `date` 필드와 ROI의 `timestamp` 필드 모두 **앞 7자(`YYYY-MM`)로 prefix 매칭**한다. 시트에 시간대 변환된 Date 객체가 들어가도 `normalizeDate`로 KST `YYYY-MM-DD`로 정규화하므로 안전.
 
+### F-2. Serper.dev로 우회 (2026-05-30)
+CSE 정책이 5/30 시점에도 여전히 동일 403(`This project does not have the access to Custom Search JSON API`)으로 막혀 있어, **Serper.dev**로 대체. Google 결과를 우회 제공하는 유료 API의 무료 티어(월 2,500 calls — 월 1회 호출이라 사실상 무제한).
+
+**Apps Script 동작 변경**: `fetchThinqRealArticles()`가 분기 처리됨.
+1. **`SERPER_API_KEY` 있으면** → `fetchArticlesViaSerper()` 호출 (POST `https://google.serper.dev/news`, body `{q, gl:'kr', hl:'ko', num:10, tbs:'qdr:m'}`)
+2. **없으면** → 기존 CSE 폴백 (`fetchArticlesViaCSE()`)
+3. **둘 다 없으면** → 안내 메시지
+
+**우선순위 의도**: Serper가 메인. CSE 정책이 향후 풀리면 `SERPER_API_KEY` 지우기만 하면 자동으로 CSE로 복귀.
+
+**Serper 응답 매핑** (CSE 대비 추가):
+- `imageUrl` → `thumbnail` (썸네일 자동 활용 — 메일 본문에 카드형 레이아웃 트리거)
+- `date` → `publishedAt` ("1 day ago" 같은 상대 시간 표시)
+
+**Script Property 설정 절차**:
+1. https://serper.dev → 회원가입 (Google 계정 OAuth)
+2. Dashboard → API Key 복사
+3. Apps Script 프로젝트 설정 → 스크립트 속성 → `SERPER_API_KEY` 추가
+4. (선택) 기존 `GOOGLE_CSE_ID`/`GOOGLE_CSE_KEY`는 그대로 둬도 됨 (Serper가 우선이라 사용 안 됨, 그러나 향후 CSE 복구 대비 보존)
+5. Apps Script 재배포 (편집 모드)
+
+**우선순위 분기 코드는 `articles.provider`에 'serper'/'cse' 기록** — 향후 디버깅 시 어떤 API가 호출됐는지 확인 가능. `collectMonthlyData`에서 `articles.source = articles.provider || 'auto'` 매핑.
+
 ### F. CSE 시도 보류 (2026-05-28)
 `thinqreal-cse-v2` Cloud 프로젝트·신규 키·결제 계정 연결까지 시도했으나 `PERMISSION_DENIED: This project does not have the access to Custom Search JSON API` 가 일관되게 반환됨. 표준 변수 모두 통제(프로젝트 활성화 ✓ / API 키 ✓ / 키 제한 ✓ / PSE 엔진 정상 ✓ / 결제 계정 ✓)했음에도 차단되는 패턴이라, Google의 미공개 신규 계정 정책으로 결론. 며칠~몇 주 후 자동 풀릴 가능성 있어 대기 중. 운영은 아래 G(수동 큐레이션)으로 안정화.
 
