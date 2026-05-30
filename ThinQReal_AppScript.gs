@@ -1602,14 +1602,15 @@ function buildMonthlyReportHtml(d) {
   if (!d.articles.items.length) {
     articlesBody = '<div style="font-size:13px;color:#aeaeb2;">' + escapeHtml(d.articles.skipReason || '검색 결과 없음') + '</div>';
   } else {
-    articlesBody = d.articles.items.map(it => {
+    const THUMB_LIMIT = 5; // 상위 N건만 썸네일 카드, 나머지는 텍스트만 (보도자료 사진 중복 방지·시선 집중)
+    articlesBody = d.articles.items.map((it, idx) => {
       const meta = [it.source, it.publishedAt].filter(Boolean).map(escapeHtml).join(' · ');
       const snippetDisplay = truncate(it.snippet, 120); // 표시 시점에서도 한 번 더 컷
       const textCell =
         '<a href="' + escapeHtml(it.link) + '" target="_blank" rel="noopener" style="font-size:14px;color:#3a5035;text-decoration:underline;font-weight:600;">' + escapeHtml(it.title) + '</a>' +
         (meta ? '<div style="font-size:11px;color:#aeaeb2;margin-top:2px;">' + meta + '</div>' : '') +
         (snippetDisplay ? '<div style="font-size:13px;color:#3a3a3c;margin-top:4px;line-height:1.5;">' + escapeHtml(snippetDisplay) + '</div>' : '');
-      if (it.thumbnail) {
+      if (it.thumbnail && idx < THUMB_LIMIT) {
         // 썸네일 있는 경우 — 좌측 이미지 + 우측 텍스트 카드 레이아웃
         return (
           '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;padding:12px 0;border-bottom:1px solid #f2f2f2;">' +
