@@ -1336,9 +1336,7 @@ function buildMonthlyReportHtml(d) {
   const outlookHintRow =
     '<tr><td style="padding:14px 28px 0;">' +
       '<div style="background:#fff8e6;border:1px solid #f5d57a;border-radius:6px;padding:11px 14px;font-size:12.5px;color:#7a5a00;line-height:1.55;">' +
-        '<span style="font-weight:600;">📌 Outlook에서 차트·이미지가 보이지 않나요?</span> ' +
-        '메일 상단의 외부 콘텐츠 차단 알림에서 <strong>[콘텐츠 다운로드]</strong> 를 클릭하시거나, ' +
-        '보낸 사람을 우클릭 후 <strong>[보낸 사람 신뢰]</strong> 로 설정하시면 정상적으로 표시됩니다.' +
+        '📌 Outlook에서 차트·이미지가 보이지 않나요? <strong>[트러스트 보낸 사람]</strong> 클릭하세요.' +
       '</div>' +
     '</td></tr>';
 
