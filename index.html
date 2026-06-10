@@ -913,9 +913,116 @@ footer {
   .page-hero-body { padding: var(--sp-32) var(--sp-24); }
   .cta-band { padding: var(--sp-48) var(--sp-24); }
 }
+
+/* ── 사이트 접근 통제 (이메일 게이트 4안) ─────────────────── */
+body.unauth { overflow: hidden; }
+body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !important; }
+.auth-gate {
+  position: fixed; inset: 0; z-index: 9999;
+  background: linear-gradient(135deg, #fbfbfd 0%, #eef2ec 100%);
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--sp-24);
+}
+.auth-card {
+  background: #fff; border-radius: var(--radius-lg);
+  width: 100%; max-width: 420px;
+  padding: var(--sp-40) var(--sp-32);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+}
+.auth-brand {
+  display: flex; align-items: center; gap: var(--sp-8);
+  justify-content: center; margin-bottom: var(--sp-32);
+}
+.auth-logo { height: 26px; width: auto; display: block; }
+.auth-brand-divider { width: 1px; height: 18px; background: var(--c-separator); }
+.auth-brand-title {
+  font-size: 17px; font-weight: 600; color: var(--c-accent);
+  letter-spacing: -0.022em;
+}
+.auth-title {
+  font-size: 22px; font-weight: 600; letter-spacing: -0.022em;
+  color: var(--c-label); margin-bottom: var(--sp-8);
+}
+.auth-sub {
+  font-size: 14px; color: var(--c-label-2);
+  margin-bottom: var(--sp-24); line-height: 1.55;
+}
+.auth-input {
+  width: 100%; padding: 13px 14px;
+  border: 1px solid var(--c-separator); border-radius: var(--radius-sm);
+  font-size: 15px; color: var(--c-label);
+  margin-bottom: var(--sp-12); outline: none;
+  transition: border-color 0.15s var(--ease);
+  background: #fff;
+}
+.auth-input:focus { border-color: var(--c-accent); }
+.auth-input-code {
+  text-align: center; letter-spacing: 10px;
+  font-size: 24px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding-left: 18px;
+}
+.auth-btn {
+  width: 100%; padding: 13px;
+  background: var(--c-accent); color: #fff;
+  border: none; border-radius: var(--radius-sm);
+  font-size: 15px; font-weight: 600;
+  cursor: pointer; letter-spacing: -0.022em;
+  transition: background 0.15s var(--ease);
+}
+.auth-btn:hover:not(:disabled) { background: var(--c-accent-hover); }
+.auth-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.auth-link {
+  display: block; width: 100%; margin-top: var(--sp-12);
+  padding: 8px; background: transparent; border: none; cursor: pointer;
+  font-size: 13px; color: var(--c-label-2); text-align: center;
+}
+.auth-link:hover { color: var(--c-accent); }
+.auth-hint {
+  font-size: 12.5px; color: var(--c-label-3);
+  text-align: center; margin-top: var(--sp-20);
+  line-height: 1.55;
+}
+.auth-error {
+  background: #fff5f5; color: #c92a2a;
+  border: 1px solid #ffd6d6; border-radius: var(--radius-sm);
+  padding: 10px 12px; font-size: 13px;
+  margin-top: var(--sp-12); line-height: 1.5;
+}
+@media (max-width: 480px) {
+  .auth-card { padding: var(--sp-32) var(--sp-24); }
+  .auth-title { font-size: 19px; }
+  .auth-input-code { font-size: 20px; letter-spacing: 8px; padding-left: 14px; }
+}
 </style>
 </head>
-<body>
+<body class="unauth">
+
+<!-- ══ AUTH GATE — 사이트 접근 통제 (4안 이메일 게이트) ══ -->
+<div id="authGate" class="auth-gate">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <img src="images/LG_AI_Home_logo.png" alt="LG AI Home" class="auth-logo">
+      <span class="auth-brand-divider"></span>
+      <span class="auth-brand-title">ThinQ Real</span>
+    </div>
+    <div id="authStepEmail">
+      <h2 class="auth-title">임직원 인증</h2>
+      <p class="auth-sub">접속을 위해 사내 메일 인증이 필요합니다.<br>아래에 LG 임직원 메일을 입력해 주세요.</p>
+      <input type="email" id="authEmail" class="auth-input" placeholder="yourname@lge.com" autocomplete="email">
+      <button type="button" class="auth-btn" id="authRequestBtn" onclick="authRequest()">인증 코드 받기</button>
+      <div class="auth-hint">외부 방문 손님이세요?<br>담당자에게 문의 부탁드립니다.</div>
+    </div>
+    <div id="authStepCode" style="display:none;">
+      <h2 class="auth-title">인증 코드 입력</h2>
+      <p class="auth-sub" id="authCodeSub">메일로 발송된 6자리 코드를 입력하세요.</p>
+      <input type="text" id="authCode" class="auth-input auth-input-code" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code">
+      <button type="button" class="auth-btn" id="authVerifyBtn" onclick="authVerify()">확인</button>
+      <button type="button" class="auth-link" onclick="authBackToEmail()">← 이메일 다시 입력</button>
+    </div>
+    <div id="authError" class="auth-error" style="display:none;"></div>
+  </div>
+</div>
 
 <!-- NAV -->
 <nav class="navbar" id="navbar">
@@ -1449,6 +1556,121 @@ footer {
 
 <script>
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec';
+
+// ── Auth Gate (사이트 접근 통제 4안) ───────────────────────
+const AUTH_TOKEN_KEY = 'thinqreal_auth_token';
+let authCurrentEmail = '';
+
+// 로컬 토큰의 payload만 디코드해서 exp 검사. (서명 검증은 서버 작업)
+// 토큰 형식: base64url(payload).base64url(signature)
+function authValidate() {
+  try {
+    const raw = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (!raw) return false;
+    const payloadB64 = raw.split('.')[0];
+    if (!payloadB64) return false;
+    const b64 = payloadB64.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '==='.slice((b64.length + 3) % 4);
+    const payload = JSON.parse(atob(padded));
+    if (!payload || !payload.exp) return false;
+    if (Number(payload.exp) <= Date.now()) {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      return false;
+    }
+    return true;
+  } catch (e) { return false; }
+}
+
+function authShowError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg; el.style.display = 'block';
+}
+function authClearError() {
+  document.getElementById('authError').style.display = 'none';
+}
+function authNormalizeEmail(s) {
+  return (s || '').trim().toLowerCase();
+}
+
+async function authRequest() {
+  authClearError();
+  const email = authNormalizeEmail(document.getElementById('authEmail').value);
+  if (!/^[a-z0-9._%+\-]+@lge\.com$/.test(email)) {
+    authShowError('LG 임직원 메일(@lge.com)을 입력해 주세요.');
+    return;
+  }
+  const btn = document.getElementById('authRequestBtn');
+  btn.disabled = true; btn.textContent = '발송 중...';
+  try {
+    const res = await fetch(SCRIPT_URL + '?type=auth_request&email=' + encodeURIComponent(email));
+    const data = await res.json();
+    if (!data.ok) {
+      authShowError(data.message || '인증 코드 발송에 실패했습니다.');
+      return;
+    }
+    authCurrentEmail = email;
+    document.getElementById('authStepEmail').style.display = 'none';
+    document.getElementById('authStepCode').style.display = 'block';
+    document.getElementById('authCodeSub').innerHTML =
+      '<strong>' + email + '</strong>으로 발송된 6자리 코드를 입력하세요.<br>(메일이 보이지 않으면 스팸함도 확인해 주세요.)';
+    setTimeout(() => document.getElementById('authCode').focus(), 50);
+  } catch (e) {
+    authShowError('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+  } finally {
+    btn.disabled = false; btn.textContent = '인증 코드 받기';
+  }
+}
+
+async function authVerify() {
+  authClearError();
+  const code = (document.getElementById('authCode').value || '').trim();
+  if (!/^\d{6}$/.test(code)) {
+    authShowError('6자리 숫자 코드를 입력해 주세요.');
+    return;
+  }
+  const btn = document.getElementById('authVerifyBtn');
+  btn.disabled = true; btn.textContent = '확인 중...';
+  try {
+    const res = await fetch(SCRIPT_URL + '?type=auth_verify' +
+      '&email=' + encodeURIComponent(authCurrentEmail) +
+      '&code=' + encodeURIComponent(code));
+    const data = await res.json();
+    if (!data.ok) {
+      authShowError(data.message || '인증에 실패했습니다.');
+      btn.disabled = false; btn.textContent = '확인';
+      return;
+    }
+    localStorage.setItem(AUTH_TOKEN_KEY, data.token);
+    document.body.classList.remove('unauth');
+    document.getElementById('authGate').style.display = 'none';
+  } catch (e) {
+    authShowError('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+    btn.disabled = false; btn.textContent = '확인';
+  }
+}
+
+function authBackToEmail() {
+  authClearError();
+  document.getElementById('authStepEmail').style.display = 'block';
+  document.getElementById('authStepCode').style.display = 'none';
+  document.getElementById('authCode').value = '';
+}
+
+// 페이지 로드 즉시 토큰 검사 — 유효하면 게이트 해제 후 일반 페이지 진입
+(function authInit() {
+  if (authValidate()) {
+    document.body.classList.remove('unauth');
+    document.getElementById('authGate').style.display = 'none';
+    return;
+  }
+  document.getElementById('authEmail').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); authRequest(); }
+  });
+  document.getElementById('authCode').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); authVerify(); }
+  });
+  document.getElementById('authEmail').focus();
+})();
 
 // ── Navigation ────────────────────────────────────────────
 function showPage(id) {
