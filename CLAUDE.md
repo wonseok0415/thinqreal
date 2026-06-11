@@ -876,3 +876,37 @@ data.sort((a,b)=>{
 - 슬롯 차단은 `slot_blocks` 탭이 단일 소스. 메인 페이지 가용성 캐시(15초 TTL)로 차단 직후 최대 15초 지연 가능(의도).
 - ROI 스냅샷 `roi_snapshot`(생성)·`roi_delete`(삭제)는 **토큰 미적용** — ROI 툴이 관리자 iframe 외에 별창(`ThinQ_Real_ROI_Tool.html` 직접 URL)으로도 열려 토큰 전달 경로가 없기 때문. 저위험(시나리오 메모 수준)이라 현행 유지. 향후 보호하려면 ROI 툴에 관리자 토큰 주입 필요(§향후 검토).
 - **재배포 필요**: Apps Script 신규 엔드포인트(admin_auth_*, slot_*) + 토큰 게이트 추가. "배포 관리 → 편집 → 새 버전 → 배포".
+
+## 작업 내역 (2026-06-11 후속 — 텔레그램 예약 알림 연동)
+
+이메일 외에 담당자 그룹 텔레그램으로도 알림을 보내는 보조 채널 추가. 메일 발송과 직교(서로 영향 없음).
+
+### A. 연동 구조
+- **수신 방식**: 그룹 채팅 1개(=chat_id 1개). 담당자 추가/제외는 텔레그램 그룹 멤버 관리로 처리 → 코드 수정 불필요.
+- **알림 트리거 2종**:
+  1. **새 예약 신청** — `handleNewBooking`에서 `sendAdminAlert` 다음에 `sendTelegramNewBooking(data, id)` 호출
+  2. **예약 확정/거절** — `handleUpdateStatus`에서 `sendGuestMail` 다음에 `sendTelegramStatusChange(row, headers, status)` 호출 (시트 원본 행 데이터 사용)
+- **설정 분리**: 봇 토큰·chat_id는 코드/리포에 두지 않고 **Script Property**에만 (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`). 둘 중 하나라도 비어 있으면 silent skip — 다른 동작은 영향 없음.
+- **실패 격리**: `sendTelegramMessage`가 try/catch + `muteHttpExceptions:true`. 텔레그램 장애·미설정 상태에서도 예약 저장과 메일 발송은 정상.
+
+### B. 메시지 포맷 (Telegram HTML parse_mode)
+- 새 예약: `🆕 새 예약 신청` + 📅 일자/회차 + 🎯 목적 + 📝 주제 + 🏢 고객사 + 👤 책임자/인원 + ☎ 연락처 + 관리자 페이지 링크.
+- 상태 변경: `✅ 예약 확정` / `❌ 예약 거절` + 📅/🎯/📝/👤. 시트 원본 값 사용 (POST 페이로드 누락 무관).
+- HTML 이스케이프 헬퍼 `escapeTelegramHtml` — 메일 본문용 `escapeHtml`과 별도. parse_mode HTML 명세상 `& < >` 3종만 변환.
+
+### C. 봇 셋업 절차 (운영자가 1회 수행)
+1. 텔레그램에서 `@BotFather` 시작 → `/newbot` → 봇 이름/유저네임 입력 → **토큰 발급**
+2. 알림용 텔레그램 **그룹 생성** (예: "ThinQ Real 예약 알림") → 담당자 5명 초대 + 봇 초대
+3. 그룹에서 봇에게 아무 메시지 1회 전송 → 브라우저로 `https://api.telegram.org/bot<TOKEN>/getUpdates` 열어 **chat.id**(보통 음수) 확인
+4. Apps Script 프로젝트 설정 → 스크립트 속성 → `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` 등록
+5. 재배포 (편집 모드)
+6. `GET ?type=telegram_test` 호출하여 테스트 메시지 1통 수신 확인
+
+### D. 테스트 엔드포인트
+- `GET ?type=telegram_test` — 봇/chat_id 설정 검증. 미설정 시 `{ok:false, reason:'not_configured'}`. 발송 시 `{ok:true}` + 그룹에 `🧪 ThinQ Real 텔레그램 연동 테스트` 도착.
+
+### 핵심 제약 (다음 세션에서도 유지)
+- `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID`는 **Script Property에만** — 코드·리포에 토큰 커밋 금지(노출 시 즉시 BotFather에서 revoke 가능하지만 사전 방지).
+- 텔레그램 발송은 **이메일 발송과 독립** — 한쪽 실패가 다른 쪽을 막지 않도록 try/catch 격리 구조 유지.
+- 신규 알림 이벤트를 추가하려면 (예: 슬롯 차단) `sendTelegramMessage()`를 직접 호출하면 됨 — 헬퍼는 메시지 문자열만 받음.
+- **재배포 필요**: 신규 엔드포인트(`telegram_test`) + 훅 추가. "배포 관리 → 편집 → 새 버전 → 배포".

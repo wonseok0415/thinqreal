@@ -44,6 +44,14 @@ const AUTH_ADMIN_EMAILS = [
 ];
 const AUTH_ADMIN_TOKEN_TTL_DAYS = 7;        // 관리자 토큰은 7일 (메인보다 짧게)
 
+// ── 텔레그램 알림 (담당자 그룹 채팅) ─────────────────────────
+// Bot 토큰과 그룹 chat_id는 Script Property에 저장 (코드·리포 미커밋).
+//   TELEGRAM_BOT_TOKEN  : @BotFather에서 발급받은 봇 토큰
+//   TELEGRAM_CHAT_ID    : 그룹 채팅 ID (보통 음수, 예: -1001234567890)
+// 둘 중 하나라도 비어 있으면 알림 단계가 silent skip — 다른 동작에는 영향 없음.
+const TELEGRAM_PROP_TOKEN   = 'TELEGRAM_BOT_TOKEN';
+const TELEGRAM_PROP_CHAT_ID = 'TELEGRAM_CHAT_ID';
+
 // R&D 연구 목적 예약자에게 함께 보내는 구비 가전 리스트 (총 45개)
 // [구분, 제품명, 모델명, 제조사]
 const APPLIANCES = [
@@ -141,6 +149,9 @@ function doGet(e) {
   }
   if (type === 'slot_blocks') {
     return handleGetSlotBlocks(e.parameter.date);
+  }
+  if (type === 'telegram_test') {
+    return handleTelegramTest();
   }
 
   return jsonResponse({ error: 'Unknown type' });
@@ -319,6 +330,8 @@ function handleNewBooking(data) {
 
   // 담당자 알림 메일
   sendAdminAlert(data, id);
+  // 담당자 그룹 텔레그램 알림 (Script Property 미설정 시 자동 skip)
+  sendTelegramNewBooking(data, id);
 
   return jsonResponse({ success: true, id });
 }
@@ -334,10 +347,12 @@ function handleUpdateStatus(data) {
   const purposeIdx = headers.indexOf('purpose');
 
   let targetRow = -1;
+  let targetRowData = null;
   let purposeFromSheet = '';
   for (let i = 1; i < rows.length; i++) {
     if (String(rows[i][idIdx]) === String(data.id)) {
       targetRow = i + 1; // Sheets는 1-based
+      targetRowData = rows[i];
       if (purposeIdx >= 0) purposeFromSheet = String(rows[i][purposeIdx] || '');
       break;
     }
@@ -353,6 +368,9 @@ function handleUpdateStatus(data) {
     const mailData = Object.assign({}, data, { purpose: data.purpose || purposeFromSheet });
     sendGuestMail(mailData);
   }
+
+  // 담당자 그룹 텔레그램 알림 — 운영 기록용 (확정/거절 모두)
+  if (targetRowData) sendTelegramStatusChange(targetRowData, headers, data.status);
 
   return jsonResponse({ success: true });
 }
@@ -2302,4 +2320,141 @@ function handleSlotUnblock(data) {
     if (match) { sheet.deleteRow(r + 1); removed++; }
   }
   return jsonResponse({ success: removed > 0, removed: removed });
+}
+
+
+// ============================================================
+//  텔레그램 알림 (담당자 그룹 채팅)
+//  - 봇 토큰과 chat_id는 Script Property에서 읽음
+//  - 미설정 시 silent skip — 운영에 영향 없음
+//  - 실패해도 try/catch로 격리되어 예약 저장/상태 변경에는 영향 없음
+//  - 그룹 셋업: @BotFather → 봇 생성 → 그룹에 봇 초대 → 그룹에서 봇에게
+//    아무 메시지 1회 → https://api.telegram.org/bot<TOKEN>/getUpdates 에서
+//    chat.id 확인 (음수) → Script Property에 등록 후 재배포 (?type=telegram_test 로 확인)
+// ============================================================
+
+function getTelegramConfig() {
+  var props = PropertiesService.getScriptProperties();
+  return {
+    token:  (props.getProperty(TELEGRAM_PROP_TOKEN)   || '').trim(),
+    chatId: (props.getProperty(TELEGRAM_PROP_CHAT_ID) || '').trim()
+  };
+}
+
+// HTML parse_mode에서 보호해야 하는 문자만 이스케이프 (& < >)
+function escapeTelegramHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function sendTelegramMessage(text) {
+  try {
+    var cfg = getTelegramConfig();
+    if (!cfg.token || !cfg.chatId) {
+      Logger.log('[telegram] skip — token or chat_id not set');
+      return { ok: false, reason: 'not_configured' };
+    }
+    var url = 'https://api.telegram.org/bot' + cfg.token + '/sendMessage';
+    var payload = {
+      chat_id: cfg.chatId,
+      text: text,
+      parse_mode: 'HTML',
+      disable_web_page_preview: true
+    };
+    var res = UrlFetchApp.fetch(url, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+    var code = res.getResponseCode();
+    if (code === 200) {
+      Logger.log('[telegram] sent ok');
+      return { ok: true };
+    }
+    Logger.log('[telegram] HTTP ' + code + ' ' + res.getContentText());
+    return { ok: false, reason: 'http_' + code, body: res.getContentText() };
+  } catch (e) {
+    Logger.log('[telegram] error ' + (e && e.message ? e.message : e));
+    return { ok: false, reason: 'exception' };
+  }
+}
+
+// 새 예약 신청 알림 — handleNewBooking에서 호출
+function sendTelegramNewBooking(data, id) {
+  var e = escapeTelegramHtml;
+  var slotLabel = data.slotLabel || (data.slot ? data.slot + '회차' : '');
+  var subjLabelMap = {
+    'customer':       '고객/고객사',
+    'rd':             '프로젝트명',
+    'internal-event': '행사명',
+    'external-event': '행사명',
+    'content':        '촬영명',
+    'other':          '제목'
+  };
+  var subjLabel = subjLabelMap[data.purposeKey] || '제목';
+  var subject   = data.subject || data.org || '';
+  var company   = data.clientCompany || '';
+  var count     = data.count || '';
+
+  var lines = [];
+  lines.push('🆕 <b>새 예약 신청</b>');
+  lines.push('');
+  lines.push('📅 ' + e(data.date) + '  ' + e(slotLabel));
+  lines.push('🎯 ' + e(data.purpose));
+  if (subject) lines.push('📝 ' + e(subjLabel) + ': ' + e(subject));
+  if (company) lines.push('🏢 ' + e(company));
+  lines.push('👤 ' + e(data.name) + (count ? '  ·  총 ' + e(count) + '명' : ''));
+  if (data.phone) lines.push('☎ ' + e(data.phone));
+  lines.push('');
+  lines.push('<a href="https://thinqreal.com/thinqreal_admin.html">관리자 페이지에서 승인/거절</a>');
+
+  sendTelegramMessage(lines.join('\n'));
+}
+
+// 예약 확정/거절 알림 — handleUpdateStatus에서 호출
+//  row: 시트 원본 행 배열, headers: 헤더 배열, status: '확정' | '거절' 등
+function sendTelegramStatusChange(row, headers, status) {
+  var e = escapeTelegramHtml;
+  function get(name) {
+    var i = headers.indexOf(name);
+    if (i < 0) return '';
+    var v = row[i];
+    if (Object.prototype.toString.call(v) === '[object Date]') return normalizeDate(v);
+    return String(v == null ? '' : v);
+  }
+  var date      = get('date');
+  var slotLabel = get('slotLabel');
+  var purpose   = get('purpose');
+  var subject   = get('subject') || get('org');
+  var name      = get('name');
+
+  var header;
+  if (status === '확정')      header = '✅ <b>예약 확정</b>';
+  else if (status === '거절') header = '❌ <b>예약 거절</b>';
+  else                         header = 'ℹ️ <b>상태 변경</b> — ' + e(status);
+
+  var lines = [];
+  lines.push(header);
+  lines.push('');
+  lines.push('📅 ' + e(date) + '  ' + e(slotLabel));
+  if (purpose) lines.push('🎯 ' + e(purpose));
+  if (subject) lines.push('📝 ' + e(subject));
+  if (name)    lines.push('👤 ' + e(name));
+
+  sendTelegramMessage(lines.join('\n'));
+}
+
+// GET ?type=telegram_test — 봇·chat_id 설정 검증 (테스트 메시지 1통 발송)
+function handleTelegramTest() {
+  var cfg = getTelegramConfig();
+  if (!cfg.token || !cfg.chatId) {
+    return jsonResponse({ ok: false, reason: 'not_configured',
+      hint: 'Script Property TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID 확인' });
+  }
+  var stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+  var res = sendTelegramMessage('🧪 <b>ThinQ Real 텔레그램 연동 테스트</b>\n' + stamp);
+  return jsonResponse(res);
 }
