@@ -47,7 +47,7 @@ images/{파일명}
 | Sheets ID | `1-Z158TV46MtSEArir9bW4h4KQ438NCuhb3qaGyOooA0` |
 | 시트 탭명 | `bookings` (변경 금지) |
 | Apps Script URL | `https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec` |
-| 관리자 비밀번호 | `thinqreal2026` (3명 공유) |
+| 관리자 인증 | **이메일 코드 (명단 한정)** — 공유 비밀번호(`thinqreal2026`) 폐기. `AUTH_ADMIN_EMAILS` 4명만 로그인·삭제·슬롯 제어 가능 (2026-06-11 §접근 통제 강화 참조) |
 | 담당자 알림 메일 수신 | 이철호(`ch275.lee@lge.com`), 서문수(`moonsu.seo@lge.com`), 김현진(`hj8462.kim@lge.com`) — 콤마 구분으로 일괄 발송 |
 | CC 수신자 | `kang.wonseok@lge.com` (담당자 알림·예약자 메일 모두에 CC) |
 
@@ -840,3 +840,39 @@ data.sort((a,b)=>{
 - 보유 기간 "방문일로부터 3년"은 처리방침(privacy.html §3)과 폼 체크박스 문구 양쪽에 기재 — 변경 시 두 곳 동기화.
 - 개인정보 보호 담당(이철호 책임) 변경 시 privacy.html §7 갱신.
 - 두 동의 체크박스는 **필수** — 미체크 차단 로직을 임의로 해제하지 말 것 (파손·분실 동의와 동일 규칙).
+
+## 작업 내역 (2026-06-11 후속 — 관리자 보안 강화 + 권한 통제 + 슬롯 제어)
+
+침투테스트 대응 + 팀장 요청. 세 가지를 하나의 토큰 기반 구조로 통합 구현.
+
+### ⚠️ 배경 — 기존 관리자 "보안"의 실체
+- `const ADMIN_PW = 'thinqreal2026'`이 **클라이언트 HTML에 평문 노출** (소스 보기로 즉시 탈취).
+- 더 심각: **백엔드(Apps Script)에 인증이 전혀 없었음**. SCRIPT_URL만 알면 비밀번호 없이 `?type=bookings`로 전 직원 개인정보 조회, `POST booking_delete`로 임의 삭제 가능. 비밀번호 게이트는 화면만 가리는 눈속임이었음.
+
+### A. 관리자 인증 — 이메일 코드 (명단 한정)
+- 공유 비밀번호 폐기 → 관리자 본인 `@lge.com` 이메일 + 6자리 코드 (메인 게이트 흐름 재사용, 단 허용 대상을 명단으로 한정).
+- **단일 소스**: Apps Script `AUTH_ADMIN_EMAILS` (kang.wonseok / ch275.lee / moonsu.seo / hj8462.kim 4명). 명단 변경 시 이 배열만 수정.
+- 엔드포인트: `?type=admin_auth_request` / `?type=admin_auth_verify`. 코드 캐시 키는 `admin_code_<email>` (메인 게이트 `auth_code_`와 분리).
+- 관리자 토큰은 payload `{email, exp, admin:true}` HMAC-SHA256 서명, **7일 유효**(`AUTH_ADMIN_TOKEN_TTL_DAYS`, 메인 30일보다 짧게). `localStorage('thinqreal_admin_token')`.
+
+### B. 백엔드 권한 통제 (핵심 — 화면 우회 방어)
+- `doPost`에서 파괴적 작업(`update`·`booking_delete`·`roi_delete`·`slot_block`·`slot_unblock`)은 **모두 `verifyAdminToken(data.token)` 통과 필수**. 명단 외·만료·위조 토큰은 백엔드가 거부.
+- `?type=bookings`(개인정보 포함)도 토큰 필수 — `handleGetBookings(token)`. 무토큰 조회 차단 → 개인정보 영향평가 관점에서도 개선.
+- `verifyAuthToken`: 서명 재계산 + 상수시간 비교(`constantTimeEquals`) + exp 검사. `verifyAdminToken`: 추가로 `admin` 플래그 + 명단 포함 검사.
+- 관리자 페이지의 모든 파괴적 fetch에 `token:adminToken()` 동반. `mode:'no-cors'`라 응답은 못 읽지만(낙관적 UI), 백엔드가 진짜 게이트. 클라이언트도 `adminTokenValid()` 선검사로 만료 시 `adminSessionExpired()` 로그아웃.
+
+### C. 슬롯 제어 (신규 기능)
+- 관리자가 날짜·회차를 "예약 불가"로 잠금 → 메인 예약 페이지에 즉시 반영. 내부 사정으로 예약 못 받는 시점 대응.
+- 저장: 신규 시트 탭 **`slot_blocks`** (컬럼 `id`,`date`,`slot`,`timestamp`,`by`,`reason`). 첫 호출 시 `getSlotBlocksSheet()`가 자동 생성.
+- 엔드포인트: `GET ?type=slot_blocks[&date=]` (현황, 비민감) / `POST slot_block` `{date,slot,reason,token}` / `POST slot_unblock` `{date,slot,token}` 또는 `{id,token}`.
+- `handleAvailability` 응답에 **`blockedSlots` 추가** (기존 `bookedSlots`·`pendingCounts` 호환 유지).
+- 메인 페이지(`index.html`) `applyAvailability(booked, pendingCounts, blocked)`: 차단이 **최우선** — 예약/대기와 무관하게 "예약 불가"(중립 회색, 마감 적색과 구분). `.slot-item.blocked` CSS. 선택돼 있던 회차는 자동 해제.
+- 관리자 UI: 사이드바 "슬롯 제어" 탭(🚫). 날짜 선택(오늘/내일/모레 퀵버튼) → 회차별 상태(예약 가능/확정 있음/대기/차단) + 차단·해제 토글. 하단에 "예정된 차단" 칩 목록(과거 차단은 숨김).
+
+### 핵심 제약 (다음 세션에서도 유지)
+- 관리자 명단 단일 소스 = Apps Script `AUTH_ADMIN_EMAILS`. 추가/제외 시 이 배열만 수정 후 재배포 (코드 외 분리 안 함 — 4명 고정 운영).
+- **모든 파괴적 작업은 백엔드 토큰 검증이 진짜 방어선**. 클라이언트 게이트(화면)는 편의일 뿐 — 백엔드 `verifyAdminToken` 게이트를 임의로 우회·약화하지 말 것.
+- `?type=bookings`는 토큰 필수 — 관리자 페이지는 `&token=adminToken()` 동반. 토큰 없으면 `{error:'unauthorized'}` 반환되며 페이지는 `adminSessionExpired()`로 로그인 복귀.
+- 슬롯 차단은 `slot_blocks` 탭이 단일 소스. 메인 페이지 가용성 캐시(15초 TTL)로 차단 직후 최대 15초 지연 가능(의도).
+- ROI 스냅샷 `roi_snapshot`(생성)·`roi_delete`(삭제)는 **토큰 미적용** — ROI 툴이 관리자 iframe 외에 별창(`ThinQ_Real_ROI_Tool.html` 직접 URL)으로도 열려 토큰 전달 경로가 없기 때문. 저위험(시나리오 메모 수준)이라 현행 유지. 향후 보호하려면 ROI 툴에 관리자 토큰 주입 필요(§향후 검토).
+- **재배포 필요**: Apps Script 신규 엔드포인트(admin_auth_*, slot_*) + 토큰 게이트 추가. "배포 관리 → 편집 → 새 버전 → 배포".

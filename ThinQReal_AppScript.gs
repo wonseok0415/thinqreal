@@ -16,6 +16,7 @@ const SHEET_ID   = '1-Z158TV46MtSEArir9bW4h4KQ438NCuhb3qaGyOooA0';  // ← Sheet
 const SHEET_NAME = 'bookings';               // 시트 탭 이름 (예약)
 const ROI_SHEET_NAME = 'roi_snapshots';      // 시트 탭 이름 (ROI 시나리오 이력)
 const ARTICLES_SHEET_NAME = 'monthly_articles'; // 시트 탭 이름 (월간 리포트 수동 큐레이션 기사)
+const SLOT_BLOCKS_SHEET_NAME = 'slot_blocks';   // 시트 탭 이름 (관리자 슬롯 차단)
 // 신규 예약 알림을 받는 담당자들 (콤마로 구분, MailApp이 다중 수신 처리)
 const ADMIN_EMAILS = 'ch275.lee@lge.com, moonsu.seo@lge.com, hj8462.kim@lge.com';
 const CC_EMAIL     = 'kang.wonseok@lge.com';  // 참조 수신자 (시스템 동작 모니터링)
@@ -30,6 +31,17 @@ const AUTH_ALLOWED_DOMAINS = ['lge.com'];
 const AUTH_CODE_TTL_SEC   = 10 * 60;        // 10분
 const AUTH_TOKEN_TTL_DAYS = 30;             // 30일 쿠키
 const AUTH_COOLDOWN_SEC   = 60;             // 60초 재요청 방지
+
+// ── 관리자 접근 통제 ─────────────────────────────────────────
+// 이 명단의 메일만 관리자 인증·삭제·승인·슬롯 제어를 수행할 수 있다.
+// 메인 사이트 게이트(@lge.com 전체)보다 강하게 한정한다.
+const AUTH_ADMIN_EMAILS = [
+  'kang.wonseok@lge.com',  // 강원석 — 시스템 운영
+  'ch275.lee@lge.com',     // 이철호 책임
+  'moonsu.seo@lge.com',    // 서문수 선임
+  'hj8462.kim@lge.com'     // 김현진 선임
+];
+const AUTH_ADMIN_TOKEN_TTL_DAYS = 7;        // 관리자 토큰은 7일 (메인보다 짧게)
 
 // R&D 연구 목적 예약자에게 함께 보내는 구비 가전 리스트 (총 45개)
 // [구분, 제품명, 모델명, 제조사]
@@ -94,7 +106,7 @@ function doGet(e) {
     return handleAvailability(e.parameter.date);
   }
   if (type === 'bookings') {
-    return handleGetBookings();
+    return handleGetBookings(e.parameter.token);
   }
   if (type === 'roi_snapshots') {
     return handleGetRoiSnapshots();
@@ -120,6 +132,15 @@ function doGet(e) {
   if (type === 'auth_verify') {
     return handleAuthVerify(e.parameter.email, e.parameter.code);
   }
+  if (type === 'admin_auth_request') {
+    return handleAdminAuthRequest(e.parameter.email);
+  }
+  if (type === 'admin_auth_verify') {
+    return handleAdminAuthVerify(e.parameter.email, e.parameter.code);
+  }
+  if (type === 'slot_blocks') {
+    return handleGetSlotBlocks(e.parameter.date);
+  }
 
   return jsonResponse({ error: 'Unknown type' });
 }
@@ -139,7 +160,7 @@ function handleGetAppliances() {
 // 대기중은 마감으로 처리하지 않되, 회차별 대기 건수를 별도로 반환해
 // 메인 페이지에서 "N팀 예약 중" 안내로 노출할 수 있게 한다.
 function handleAvailability(date) {
-  if (!date) return jsonResponse({ bookedSlots: [], pendingCounts: {} });
+  if (!date) return jsonResponse({ bookedSlots: [], pendingCounts: {}, blockedSlots: [] });
 
   const sheet = getSheet();
   const rows  = sheet.getDataRange().getValues();
@@ -182,7 +203,21 @@ function handleAvailability(date) {
     });
   }
 
-  return jsonResponse({ bookedSlots: [...booked], pendingCounts });
+  // 관리자가 차단한 슬롯을 합류 (운영 사정상 예약 불가)
+  const blocked = [];
+  try {
+    const bSheet = getSlotBlocksSheet();
+    const bRows  = bSheet.getDataRange().getValues();
+    const bH     = bRows[0];
+    const bdi = bH.indexOf('date'), bsi = bH.indexOf('slot');
+    for (let i = 1; i < bRows.length; i++) {
+      if (normalizeDate(bRows[i][bdi]) === normalizeDate(date)) {
+        blocked.push(Number(bRows[i][bsi]));
+      }
+    }
+  } catch (e) { /* slot_blocks 시트 미생성 등은 무시 */ }
+
+  return jsonResponse({ bookedSlots: [...booked], pendingCounts, blockedSlots: blocked });
 }
 
 // 날짜 값을 YYYY-MM-DD 문자열로 정규화 (Date 객체·ISO 문자열·일반 문자열 모두 처리)
@@ -198,7 +233,12 @@ function normalizeDate(v) {
 
 
 // ── 전체 예약 목록 조회 (관리자) ────────────────────────────
-function handleGetBookings() {
+// 개인정보(이름·전화·이메일)를 포함하므로 관리자 토큰 필수.
+function handleGetBookings(token) {
+  const admin = verifyAdminToken(token);
+  if (!admin.ok) {
+    return jsonResponse({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
+  }
   const sheet   = getSheet();
   const rows    = sheet.getDataRange().getValues();
   const headers = rows[0];
@@ -237,10 +277,23 @@ function doPost(e) {
   }
 
   if (data.type === 'booking') return handleNewBooking(data);
-  if (data.type === 'update')  return handleUpdateStatus(data);
-  if (data.type === 'booking_delete') return handleDeleteBooking(data);
   if (data.type === 'roi_snapshot') return handleNewRoiSnapshot(data);
+  // roi_delete는 ROI 툴(별창 포함)에서 호출돼 토큰 경로가 없어 게이트하지 않음 (저위험, §향후 검토)
   if (data.type === 'roi_delete')   return handleDeleteRoiSnapshot(data);
+
+  // ── 관리자 토큰이 필요한 파괴적/운영 작업 ──
+  // 클라이언트 화면을 우회해도 백엔드가 토큰을 검증하므로 명단 외 요청은 거부된다.
+  if (data.type === 'update' || data.type === 'booking_delete' ||
+      data.type === 'slot_block' || data.type === 'slot_unblock') {
+    var admin = verifyAdminToken(data.token);
+    if (!admin.ok) {
+      return jsonResponse({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
+    }
+    if (data.type === 'update')         return handleUpdateStatus(data);
+    if (data.type === 'booking_delete') return handleDeleteBooking(data, admin.email);
+    if (data.type === 'slot_block')     return handleSlotBlock(data, admin.email);
+    if (data.type === 'slot_unblock')   return handleSlotUnblock(data);
+  }
 
   return jsonResponse({ error: 'Unknown type' });
 }
@@ -305,7 +358,8 @@ function handleUpdateStatus(data) {
 
 
 // 예약 영구 삭제 — id로 행을 찾아 제거. 메일은 발송하지 않음 (테스트·실수 데이터 정리용).
-function handleDeleteBooking(data) {
+// 관리자 토큰 검증을 통과한 호출만 진입한다(doPost 게이트). byEmail은 감사 로그용.
+function handleDeleteBooking(data, byEmail) {
   const sheet   = getSheet();
   const rows    = sheet.getDataRange().getValues();
   const headers = rows[0];
@@ -1974,13 +2028,67 @@ function handleAuthVerify(email, code) {
 }
 
 // HMAC-SHA256 서명 토큰: base64url(payload).base64url(signature)
-function signAuthToken(email, exp) {
-  var payload = JSON.stringify({ email: email, exp: exp });
+// payload = { email, exp, admin } — admin이 true면 관리자 권한 토큰.
+function signAuthToken(email, exp, isAdmin) {
+  var payload = JSON.stringify({ email: email, exp: exp, admin: !!isAdmin });
   var payloadB64 = base64Url(Utilities.newBlob(payload).getBytes());
   var secret = getAuthSecret();
   var sigBytes = Utilities.computeHmacSha256Signature(payloadB64, secret);
   var sigB64 = base64Url(sigBytes);
   return payloadB64 + '.' + sigB64;
+}
+
+// 토큰 서명·만료 검증. 유효하면 { ok:true, email, admin }, 아니면 { ok:false, reason }.
+function verifyAuthToken(token) {
+  if (!token || typeof token !== 'string' || token.indexOf('.') < 0) {
+    return { ok: false, reason: 'no_token' };
+  }
+  var parts = token.split('.');
+  if (parts.length !== 2) return { ok: false, reason: 'malformed' };
+  var payloadB64 = parts[0], sigB64 = parts[1];
+
+  // 서명 재계산 후 상수 비교
+  var secret = getAuthSecret();
+  var expected = base64Url(Utilities.computeHmacSha256Signature(payloadB64, secret));
+  if (!constantTimeEquals(expected, sigB64)) return { ok: false, reason: 'bad_signature' };
+
+  var payload;
+  try {
+    payload = JSON.parse(base64UrlDecodeToString(payloadB64));
+  } catch (e) {
+    return { ok: false, reason: 'bad_payload' };
+  }
+  if (!payload || !payload.exp || Number(payload.exp) <= Date.now()) {
+    return { ok: false, reason: 'expired' };
+  }
+  return { ok: true, email: String(payload.email || '').toLowerCase(), admin: !!payload.admin };
+}
+
+// 관리자 토큰 검증 — 서명 유효 + admin 플래그 + 명단 포함까지 모두 만족해야 통과.
+function verifyAdminToken(token) {
+  var v = verifyAuthToken(token);
+  if (!v.ok) return v;
+  if (!v.admin) return { ok: false, reason: 'not_admin' };
+  if (AUTH_ADMIN_EMAILS.map(function(s){ return s.toLowerCase(); }).indexOf(v.email) < 0) {
+    return { ok: false, reason: 'not_in_allowlist' };
+  }
+  return { ok: true, email: v.email };
+}
+
+// 타이밍 공격 완화용 상수 시간 비교
+function constantTimeEquals(a, b) {
+  a = String(a); b = String(b);
+  if (a.length !== b.length) return false;
+  var diff = 0;
+  for (var i = 0; i < a.length; i++) diff |= (a.charCodeAt(i) ^ b.charCodeAt(i));
+  return diff === 0;
+}
+
+// base64url → 문자열
+function base64UrlDecodeToString(s) {
+  var b64 = s.replace(/-/g, '+').replace(/_/g, '/');
+  while (b64.length % 4) b64 += '=';
+  return Utilities.newBlob(Utilities.base64Decode(b64)).getDataAsString();
 }
 
 function getAuthSecret() {
@@ -2038,4 +2146,159 @@ function buildAuthCodeHtml(code) {
         '</td></tr>' +
       '</table>' +
     '</div>';
+}
+
+
+// ============================================================
+//  관리자 인증 — 이메일 코드 (명단 한정)
+//  메인 게이트와 동일한 흐름이나 허용 대상을 AUTH_ADMIN_EMAILS로 한정.
+// ============================================================
+function isAdminEmail(email) {
+  if (!email) return false;
+  var s = String(email).trim().toLowerCase();
+  return AUTH_ADMIN_EMAILS.map(function(x){ return x.toLowerCase(); }).indexOf(s) >= 0;
+}
+
+function handleAdminAuthRequest(email) {
+  email = (email || '').trim().toLowerCase();
+  if (!isAdminEmail(email)) {
+    // 명단에 없는 메일은 "발송됨"과 구분되지 않는 응답으로 열거 공격을 약하게 방지하되,
+    // 운영 편의를 위해 명확한 안내를 준다(내부 도구라 열거 위험이 낮음).
+    return jsonResponse({ ok: false, error: 'not_admin',
+      message: '관리자 권한이 없는 계정입니다. 운영 담당자에게 문의해 주세요.' });
+  }
+
+  var cache = CacheService.getScriptCache();
+  var coolKey = 'admin_cool_' + email;
+  if (cache.get(coolKey)) {
+    return jsonResponse({ ok: false, error: 'cooldown', message: '잠시 후 다시 시도해 주세요. (60초)' });
+  }
+
+  var code = '';
+  for (var i = 0; i < 6; i++) code += Math.floor(Math.random() * 10);
+  cache.put('admin_code_' + email, code, AUTH_CODE_TTL_SEC);
+  cache.put(coolKey, '1', AUTH_COOLDOWN_SEC);
+
+  try {
+    MailApp.sendEmail({
+      to: email,
+      subject: '[ThinQ Real] 관리자 페이지 인증 코드',
+      body: buildAuthCodeText(code),
+      htmlBody: buildAuthCodeHtml(code),
+      name: 'ThinQ Real'
+    });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: 'mail_failed', message: '메일 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.' });
+  }
+  return jsonResponse({ ok: true, ttl: AUTH_CODE_TTL_SEC });
+}
+
+function handleAdminAuthVerify(email, code) {
+  email = (email || '').trim().toLowerCase();
+  code  = (code  || '').trim();
+  if (!isAdminEmail(email)) return jsonResponse({ ok: false, error: 'not_admin' });
+  if (!/^\d{6}$/.test(code)) {
+    return jsonResponse({ ok: false, error: 'invalid_code', message: '인증 코드는 6자리 숫자입니다.' });
+  }
+
+  var cache = CacheService.getScriptCache();
+  var stored = cache.get('admin_code_' + email);
+  if (!stored) {
+    return jsonResponse({ ok: false, error: 'code_expired', message: '인증 코드가 만료되었습니다. 다시 요청해 주세요.' });
+  }
+  if (stored !== code) {
+    return jsonResponse({ ok: false, error: 'code_mismatch', message: '인증 코드가 일치하지 않습니다.' });
+  }
+  cache.remove('admin_code_' + email);
+
+  var exp = Date.now() + AUTH_ADMIN_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;
+  var token = signAuthToken(email, exp, true);  // admin 스코프
+  return jsonResponse({ ok: true, token: token, email: email, exp: exp });
+}
+
+
+// ============================================================
+//  슬롯 제어 — 관리자가 날짜·회차를 "예약 불가"로 잠금
+//  bookings와 별개의 slot_blocks 탭에 보관. 메인 예약 페이지의
+//  availability 응답에 blockedSlots로 합류해 즉시 반영된다.
+// ============================================================
+function getSlotBlocksSheet() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var sheet = ss.getSheetByName(SLOT_BLOCKS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SLOT_BLOCKS_SHEET_NAME);
+    var HEADERS = ['id', 'date', 'slot', 'timestamp', 'by', 'reason'];
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+    var hr = sheet.getRange(1, 1, 1, HEADERS.length);
+    hr.setBackground('#3a5035'); hr.setFontColor('#ffffff'); hr.setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+// 슬롯 차단 목록 조회 — date 지정 시 해당 날짜만, 아니면 전체.
+// 관리자 페이지가 읽으며(GET, 토큰 없이 차단 현황 자체는 민감정보 아님), 메인 페이지는 availability로 받는다.
+function handleGetSlotBlocks(date) {
+  var sheet = getSlotBlocksSheet();
+  var rows = sheet.getDataRange().getValues();
+  var headers = rows[0];
+  var di = headers.indexOf('date'), si = headers.indexOf('slot');
+  var ii = headers.indexOf('id'), bi = headers.indexOf('by'), ri = headers.indexOf('reason'), ti = headers.indexOf('timestamp');
+  var out = [];
+  for (var r = 1; r < rows.length; r++) {
+    var rowDate = normalizeDate(rows[r][di]);
+    if (!rowDate) continue;
+    if (date && rowDate !== normalizeDate(date)) continue;
+    out.push({
+      id: String(rows[r][ii] || ''),
+      date: rowDate,
+      slot: Number(rows[r][si]),
+      by: String(rows[r][bi] || ''),
+      reason: String(rows[r][ri] || ''),
+      timestamp: rows[r][ti] ? String(rows[r][ti]) : ''
+    });
+  }
+  return jsonResponse({ blocks: out });
+}
+
+// 슬롯 차단 추가. 이미 같은 date+slot 차단이 있으면 중복 없이 무시.
+function handleSlotBlock(data, byEmail) {
+  var date = normalizeDate(data.date);
+  var slot = Number(data.slot);
+  if (!date || !(slot >= 1 && slot <= 3)) {
+    return jsonResponse({ error: 'invalid_params' });
+  }
+  var sheet = getSlotBlocksSheet();
+  var rows = sheet.getDataRange().getValues();
+  var headers = rows[0];
+  var di = headers.indexOf('date'), si = headers.indexOf('slot');
+  for (var r = 1; r < rows.length; r++) {
+    if (normalizeDate(rows[r][di]) === date && Number(rows[r][si]) === slot) {
+      return jsonResponse({ success: true, duplicate: true });  // 이미 차단됨
+    }
+  }
+  sheet.appendRow([String(Date.now()), date, slot, new Date().toISOString(), byEmail || '', data.reason || '']);
+  return jsonResponse({ success: true });
+}
+
+// 슬롯 차단 해제 — id 또는 date+slot으로 매칭되는 행 제거.
+function handleSlotUnblock(data) {
+  var sheet = getSlotBlocksSheet();
+  var rows = sheet.getDataRange().getValues();
+  var headers = rows[0];
+  var ii = headers.indexOf('id'), di = headers.indexOf('date'), si = headers.indexOf('slot');
+  var date = data.date ? normalizeDate(data.date) : null;
+  var slot = data.slot != null ? Number(data.slot) : null;
+  // 뒤에서부터 삭제(행 인덱스 밀림 방지)
+  var removed = 0;
+  for (var r = rows.length - 1; r >= 1; r--) {
+    var match = false;
+    if (data.id) {
+      match = (String(rows[r][ii]) === String(data.id));
+    } else if (date && slot != null) {
+      match = (normalizeDate(rows[r][di]) === date && Number(rows[r][si]) === slot);
+    }
+    if (match) { sheet.deleteRow(r + 1); removed++; }
+  }
+  return jsonResponse({ success: removed > 0, removed: removed });
 }

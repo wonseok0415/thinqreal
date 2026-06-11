@@ -285,6 +285,33 @@ body {
 .page-header h1 { font-size:clamp(28px,4vw,40px); font-weight:600; letter-spacing:-0.03em; line-height:1.1; }
 .page-header p { font-size:var(--t-subhead); color:var(--c-label-2); margin-top:var(--sp-4); letter-spacing:-0.016em; }
 
+/* ── 슬롯 제어 ── */
+.slot-ctrl-card { background:var(--c-bg); border:1px solid var(--c-separator); border-radius:var(--radius-lg); padding:var(--sp-24); max-width:640px; }
+.slot-ctrl-label { display:block; font-size:var(--t-caption); font-weight:500; color:var(--c-label-2); letter-spacing:0.02em; margin-bottom:var(--sp-8); }
+.slot-ctrl-date { min-height:44px; padding:0 var(--sp-12); background:var(--c-fill); border:1.5px solid transparent; border-radius:var(--radius-sm); font-size:var(--t-subhead); color:var(--c-label); font-family:inherit; outline:none; max-width:240px; }
+.slot-ctrl-date:focus { border-color:var(--c-accent); background:var(--c-bg); }
+.slot-ctrl-quick { display:flex; flex-wrap:wrap; gap:var(--sp-8); margin-top:var(--sp-12); }
+.slot-ctrl-quick button { font-size:var(--t-caption); padding:6px 12px; border:1px solid var(--c-separator); background:var(--c-bg); border-radius:980px; cursor:pointer; color:var(--c-label-2); font-family:inherit; transition:all .15s var(--ease); }
+.slot-ctrl-quick button:hover { border-color:var(--c-accent); color:var(--c-accent); }
+.slot-ctrl-subtitle { font-size:var(--t-subhead); font-weight:600; color:var(--c-label); margin-bottom:var(--sp-12); }
+.slot-ctrl-empty { font-size:var(--t-subhead); color:var(--c-label-3); }
+.slot-row { display:flex; align-items:center; justify-content:space-between; gap:var(--sp-12); padding:var(--sp-16); border:1px solid var(--c-separator); border-radius:var(--radius-md); margin-top:var(--sp-12); }
+.slot-row-info { display:flex; flex-direction:column; gap:2px; }
+.slot-row-name { font-size:var(--t-subhead); font-weight:600; color:var(--c-label); }
+.slot-row-state { font-size:var(--t-caption); color:var(--c-label-2); }
+.slot-row.is-blocked { background:rgba(255,59,48,0.05); border-color:rgba(255,59,48,0.25); }
+.slot-row.is-blocked .slot-row-state { color:#c92419; font-weight:600; }
+.slot-row.is-booked { background:var(--c-fill); }
+.slot-btn-block, .slot-btn-unblock { min-height:38px; padding:0 var(--sp-16); border-radius:var(--radius-sm); font-size:var(--t-footnote); font-weight:600; font-family:inherit; cursor:pointer; border:1px solid transparent; transition:all .15s var(--ease); white-space:nowrap; }
+.slot-btn-block { background:#fff; color:#c92419; border-color:rgba(255,59,48,0.4); }
+.slot-btn-block:hover { background:#ff3b30; color:#fff; border-color:#ff3b30; }
+.slot-btn-unblock { background:#fff; color:var(--c-accent); border-color:var(--c-accent-mid); }
+.slot-btn-unblock:hover { background:var(--c-accent); color:#fff; }
+.slot-btn-block:disabled, .slot-btn-unblock:disabled { opacity:.5; cursor:not-allowed; }
+.slot-chip { display:inline-flex; align-items:center; gap:var(--sp-8); background:rgba(255,59,48,0.07); border:1px solid rgba(255,59,48,0.25); border-radius:980px; padding:6px 8px 6px 14px; margin:0 var(--sp-8) var(--sp-8) 0; font-size:var(--t-footnote); color:#c92419; }
+.slot-chip button { border:none; background:rgba(255,59,48,0.15); color:#c92419; width:22px; height:22px; border-radius:50%; cursor:pointer; font-size:13px; line-height:1; }
+.slot-chip button:hover { background:#ff3b30; color:#fff; }
+
 /* ── KPIs ── */
 .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:var(--sp-16); margin-bottom:var(--sp-32); }
 .kpi-card { background:var(--c-bg); border-radius:var(--radius-md); padding:var(--sp-20) var(--sp-24); border:1px solid var(--c-separator); }
@@ -809,17 +836,35 @@ body {
 </head>
 <body>
 
-<!-- Login -->
+<!-- Login (관리자 이메일 코드 인증) -->
 <div class="login-screen" id="loginScreen">
   <div class="login-card">
     <div class="login-logo">ThinQ Real</div>
     <div class="login-subtitle">Admin Dashboard</div>
-    <label class="login-label">비밀번호</label>
-    <input type="password" class="login-input" id="pwInput"
-      placeholder="비밀번호를 입력하세요"
-      onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="login-btn" onclick="doLogin()">로그인</button>
+
+    <div id="admStepEmail">
+      <label class="login-label">관리자 이메일</label>
+      <input type="email" class="login-input" id="admEmail"
+        placeholder="yourname@lge.com" autocomplete="email"
+        onkeydown="if(event.key==='Enter')admRequest()">
+      <button class="login-btn" id="admRequestBtn" onclick="admRequest()">인증 코드 받기</button>
+    </div>
+
+    <div id="admStepCode" style="display:none;">
+      <label class="login-label" id="admCodeLabel">인증 코드</label>
+      <input type="text" class="login-input" id="admCode" inputmode="numeric" maxlength="6"
+        placeholder="000000" autocomplete="one-time-code"
+        onkeydown="if(event.key==='Enter')admVerify()"
+        style="text-align:center;letter-spacing:8px;font-size:20px;font-weight:600;">
+      <button class="login-btn" id="admVerifyBtn" onclick="admVerify()">로그인</button>
+      <button class="login-btn" onclick="admBack()"
+        style="background:transparent;color:var(--c-label-2);min-height:40px;margin-top:var(--sp-8);font-weight:400;">← 이메일 다시 입력</button>
+    </div>
+
     <div class="login-err" id="loginErr"></div>
+    <div style="font-size:var(--t-caption);color:var(--c-label-3);text-align:center;margin-top:var(--sp-16);line-height:1.5;">
+      등록된 운영 담당자만 접근할 수 있습니다.
+    </div>
   </div>
 </div>
 
@@ -836,6 +881,9 @@ body {
     <div class="nav-item active" id="nav-bookings" onclick="switchTab('bookings')">
       <span class="nav-item-icon">📋</span>예약 관리
       <span class="nav-badge" id="pendingBadge" style="display:none;">0</span>
+    </div>
+    <div class="nav-item" id="nav-slots" onclick="switchTab('slots')">
+      <span class="nav-item-icon">🚫</span>슬롯 제어
     </div>
     <div class="nav-item" id="nav-stats" onclick="switchTab('stats')">
       <span class="nav-item-icon">📊</span>통계
@@ -947,6 +995,26 @@ body {
             <tr><td colspan="9"><div class="empty-state"><div class="empty-state-spinner"></div><div class="empty-state-text">서버에서 예약 데이터를 가져오는 중…<br><span style="font-size:11px;color:var(--c-label-3);">첫 요청은 Apps Script 콜드 스타트로 1~3초 걸릴 수 있습니다.</span></div></div></td></tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- Slot control -->
+    <div class="tab-panel" id="tab-slots">
+      <div class="page-header">
+        <h1>슬롯 제어</h1>
+        <p>운영 사정으로 예약을 받지 않을 날짜·회차를 차단합니다. 차단된 회차는 메인 예약 페이지에 즉시 "예약 불가"로 표시됩니다.</p>
+      </div>
+      <div class="slot-ctrl-card">
+        <label class="slot-ctrl-label">날짜 선택</label>
+        <input type="date" id="slotBlockDate" class="slot-ctrl-date" onchange="loadSlotBlocks()">
+        <div class="slot-ctrl-quick" id="slotBlockQuick"></div>
+        <div id="slotBlockList">
+          <p class="slot-ctrl-empty">날짜를 선택하면 회차별 상태와 차단 토글이 표시됩니다.</p>
+        </div>
+      </div>
+      <div class="slot-ctrl-card" style="margin-top:var(--sp-20);">
+        <div class="slot-ctrl-subtitle">현재 차단된 회차</div>
+        <div id="slotBlockAll"><p class="slot-ctrl-empty">불러오는 중…</p></div>
       </div>
     </div>
 
@@ -1818,8 +1886,97 @@ body {
 
 <script>
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec';
-const ADMIN_PW   = 'thinqreal2026';
 const SLOT_LABELS = { '1':'1회차  09:00–10:30', '2':'2회차  13:00–14:30', '3':'3회차  15:00–16:30' };
+
+// ── 관리자 인증 (이메일 코드, 명단 한정) ───────────────────
+// 공유 비밀번호를 폐기하고, 등록된 관리자 메일로 6자리 코드를 받아
+// 서명된 관리자 토큰을 발급받는다. 모든 파괴적 작업은 이 토큰을 동반한다.
+const ADMIN_TOKEN_KEY = 'thinqreal_admin_token';
+let admEmail = '';
+
+function adminToken() { return localStorage.getItem(ADMIN_TOKEN_KEY) || ''; }
+
+// 로컬 토큰의 payload만 확인 (서명 검증은 서버). admin 플래그 + 만료 검사.
+function adminTokenValid() {
+  try {
+    const raw = adminToken();
+    if (!raw) return false;
+    const p = raw.split('.')[0];
+    if (!p) return false;
+    const b64 = p.replace(/-/g,'+').replace(/_/g,'/');
+    const payload = JSON.parse(atob(b64 + '==='.slice((b64.length+3)%4)));
+    if (!payload || !payload.exp || !payload.admin) return false;
+    if (Number(payload.exp) <= Date.now()) { localStorage.removeItem(ADMIN_TOKEN_KEY); return false; }
+    return true;
+  } catch(e) { return false; }
+}
+
+function admErr(msg){ document.getElementById('loginErr').textContent = msg || ''; }
+
+async function admRequest() {
+  admErr('');
+  const email = (document.getElementById('admEmail').value||'').trim().toLowerCase();
+  if (!/^[a-z0-9._%+\-]+@lge\.com$/.test(email)) { admErr('LG 임직원 메일(@lge.com)을 입력해 주세요.'); return; }
+  const btn = document.getElementById('admRequestBtn');
+  btn.disabled = true; btn.textContent = '발송 중…';
+  try {
+    const res = await fetch(SCRIPT_URL + '?type=admin_auth_request&email=' + encodeURIComponent(email));
+    const data = await res.json();
+    if (!data.ok) { admErr(data.message || '인증 코드 발송에 실패했습니다.'); return; }
+    admEmail = email;
+    document.getElementById('admStepEmail').style.display = 'none';
+    document.getElementById('admStepCode').style.display = 'block';
+    document.getElementById('admCodeLabel').textContent = email + ' 으로 발송된 6자리 코드';
+    setTimeout(()=>document.getElementById('admCode').focus(), 50);
+  } catch(e) { admErr('네트워크 오류가 발생했습니다.'); }
+  finally { btn.disabled = false; btn.textContent = '인증 코드 받기'; }
+}
+
+async function admVerify() {
+  admErr('');
+  const code = (document.getElementById('admCode').value||'').trim();
+  if (!/^\d{6}$/.test(code)) { admErr('6자리 숫자 코드를 입력해 주세요.'); return; }
+  const btn = document.getElementById('admVerifyBtn');
+  btn.disabled = true; btn.textContent = '확인 중…';
+  try {
+    const res = await fetch(SCRIPT_URL + '?type=admin_auth_verify&email=' + encodeURIComponent(admEmail) + '&code=' + encodeURIComponent(code));
+    const data = await res.json();
+    if (!data.ok) { admErr(data.message || '인증에 실패했습니다.'); btn.disabled=false; btn.textContent='로그인'; return; }
+    localStorage.setItem(ADMIN_TOKEN_KEY, data.token);
+    enterAdmin();
+  } catch(e) { admErr('네트워크 오류가 발생했습니다.'); btn.disabled=false; btn.textContent='로그인'; }
+}
+
+function admBack() {
+  admErr('');
+  document.getElementById('admStepEmail').style.display = 'block';
+  document.getElementById('admStepCode').style.display = 'none';
+  document.getElementById('admCode').value = '';
+  const rb = document.getElementById('admRequestBtn'); rb.disabled=false; rb.textContent='인증 코드 받기';
+  const vb = document.getElementById('admVerifyBtn'); vb.disabled=false; vb.textContent='로그인';
+}
+
+function enterAdmin() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('shell').style.display = 'block';
+  applySidebarInitialState();
+  loadData();
+}
+
+function doLogout() {
+  localStorage.removeItem(ADMIN_TOKEN_KEY);
+  document.getElementById('shell').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  admBack();
+  document.getElementById('admEmail').value = '';
+  admErr('');
+}
+
+// 토큰 만료(서버 거부) 시 강제 로그아웃 후 안내
+function adminSessionExpired() {
+  toast('세션이 만료됐습니다. 다시 로그인해 주세요.');
+  doLogout();
+}
 
 let allBookings = [], currentModalId = null;
 
@@ -1857,22 +2014,11 @@ window.addEventListener('resize', () => {
   if (!isMobileLayout()) shell.classList.remove('sidebar-open');
 });
 
-function doLogin() {
-  if (document.getElementById('pwInput').value === ADMIN_PW) {
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('shell').style.display = 'block';
-    applySidebarInitialState();
-    loadData();
-  } else {
-    document.getElementById('loginErr').textContent = '비밀번호가 올바르지 않습니다.';
-  }
-}
-function doLogout() {
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('shell').style.display = 'none';
-  document.getElementById('pwInput').value = '';
-  document.getElementById('loginErr').textContent = '';
-}
+// 페이지 로드 시 유효한 관리자 토큰이 있으면 로그인 화면을 건너뛴다.
+(function admInit(){
+  if (adminTokenValid()) { enterAdmin(); }
+  else { const e = document.getElementById('admEmail'); if (e) e.focus(); }
+})();
 
 // ROI 툴 캐시 무력화 토큰 (ROI 툴을 갱신할 때마다 이 숫자를 올리세요)
 const ROI_BUILD = '20260519a';
@@ -1889,6 +2035,7 @@ function switchTab(id) {
   document.getElementById('tab-'+id).classList.add('active');
   document.getElementById('nav-'+id).classList.add('active');
   if (id === 'stats') renderStats();
+  if (id === 'slots') initSlotTab();
   if (id === 'appliances') renderAppliances();
   if (id === 'roi') {
     const f = document.getElementById('roiFrame');
@@ -2028,10 +2175,12 @@ async function loadData() {
     usedCache = true;
   }
 
-  // 2) 항상 fresh fetch로 갱신
+  // 2) 항상 fresh fetch로 갱신 (관리자 토큰 동반 — 개인정보 보호)
   try {
-    const res = await fetch(SCRIPT_URL + '?type=bookings');
-    const records = (await res.json()).records || [];
+    const res = await fetch(SCRIPT_URL + '?type=bookings&token=' + encodeURIComponent(adminToken()));
+    const json = await res.json();
+    if (json && json.error === 'unauthorized') { adminSessionExpired(); return; }
+    const records = json.records || [];
     saveCache(records);
     allBookings = records.map(normalizeRecord);
     updateKPIs(); renderTable();
@@ -2221,6 +2370,7 @@ function confirmDelete() {
   deleteBooking(id);
 }
 async function deleteBooking(id) {
+  if (!adminTokenValid()) { adminSessionExpired(); return; }
   const sid = String(id);
   if (inflightUpdates.has(sid)) return;
   const idx = allBookings.findIndex(x => String(x.id) === sid);
@@ -2236,7 +2386,7 @@ async function deleteBooking(id) {
   // 2) 서버 반영
   try {
     await fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ type:'booking_delete', id:sid }) });
+      body: JSON.stringify({ type:'booking_delete', id:sid, token:adminToken() }) });
     saveCache(allBookings);  // 재로드 시 지운 항목이 다시 보이지 않도록 캐시 동기화
     toast('✓ 예약이 영구 삭제됐습니다');
   } catch(e) {
@@ -2267,6 +2417,7 @@ function onActionClick(btn, id, status) {
 const inflightUpdates = new Set();
 
 async function updateStatus(id, status) {
+  if (!adminTokenValid()) { adminSessionExpired(); return; }
   const sid = String(id);
   if (inflightUpdates.has(sid)) return;  // 이미 처리 중
   const b = allBookings.find(x => String(x.id) === sid);
@@ -2286,7 +2437,7 @@ async function updateStatus(id, status) {
   // 3) 서버 반영
   try {
     await fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({type:'update',id:sid,status,email:b.email,name:b.name,date:b.date,slotLabel:fmtSlots(b)}) });
+      body: JSON.stringify({type:'update',id:sid,status,token:adminToken(),email:b.email,name:b.name,date:b.date,slotLabel:fmtSlots(b)}) });
     toast(status === '확정'
       ? '✓ 확정 처리 — 예약자에게 메일이 발송됐습니다'
       : '✓ 거절 처리 완료 — 예약자에게 안내 메일이 발송됐습니다');
@@ -2439,6 +2590,107 @@ function toast(msg, ms=3000) {
   const el = document.getElementById('toast');
   el.textContent = msg; el.classList.add('show');
   setTimeout(()=>el.classList.remove('show'), ms);
+}
+
+// ── 슬롯 제어 ──────────────────────────────────────────────
+function slotDateToday() {
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function slotDateAdd(base, n) {
+  const [y,m,d] = base.split('-').map(Number);
+  const dt = new Date(y, m-1, d+n);
+  return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+}
+
+function initSlotTab() {
+  const dateInput = document.getElementById('slotBlockDate');
+  if (!dateInput.value) dateInput.value = slotDateToday();
+  const q = document.getElementById('slotBlockQuick');
+  q.innerHTML = '';
+  [['오늘',0],['내일',1],['모레',2]].forEach(([label,n]) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.onclick = () => { dateInput.value = slotDateAdd(slotDateToday(), n); loadSlotBlocks(); };
+    q.appendChild(b);
+  });
+  loadSlotBlocks();
+  loadAllBlocks();
+}
+
+async function loadSlotBlocks() {
+  const date = document.getElementById('slotBlockDate').value;
+  const list = document.getElementById('slotBlockList');
+  if (!date) { list.innerHTML = '<p class="slot-ctrl-empty">날짜를 선택해 주세요.</p>'; return; }
+  list.innerHTML = '<p class="slot-ctrl-empty">확인 중…</p>';
+  try {
+    const res = await fetch(SCRIPT_URL + '?type=availability&date=' + date);
+    const data = await res.json();
+    const booked  = new Set((data.bookedSlots||[]).map(Number));
+    const blocked = new Set((data.blockedSlots||[]).map(Number));
+    const pending = data.pendingCounts || {};
+    list.innerHTML = '';
+    [1,2,3].forEach(n => {
+      const isBooked  = booked.has(n);
+      const isBlocked = blocked.has(n);
+      const pc = Number(pending[n]||0);
+      const row = document.createElement('div');
+      row.className = 'slot-row' + (isBlocked ? ' is-blocked' : (isBooked ? ' is-booked' : ''));
+      let state = '예약 가능';
+      if (isBlocked) state = '🚫 차단됨 — 예약 불가';
+      else if (isBooked) state = '확정 예약 있음';
+      else if (pc > 0) state = pc + '팀 대기 중';
+      const btn = isBlocked
+        ? `<button class="slot-btn-unblock" onclick="unblockSlot('${date}',${n})">차단 해제</button>`
+        : `<button class="slot-btn-block" onclick="blockSlot('${date}',${n})">차단</button>`;
+      row.innerHTML = `<div class="slot-row-info"><span class="slot-row-name">${SLOT_LABELS[String(n)]}</span><span class="slot-row-state">${state}</span></div>${btn}`;
+      list.appendChild(row);
+    });
+  } catch(e) {
+    list.innerHTML = '<p class="slot-ctrl-empty">조회 실패 — 잠시 후 다시 시도해 주세요.</p>';
+  }
+}
+
+async function blockSlot(date, slot) {
+  if (!adminTokenValid()) { adminSessionExpired(); return; }
+  try {
+    await fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'slot_block', date, slot, token:adminToken() }) });
+    toast('🚫 ' + date.slice(5) + ' ' + slot + '회차를 차단했습니다');
+    setTimeout(()=>{ loadSlotBlocks(); loadAllBlocks(); }, 700);
+  } catch(e) { toast('차단 실패 — 다시 시도해 주세요'); }
+}
+
+async function unblockSlot(date, slot) {
+  if (!adminTokenValid()) { adminSessionExpired(); return; }
+  try {
+    await fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ type:'slot_unblock', date, slot, token:adminToken() }) });
+    toast('✓ ' + date.slice(5) + ' ' + slot + '회차 차단을 해제했습니다');
+    setTimeout(()=>{ loadSlotBlocks(); loadAllBlocks(); }, 700);
+  } catch(e) { toast('해제 실패 — 다시 시도해 주세요'); }
+}
+
+async function loadAllBlocks() {
+  const wrap = document.getElementById('slotBlockAll');
+  try {
+    const res = await fetch(SCRIPT_URL + '?type=slot_blocks');
+    const data = await res.json();
+    const today = slotDateToday();
+    const blocks = (data.blocks||[]).filter(b => b.date >= today); // 과거 차단은 숨김
+    if (blocks.length === 0) { wrap.innerHTML = '<p class="slot-ctrl-empty">예정된 차단이 없습니다.</p>'; return; }
+    blocks.sort((a,b)=> a.date.localeCompare(b.date) || a.slot-b.slot);
+    const byDate = {};
+    blocks.forEach(b => { (byDate[b.date] = byDate[b.date] || []).push(b); });
+    wrap.innerHTML = Object.keys(byDate).sort().map(date => {
+      const chips = byDate[date].map(b =>
+        `<span class="slot-chip">${date.slice(5)} ${b.slot}회차 <button onclick="unblockSlot('${date}',${b.slot})" title="해제">×</button></span>`
+      ).join('');
+      return `<div style="margin-bottom:var(--sp-4);">${chips}</div>`;
+    }).join('');
+  } catch(e) {
+    wrap.innerHTML = '<p class="slot-ctrl-empty">불러오기 실패</p>';
+  }
 }
 </script>
 </body>
