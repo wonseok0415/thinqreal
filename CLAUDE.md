@@ -811,3 +811,32 @@ data.sort((a,b)=>{
 - **관리자 페이지**: `thinqreal_admin.html`은 자체 비밀번호 그대로 유지(이중 인증 불필요). 게이트는 메인 사이트에만 적용.
 - **CSS 게이트 가림 메커니즘**: `body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !important; }` — direct child 선택자라 게이트 카드와 토스트, 스크립트만 살아남는다. 새 최상위 요소(예: `<header>`, `<aside>`)를 추가할 땐 게이트 가림 동작에 영향 없는지 확인.
 - **재배포 필요**: Apps Script에 신규 엔드포인트(`auth_request`/`auth_verify`)를 추가했으므로 "배포 관리 → 편집 → 새 버전 → 배포"로 기존 URL 유지한 채 재배포 필수.
+
+## 작업 내역 (2026-06-11 — 개인정보처리방침 + 국외 이전 동의)
+
+개인정보 영향평가 심사에서 식별된 미비 사항 2건(국외 이전 동의 절차 부재, 처리방침 페이지 부재)을 선제 구현.
+
+### A. privacy.html 신설 (독립 페이지)
+- **게이트 밖에서도 열람 가능** — index.html의 인증 게이트와 무관한 별도 파일. 정보주체가 동의 전에 방침을 검토할 수 있어야 하므로 의도적으로 비보호.
+- 구성: 수집 항목·방법 / 수집·이용 목적 / 보유 기간(인증 코드 10분·토큰 30일·예약 정보 **방문일로부터 3년**) / **국외 이전(Google LLC, 법 제28조의8 고지 5요소)** / 제3자 제공·위탁 없음 / 파기 / 정보주체 권리(보호 담당: 이철호 책임) / 안전성 확보 조치 / 변경 이력(v1.0 2026-06-11).
+- GitHub Pages에는 개인정보 미저장(코드만 호스팅) — 국외 이전 대상은 **Google만** 기재.
+
+### B. 예약 폼 — 필수 동의 체크박스 2개 추가 (index.html)
+- `#fPrivacyCollect`(수집·이용 동의) + `#fPrivacyTransfer`(국외 이전 동의) — **법상 국외 이전은 별도 동의**가 필요해 체크박스 분리. 기존 파손·분실 동의(`#fAgree`) 위에 `#privacyBoxes` 래퍼로 배치.
+- 거부권 고지문(`.form-agreement-note`) 포함. `privacy.html` "자세히 보기" 링크는 `target="_blank"`(폼 상태 보존). label 내부 `<a>`는 HTML 스펙상 체크박스를 토글하지 않음.
+- `renderFormByPurpose()`에서 `agreementBox`와 함께 토글, `submitBooking()`에서 2건 모두 미체크 시 차단, `resetForm()`에서 초기화.
+- payload에 `privacyConsent: 'Y'` 추가 → 시트에 동의 증빙 기록 (동의 시각 = `timestamp`).
+
+### C. 인증 게이트·푸터 고지 (index.html)
+- 게이트 카드 하단: "입력하신 이메일은 임직원 인증 목적으로만 사용됩니다" + 처리방침 링크.
+- 4개 페이지 푸터: `© 2026 LG Electronics · 개인정보처리방침` 링크.
+
+### D. Apps Script — HEADERS에 `privacyConsent` 컬럼 추가 (21번째)
+- `getOrCreateHeaders`의 `HEADERS` 배열 끝에 추가 — 다음 예약 POST 시 시트에 헤더 자동 append.
+- **재배포 필요** ("배포 관리 → 편집 → 새 버전 → 배포").
+
+### 핵심 제약 (다음 세션에서도 유지)
+- 시트 백필 시 컬럼은 이제 **21열**(`id`~`privacyConsent`). 백필 행은 `privacyConsent` 공란 허용(시스템 외 접수 건).
+- 보유 기간 "방문일로부터 3년"은 처리방침(privacy.html §3)과 폼 체크박스 문구 양쪽에 기재 — 변경 시 두 곳 동기화.
+- 개인정보 보호 담당(이철호 책임) 변경 시 privacy.html §7 갱신.
+- 두 동의 체크박스는 **필수** — 미체크 차단 로직을 임의로 해제하지 말 것 (파손·분실 동의와 동일 규칙).
