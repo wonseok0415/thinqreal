@@ -1845,7 +1845,9 @@ function getOrCreateHeaders(sheet) {
     'name', 'org', 'phone', 'email',
     'purpose', 'count', 'note', 'status',
     // 2026-05 폼 상세화로 추가된 컬럼
-    'subject', 'clientCompany', 'visitors', 'usagePlan', 'expectedEffect', 'purposeKey'
+    'subject', 'clientCompany', 'visitors', 'usagePlan', 'expectedEffect', 'purposeKey',
+    // 2026-06 개인정보 수집·이용 + 국외 이전 동의 기록 ('Y' = 동의, 동의 시각은 timestamp와 동일)
+    'privacyConsent'
   ];
   const lastCol  = Math.max(sheet.getLastColumn(), 1);
   const firstRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];

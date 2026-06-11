@@ -706,6 +706,12 @@ button, input, select, textarea { font-family: inherit; }
   font-size: var(--t-footnote); color: var(--c-label-2);
   letter-spacing: -0.008em; line-height: 1.55;
 }
+.form-agreement-text strong { color: var(--c-label); font-weight: 600; }
+.form-agreement-text a { color: var(--c-accent); white-space: nowrap; }
+.form-agreement-note {
+  font-size: var(--t-caption); color: var(--c-label-3);
+  margin: -4px 0 var(--sp-16) var(--sp-4); line-height: 1.5;
+}
 .form-hint {
   font-size: var(--t-caption); color: var(--c-label-3);
   text-align: center; margin-top: var(--sp-12);
@@ -865,6 +871,8 @@ footer {
 .footer-sub, .footer-copy {
   font-size: var(--t-caption); color: var(--c-label-3); letter-spacing: -0.008em;
 }
+.footer-privacy { color: var(--c-label-2); text-decoration: none; }
+.footer-privacy:hover { color: var(--c-accent); text-decoration: underline; }
 
 /* ── Toast ───────────────────────────────────────────────── */
 .toast {
@@ -1012,6 +1020,7 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
       <input type="email" id="authEmail" class="auth-input" placeholder="yourname@lge.com" autocomplete="email">
       <button type="button" class="auth-btn" id="authRequestBtn" onclick="authRequest()">인증 코드 받기</button>
       <div class="auth-hint">외부 방문 손님이세요?<br>담당자에게 문의 부탁드립니다.</div>
+      <div class="auth-hint">입력하신 이메일은 임직원 인증 목적으로만 사용됩니다.<br><a href="privacy.html" target="_blank" rel="noopener" style="color:var(--c-accent);">개인정보처리방침</a></div>
     </div>
     <div id="authStepCode" style="display:none;">
       <h2 class="auth-title">인증 코드 입력</h2>
@@ -1107,7 +1116,7 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
     <div class="footer-inner">
       <span class="footer-brand">ThinQ Real</span>
       <span class="footer-sub">마곡 LG사이언스파크 W6동 1층 · HS플랫폼사업센터 AI홈솔루션엔지니어링팀</span>
-      <span class="footer-copy">© 2026 LG Electronics</span>
+      <span class="footer-copy">© 2026 LG Electronics · <a href="privacy.html" target="_blank" rel="noopener" class="footer-privacy">개인정보처리방침</a></span>
     </div>
   </footer>
 </div>
@@ -1213,7 +1222,7 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
     <div class="footer-inner">
       <span class="footer-brand">ThinQ Real</span>
       <span class="footer-sub">마곡 LG사이언스파크 W6동 1층 · HS플랫폼사업센터 AI홈솔루션엔지니어링팀</span>
-      <span class="footer-copy">© 2026 LG Electronics</span>
+      <span class="footer-copy">© 2026 LG Electronics · <a href="privacy.html" target="_blank" rel="noopener" class="footer-privacy">개인정보처리방침</a></span>
     </div>
   </footer>
 </div>
@@ -1341,9 +1350,33 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
           </div>
         </div>
 
+        <div id="privacyBoxes" style="display:none;">
+          <label class="form-agreement" for="fPrivacyCollect">
+            <input type="checkbox" id="fPrivacyCollect">
+            <span class="form-agreement-text">
+              <strong>[필수] 개인정보 수집·이용 동의</strong> —
+              예약 처리·방문 운영·운영 통계를 위해 책임자 이름·연락처·이메일,
+              방문자 소속·이름·직급을 수집·이용함에 동의합니다.
+              (보유 기간: 방문일로부터 3년)
+              <a href="privacy.html" target="_blank" rel="noopener">자세히 보기</a>
+            </span>
+          </label>
+          <label class="form-agreement" for="fPrivacyTransfer">
+            <input type="checkbox" id="fPrivacyTransfer">
+            <span class="form-agreement-text">
+              <strong>[필수] 개인정보 국외 이전 동의</strong> —
+              수집된 개인정보가 해외 클라우드(Google LLC, 미국 등 글로벌 데이터 센터)에
+              저장·처리됨에 동의합니다.
+              <a href="privacy.html" target="_blank" rel="noopener">자세히 보기</a>
+            </span>
+          </label>
+          <p class="form-agreement-note">동의를 거부할 권리가 있으며, 거부 시 예약 신청이 제한됩니다. 이 경우 담당자에게 문의해 주세요.</p>
+        </div>
+
         <label class="form-agreement" for="fAgree" id="agreementBox" style="display:none;">
           <input type="checkbox" id="fAgree">
           <span class="form-agreement-text">
+            <strong>[필수] 파손·분실 비용 동의</strong> —
             예약한 시간 동안 ThinQ Real 이용 중 시설·집기의 파손이나 분실이 발생할 경우,
             시설환경팀이 선처리 후 해당 비용을 예약 팀에 청구함에 동의합니다.
           </span>
@@ -1364,7 +1397,7 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
     <div class="footer-inner">
       <span class="footer-brand">ThinQ Real</span>
       <span class="footer-sub">마곡 LG사이언스파크 W6동 1층 · HS플랫폼사업센터 AI홈솔루션엔지니어링팀</span>
-      <span class="footer-copy">© 2026 LG Electronics</span>
+      <span class="footer-copy">© 2026 LG Electronics · <a href="privacy.html" target="_blank" rel="noopener" class="footer-privacy">개인정보처리방침</a></span>
     </div>
   </footer>
 </div>
@@ -1547,7 +1580,7 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
     <div class="footer-inner">
       <span class="footer-brand">ThinQ Real</span>
       <span class="footer-sub">마곡 LG사이언스파크 W6동 1층 · HS플랫폼사업센터 AI홈솔루션엔지니어링팀</span>
-      <span class="footer-copy">© 2026 LG Electronics</span>
+      <span class="footer-copy">© 2026 LG Electronics · <a href="privacy.html" target="_blank" rel="noopener" class="footer-privacy">개인정보처리방침</a></span>
     </div>
   </footer>
 </div>
@@ -1962,6 +1995,7 @@ function renderFormByPurpose() {
   const submit    = document.getElementById('submitBtn');
   const submitHt  = document.getElementById('submitHint');
   const agreement = document.getElementById('agreementBox');
+  const privacy   = document.getElementById('privacyBoxes');
   const hintEl    = document.getElementById('purposeHint');
 
   if (!val) {
@@ -1969,6 +2003,7 @@ function renderFormByPurpose() {
     submit.style.display = 'none';
     submitHt.style.display = 'none';
     agreement.style.display = 'none';
+    privacy.style.display = 'none';
     hintEl.style.display = 'none';
     return;
   }
@@ -1981,6 +2016,7 @@ function renderFormByPurpose() {
   submit.style.display = '';
   submitHt.style.display = '';
   agreement.style.display = '';
+  privacy.style.display = '';
 
   document.getElementById('lblSubject').textContent  = cfg.subjectLabel;
   document.getElementById('fSubject').placeholder    = cfg.subjectPlaceholder;
@@ -2074,6 +2110,12 @@ async function submitBooking() {
     }
   }
 
+  if (!document.getElementById('fPrivacyCollect').checked) {
+    toast('개인정보 수집·이용 동의에 체크해 주세요.'); return;
+  }
+  if (!document.getElementById('fPrivacyTransfer').checked) {
+    toast('개인정보 국외 이전 동의에 체크해 주세요.'); return;
+  }
   if (!document.getElementById('fAgree').checked) {
     toast('파손·분실 비용 청구 동의에 체크해 주세요.'); return;
   }
@@ -2104,7 +2146,9 @@ async function submitBooking() {
     visitors:       JSON.stringify(visitors),
     usagePlan,
     expectedEffect,
-    purposeKey
+    purposeKey,
+    // 개인정보 수집·이용 + 국외 이전 동의 기록 (체크 없으면 제출 자체가 차단됨)
+    privacyConsent: 'Y'
   };
   try {
     await fetch(SCRIPT_URL, {
@@ -2124,6 +2168,8 @@ function resetForm() {
   });
   document.getElementById('fPurpose').value = '';
   document.getElementById('fAgree').checked = false;
+  document.getElementById('fPrivacyCollect').checked = false;
+  document.getElementById('fPrivacyTransfer').checked = false;
   visitorRows = [];
   renderFormByPurpose();
   document.getElementById('formContent').style.display = 'block';
