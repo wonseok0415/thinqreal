@@ -288,13 +288,29 @@ body {
 /* ── 슬롯 제어 ── */
 .slot-ctrl-card { background:var(--c-bg); border:1px solid var(--c-separator); border-radius:var(--radius-lg); padding:var(--sp-24); max-width:640px; }
 .slot-ctrl-label { display:block; font-size:var(--t-caption); font-weight:500; color:var(--c-label-2); letter-spacing:0.02em; margin-bottom:var(--sp-8); }
-.slot-ctrl-date { min-height:44px; padding:0 var(--sp-12); background:var(--c-fill); border:1.5px solid transparent; border-radius:var(--radius-sm); font-size:var(--t-subhead); color:var(--c-label); font-family:inherit; outline:none; max-width:240px; }
-.slot-ctrl-date:focus { border-color:var(--c-accent); background:var(--c-bg); }
-.slot-ctrl-quick { display:flex; flex-wrap:wrap; gap:var(--sp-8); margin-top:var(--sp-12); }
+.slot-ctrl-quick { display:flex; flex-wrap:wrap; gap:var(--sp-8); margin:var(--sp-12) 0 0; }
 .slot-ctrl-quick button { font-size:var(--t-caption); padding:6px 12px; border:1px solid var(--c-separator); background:var(--c-bg); border-radius:980px; cursor:pointer; color:var(--c-label-2); font-family:inherit; transition:all .15s var(--ease); }
 .slot-ctrl-quick button:hover { border-color:var(--c-accent); color:var(--c-accent); }
 .slot-ctrl-subtitle { font-size:var(--t-subhead); font-weight:600; color:var(--c-label); margin-bottom:var(--sp-12); }
 .slot-ctrl-empty { font-size:var(--t-subhead); color:var(--c-label-3); }
+/* 캘린더 (메인 페이지 예약 캘린더와 동일 스타일) */
+.slot-cal { border:1px solid var(--c-separator); border-radius:var(--radius-lg); overflow:hidden; background:var(--c-bg); margin-bottom:var(--sp-16); }
+.slot-cal-header { display:flex; align-items:center; justify-content:space-between; padding:var(--sp-16) var(--sp-20); border-bottom:1px solid var(--c-separator); }
+.slot-cal-month { font-size:var(--t-headline); font-weight:600; letter-spacing:-0.022em; }
+.slot-cal-nav { width:32px; height:32px; border-radius:50%; background:var(--c-fill); border:none; cursor:pointer; font-size:16px; color:var(--c-label); display:flex; align-items:center; justify-content:center; font-family:inherit; transition:background .15s var(--ease); }
+.slot-cal-nav:hover { background:var(--c-fill-2); }
+.slot-cal-grid { padding:var(--sp-12) var(--sp-20) var(--sp-20); display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+.slot-cal-dname { text-align:center; font-size:var(--t-caption); font-weight:500; color:var(--c-label-3); padding:var(--sp-8) 0; letter-spacing:0.04em; }
+.slot-cal-day { min-height:42px; display:flex; align-items:center; justify-content:center; font-size:var(--t-subhead); letter-spacing:-0.01em; border-radius:var(--radius-sm); cursor:pointer; transition:all .15s var(--ease); position:relative; }
+.slot-cal-day:not(.past):not(.closed):not(.empty):hover { background:var(--c-fill); }
+.slot-cal-day.selected { background:var(--c-accent); color:#fff; font-weight:500; }
+.slot-cal-day.today { font-weight:600; color:var(--c-accent); }
+.slot-cal-day.today::after { content:''; position:absolute; bottom:5px; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:50%; background:var(--c-accent); }
+.slot-cal-day.today.selected { color:#fff; }
+.slot-cal-day.today.selected::after { background:#fff; }
+.slot-cal-day.past, .slot-cal-day.closed { opacity:.28; cursor:default; pointer-events:none; }
+/* 차단된 슬롯이 있는 날짜에 작은 점 표시 (today과 색만 다름) */
+.slot-cal-day.has-block::before { content:''; position:absolute; top:5px; right:5px; width:5px; height:5px; border-radius:50%; background:#ff3b30; }
 .slot-row { display:flex; align-items:center; justify-content:space-between; gap:var(--sp-12); padding:var(--sp-16); border:1px solid var(--c-separator); border-radius:var(--radius-md); margin-top:var(--sp-12); }
 .slot-row-info { display:flex; flex-direction:column; gap:2px; }
 .slot-row-name { font-size:var(--t-subhead); font-weight:600; color:var(--c-label); }
@@ -1006,7 +1022,14 @@ body {
       </div>
       <div class="slot-ctrl-card">
         <label class="slot-ctrl-label">날짜 선택</label>
-        <input type="date" id="slotBlockDate" class="slot-ctrl-date" onchange="loadSlotBlocks()">
+        <div class="slot-cal">
+          <div class="slot-cal-header">
+            <button class="slot-cal-nav" type="button" onclick="slotCalMonth(-1)" aria-label="이전 달">‹</button>
+            <span class="slot-cal-month" id="slotCalMonth"></span>
+            <button class="slot-cal-nav" type="button" onclick="slotCalMonth(1)" aria-label="다음 달">›</button>
+          </div>
+          <div class="slot-cal-grid" id="slotCalGrid"></div>
+        </div>
         <div class="slot-ctrl-quick" id="slotBlockQuick"></div>
         <div id="slotBlockList">
           <p class="slot-ctrl-empty">날짜를 선택하면 회차별 상태와 차단 토글이 표시됩니다.</p>
@@ -2593,33 +2616,92 @@ function toast(msg, ms=3000) {
 }
 
 // ── 슬롯 제어 ──────────────────────────────────────────────
-function slotDateToday() {
-  const d = new Date();
+const SLOT_DAY_KO = ['일','월','화','수','목','금','토'];
+let slotCalCursor = new Date();        // 캘린더가 현재 보여주는 월
+let slotSelectedDate = null;           // 선택된 날짜 (YYYY-MM-DD)
+let slotBlockedDatesSet = new Set();   // has-block 점 표시용 (메인 가용성과 무관, 별도 로드)
+
+function slotDateToYMD(d) {
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
+function slotDateToday() { return slotDateToYMD(new Date()); }
 function slotDateAdd(base, n) {
   const [y,m,d] = base.split('-').map(Number);
-  const dt = new Date(y, m-1, d+n);
-  return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+  return slotDateToYMD(new Date(y, m-1, d+n));
 }
 
 function initSlotTab() {
-  const dateInput = document.getElementById('slotBlockDate');
-  if (!dateInput.value) dateInput.value = slotDateToday();
+  // 캘린더 커서를 오늘로, 선택 날짜는 오늘로 초기화
+  slotCalCursor = new Date();
+  if (!slotSelectedDate) slotSelectedDate = slotDateToday();
+  // 퀵 버튼
   const q = document.getElementById('slotBlockQuick');
   q.innerHTML = '';
   [['오늘',0],['내일',1],['모레',2]].forEach(([label,n]) => {
     const b = document.createElement('button');
     b.textContent = label;
-    b.onclick = () => { dateInput.value = slotDateAdd(slotDateToday(), n); loadSlotBlocks(); };
+    b.onclick = () => {
+      const ymd = slotDateAdd(slotDateToday(), n);
+      slotSelectedDate = ymd;
+      // 보고 있는 달이 다르면 그 달로 이동
+      const [y,m] = ymd.split('-').map(Number);
+      slotCalCursor = new Date(y, m-1, 1);
+      renderSlotCal();
+      loadSlotBlocks();
+    };
     q.appendChild(b);
   });
+  renderSlotCal();
   loadSlotBlocks();
-  loadAllBlocks();
+  loadAllBlocks();  // 캘린더 점 표시용 차단 날짜 set 도 함께 갱신
+}
+
+function slotCalMonth(dir) {
+  slotCalCursor.setMonth(slotCalCursor.getMonth() + dir);
+  renderSlotCal();
+}
+
+function renderSlotCal() {
+  const y = slotCalCursor.getFullYear(), m = slotCalCursor.getMonth();
+  document.getElementById('slotCalMonth').textContent = y + '년 ' + (m+1) + '월';
+  const grid = document.getElementById('slotCalGrid');
+  grid.innerHTML = '';
+  SLOT_DAY_KO.forEach(d => {
+    const el = document.createElement('div');
+    el.className = 'slot-cal-dname'; el.textContent = d; grid.appendChild(el);
+  });
+  const firstDay = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const today = new Date(); today.setHours(0,0,0,0);
+  for (let i = 0; i < firstDay; i++) {
+    const el = document.createElement('div');
+    el.className = 'slot-cal-day empty'; grid.appendChild(el);
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const el = document.createElement('div');
+    el.className = 'slot-cal-day';
+    const dt = new Date(y, m, d);
+    const ymd = slotDateToYMD(dt);
+    if (dt < today) el.classList.add('past');
+    const dow = dt.getDay();
+    if (dow === 0 || dow === 6) el.classList.add('closed'); // 주말은 운영 안함
+    if (dt.toDateString() === today.toDateString()) el.classList.add('today');
+    if (ymd === slotSelectedDate) el.classList.add('selected');
+    if (slotBlockedDatesSet.has(ymd)) el.classList.add('has-block');
+    el.textContent = d;
+    if (!el.classList.contains('past') && !el.classList.contains('closed')) {
+      el.onclick = () => {
+        slotSelectedDate = ymd;
+        renderSlotCal();
+        loadSlotBlocks();
+      };
+    }
+    grid.appendChild(el);
+  }
 }
 
 async function loadSlotBlocks() {
-  const date = document.getElementById('slotBlockDate').value;
+  const date = slotSelectedDate;
   const list = document.getElementById('slotBlockList');
   if (!date) { list.innerHTML = '<p class="slot-ctrl-empty">날짜를 선택해 주세요.</p>'; return; }
   list.innerHTML = '<p class="slot-ctrl-empty">확인 중…</p>';
@@ -2678,6 +2760,9 @@ async function loadAllBlocks() {
     const data = await res.json();
     const today = slotDateToday();
     const blocks = (data.blocks||[]).filter(b => b.date >= today); // 과거 차단은 숨김
+    // 캘린더에 점 표시할 날짜 set 갱신
+    slotBlockedDatesSet = new Set(blocks.map(b => b.date));
+    renderSlotCal();
     if (blocks.length === 0) { wrap.innerHTML = '<p class="slot-ctrl-empty">예정된 차단이 없습니다.</p>'; return; }
     blocks.sort((a,b)=> a.date.localeCompare(b.date) || a.slot-b.slot);
     const byDate = {};
