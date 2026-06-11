@@ -791,3 +791,23 @@ data.sort((a,b)=>{
 - `slots`는 JSON 배열 문자열(`"[2]"`), `slot`은 숫자(`2`), `slotLabel`은 텍스트 — 3개 모두 채울 것.
 - 같은 날 2건 이상이면 회차 충돌 회피용으로 슬롯을 분산(1·2·3 중 비어있는 자리). 단일 슬롯 백필은 디폴트 2회차.
 - 표 정렬은 `date` 우선이므로, 백필 행의 `timestamp`는 작업 시점 그대로 둬도 표는 방문일 순으로 깔끔히 보임. timestamp는 본래 의미(신청 시점)로 보존.
+
+## 작업 내역 (2026-06-10 — 사이트 접근 통제 4안 적용)
+
+팀장 요청으로 임직원만 접근 가능하도록 **사이트 전체 이메일 게이트(4안)** 적용. 경쟁사 도메인 접근 차단 + 부적절한 일반 고객 예약 신청 차단 + 관리자 거절 부담 경감.
+
+### A. 동작 흐름 (index.html + Apps Script)
+1. 사이트 진입 → `body.unauth` 클래스로 모든 콘텐츠 가림 + 게이트 카드만 노출
+2. `@lge.com` 메일 입력 → `?type=auth_request&email=...` 호출 → Apps Script가 6자리 코드 생성·캐시(10분)·메일 발송
+3. 코드 입력 → `?type=auth_verify&email=...&code=...` → 일치 시 HMAC-SHA256 서명 토큰 반환
+4. 토큰을 `localStorage('thinqreal_auth_token')`에 저장 → 30일간 유효
+5. 재방문 시 토큰 payload의 `exp` 검사 → 유효하면 즉시 입장(마찰 없음)
+
+### B. 핵심 제약 (다음 세션에서도 유지)
+- **허용 도메인 단일 소스**: Apps Script `AUTH_ALLOWED_DOMAINS = ['lge.com']`. index.html의 정규식 `@lge\.com$`도 함께 동기화 필수. 추가 도메인(예: `lgepartner.com`) 허용 시 양쪽 모두 수정.
+- **토큰 형식**: `base64url(payload).base64url(HMAC-SHA256)` — payload = `{email, exp}`. 클라이언트는 payload `exp`만 검사(서명 검증은 서버 신뢰). 서명 비밀키는 Script Property `AUTH_SECRET` (없으면 UUID 2회로 자동 생성).
+- **레이트 리미트**: 동일 메일 60초 쿨다운(`AUTH_COOLDOWN_SEC`). 메일 스팸 발생 시 이 값을 늘릴 것.
+- **외부 손님 처리**: 게이트 통과 불가 → 한영본/사업관리팀이 시트(`bookings`)에 직접 백필(2026-05-29 후속 §A의 20컬럼 헤더 규칙대로).
+- **관리자 페이지**: `thinqreal_admin.html`은 자체 비밀번호 그대로 유지(이중 인증 불필요). 게이트는 메인 사이트에만 적용.
+- **CSS 게이트 가림 메커니즘**: `body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !important; }` — direct child 선택자라 게이트 카드와 토스트, 스크립트만 살아남는다. 새 최상위 요소(예: `<header>`, `<aside>`)를 추가할 땐 게이트 가림 동작에 영향 없는지 확인.
+- **재배포 필요**: Apps Script에 신규 엔드포인트(`auth_request`/`auth_verify`)를 추가했으므로 "배포 관리 → 편집 → 새 버전 → 배포"로 기존 URL 유지한 채 재배포 필수.

@@ -23,6 +23,14 @@ const CC_EMAIL     = 'kang.wonseok@lge.com';  // 참조 수신자 (시스템 동
 // 방문 전 이용 안내 페이지 URL (이용안내 탭으로 직접 이동)
 const GUIDE_URL = 'https://thinqreal.com/#page-guide';
 
+// ── 사이트 접근 통제 (이메일 게이트, 4안) ─────────────────────
+// 허용 이메일 도메인. 임직원 검증 + 사이트 자체 차단을 동시에 만족.
+const AUTH_ALLOWED_DOMAINS = ['lge.com'];
+// 인증 코드 유효 시간 / 토큰 유효 기간 / 재요청 쿨다운
+const AUTH_CODE_TTL_SEC   = 10 * 60;        // 10분
+const AUTH_TOKEN_TTL_DAYS = 30;             // 30일 쿠키
+const AUTH_COOLDOWN_SEC   = 60;             // 60초 재요청 방지
+
 // R&D 연구 목적 예약자에게 함께 보내는 구비 가전 리스트 (총 45개)
 // [구분, 제품명, 모델명, 제조사]
 const APPLIANCES = [
@@ -105,6 +113,12 @@ function doGet(e) {
   }
   if (type === 'monthly_report_send') {
     return handleMonthlyReportSend(e.parameter);
+  }
+  if (type === 'auth_request') {
+    return handleAuthRequest(e.parameter.email);
+  }
+  if (type === 'auth_verify') {
+    return handleAuthVerify(e.parameter.email, e.parameter.code);
   }
 
   return jsonResponse({ error: 'Unknown type' });
@@ -1866,4 +1880,160 @@ function jsonResponse(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+
+// ============================================================
+//  사이트 접근 통제 — 이메일 게이트 (4안)
+//  흐름: 이메일 입력 → 6자리 코드 메일 → 코드 검증 → 30일 토큰
+// ============================================================
+
+// 이메일 형식 + 허용 도메인 검증
+function isAllowedAuthEmail(email) {
+  if (!email) return false;
+  var s = String(email).trim().toLowerCase();
+  if (!/^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$/.test(s)) return false;
+  var at = s.lastIndexOf('@');
+  if (at < 0) return false;
+  var domain = s.slice(at + 1);
+  for (var i = 0; i < AUTH_ALLOWED_DOMAINS.length; i++) {
+    if (domain === AUTH_ALLOWED_DOMAINS[i]) return true;
+  }
+  return false;
+}
+
+// 인증 코드 요청 — 6자리 코드 생성 + 캐시 저장 + 메일 발송
+function handleAuthRequest(email) {
+  email = (email || '').trim().toLowerCase();
+  if (!isAllowedAuthEmail(email)) {
+    return jsonResponse({ ok: false, error: 'invalid_email',
+      message: 'LG 임직원 메일(@lge.com)만 입력 가능합니다.' });
+  }
+
+  var cache = CacheService.getScriptCache();
+  var coolKey = 'auth_cool_' + email;
+  if (cache.get(coolKey)) {
+    return jsonResponse({ ok: false, error: 'cooldown',
+      message: '잠시 후 다시 시도해 주세요. (60초)' });
+  }
+
+  // 6자리 코드 — 앞자리 0 허용
+  var code = '';
+  for (var i = 0; i < 6; i++) code += Math.floor(Math.random() * 10);
+
+  cache.put('auth_code_' + email, code, AUTH_CODE_TTL_SEC);
+  cache.put(coolKey, '1', AUTH_COOLDOWN_SEC);
+
+  try {
+    MailApp.sendEmail({
+      to: email,
+      subject: '[ThinQ Real] 사이트 접속 인증 코드',
+      body: buildAuthCodeText(code),
+      htmlBody: buildAuthCodeHtml(code),
+      name: 'ThinQ Real'
+    });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: 'mail_failed',
+      message: '메일 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.' });
+  }
+
+  return jsonResponse({ ok: true, ttl: AUTH_CODE_TTL_SEC });
+}
+
+// 인증 코드 검증 — 일치 시 30일 서명 토큰 반환
+function handleAuthVerify(email, code) {
+  email = (email || '').trim().toLowerCase();
+  code  = (code  || '').trim();
+  if (!isAllowedAuthEmail(email)) {
+    return jsonResponse({ ok: false, error: 'invalid_email' });
+  }
+  if (!/^\d{6}$/.test(code)) {
+    return jsonResponse({ ok: false, error: 'invalid_code',
+      message: '인증 코드는 6자리 숫자입니다.' });
+  }
+
+  var cache = CacheService.getScriptCache();
+  var stored = cache.get('auth_code_' + email);
+  if (!stored) {
+    return jsonResponse({ ok: false, error: 'code_expired',
+      message: '인증 코드가 만료되었습니다. 다시 요청해 주세요.' });
+  }
+  if (stored !== code) {
+    return jsonResponse({ ok: false, error: 'code_mismatch',
+      message: '인증 코드가 일치하지 않습니다.' });
+  }
+
+  // 1회용 — 검증 성공 시 코드 즉시 삭제
+  cache.remove('auth_code_' + email);
+
+  var exp = Date.now() + AUTH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;
+  var token = signAuthToken(email, exp);
+  return jsonResponse({ ok: true, token: token, email: email, exp: exp });
+}
+
+// HMAC-SHA256 서명 토큰: base64url(payload).base64url(signature)
+function signAuthToken(email, exp) {
+  var payload = JSON.stringify({ email: email, exp: exp });
+  var payloadB64 = base64Url(Utilities.newBlob(payload).getBytes());
+  var secret = getAuthSecret();
+  var sigBytes = Utilities.computeHmacSha256Signature(payloadB64, secret);
+  var sigB64 = base64Url(sigBytes);
+  return payloadB64 + '.' + sigB64;
+}
+
+function getAuthSecret() {
+  var props = PropertiesService.getScriptProperties();
+  var s = props.getProperty('AUTH_SECRET');
+  if (!s) {
+    s = Utilities.getUuid() + '_' + Utilities.getUuid();
+    props.setProperty('AUTH_SECRET', s);
+  }
+  return s;
+}
+
+// base64url 인코딩 (URL-safe, padding 제거)
+function base64Url(bytes) {
+  return Utilities.base64Encode(bytes)
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// 인증 코드 메일 — 평문
+function buildAuthCodeText(code) {
+  return [
+    'ThinQ Real 사이트 접속 인증',
+    '',
+    '인증 코드: ' + code,
+    '',
+    '이 코드를 사이트 인증 화면에 입력하세요.',
+    '코드는 10분간 유효합니다.',
+    '',
+    '본인이 요청하지 않았다면 이 메일은 무시하세요.',
+    '',
+    '— ThinQ Real (HS플랫폼사업센터 AI홈솔루션엔지니어링팀)'
+  ].join('\n');
+}
+
+// 인증 코드 메일 — HTML (인라인 스타일만, Outlook/Gmail 호환)
+function buildAuthCodeHtml(code) {
+  return '' +
+    '<div style="font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Arial,sans-serif;max-width:480px;margin:0 auto;background:#f5f5f7;padding:24px 16px;">' +
+      '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#ffffff;border-radius:12px;overflow:hidden;">' +
+        '<tr><td style="background:#3a5035;padding:22px 28px;color:#ffffff;font-size:17px;font-weight:600;">' +
+          'ThinQ Real 접속 인증' +
+        '</td></tr>' +
+        '<tr><td style="padding:28px;">' +
+          '<div style="font-size:14px;color:#6e6e73;margin-bottom:8px;">아래 6자리 코드를 인증 화면에 입력하세요.</div>' +
+          '<div style="font-size:38px;font-weight:700;letter-spacing:8px;color:#1d1d1f;background:#f5f5f7;border-radius:10px;text-align:center;padding:18px 0;margin:8px 0 18px;">' +
+            escapeHtml(code) +
+          '</div>' +
+          '<div style="font-size:13px;color:#6e6e73;line-height:1.55;">' +
+            '· 코드는 <strong>10분간</strong> 유효합니다.<br>' +
+            '· 본인이 요청하지 않았다면 이 메일은 무시하세요.' +
+          '</div>' +
+        '</td></tr>' +
+        '<tr><td style="padding:14px 28px 22px;border-top:1px solid #e8e8ed;font-size:12px;color:#aeaeb2;">' +
+          'ThinQ Real · HS플랫폼사업센터 AI홈솔루션엔지니어링팀' +
+        '</td></tr>' +
+      '</table>' +
+    '</div>';
 }
