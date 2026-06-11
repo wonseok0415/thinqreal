@@ -47,7 +47,7 @@ images/{파일명}
 | Sheets ID | `1-Z158TV46MtSEArir9bW4h4KQ438NCuhb3qaGyOooA0` |
 | 시트 탭명 | `bookings` (변경 금지) |
 | Apps Script URL | `https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec` |
-| 관리자 인증 | **이메일 코드 (명단 한정)** — 공유 비밀번호(`thinqreal2026`) 폐기. `AUTH_ADMIN_EMAILS` 4명만 로그인·삭제·슬롯 제어 가능 (2026-06-11 §접근 통제 강화 참조) |
+| 관리자 인증 | **이메일 코드 (명단 한정)** — 공유 비밀번호(`thinqreal2026`) 폐기. `AUTH_ADMIN_EMAILS` 5명만 로그인·삭제·슬롯 제어 가능 (2026-06-11 §접근 통제 강화 참조) |
 | 담당자 알림 메일 수신 | 이철호(`ch275.lee@lge.com`), 서문수(`moonsu.seo@lge.com`), 김현진(`hj8462.kim@lge.com`) — 콤마 구분으로 일괄 발송 |
 | CC 수신자 | `kang.wonseok@lge.com` (담당자 알림·예약자 메일 모두에 CC) |
 
@@ -851,7 +851,7 @@ data.sort((a,b)=>{
 
 ### A. 관리자 인증 — 이메일 코드 (명단 한정)
 - 공유 비밀번호 폐기 → 관리자 본인 `@lge.com` 이메일 + 6자리 코드 (메인 게이트 흐름 재사용, 단 허용 대상을 명단으로 한정).
-- **단일 소스**: Apps Script `AUTH_ADMIN_EMAILS` (kang.wonseok / ch275.lee / moonsu.seo / hj8462.kim 4명). 명단 변경 시 이 배열만 수정.
+- **단일 소스**: Apps Script `AUTH_ADMIN_EMAILS` (kang.wonseok / jhs.kim / ch275.lee / moonsu.seo / hj8462.kim 5명). 명단 변경 시 이 배열만 수정.
 - 엔드포인트: `?type=admin_auth_request` / `?type=admin_auth_verify`. 코드 캐시 키는 `admin_code_<email>` (메인 게이트 `auth_code_`와 분리).
 - 관리자 토큰은 payload `{email, exp, admin:true}` HMAC-SHA256 서명, **7일 유효**(`AUTH_ADMIN_TOKEN_TTL_DAYS`, 메인 30일보다 짧게). `localStorage('thinqreal_admin_token')`.
 
@@ -870,7 +870,7 @@ data.sort((a,b)=>{
 - 관리자 UI: 사이드바 "슬롯 제어" 탭(🚫). 날짜 선택(오늘/내일/모레 퀵버튼) → 회차별 상태(예약 가능/확정 있음/대기/차단) + 차단·해제 토글. 하단에 "예정된 차단" 칩 목록(과거 차단은 숨김).
 
 ### 핵심 제약 (다음 세션에서도 유지)
-- 관리자 명단 단일 소스 = Apps Script `AUTH_ADMIN_EMAILS`. 추가/제외 시 이 배열만 수정 후 재배포 (코드 외 분리 안 함 — 4명 고정 운영).
+- 관리자 명단 단일 소스 = Apps Script `AUTH_ADMIN_EMAILS`. 추가/제외 시 이 배열만 수정 후 재배포 (코드 외 분리 안 함).
 - **모든 파괴적 작업은 백엔드 토큰 검증이 진짜 방어선**. 클라이언트 게이트(화면)는 편의일 뿐 — 백엔드 `verifyAdminToken` 게이트를 임의로 우회·약화하지 말 것.
 - `?type=bookings`는 토큰 필수 — 관리자 페이지는 `&token=adminToken()` 동반. 토큰 없으면 `{error:'unauthorized'}` 반환되며 페이지는 `adminSessionExpired()`로 로그인 복귀.
 - 슬롯 차단은 `slot_blocks` 탭이 단일 소스. 메인 페이지 가용성 캐시(15초 TTL)로 차단 직후 최대 15초 지연 가능(의도).

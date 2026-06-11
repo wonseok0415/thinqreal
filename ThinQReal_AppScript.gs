@@ -37,6 +37,7 @@ const AUTH_COOLDOWN_SEC   = 60;             // 60초 재요청 방지
 // 메인 사이트 게이트(@lge.com 전체)보다 강하게 한정한다.
 const AUTH_ADMIN_EMAILS = [
   'kang.wonseok@lge.com',  // 강원석 — 시스템 운영
+  'jhs.kim@lge.com',       // 김재훈 팀장
   'ch275.lee@lge.com',     // 이철호 책임
   'moonsu.seo@lge.com',    // 서문수 선임
   'hj8462.kim@lge.com'     // 김현진 선임
