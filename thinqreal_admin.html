@@ -327,6 +327,7 @@ body {
 .slot-chip { display:inline-flex; align-items:center; gap:var(--sp-8); background:rgba(255,59,48,0.07); border:1px solid rgba(255,59,48,0.25); border-radius:980px; padding:6px 8px 6px 14px; margin:0 var(--sp-8) var(--sp-8) 0; font-size:var(--t-footnote); color:#c92419; }
 .slot-chip button { border:none; background:rgba(255,59,48,0.15); color:#c92419; width:22px; height:22px; border-radius:50%; cursor:pointer; font-size:13px; line-height:1; }
 .slot-chip button:hover { background:#ff3b30; color:#fff; }
+.slot-chip button:disabled { opacity:.5; cursor:not-allowed; }
 
 /* ── KPIs ── */
 .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:var(--sp-16); margin-bottom:var(--sp-32); }
@@ -2620,6 +2621,7 @@ const SLOT_DAY_KO = ['일','월','화','수','목','금','토'];
 let slotCalCursor = new Date();        // 캘린더가 현재 보여주는 월
 let slotSelectedDate = null;           // 선택된 날짜 (YYYY-MM-DD)
 let slotBlockedDatesSet = new Set();   // has-block 점 표시용 (메인 가용성과 무관, 별도 로드)
+const inflightBlocks = new Set();      // 처리 중인 date|slot 추적 (중복 클릭 방어)
 
 function slotDateToYMD(d) {
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -2723,8 +2725,8 @@ async function loadSlotBlocks() {
       else if (isBooked) state = '확정 예약 있음';
       else if (pc > 0) state = pc + '팀 대기 중';
       const btn = isBlocked
-        ? `<button class="slot-btn-unblock" onclick="unblockSlot('${date}',${n})">차단 해제</button>`
-        : `<button class="slot-btn-block" onclick="blockSlot('${date}',${n})">차단</button>`;
+        ? `<button class="slot-btn-unblock" onclick="unblockSlot('${date}',${n},this)">차단 해제</button>`
+        : `<button class="slot-btn-block" onclick="blockSlot('${date}',${n},this)">차단</button>`;
       row.innerHTML = `<div class="slot-row-info"><span class="slot-row-name">${SLOT_LABELS[String(n)]}</span><span class="slot-row-state">${state}</span></div>${btn}`;
       list.appendChild(row);
     });
@@ -2733,24 +2735,50 @@ async function loadSlotBlocks() {
   }
 }
 
-async function blockSlot(date, slot) {
+// mode:'no-cors' 라 await는 즉시 풀리지만 Apps Script가 시트에 쓰는 데 시간이 걸린다.
+// 처리 중 동안 버튼·토스트로 진행 상태를 알리고, 시트 반영 후 데이터를 다시 불러온다.
+async function blockSlot(date, slot, btn) {
   if (!adminTokenValid()) { adminSessionExpired(); return; }
+  const key = date + '|' + slot;
+  if (inflightBlocks.has(key)) return;   // 동일 회차에 이미 요청이 떠 있으면 무시
+  inflightBlocks.add(key);
+  if (btn) { btn.disabled = true; btn.textContent = '처리 중…'; }
+  toast('처리 중… 시트에 반영하고 있습니다', 8000);
   try {
     await fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ type:'slot_block', date, slot, token:adminToken() }) });
+    await new Promise(r => setTimeout(r, 800));  // Apps Script 시트 쓰기 여유
+    await loadSlotBlocks();
+    await loadAllBlocks();
     toast('🚫 ' + date.slice(5) + ' ' + slot + '회차를 차단했습니다');
-    setTimeout(()=>{ loadSlotBlocks(); loadAllBlocks(); }, 700);
-  } catch(e) { toast('차단 실패 — 다시 시도해 주세요'); }
+  } catch(e) {
+    toast('차단 실패 — 다시 시도해 주세요');
+    if (btn) { btn.disabled = false; btn.textContent = '차단'; }
+  } finally {
+    inflightBlocks.delete(key);
+  }
 }
 
-async function unblockSlot(date, slot) {
+async function unblockSlot(date, slot, btn) {
   if (!adminTokenValid()) { adminSessionExpired(); return; }
+  const key = date + '|' + slot;
+  if (inflightBlocks.has(key)) return;
+  inflightBlocks.add(key);
+  if (btn) { btn.disabled = true; if (btn.textContent.trim() !== '×') btn.textContent = '처리 중…'; }
+  toast('처리 중… 시트에서 해제하고 있습니다', 8000);
   try {
     await fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ type:'slot_unblock', date, slot, token:adminToken() }) });
+    await new Promise(r => setTimeout(r, 800));
+    await loadSlotBlocks();
+    await loadAllBlocks();
     toast('✓ ' + date.slice(5) + ' ' + slot + '회차 차단을 해제했습니다');
-    setTimeout(()=>{ loadSlotBlocks(); loadAllBlocks(); }, 700);
-  } catch(e) { toast('해제 실패 — 다시 시도해 주세요'); }
+  } catch(e) {
+    toast('해제 실패 — 다시 시도해 주세요');
+    if (btn) { btn.disabled = false; btn.textContent = '차단 해제'; }
+  } finally {
+    inflightBlocks.delete(key);
+  }
 }
 
 async function loadAllBlocks() {
@@ -2769,7 +2797,7 @@ async function loadAllBlocks() {
     blocks.forEach(b => { (byDate[b.date] = byDate[b.date] || []).push(b); });
     wrap.innerHTML = Object.keys(byDate).sort().map(date => {
       const chips = byDate[date].map(b =>
-        `<span class="slot-chip">${date.slice(5)} ${b.slot}회차 <button onclick="unblockSlot('${date}',${b.slot})" title="해제">×</button></span>`
+        `<span class="slot-chip">${date.slice(5)} ${b.slot}회차 <button onclick="unblockSlot('${date}',${b.slot},this)" title="해제">×</button></span>`
       ).join('');
       return `<div style="margin-bottom:var(--sp-4);">${chips}</div>`;
     }).join('');
