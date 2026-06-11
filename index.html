@@ -551,6 +551,22 @@ button, input, select, textarea { font-family: inherit; }
   opacity: 0.55; pointer-events: none;
   animation: slotPulse 0.9s ease-in-out infinite;
 }
+/* 운영 사정 차단 — 마감(적색)과 구분되는 중립 회색 톤 */
+.slot-item.blocked {
+  pointer-events: none; cursor: not-allowed;
+  background: var(--c-fill);
+  border-color: var(--c-separator);
+}
+.slot-item.blocked .slot-label-text,
+.slot-item.blocked .slot-time-text {
+  color: var(--c-label-3);
+  text-decoration: line-through;
+  text-decoration-color: var(--c-label-3);
+}
+.slot-item.blocked .slot-booked-label { color: var(--c-label-2); font-weight: 600; }
+.slot-item.blocked .slot-badge {
+  background: var(--c-label-3); color: #fff; border-color: var(--c-label-3); font-weight: 600;
+}
 /* 동일 회차에 다른 팀이 대기중일 때 — 선택 가능하되 안내 톤. */
 .slot-item.pending:not(.selected) {
   background: rgba(255, 149, 0, 0.05);
@@ -1796,7 +1812,7 @@ function selectDate(date) {
 function resetSlotUI() {
   [1,2,3].forEach(i => {
     const el = document.getElementById('slot'+i);
-    el.classList.remove('selected','booked','loading');
+    el.classList.remove('selected','booked','loading','pending','blocked');
     document.getElementById('slot'+i+'-status').textContent = '';
     document.getElementById('slot'+i+'-badge').textContent =
       i === 1 ? '오전' : '오후';
@@ -1819,20 +1835,28 @@ function warmupAppsScript() {
   fetch(SCRIPT_URL + '?type=mail_status').catch(() => { appsScriptWarmedUp = false; });
 }
 
-function applyAvailability(booked, pendingCounts) {
+function applyAvailability(booked, pendingCounts, blocked) {
   pendingCounts = pendingCounts || {};
+  blocked = blocked || new Set();
   [1,2,3].forEach(i => {
     const el     = document.getElementById('slot'+i);
     const status = document.getElementById('slot'+i+'-status');
     const badge  = document.getElementById('slot'+i+'-badge');
-    el.classList.remove('loading','pending');
-    if (booked.has(i)) {
+    el.classList.remove('loading','pending','booked','blocked');
+    // 운영 사정 차단이 최우선 — 예약/대기 여부와 무관하게 예약 불가
+    if (blocked.has(i)) {
+      el.classList.add('blocked');
+      el.onclick = null;
+      // 선택돼 있던 회차라면 해제
+      if (selectedSlots.has(i)) { selectedSlots.delete(i); el.classList.remove('selected'); updateSummary(); }
+      status.textContent = '예약 불가';
+      badge.textContent  = '불가';
+    } else if (booked.has(i)) {
       el.classList.add('booked');
       el.onclick = null;
       status.textContent = '예약 마감';
       badge.textContent  = '마감';
     } else {
-      el.classList.remove('booked');
       el.onclick = () => selectSlot(i);
       const pending = Number(pendingCounts[i] || 0);
       if (pending > 0) {
@@ -1856,7 +1880,7 @@ async function fetchAvailability(date) {
   // 캐시 히트 → 즉시 적용, 네트워크 호출 없음
   const cached = availabilityCache.get(dateStr);
   if (cached && Date.now() - cached.t < AVAILABILITY_TTL) {
-    applyAvailability(cached.booked, cached.pendingCounts);
+    applyAvailability(cached.booked, cached.pendingCounts, cached.blocked);
     return;
   }
 
@@ -1868,11 +1892,12 @@ async function fetchAvailability(date) {
 
   try {
     const res  = await fetch(SCRIPT_URL + '?type=availability&date=' + dateStr);
-    const data = await res.json(); // { bookedSlots: [1, 3], pendingCounts: { 2: 1 } }
+    const data = await res.json(); // { bookedSlots:[1,3], pendingCounts:{2:1}, blockedSlots:[2] }
     const booked = new Set(data.bookedSlots || []);
     const pendingCounts = data.pendingCounts || {};
-    availabilityCache.set(dateStr, { t: Date.now(), booked, pendingCounts });
-    applyAvailability(booked, pendingCounts);
+    const blocked = new Set((data.blockedSlots || []).map(Number));
+    availabilityCache.set(dateStr, { t: Date.now(), booked, pendingCounts, blocked });
+    applyAvailability(booked, pendingCounts, blocked);
   } catch(e) {
     // 조회 실패 시 로딩 해제 후 정상 상태 유지
     [1,2,3].forEach(i => {
@@ -1883,8 +1908,9 @@ async function fetchAvailability(date) {
 }
 
 function selectSlot(n) {
-  // booked 상태면 무시
-  if (document.getElementById('slot'+n).classList.contains('booked')) return;
+  // booked·blocked 상태면 무시
+  const cl = document.getElementById('slot'+n).classList;
+  if (cl.contains('booked') || cl.contains('blocked')) return;
   // 토글 — 이미 선택된 회차면 해제, 아니면 추가
   if (selectedSlots.has(n)) {
     selectedSlots.delete(n);
