@@ -587,7 +587,7 @@ ThinQ Real을 독립 도메인 `thinqreal.com`(hosting.kr 구입)으로 이전. 
 5. Apps Script 프로젝트 설정 → 스크립트 속성에 두 값 등록
 
 ### D. 발신자 (현행 유지)
-- `MailApp.sendEmail(..., { name: 'ThinQ Real' })` — 표시 이름만 'ThinQ Real'로 설정. 실제 발신 주소는 스크립트 소유자 Gmail (`kang.wonseok@lge.com`).
+- `MailApp.sendEmail(..., { name: 'ThinQ Real' })` — 표시 이름만 'ThinQ Real'로 설정. 실제 발신 주소는 **스크립트 소유자 Gmail (`kangwonseok0415@gmail.com`)** — `kang.wonseok@lge.com`은 CC 수신자이지 발신자가 아님. (Apps Script 편집기 로그인 계정 = `kangwonseok0415@gmail.com`이 소유자. 외부 gmail 발신이라 사내 수신자에게 갈 때 LG 보안 게이트웨이 스캔 큐를 타 메일 지연이 생김.)
 - 별도 도메인 메일(`thinqreal@thinqreal.com`)을 발신자로 쓰려면 **Google Workspace 가입(~$7/월) + Send-as alias 등록 + `GmailApp.sendEmail({from: ...})` 변경**이 필요. 본 세션에서는 추가 비용 없이 현행 유지로 합의.
 
 ### E. 미리보기 / 수동 발송
@@ -926,7 +926,7 @@ data.sort((a,b)=>{
 
 ### B. 발신자 표시명 통일
 - `sendAdminAlert` · `sendGuestMail` 양쪽 `MailApp.sendEmail`에 `name: 'ThinQ Real'` 추가. 기존 월간 운영 리포트와 동일.
-- 실제 발신 주소는 스크립트 소유자 Gmail(`kang.wonseok@lge.com`) 유지. 수신자에게는 `ThinQ Real <kang.wonseok@lge.com>`로 노출.
+- 실제 발신 주소는 스크립트 소유자 Gmail(`kangwonseok0415@gmail.com`) 유지. 수신자에게는 `ThinQ Real <kangwonseok0415@gmail.com>`로 노출. (`kang.wonseok@lge.com`은 CC 수신자)
 
 ### 핵심 제약 (다음 세션에서도 유지)
 - 모든 ThinQ Real 발신 메일(담당자 알림·게스트 확정/거절·월간 리포트)은 `name: 'ThinQ Real'`로 통일 — 신규 메일 종류 추가 시도 동일하게 설정.
@@ -973,17 +973,17 @@ data.sort((a,b)=>{
 - 제목: `[목적] 주제 · 책임자`. 본문: 목적·주제·고객사·회차·인원·책임자·활용 방안 + 위치(마곡 W6동 1층) + 관리자 페이지 링크.
 - **방문자 전체 명단·연락처(전화·이메일)는 캘린더에 미표기** — 개인정보 처리방침·국외이전 동의 운영 중이라 의도적으로 제외. 상세는 관리자 페이지에서만 확인.
 
-### C. 설정 (Script Property + 캘린더 공유)
-- `CALENDAR_ID` (Script Property) — 대상 캘린더 ID. 미설정 시 silent skip(다른 동작 영향 없음).
-- **다른 계정의 캘린더**를 쓰려면 그 캘린더를 **스크립트 소유자 계정(`kang.wonseok@lge.com`)에 "변경 권한"(이벤트 변경)으로 공유** 필수. 공유 후 그 계정에서 캘린더 ID 복사 → `CALENDAR_ID`에 등록.
-- 캘린더 ID 위치: 캘린더 설정 → 해당 캘린더 → "캘린더 통합" → 캘린더 ID (보조 캘린더는 `...@group.calendar.google.com`).
+### C. 설정 (Script Property + 캘린더 접근)
+- `CALENDAR_ID` (Script Property) = `thinq_real_calendar@gmail.com`. 미설정 시 silent skip(다른 동작 영향 없음).
+- **스크립트 소유자 = `kangwonseok0415@gmail.com`(개인 gmail, 편집기 로그인 계정)** 이고, 이 계정이 ThinQ Real 캘린더(`thinq_real_calendar@gmail.com`)에 **읽기/쓰기 권한 보유** → 별도 공유 없이 바로 동작. (소유자가 사내 계정이었다면 그 계정에 "변경 권한" 공유가 필요했겠지만, 실제 소유자는 개인 gmail이라 불필요.)
+- 캘린더 ID 위치: 캘린더 설정 → 해당 캘린더 → "캘린더 통합" → 캘린더 ID.
 - 시트에 **`calendarEventId` 컬럼(22번째)** 자동 append — 이벤트 갱신·삭제 추적용. 백필 시 공란 허용.
 
 ### D. 검증 엔드포인트
 - `GET ?type=calendar_test` — CALENDAR_ID 설정 + 쓰기 권한 점검. 1시간 뒤 테스트 일정을 만들었다 즉시 삭제. 미설정 `{ok:false, reason:'not_configured'}` / 접근 불가 `no_access` / 쓰기 실패 `write_failed` / 정상 `{ok:true, calendarName}`.
 
 ### 핵심 제약 (다음 세션에서도 유지)
-- `CALENDAR_ID`는 **Script Property에만**. 다른 계정 캘린더는 스크립트 소유자에게 "변경 권한" 공유가 전제.
+- `CALENDAR_ID`는 **Script Property에만**. 스크립트 소유자(`kangwonseok0415@gmail.com`)가 대상 캘린더에 쓰기 권한이 있어야 함 — 현재 `thinq_real_calendar@gmail.com`은 소유자 개인 계정에 읽기/쓰기 연동돼 있어 충족.
 - 캘린더 동기화는 **메일·텔레그램과 독립** — `getBookingCalendar()`가 null(미설정/권한없음)이면 조용히 skip, 예약 저장·메일은 정상.
 - 캘린더에 **방문자 명단·연락처 미표기** 원칙 유지 — 표기 범위 넓히려면 `buildCalendarEvent`만 수정하되 개인정보 노출 검토 필수.
 - 회차 시간표(`SLOT_TIMES`)는 확정 슬롯과 동일 — 슬롯 변경 금지 원칙에 종속.
