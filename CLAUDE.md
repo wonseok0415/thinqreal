@@ -910,3 +910,26 @@ data.sort((a,b)=>{
 - 텔레그램 발송은 **이메일 발송과 독립** — 한쪽 실패가 다른 쪽을 막지 않도록 try/catch 격리 구조 유지.
 - 신규 알림 이벤트를 추가하려면 (예: 슬롯 차단) `sendTelegramMessage()`를 직접 호출하면 됨 — 헬퍼는 메시지 문자열만 받음.
 - **재배포 필요**: 신규 엔드포인트(`telegram_test`) + 훅 추가. "배포 관리 → 편집 → 새 버전 → 배포".
+
+## 작업 내역 (2026-06-14 — 담당자 알림 메일 카드형 개편 + 발신자명 통일)
+
+신규 예약 접수 시 담당자 3명+CC에게 가던 평문 알림 메일을 **예약 확정 메일과 동일한 다크 올리브 카드형 레이아웃**으로 개편. 발신자 표시명도 `ThinQ Real`로 통일.
+
+### A. `sendAdminAlert` 재구성 (ThinQReal_AppScript.gs)
+- 평문 본문 한 줄짜리 → **HTML + plain-text 동시 발송** 구조로 전환 (`buildAdminAlertText` / `buildAdminAlertHtml` 분리).
+- HTML 레이아웃: `buildConfirmHtml`과 동일한 다크 올리브(#3a5035) 헤더 + 라벨/값 그리드 카드. 헤더 서브타이틀 "새 예약 신청이 접수되었습니다" + 예약 ID.
+- 정보 섹션 이모지 헤더: 📅 일정 / 🎯 목적 / 📝 주제(목적 카테고리별 동적 라벨) / 🏢 고객사(있을 때만) / 👤 책임자 / ☎ 연락처+이메일 / 👥 인원+방문자 명단 표 / 💡 활용 방안 / ✨ 기대 효과.
+- 활용 방안·기대 효과는 회색 배경(`#f5f5f7`) + 좌측 액센트 보더(#8fa889) 블록으로 가독성 강화. 줄바꿈 보존(`<br>`). 빈 값이면 "(작성된 내용 없음)" 회색 표기.
+- 방문자 명단은 zebra-stripe 표(소속·이름·직급 가운뎃점 구분).
+- CTA 버튼: "관리자 페이지에서 승인 / 거절하기 ↗" (https://thinqreal.com/thinqreal_admin.html). 메일 클라이언트 호환 위해 인라인 스타일 다크 올리브 버튼.
+- `ADMIN_ALERT_SUBJ_LABELS` 상수로 목적별 1번째 줄 라벨 매핑(customer→고객/고객사, rd→프로젝트명, internal/external-event→행사명, content→촬영명, other→제목).
+
+### B. 발신자 표시명 통일
+- `sendAdminAlert` · `sendGuestMail` 양쪽 `MailApp.sendEmail`에 `name: 'ThinQ Real'` 추가. 기존 월간 운영 리포트와 동일.
+- 실제 발신 주소는 스크립트 소유자 Gmail(`kang.wonseok@lge.com`) 유지. 수신자에게는 `ThinQ Real <kang.wonseok@lge.com>`로 노출.
+
+### 핵심 제약 (다음 세션에서도 유지)
+- 모든 ThinQ Real 발신 메일(담당자 알림·게스트 확정/거절·월간 리포트)은 `name: 'ThinQ Real'`로 통일 — 신규 메일 종류 추가 시도 동일하게 설정.
+- `ADMIN_ALERT_SUBJ_LABELS`는 `PURPOSE_CONFIG`(index.html) 카테고리 키와 동기화 필수 — 신규 카테고리 추가 시 양쪽 다 수정.
+- 카드형 HTML은 인라인 스타일만 사용(Gmail/Outlook 호환). `<style>` 블록·CSS 변수·외부 리소스 금지.
+- **재배포 필요**: `sendAdminAlert` 시그니처는 동일하나 내부가 바뀜. "배포 관리 → 편집 → 새 버전 → 배포".
