@@ -566,6 +566,56 @@ body {
   font-family:inherit; transition:opacity .15s var(--ease);
 }
 .modal-btn-delete-confirm[disabled] { opacity:.4; cursor:not-allowed; }
+.modal-btn-edit {
+  min-height:44px; padding:0 var(--sp-20); background:var(--c-accent-light); color:var(--c-accent);
+  border:none; border-radius:var(--radius-md); font-size:var(--t-subhead); font-weight:600;
+  cursor:pointer; font-family:inherit; transition:all .15s var(--ease);
+}
+.modal-btn-edit:hover { background:var(--c-accent); color:#fff; }
+
+/* ── 예약 이력 추가 / 수정 폼 모달 ── */
+.fmodal { width:min(640px,calc(100vw - 32px)); max-height:calc(100vh - 48px); overflow-y:auto; }
+.fform { display:flex; flex-direction:column; gap:var(--sp-16); }
+.ffield { display:flex; flex-direction:column; gap:6px; }
+.ffield-label { font-size:var(--t-footnote); color:var(--c-label-2); font-weight:600; }
+.ffield-label .req { color:var(--c-red); margin-left:2px; }
+.finput, .fselect, .ftextarea {
+  width:100%; box-sizing:border-box; padding:10px 12px;
+  border:1.5px solid var(--c-separator); border-radius:var(--radius-sm);
+  font-size:var(--t-subhead); font-family:inherit; background:var(--c-bg); color:var(--c-label);
+}
+.finput:focus, .fselect:focus, .ftextarea:focus { border-color:var(--c-accent); outline:none; }
+.ftextarea { min-height:72px; resize:vertical; line-height:1.5; }
+.frow { display:grid; grid-template-columns:1fr 1fr; gap:var(--sp-12); }
+.fhint { font-size:11px; color:var(--c-label-3); line-height:1.4; }
+.fnote-banner {
+  font-size:var(--t-footnote); color:var(--c-label-2); line-height:1.5;
+  padding:var(--sp-12); background:var(--c-fill); border-radius:var(--radius-sm);
+  border-left:3px solid var(--c-accent-mid,#8fa889);
+}
+.fslots { display:flex; gap:var(--sp-8); flex-wrap:wrap; }
+.fslot {
+  flex:1 1 96px; display:flex; align-items:center; justify-content:center;
+  padding:10px 8px; border:1.5px solid var(--c-separator); border-radius:var(--radius-sm);
+  font-size:var(--t-footnote); cursor:pointer; user-select:none; text-align:center;
+  transition:all .15s var(--ease);
+}
+.fslot.on { border-color:var(--c-accent); background:var(--c-accent-light); color:var(--c-accent); font-weight:600; }
+.fvisitor-row { display:grid; gap:var(--sp-8); align-items:center; margin-bottom:8px; }
+.fvisitor-row .finput { padding:8px 10px; }
+.fbtn-mini {
+  align-self:flex-start; padding:6px 12px; border:1px dashed var(--c-separator);
+  border-radius:var(--radius-sm); background:transparent; color:var(--c-accent);
+  font-size:var(--t-footnote); font-weight:600; cursor:pointer; font-family:inherit;
+}
+.fbtn-mini:hover { border-color:var(--c-accent); }
+.fvisitor-del {
+  width:32px; height:32px; flex-shrink:0; border:none; border-radius:50%;
+  background:var(--c-fill); color:var(--c-label-2); cursor:pointer; font-size:13px;
+  transition:all .15s var(--ease);
+}
+.fvisitor-del:hover { background:var(--c-red-light); color:var(--c-red); }
+@media (max-width:600px){ .frow { grid-template-columns:1fr; } }
 
 /* ── Accounts tab ── */
 .accounts-section { margin-bottom: var(--sp-32); }
@@ -998,6 +1048,7 @@ body {
         </select>
         <input type="month" class="toolbar-input" id="filterMonth" onchange="renderTable()">
         <span class="toolbar-spacer"></span>
+        <button class="toolbar-btn" onclick="openBookingFormCreate()">＋ 이력 추가</button>
         <button class="toolbar-btn" onclick="exportCSV()">⬇︎ CSV 내보내기</button>
       </div>
       <div class="table-card">
@@ -1899,9 +1950,99 @@ body {
     </div>
     <div class="modal-actions" id="modalActions">
       <button class="modal-btn-close" onclick="closeModal()">닫기</button>
+      <button class="modal-btn-edit"  id="modalEditBtn"  onclick="editFromModal()">수정</button>
       <button class="modal-btn-danger" id="modalDeleteBtn" onclick="startDelete()">영구 삭제</button>
       <button class="modal-btn-reject"  id="modalRejectBtn"  onclick="updateStatusFromModal('거절')">거절</button>
       <button class="modal-btn-confirm" id="modalConfirmBtn" onclick="updateStatusFromModal('확정')">확정</button>
+    </div>
+  </div>
+</div>
+
+<!-- 예약 이력 추가 / 수정 폼 모달 (관리자 전용) -->
+<div class="modal-backdrop" id="bookingFormBg" onclick="if(event.target===this)closeBookingForm()">
+  <div class="modal fmodal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="bfTitle">예약 이력 추가</h2>
+      <button class="modal-close" onclick="closeBookingForm()">✕</button>
+    </div>
+    <div class="fform">
+      <div class="fnote-banner">관리자가 직접 입력·수정하는 이력입니다. 저장해도 담당자 알림 메일·텔레그램은 발송되지 않습니다.</div>
+      <div class="ffield">
+        <label class="ffield-label">방문 목적<span class="req">*</span></label>
+        <select class="fselect" id="bfPurpose" onchange="onBfPurposeChange()">
+          <option value="">선택하세요</option>
+        </select>
+        <span class="fhint" id="bfPurposeHint"></span>
+      </div>
+      <div class="ffield">
+        <label class="ffield-label" id="bfSubjectLabel">주제<span class="req">*</span></label>
+        <input class="finput" id="bfSubject" type="text" autocomplete="off">
+      </div>
+      <div class="ffield" id="bfClientWrap" style="display:none;">
+        <label class="ffield-label">고객사 <span class="fhint" style="font-weight:400;">(비우면 주제와 동일하게 저장)</span></label>
+        <input class="finput" id="bfClient" type="text" autocomplete="off">
+      </div>
+      <div class="frow">
+        <div class="ffield">
+          <label class="ffield-label">날짜<span class="req">*</span></label>
+          <input class="finput" id="bfDate" type="date">
+          <span class="fhint">지난 날짜도 입력할 수 있습니다.</span>
+        </div>
+        <div class="ffield">
+          <label class="ffield-label">상태</label>
+          <select class="fselect" id="bfStatus">
+            <option value="확정">확정</option>
+            <option value="대기중">대기중</option>
+            <option value="거절">거절</option>
+          </select>
+        </div>
+      </div>
+      <div class="ffield">
+        <label class="ffield-label">회차<span class="req">*</span></label>
+        <div class="fslots" id="bfSlots"></div>
+      </div>
+      <div class="frow">
+        <div class="ffield">
+          <label class="ffield-label" id="bfLeaderLabel">책임자<span class="req">*</span></label>
+          <input class="finput" id="bfName" type="text" autocomplete="off">
+        </div>
+        <div class="ffield">
+          <label class="ffield-label">방문 인원</label>
+          <input class="finput" id="bfCount" type="number" min="0" inputmode="numeric">
+          <span class="fhint">비우면 방문자 명단 수로 자동 설정됩니다.</span>
+        </div>
+      </div>
+      <div class="frow">
+        <div class="ffield">
+          <label class="ffield-label">연락처</label>
+          <input class="finput" id="bfPhone" type="text" autocomplete="off" maxlength="15">
+        </div>
+        <div class="ffield">
+          <label class="ffield-label">이메일</label>
+          <input class="finput" id="bfEmail" type="text" autocomplete="off">
+        </div>
+      </div>
+      <div class="ffield">
+        <label class="ffield-label">방문자 명단</label>
+        <div id="bfVisitors"></div>
+        <button type="button" class="fbtn-mini" onclick="bfAddVisitor()">＋ 방문자 추가</button>
+      </div>
+      <div class="ffield">
+        <label class="ffield-label" id="bfUsageLabel">활용 방안</label>
+        <textarea class="ftextarea" id="bfUsage"></textarea>
+      </div>
+      <div class="ffield">
+        <label class="ffield-label">기대 효과</label>
+        <textarea class="ftextarea" id="bfEffect"></textarea>
+      </div>
+      <div class="ffield">
+        <label class="ffield-label">메모 (선택)</label>
+        <textarea class="ftextarea" id="bfNote" style="min-height:48px;"></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn-close" onclick="closeBookingForm()">취소</button>
+      <button class="modal-btn-confirm" id="bfSaveBtn" onclick="saveBookingForm()">저장</button>
     </div>
   </div>
 </div>
@@ -2472,6 +2613,254 @@ async function updateStatus(id, status) {
     toast('처리 실패: ' + (e.message || '네트워크 오류') + ' — 잠시 후 다시 시도해 주세요');
   } finally {
     inflightUpdates.delete(sid);
+  }
+}
+
+// ── 예약 이력 직접 입력 / 수정 (관리자 전용) ─────────────────
+// 시스템 오픈 전 과거 방문 이력을 직접 기록하거나, 고객이 대충 적은
+// 상세를 담당자가 보강·정정한다. 저장 시 알림(메일·텔레그램)은 발송되지 않음.
+const BF_PURPOSE_CONFIG = {
+  'customer':       { label:'고객/고객사 영업 활동', subjectLabel:'고객/고객사', leaderLabel:'고객/고객사 담당자', usageLabel:'방문 목적 (구체적)', hint:'LG전자 제품 검토·구매·시연을 위한 고객사 방문', client:true,  cols:2 },
+  'rd':             { label:'내부 R&D · 테스트',     subjectLabel:'프로젝트명',   leaderLabel:'부서 리더/책임자',   usageLabel:'ThinQ Real 활용 방안', hint:'내부 R&D · 데이터 수집 · 기능 검증',          client:false, cols:2 },
+  'internal-event': { label:'내부 행사',            subjectLabel:'행사명',       leaderLabel:'부서 리더/책임자',   usageLabel:'ThinQ Real 활용 방안', hint:'임직원만 참석하는 사내 행사',                 client:false, cols:2 },
+  'external-event': { label:'외부 행사',            subjectLabel:'행사명',       leaderLabel:'부서 리더/책임자',   usageLabel:'ThinQ Real 활용 방안', hint:'기자단·VIP·언론 등 사외 인원 방문 행사',      client:false, cols:3 },
+  'content':        { label:'콘텐츠 제작',          subjectLabel:'촬영명',       leaderLabel:'부서 리더/책임자',   usageLabel:'ThinQ Real 활용 방안', hint:'사진·영상·인쇄물 등 콘텐츠 제작 촬영',        client:false, cols:3 },
+  'other':          { label:'기타',                subjectLabel:'제목',         leaderLabel:'부서 리더/책임자',   usageLabel:'ThinQ Real 활용 방안', hint:'위 카테고리에 해당하지 않는 방문',            client:false, cols:3 },
+};
+const BF_MAX_VISITORS = 10;
+let bfMode = 'create';   // 'create' | 'edit'
+let bfEditId = null;
+let bfVisitorRows = [];   // [{org,name,rank}]
+
+function bfEsc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// 목적 select·회차 칩은 1회만 구성
+function bfInit() {
+  const sel = document.getElementById('bfPurpose');
+  if (sel.options.length <= 1) {
+    Object.keys(BF_PURPOSE_CONFIG).forEach(k => {
+      const o = document.createElement('option');
+      o.value = k; o.textContent = BF_PURPOSE_CONFIG[k].label;
+      sel.appendChild(o);
+    });
+  }
+  const sc = document.getElementById('bfSlots');
+  sc.innerHTML = ['1','2','3'].map(n =>
+    `<div class="fslot" data-slot="${n}" onclick="bfToggleSlot('${n}')">${SLOT_LABELS[n].trim()}</div>`
+  ).join('');
+}
+
+function bfToggleSlot(n) {
+  const el = document.querySelector('#bfSlots .fslot[data-slot="'+n+'"]');
+  if (el) el.classList.toggle('on');
+}
+function bfSelectedSlots() {
+  return [...document.querySelectorAll('#bfSlots .fslot.on')].map(e => Number(e.dataset.slot)).sort((a,b)=>a-b);
+}
+function bfSetSlots(arr) {
+  const set = (arr || []).map(Number);
+  document.querySelectorAll('#bfSlots .fslot').forEach(e => {
+    e.classList.toggle('on', set.indexOf(Number(e.dataset.slot)) >= 0);
+  });
+}
+
+// 목적별 라벨·힌트·고객사 노출 갱신 (방문자 값은 건드리지 않음)
+function bfApplyLabels() {
+  const cfg = BF_PURPOSE_CONFIG[document.getElementById('bfPurpose').value];
+  const hintEl = document.getElementById('bfPurposeHint');
+  if (!cfg) {
+    hintEl.textContent = '';
+    document.getElementById('bfClientWrap').style.display = 'none';
+    return;
+  }
+  hintEl.textContent = cfg.hint;
+  document.getElementById('bfSubjectLabel').innerHTML = bfEsc(cfg.subjectLabel) + '<span class="req">*</span>';
+  document.getElementById('bfLeaderLabel').innerHTML  = bfEsc(cfg.leaderLabel) + '<span class="req">*</span>';
+  document.getElementById('bfUsageLabel').textContent = cfg.usageLabel;
+  document.getElementById('bfClientWrap').style.display = cfg.client ? '' : 'none';
+}
+// select 변경(사용자) — 입력 중인 방문자 값을 보존하려 DOM에서 먼저 동기화
+function onBfPurposeChange() { bfSyncVisitorsFromDOM(); bfApplyLabels(); bfRenderVisitors(); }
+
+function bfAddVisitor(v) {
+  bfSyncVisitorsFromDOM();
+  if (bfVisitorRows.length >= BF_MAX_VISITORS) { toast('방문자는 최대 ' + BF_MAX_VISITORS + '명까지 입력할 수 있습니다.'); return; }
+  bfVisitorRows.push(v || {org:'',name:'',rank:''});
+  bfRenderVisitors();
+}
+function bfDelVisitor(i) {
+  bfSyncVisitorsFromDOM();
+  bfVisitorRows.splice(i,1);
+  bfRenderVisitors();
+}
+function bfSyncVisitorsFromDOM() {
+  const rows = document.querySelectorAll('#bfVisitors .fvisitor-row');
+  if (!rows.length) return;
+  bfVisitorRows = [...rows].map(row => {
+    const org = row.querySelector('[data-k="org"]');
+    return {
+      org:  org ? org.value : '',
+      name: (row.querySelector('[data-k="name"]') || {}).value || '',
+      rank: (row.querySelector('[data-k="rank"]') || {}).value || '',
+    };
+  });
+}
+function bfRenderVisitors() {
+  const cfg = BF_PURPOSE_CONFIG[document.getElementById('bfPurpose').value];
+  const cols = cfg ? cfg.cols : 3;
+  document.getElementById('bfVisitors').innerHTML = bfVisitorRows.map((v,i) => {
+    const orgInput = cols === 3
+      ? `<input class="finput" data-k="org" placeholder="소속" value="${bfEsc(v.org)}">` : '';
+    const grid = cols === 3 ? '1.2fr 1fr .8fr 32px' : '1fr .8fr 32px';
+    return `<div class="fvisitor-row" style="grid-template-columns:${grid};">
+      ${orgInput}
+      <input class="finput" data-k="name" placeholder="이름" value="${bfEsc(v.name)}">
+      <input class="finput" data-k="rank" placeholder="직급" value="${bfEsc(v.rank)}">
+      <button type="button" class="fvisitor-del" onclick="bfDelVisitor(${i})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function openBookingFormCreate() {
+  if (!adminTokenValid()) { adminSessionExpired(); return; }
+  bfInit();
+  bfMode = 'create'; bfEditId = null;
+  document.getElementById('bfTitle').textContent = '예약 이력 추가';
+  document.getElementById('bfPurpose').value = '';
+  ['bfSubject','bfClient','bfDate','bfName','bfCount','bfPhone','bfEmail','bfUsage','bfEffect','bfNote']
+    .forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('bfStatus').value = '확정';
+  bfSetSlots([]);
+  bfVisitorRows = [{org:'',name:'',rank:''}];
+  bfApplyLabels(); bfRenderVisitors();
+  const btn = document.getElementById('bfSaveBtn'); btn.disabled = false; btn.textContent = '저장';
+  document.getElementById('bookingFormBg').classList.add('open');
+}
+
+function openBookingFormEdit(id) {
+  if (!adminTokenValid()) { adminSessionExpired(); return; }
+  const b = allBookings.find(x => x.id === id); if (!b) return;
+  bfInit();
+  bfMode = 'edit'; bfEditId = id;
+  document.getElementById('bfTitle').textContent = '예약 상세 수정';
+  // purposeKey 우선, 없으면 한국어 라벨로 역추적
+  let key = b.purposeKey || Object.keys(BF_PURPOSE_CONFIG).find(k => BF_PURPOSE_CONFIG[k].label === b.purpose) || 'other';
+  document.getElementById('bfPurpose').value = key;
+  document.getElementById('bfSubject').value = b.subject || b.org || '';
+  document.getElementById('bfClient').value  = b.clientCompany || '';
+  document.getElementById('bfDate').value    = b.date || '';
+  document.getElementById('bfStatus').value  = b.status || '확정';
+  bfSetSlots(b.slotsArr || []);
+  document.getElementById('bfName').value    = b.name || '';
+  document.getElementById('bfCount').value   = (b.count != null && b.count !== '') ? b.count : '';
+  document.getElementById('bfPhone').value   = b.phone || '';
+  document.getElementById('bfEmail').value   = b.email || '';
+  document.getElementById('bfUsage').value   = b.usagePlan || '';
+  document.getElementById('bfEffect').value  = b.expectedEffect || '';
+  document.getElementById('bfNote').value    = b.note || '';
+  try { bfVisitorRows = JSON.parse(b.visitors || '[]'); } catch(e) { bfVisitorRows = []; }
+  if (!Array.isArray(bfVisitorRows)) bfVisitorRows = [];
+  if (!bfVisitorRows.length) bfVisitorRows = [{org:'',name:'',rank:''}];
+  bfApplyLabels(); bfRenderVisitors();
+  const btn = document.getElementById('bfSaveBtn'); btn.disabled = false; btn.textContent = '저장';
+  document.getElementById('bookingFormBg').classList.add('open');
+}
+
+function closeBookingForm() { document.getElementById('bookingFormBg').classList.remove('open'); }
+function editFromModal() { const id = currentModalId; closeModal(); openBookingFormEdit(id); }
+
+// 활성 탭 갱신 (예약 표 + KPI, stats 탭이 열려 있으면 차트도)
+function bfRefreshViews() {
+  updateKPIs(); renderTable();
+  if (document.getElementById('tab-stats').classList.contains('active')) renderStats();
+}
+
+async function saveBookingForm() {
+  if (!adminTokenValid()) { adminSessionExpired(); return; }
+  bfSyncVisitorsFromDOM();
+  const key = document.getElementById('bfPurpose').value;
+  const cfg = BF_PURPOSE_CONFIG[key];
+  if (!cfg) { toast('방문 목적을 선택해 주세요.'); return; }
+
+  const subject = document.getElementById('bfSubject').value.trim();
+  const date    = document.getElementById('bfDate').value;
+  const name    = document.getElementById('bfName').value.trim();
+  const slots   = bfSelectedSlots();
+  if (!subject) { toast(cfg.subjectLabel + ' 항목을 입력해 주세요.'); return; }
+  if (!date)    { toast('날짜를 선택해 주세요.'); return; }
+  if (!slots.length) { toast('회차를 1개 이상 선택해 주세요.'); return; }
+  if (!name)    { toast(cfg.leaderLabel + ' 항목을 입력해 주세요.'); return; }
+
+  // 방문자 정리 (빈 행 제거, cols=2면 소속 비움)
+  const visitors = bfVisitorRows.map(v => ({
+    org:  cfg.cols === 3 ? (v.org||'').trim() : '',
+    name: (v.name||'').trim(),
+    rank: (v.rank||'').trim(),
+  })).filter(v => v.name || v.rank || v.org);
+
+  // 인원 — 입력값 우선, 비었으면 방문자 수
+  let countRaw = document.getElementById('bfCount').value.trim();
+  const count = countRaw === '' ? (visitors.length || 0) : Number(countRaw);
+
+  const slotLabel = slots.map(n => (SLOT_LABELS[String(n)] || String(n)).trim()).join(' · ');
+
+  const fields = {
+    date, slots, slot: slots[0], slotLabel,
+    name, org: subject,
+    phone: document.getElementById('bfPhone').value.trim(),
+    email: document.getElementById('bfEmail').value.trim(),
+    purpose: cfg.label, count,
+    note: document.getElementById('bfNote').value.trim(),
+    status: document.getElementById('bfStatus').value,
+    subject,
+    clientCompany: cfg.client ? (document.getElementById('bfClient').value.trim() || subject) : document.getElementById('bfClient').value.trim(),
+    visitors: JSON.stringify(visitors),
+    usagePlan: document.getElementById('bfUsage').value.trim(),
+    expectedEffect: document.getElementById('bfEffect').value.trim(),
+    purposeKey: key,
+  };
+
+  const btn = document.getElementById('bfSaveBtn');
+  btn.disabled = true; btn.textContent = '저장 중…';
+
+  if (bfMode === 'create') {
+    // 클라이언트에서 id를 생성해 서버에 함께 보냄 → 낙관적 레코드와 서버 행이 동일 id
+    const id = String(Date.now());
+    const optimistic = normalizeRecord(Object.assign(
+      { id, timestamp: new Date().toISOString() }, fields, { slots: JSON.stringify(slots) }));
+    allBookings.push(optimistic);
+    bfRefreshViews();
+    try {
+      await fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(Object.assign({ type:'admin_booking_create', id, token: adminToken() }, fields)) });
+      saveCache(allBookings);
+      closeBookingForm();
+      toast('✓ 예약 이력이 추가됐습니다 (알림 미발송)');
+    } catch(e) {
+      const i = allBookings.findIndex(x => x.id === id);
+      if (i >= 0) allBookings.splice(i, 1);
+      bfRefreshViews();
+      toast('추가 실패: ' + (e.message || '네트워크 오류') + ' — 잠시 후 다시 시도해 주세요');
+      btn.disabled = false; btn.textContent = '저장';
+    }
+  } else {
+    const b = allBookings.find(x => x.id === bfEditId);
+    const prev = b ? Object.assign({}, b) : null;
+    if (b) {
+      Object.assign(b, normalizeRecord(Object.assign({}, b, fields, { slots: JSON.stringify(slots) })));
+      bfRefreshViews();
+    }
+    try {
+      await fetch(SCRIPT_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(Object.assign({ type:'admin_booking_edit', id: bfEditId, token: adminToken() }, fields)) });
+      saveCache(allBookings);
+      closeBookingForm();
+      toast('✓ 예약 정보가 수정됐습니다 (알림 미발송)');
+    } catch(e) {
+      if (b && prev) { Object.assign(b, prev); bfRefreshViews(); }
+      toast('수정 실패: ' + (e.message || '네트워크 오류') + ' — 잠시 후 다시 시도해 주세요');
+      btn.disabled = false; btn.textContent = '저장';
+    }
   }
 }
 

@@ -296,15 +296,18 @@ function doPost(e) {
   // ── 관리자 토큰이 필요한 파괴적/운영 작업 ──
   // 클라이언트 화면을 우회해도 백엔드가 토큰을 검증하므로 명단 외 요청은 거부된다.
   if (data.type === 'update' || data.type === 'booking_delete' ||
-      data.type === 'slot_block' || data.type === 'slot_unblock') {
+      data.type === 'slot_block' || data.type === 'slot_unblock' ||
+      data.type === 'admin_booking_create' || data.type === 'admin_booking_edit') {
     var admin = verifyAdminToken(data.token);
     if (!admin.ok) {
       return jsonResponse({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
     }
-    if (data.type === 'update')         return handleUpdateStatus(data);
-    if (data.type === 'booking_delete') return handleDeleteBooking(data, admin.email);
-    if (data.type === 'slot_block')     return handleSlotBlock(data, admin.email);
-    if (data.type === 'slot_unblock')   return handleSlotUnblock(data);
+    if (data.type === 'update')               return handleUpdateStatus(data);
+    if (data.type === 'booking_delete')       return handleDeleteBooking(data, admin.email);
+    if (data.type === 'slot_block')           return handleSlotBlock(data, admin.email);
+    if (data.type === 'slot_unblock')         return handleSlotUnblock(data);
+    if (data.type === 'admin_booking_create') return handleAdminCreateBooking(data, admin.email);
+    if (data.type === 'admin_booking_edit')   return handleAdminEditBooking(data, admin.email);
   }
 
   return jsonResponse({ error: 'Unknown type' });
@@ -390,6 +393,80 @@ function handleDeleteBooking(data, byEmail) {
     }
   }
   return jsonResponse({ error: 'Record not found' });
+}
+
+
+// ── 관리자 직접 입력 (이력 백필) ─────────────────────────────
+// 시스템 오픈 전 외부 채널로 잡힌 과거 방문 이력을 관리자가 직접 기록한다.
+// 알림(담당자 메일·텔레그램)은 발송하지 않는다 — 실제 신규 신청이 아니라 이력 입력이므로.
+// 관리자 토큰 검증을 통과한 호출만 진입한다(doPost 게이트). byEmail은 감사 로그용.
+function handleAdminCreateBooking(data, byEmail) {
+  const sheet   = getSheet();
+  const headers = getOrCreateHeaders(sheet);
+  // id는 클라이언트가 보낸 값을 우선 사용(낙관적 UI와 동일 id 유지) → 없으면 서버에서 생성
+  const id = data.id ? String(data.id) : String(Date.now());
+  const slots = normalizeSlotsInput(data.slots, data.slot);
+
+  const row = headers.map(h => {
+    if (h === 'id')        return id;
+    if (h === 'timestamp') return data.timestamp || new Date().toISOString();
+    if (h === 'slots')     return JSON.stringify(slots);
+    if (h === 'slot')      return slots.length ? slots[0] : (data.slot ?? '');
+    if (h === 'status')    return data.status || '확정';
+    return data[h] ?? '';
+  });
+
+  sheet.appendRow(row);
+  Logger.log('Admin created booking ' + id + ' by ' + byEmail + ' (no notification)');
+  return jsonResponse({ success: true, id });
+}
+
+
+// ── 관리자 상세 정보 수정 ───────────────────────────────────
+// 고객이 대충 적은 상세를 담당자가 보강·정정한다. 알림 미발송.
+// id·timestamp·privacyConsent는 보존하고, 보내온 편집 가능 필드만 갱신한다.
+function handleAdminEditBooking(data, byEmail) {
+  const sheet   = getSheet();
+  const rows    = sheet.getDataRange().getValues();
+  const headers = rows[0];
+  const idIdx   = headers.indexOf('id');
+  let targetRow = -1;
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][idIdx]) === String(data.id)) { targetRow = i + 1; break; }
+  }
+  if (targetRow < 0) return jsonResponse({ error: 'Record not found' });
+
+  const setField = (name, value) => {
+    const idx = headers.indexOf(name);
+    if (idx >= 0) sheet.getRange(targetRow, idx + 1).setValue(value);
+  };
+
+  // 회차(slots/slot)는 함께 처리 — slots 또는 slot이 오면 갱신
+  if (data.slots !== undefined || data.slot !== undefined) {
+    const slots = normalizeSlotsInput(data.slots, data.slot);
+    if (slots.length) {
+      setField('slots', JSON.stringify(slots));
+      setField('slot', slots[0]);
+    }
+  }
+
+  // 나머지 편집 가능한 필드만 갱신 (undefined는 건너뜀)
+  ['date', 'slotLabel', 'name', 'org', 'phone', 'email', 'purpose', 'count', 'note', 'status',
+   'subject', 'clientCompany', 'visitors', 'usagePlan', 'expectedEffect', 'purposeKey'
+  ].forEach(f => { if (data[f] !== undefined) setField(f, data[f]); });
+
+  Logger.log('Admin edited booking ' + data.id + ' by ' + byEmail + ' (no notification)');
+  return jsonResponse({ success: true });
+}
+
+
+// 회차 입력 정규화 — slots(배열/JSON 문자열) 또는 slot(단일) → 숫자 배열
+function normalizeSlotsInput(slots, slot) {
+  let arr = [];
+  if (Array.isArray(slots)) arr = slots;
+  else if (typeof slots === 'string' && slots) { try { arr = JSON.parse(slots); } catch(e) {} }
+  if (!arr.length && slot != null && slot !== '') arr = [slot];
+  return arr.map(n => Number(n)).filter(n => !isNaN(n));
 }
 
 

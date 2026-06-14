@@ -933,3 +933,28 @@ data.sort((a,b)=>{
 - `ADMIN_ALERT_SUBJ_LABELS`는 `PURPOSE_CONFIG`(index.html) 카테고리 키와 동기화 필수 — 신규 카테고리 추가 시 양쪽 다 수정.
 - 카드형 HTML은 인라인 스타일만 사용(Gmail/Outlook 호환). `<style>` 블록·CSS 변수·외부 리소스 금지.
 - **재배포 필요**: `sendAdminAlert` 시그니처는 동일하나 내부가 바뀜. "배포 관리 → 편집 → 새 버전 → 배포".
+
+## 작업 내역 (2026-06-14 후속 — 관리자 예약 직접 입력/수정 (이력 관리))
+
+시스템 정식 오픈 전, 외부 채널로 잡힌 과거 방문 이력을 관리자가 **예약 관리 탭에서 직접 추가·수정**할 수 있게 함. 고객이 대충 적은 상세를 담당자가 보강·정정해 두면 월간 리포트·월별 PPT 출력 시 재작업이 줄어든다. **저장 시 알림(담당자 메일·텔레그램) 미발송**이 핵심 — 실제 신규 신청이 아니라 이력 입력이므로.
+
+### A. Apps Script — 신규 엔드포인트 2종 (재배포 필요)
+- `POST type:admin_booking_create` → `handleAdminCreateBooking(data, byEmail)`: 시트에 행 append. **메일·텔레그램 미발송**. id는 클라이언트가 보낸 값 우선(낙관적 UI와 동일 id 유지), 없으면 서버 생성. status 기본 `확정`.
+- `POST type:admin_booking_edit` → `handleAdminEditBooking(data, byEmail)`: id로 행을 찾아 **편집 가능 필드만** 갱신(`date·slots·slot·slotLabel·name·org·phone·email·purpose·count·note·status·subject·clientCompany·visitors·usagePlan·expectedEffect·purposeKey`). `id·timestamp·privacyConsent`는 보존. 미포함 필드는 건너뜀. **메일·텔레그램 미발송**.
+- 둘 다 `doPost`의 **관리자 토큰 게이트**에 포함 — `verifyAdminToken` 통과 필수(파괴적/쓰기 작업 동일 방어선).
+- 회차 입력 정규화 헬퍼 `normalizeSlotsInput(slots, slot)` 신설 — 배열/JSON 문자열/단일값 모두 number[]로 변환.
+
+### B. 관리자 페이지 — 입력/수정 폼 모달 (thinqreal_admin.html)
+- 예약 관리 툴바에 **`＋ 이력 추가`** 버튼, 상세 모달 액션에 **`수정`** 버튼(`.modal-btn-edit`, 모든 상태의 예약에 노출).
+- 공용 폼 모달 `#bookingFormBg`: 방문 목적(select) → 카테고리별 라벨/힌트/고객사 노출 동적 변경(`BF_PURPOSE_CONFIG`, index.html `PURPOSE_CONFIG` 미러). 주제·날짜(지난 날짜 허용)·상태·회차(칩 다중 선택)·책임자·인원·연락처·이메일·방문자 명단(동적 행, 최대 10명)·활용 방안·기대 효과·메모.
+- **필수**: 방문 목적·주제·날짜·회차(1+)·책임자. 나머지(연락처·이메일·방문자·활용/기대·메모)는 선택 — 이력은 부분 입력 후 나중에 보강 가능.
+- 인원: 입력값 우선, 비우면 방문자 수로 자동 설정. `org`(표 '주제' 컬럼)는 subject 미러로 저장. 고객(`customer`)은 고객사 비우면 subject와 동일 저장.
+- **낙관적 UI**: create는 클라이언트 생성 id를 서버에 함께 전송(동일 id로 즉시 편집·삭제 가능). edit는 기존 행 in-place 갱신 + 실패 시 롤백. 양쪽 모두 `saveCache` 동기화 + 활성 탭(표·KPI·stats) 재렌더(`bfRefreshViews`).
+- 폼 상단 배너에 "저장해도 담당자 알림 메일·텔레그램은 발송되지 않습니다" 명시.
+
+### 핵심 제약 (다음 세션에서도 유지)
+- `admin_booking_create`/`admin_booking_edit`는 **알림 미발송**이 의도된 동작 — `handleNewBooking`(메일+텔레그램 발송)과 혼동 금지. 백필·이력 정정용이다.
+- `BF_PURPOSE_CONFIG`(thinqreal_admin.html)는 `PURPOSE_CONFIG`(index.html) 한국어 라벨과 동기화 필수. 카테고리 변경 시 두 곳 + `ADMIN_ALERT_SUBJ_LABELS`(Apps Script) + `SUBJ_LABELS`(openModal) 함께 수정.
+- edit 시 옛 비표준 목적 라벨(예 `R&D 연구`)은 드롭다운에서 `기타`로 폴백되어 저장 시 `기타`로 바뀔 수 있음 — 수정 화면에서 올바른 카테고리를 다시 선택하면 됨.
+- 두 엔드포인트 모두 관리자 토큰 게이트 통과 필수 — 백엔드 검증이 진짜 방어선(클라이언트 게이트는 편의).
+- **재배포 필요**: 신규 엔드포인트(admin_booking_create/edit). "배포 관리 → 편집 → 새 버전 → 배포".
