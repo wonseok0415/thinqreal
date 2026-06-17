@@ -153,6 +153,9 @@ function doGet(e) {
   if (type === 'telegram_test') {
     return handleTelegramTest();
   }
+  if (type === 'calendar_test') {
+    return handleCalendarTest();
+  }
 
   return jsonResponse({ error: 'Unknown type' });
 }
@@ -375,6 +378,9 @@ function handleUpdateStatus(data) {
   // 담당자 그룹 텔레그램 알림 — 운영 기록용 (확정/거절 모두)
   if (targetRowData) sendTelegramStatusChange(targetRowData, headers, data.status);
 
+  // Google 캘린더 동기화 — 확정이면 일정 등록/갱신, 거절이면 제거 (CALENDAR_ID 미설정 시 skip)
+  syncCalendarByStatus(data.id, data.status);
+
   return jsonResponse({ success: true });
 }
 
@@ -382,6 +388,9 @@ function handleUpdateStatus(data) {
 // 예약 영구 삭제 — id로 행을 찾아 제거. 메일은 발송하지 않음 (테스트·실수 데이터 정리용).
 // 관리자 토큰 검증을 통과한 호출만 진입한다(doPost 게이트). byEmail은 감사 로그용.
 function handleDeleteBooking(data, byEmail) {
+  // 행을 지우기 전에 캘린더 이벤트부터 제거 (CALENDAR_ID 미설정 시 skip)
+  syncCalendarDelete(data.id);
+
   const sheet   = getSheet();
   const rows    = sheet.getDataRange().getValues();
   const headers = rows[0];
@@ -417,6 +426,8 @@ function handleAdminCreateBooking(data, byEmail) {
   });
 
   sheet.appendRow(row);
+  // 확정 이력이면 캘린더에도 등록 (대기중/거절이면 skip)
+  if ((data.status || '확정') === '확정') syncCalendarUpsert(id);
   Logger.log('Admin created booking ' + id + ' by ' + byEmail + ' (no notification)');
   return jsonResponse({ success: true, id });
 }
@@ -455,6 +466,10 @@ function handleAdminEditBooking(data, byEmail) {
    'subject', 'clientCompany', 'visitors', 'usagePlan', 'expectedEffect', 'purposeKey'
   ].forEach(f => { if (data[f] !== undefined) setField(f, data[f]); });
 
+  // 캘린더 동기화 — 갱신된 행의 최종 상태 기준 (확정이면 등록/갱신, 아니면 제거)
+  const after = findBookingRow(data.id);
+  if (after) syncCalendarByStatus(data.id, after.obj['status']);
+
   Logger.log('Admin edited booking ' + data.id + ' by ' + byEmail + ' (no notification)');
   return jsonResponse({ success: true });
 }
@@ -467,6 +482,165 @@ function normalizeSlotsInput(slots, slot) {
   else if (typeof slots === 'string' && slots) { try { arr = JSON.parse(slots); } catch(e) {} }
   if (!arr.length && slot != null && slot !== '') arr = [slot];
   return arr.map(n => Number(n)).filter(n => !isNaN(n));
+}
+
+
+// ============================================================
+//  Google 캘린더 연동 (팀 공유 캘린더)
+//  - 확정된 예약을 팀 공유 캘린더에 일정으로 자동 등록한다.
+//    (확정 시 등록 / 수정 시 갱신 / 거절·삭제 시 제거 — 항상 실제 현황과 일치)
+//  - 캘린더 ID는 Script Property에 저장 (코드 분리). 미설정 시 silent skip.
+//      CALENDAR_ID : 대상 캘린더 ID (예: xxxxx@group.calendar.google.com)
+//  - 다른 계정의 캘린더를 쓰려면 그 캘린더를 스크립트 소유자 계정
+//    (kang.wonseok@lge.com)에 "변경 권한"으로 공유해야 한다.
+//  - 캘린더 일정에는 운영 정보만 표기 (방문자 명단·연락처 제외 — 공유 노출 최소화).
+// ============================================================
+const CALENDAR_PROP_ID = 'CALENDAR_ID';
+
+// 회차 → 시작/종료 시각 (KST, [시, 분]). 슬롯 시간표는 확정값(변경 금지).
+const SLOT_TIMES = {
+  1: { start: [9, 0],  end: [10, 30] },
+  2: { start: [13, 0], end: [14, 30] },
+  3: { start: [15, 0], end: [16, 30] },
+};
+const SLOT_LABEL_TEXT = { 1: '1회차 09:00~10:30', 2: '2회차 13:00~14:30', 3: '3회차 15:00~16:30' };
+
+function getBookingCalendar() {
+  const id = PropertiesService.getScriptProperties().getProperty(CALENDAR_PROP_ID);
+  if (!id) return null;
+  try {
+    const cal = CalendarApp.getCalendarById(id);
+    if (!cal) Logger.log('Calendar not found / no access: ' + id);
+    return cal;
+  } catch(e) {
+    Logger.log('Calendar open error: ' + e.message);
+    return null;
+  }
+}
+
+// 예약 객체(시트 행 기반) → 캘린더 이벤트 배열 (회차마다 1건).
+// 회차 사이에는 재정비·점심 공백이 있어 항상 회차별 개별 일정으로 쪼갠다
+// (1·3회차처럼 떨어진 회차를 하나로 묶어 빈 시간까지 점유하는 오류 방지).
+function buildCalendarEvents(b) {
+  const slots = normalizeSlotsInput(b.slots, b.slot).sort((a, c) => a - c);
+  if (!slots.length) return [];
+  const dateStr = normalizeDate(b.date);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return [];
+  const [y, m, d] = dateStr.split('-').map(Number);
+
+  const purpose = String(b.purpose || '').trim();
+  const subject = String(b.subject || b.org || '').trim();
+  const title = '[' + (purpose || 'ThinQ Real') + '] ' + (subject || '예약') +
+                (b.name ? ' · ' + b.name : '');
+  const location = '마곡 LG사이언스파크 W6동 1층';
+
+  return slots.filter(n => SLOT_TIMES[n]).map(n => {
+    const t = SLOT_TIMES[n];
+    const start = new Date(y, m - 1, d, t.start[0], t.start[1], 0);
+    const end   = new Date(y, m - 1, d, t.end[0],   t.end[1],   0);
+
+    // 운영 정보만 — 방문자 명단/연락처(전화·이메일) 제외
+    const lines = [];
+    if (purpose) lines.push('목적: ' + purpose);
+    if (subject) lines.push('주제: ' + subject);
+    if (b.clientCompany) lines.push('고객사: ' + b.clientCompany);
+    lines.push('회차: ' + (SLOT_LABEL_TEXT[n] || (n + '회차')));
+    if (b.count !== '' && b.count != null) lines.push('인원: ' + b.count + '명');
+    if (b.name) lines.push('책임자: ' + b.name);
+    if (b.usagePlan) { lines.push('', '활용 방안:', String(b.usagePlan)); }
+    lines.push('', '— 상세는 관리자 페이지에서 확인', 'https://thinqreal.com/thinqreal_admin.html');
+
+    return { title: title, start: start, end: end,
+             options: { description: lines.join('\n'), location: location } };
+  });
+}
+
+function safeGetEvent(cal, eid) { try { return cal.getEventById(eid); } catch(e) { return null; } }
+
+// calendarEventId 셀 파싱 — 신규(JSON 배열) + 레거시(단일 문자열) 모두 처리
+function parseEventIds(raw) {
+  if (!raw) return [];
+  const s = String(raw).trim();
+  if (!s) return [];
+  if (s.charAt(0) === '[') {
+    try { const a = JSON.parse(s); return Array.isArray(a) ? a.filter(Boolean) : []; }
+    catch(e) { return []; }
+  }
+  return [s];  // 레거시 단일 id
+}
+
+// id로 시트 행을 찾아 {sheet, headers, rowNum, obj} 반환 (없으면 null)
+function findBookingRow(id) {
+  const sheet   = getSheet();
+  const rows    = sheet.getDataRange().getValues();
+  const headers = rows[0];
+  const idIdx   = headers.indexOf('id');
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][idIdx]) === String(id)) {
+      const obj = {};
+      headers.forEach((h, j) => { obj[h] = rows[i][j]; });
+      return { sheet, headers, rowNum: i + 1, obj };
+    }
+  }
+  return null;
+}
+
+// 확정 예약을 캘린더에 등록/갱신 — 회차별 개별 일정.
+// 회차 구성이 바뀌어도 정확히 반영되도록 기존 이벤트를 모두 지우고 새로 만든다(delete+recreate).
+// 생성된 이벤트 id 배열을 JSON으로 시트에 write-back.
+function syncCalendarUpsert(id) {
+  const cal = getBookingCalendar();
+  if (!cal) return;
+  const found = findBookingRow(id);
+  if (!found) return;
+  const evIdIdx = found.headers.indexOf('calendarEventId');
+
+  // 1) 기존 이벤트 전부 제거
+  const existing = evIdIdx >= 0 ? parseEventIds(found.obj['calendarEventId']) : [];
+  existing.forEach(eid => {
+    const ev = safeGetEvent(cal, eid);
+    if (ev) { try { ev.deleteEvent(); } catch(e) { Logger.log('Cal del(upsert): ' + e.message); } }
+  });
+
+  // 2) 회차별로 새 이벤트 생성
+  const specs = buildCalendarEvents(found.obj);
+  const newIds = [];
+  try {
+    specs.forEach(ev => {
+      const created = cal.createEvent(ev.title, ev.start, ev.end, ev.options);
+      newIds.push(created.getId());
+    });
+  } catch(e) {
+    Logger.log('Calendar upsert error: ' + e.message);
+  }
+
+  // 3) id 배열 write-back (없으면 빈 값)
+  if (evIdIdx >= 0) {
+    found.sheet.getRange(found.rowNum, evIdIdx + 1).setValue(newIds.length ? JSON.stringify(newIds) : '');
+  }
+}
+
+// 예약의 캘린더 이벤트를 모두 제거하고 시트의 eventId를 비운다.
+function syncCalendarDelete(id) {
+  const cal = getBookingCalendar();
+  if (!cal) return;
+  const found = findBookingRow(id);
+  if (!found) return;
+  const evIdIdx = found.headers.indexOf('calendarEventId');
+  if (evIdIdx < 0) return;
+  const ids = parseEventIds(found.obj['calendarEventId']);
+  if (!ids.length) return;
+  ids.forEach(eid => {
+    const ev = safeGetEvent(cal, eid);
+    if (ev) { try { ev.deleteEvent(); } catch(e) { Logger.log('Cal delete: ' + e.message); } }
+  });
+  found.sheet.getRange(found.rowNum, evIdIdx + 1).setValue('');
+}
+
+// 상태에 따른 캘린더 동기화 — 확정이면 등록/갱신, 그 외(대기중·거절)면 제거
+function syncCalendarByStatus(id, status) {
+  if (String(status) === '확정') syncCalendarUpsert(id);
+  else syncCalendarDelete(id);
 }
 
 
@@ -2104,7 +2278,9 @@ function getOrCreateHeaders(sheet) {
     // 2026-05 폼 상세화로 추가된 컬럼
     'subject', 'clientCompany', 'visitors', 'usagePlan', 'expectedEffect', 'purposeKey',
     // 2026-06 개인정보 수집·이용 + 국외 이전 동의 기록 ('Y' = 동의, 동의 시각은 timestamp와 동일)
-    'privacyConsent'
+    'privacyConsent',
+    // 2026-06 Google 캘린더 연동 — 확정 예약의 캘린더 이벤트 id (갱신·삭제 추적용)
+    'calendarEventId'
   ];
   const lastCol  = Math.max(sheet.getLastColumn(), 1);
   const firstRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
@@ -2641,4 +2817,33 @@ function handleTelegramTest() {
   var stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
   var res = sendTelegramMessage('🧪 <b>ThinQ Real 텔레그램 연동 테스트</b>\n' + stamp);
   return jsonResponse(res);
+}
+
+// 캘린더 연동 검증 — CALENDAR_ID 설정 + 쓰기 권한 확인용.
+// 1시간 뒤 테스트 일정을 만들었다가 즉시 삭제해 실제 생성/삭제 권한까지 점검.
+function handleCalendarTest() {
+  var id = PropertiesService.getScriptProperties().getProperty(CALENDAR_PROP_ID);
+  if (!id) {
+    return jsonResponse({ ok: false, reason: 'not_configured',
+      hint: 'Script Property CALENDAR_ID 미설정. 대상 캘린더 ID를 등록하세요.' });
+  }
+  var cal = getBookingCalendar();
+  if (!cal) {
+    return jsonResponse({ ok: false, reason: 'no_access', calendarId: id,
+      hint: '캘린더를 찾을 수 없거나 접근 권한이 없습니다. 그 캘린더를 스크립트 소유자 계정에 "변경 권한"으로 공유했는지 확인하세요.' });
+  }
+  try {
+    var now = new Date();
+    var start = new Date(now.getTime() + 60 * 60 * 1000);
+    var end   = new Date(now.getTime() + 90 * 60 * 1000);
+    var ev = cal.createEvent('🧪 ThinQ Real 캘린더 연동 테스트 (자동 삭제됨)', start, end,
+      { description: '연동 점검용 임시 일정입니다. 자동으로 삭제됩니다.' });
+    var evId = ev.getId();
+    ev.deleteEvent(); // 권한 확인 후 즉시 삭제
+    return jsonResponse({ ok: true, calendarId: id, calendarName: cal.getName(), testedEventId: evId });
+  } catch(e) {
+    return jsonResponse({ ok: false, reason: 'write_failed', calendarId: id,
+      hint: '읽기는 되지만 일정 생성에 실패했습니다. 공유 권한이 "변경 권한"(이벤트 변경) 이상인지 확인하세요.',
+      error: e.message });
+  }
 }

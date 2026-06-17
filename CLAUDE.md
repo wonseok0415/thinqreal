@@ -587,7 +587,7 @@ ThinQ Real을 독립 도메인 `thinqreal.com`(hosting.kr 구입)으로 이전. 
 5. Apps Script 프로젝트 설정 → 스크립트 속성에 두 값 등록
 
 ### D. 발신자 (현행 유지)
-- `MailApp.sendEmail(..., { name: 'ThinQ Real' })` — 표시 이름만 'ThinQ Real'로 설정. 실제 발신 주소는 스크립트 소유자 Gmail (`kang.wonseok@lge.com`).
+- `MailApp.sendEmail(..., { name: 'ThinQ Real' })` — 표시 이름만 'ThinQ Real'로 설정. 실제 발신 주소는 **스크립트 소유자 Gmail (`kangwonseok0415@gmail.com`)** — `kang.wonseok@lge.com`은 CC 수신자이지 발신자가 아님. (Apps Script 편집기 로그인 계정 = `kangwonseok0415@gmail.com`이 소유자. 외부 gmail 발신이라 사내 수신자에게 갈 때 LG 보안 게이트웨이 스캔 큐를 타 메일 지연이 생김.)
 - 별도 도메인 메일(`thinqreal@thinqreal.com`)을 발신자로 쓰려면 **Google Workspace 가입(~$7/월) + Send-as alias 등록 + `GmailApp.sendEmail({from: ...})` 변경**이 필요. 본 세션에서는 추가 비용 없이 현행 유지로 합의.
 
 ### E. 미리보기 / 수동 발송
@@ -926,7 +926,7 @@ data.sort((a,b)=>{
 
 ### B. 발신자 표시명 통일
 - `sendAdminAlert` · `sendGuestMail` 양쪽 `MailApp.sendEmail`에 `name: 'ThinQ Real'` 추가. 기존 월간 운영 리포트와 동일.
-- 실제 발신 주소는 스크립트 소유자 Gmail(`kang.wonseok@lge.com`) 유지. 수신자에게는 `ThinQ Real <kang.wonseok@lge.com>`로 노출.
+- 실제 발신 주소는 스크립트 소유자 Gmail(`kangwonseok0415@gmail.com`) 유지. 수신자에게는 `ThinQ Real <kangwonseok0415@gmail.com>`로 노출. (`kang.wonseok@lge.com`은 CC 수신자)
 
 ### 핵심 제약 (다음 세션에서도 유지)
 - 모든 ThinQ Real 발신 메일(담당자 알림·게스트 확정/거절·월간 리포트)은 `name: 'ThinQ Real'`로 통일 — 신규 메일 종류 추가 시도 동일하게 설정.
@@ -958,3 +958,35 @@ data.sort((a,b)=>{
 - edit 시 옛 비표준 목적 라벨(예 `R&D 연구`)은 드롭다운에서 `기타`로 폴백되어 저장 시 `기타`로 바뀔 수 있음 — 수정 화면에서 올바른 카테고리를 다시 선택하면 됨.
 - 두 엔드포인트 모두 관리자 토큰 게이트 통과 필수 — 백엔드 검증이 진짜 방어선(클라이언트 게이트는 편의).
 - **재배포 필요**: 신규 엔드포인트(admin_booking_create/edit). "배포 관리 → 편집 → 새 버전 → 배포".
+
+## 작업 내역 (2026-06-14 후속 — Google 캘린더 연동 (팀 공유 캘린더))
+
+팀이 예약·사용 현황을 캘린더에서 바로 보도록, **확정된 예약을 팀 공유 Google 캘린더에 일정으로 자동 등록**. 메일·텔레그램과 직교(서로 영향 없음). 백엔드 전용 변경이라 HTML/GitHub Pages 머지 불필요 — Apps Script 재배포만으로 동작.
+
+### A. 동작 (등록 시점·라이프사이클)
+- **확정 시 등록** (사용 현황 중심). 신청(대기중)·거절 건은 캘린더에 안 올라감.
+- **풀 라이프사이클**: 확정 → 일정 생성 / 수정(상세 보강) → 일정 갱신 / 거절·삭제 → 일정 제거. 캘린더가 항상 실제 현황과 일치.
+- 훅 위치: `handleUpdateStatus`(확정→`syncCalendarUpsert`, 거절→`syncCalendarDelete`) · `handleAdminCreateBooking`(status 확정이면 등록) · `handleAdminEditBooking`(갱신 후 최종 상태 기준 동기화) · `handleDeleteBooking`(행 삭제 **전에** 이벤트 제거). `handleNewBooking`(대기중)에는 훅 없음.
+- 일정 시간 = 날짜 + 회차 시간표(`SLOT_TIMES`, 1회차 09:00–10:30 등) 자동 매핑. **다중 회차는 회차마다 개별 일정으로 생성**(`buildCalendarEvents` 배열 반환) — 회차 사이 재정비·점심 공백이 있어 1·3회차처럼 떨어진 회차를 한 일정으로 묶으면 빈 시간까지 점유한 것처럼 보이기 때문. **스크립트 TZ가 Asia/Seoul이어야 시각이 KST로 맞음**(월간 리포트와 동일 전제).
+- 갱신은 **delete+recreate** — upsert 시 기존 이벤트를 모두 지우고 회차별로 새로 만든다(회차 구성이 1→2개 등으로 바뀌어도 정확히 반영). `calendarEventId`에는 생성된 이벤트 id **배열을 JSON 문자열**로 저장(`parseEventIds`가 신규 JSON 배열·레거시 단일 문자열 모두 파싱).
+
+### B. 표기 범위 — 운영 정보만 (공유 노출 최소화)
+- 제목: `[목적] 주제 · 책임자`. 본문: 목적·주제·고객사·회차·인원·책임자·활용 방안 + 위치(마곡 W6동 1층) + 관리자 페이지 링크.
+- **방문자 전체 명단·연락처(전화·이메일)는 캘린더에 미표기** — 개인정보 처리방침·국외이전 동의 운영 중이라 의도적으로 제외. 상세는 관리자 페이지에서만 확인.
+
+### C. 설정 (Script Property + 캘린더 접근)
+- `CALENDAR_ID` (Script Property) = `thinq_real_calendar@gmail.com`. 미설정 시 silent skip(다른 동작 영향 없음).
+- **스크립트 소유자 = `kangwonseok0415@gmail.com`(개인 gmail, 편집기 로그인 계정)** 이고, 이 계정이 ThinQ Real 캘린더(`thinq_real_calendar@gmail.com`)에 **읽기/쓰기 권한 보유** → 별도 공유 없이 바로 동작. (소유자가 사내 계정이었다면 그 계정에 "변경 권한" 공유가 필요했겠지만, 실제 소유자는 개인 gmail이라 불필요.)
+- 캘린더 ID 위치: 캘린더 설정 → 해당 캘린더 → "캘린더 통합" → 캘린더 ID.
+- 시트에 **`calendarEventId` 컬럼(22번째)** 자동 append — 이벤트 갱신·삭제 추적용. 백필 시 공란 허용.
+
+### D. 검증 엔드포인트
+- `GET ?type=calendar_test` — CALENDAR_ID 설정 + 쓰기 권한 점검. 1시간 뒤 테스트 일정을 만들었다 즉시 삭제. 미설정 `{ok:false, reason:'not_configured'}` / 접근 불가 `no_access` / 쓰기 실패 `write_failed` / 정상 `{ok:true, calendarName}`.
+
+### 핵심 제약 (다음 세션에서도 유지)
+- `CALENDAR_ID`는 **Script Property에만**. 스크립트 소유자(`kangwonseok0415@gmail.com`)가 대상 캘린더에 쓰기 권한이 있어야 함 — 현재 `thinq_real_calendar@gmail.com`은 소유자 개인 계정에 읽기/쓰기 연동돼 있어 충족.
+- 캘린더 동기화는 **메일·텔레그램과 독립** — `getBookingCalendar()`가 null(미설정/권한없음)이면 조용히 skip, 예약 저장·메일은 정상.
+- 캘린더에 **방문자 명단·연락처 미표기** 원칙 유지 — 표기 범위 넓히려면 `buildCalendarEvent`만 수정하되 개인정보 노출 검토 필수.
+- 회차 시간표(`SLOT_TIMES`)는 확정 슬롯과 동일 — 슬롯 변경 금지 원칙에 종속.
+- 등록 시점을 "신청 즉시(대기중 포함)"로 바꾸려면 `handleNewBooking`에 `syncCalendarByStatus(id,'대기중')`이 아닌 별도 처리 필요(현재는 확정 전용). 요청 시 확장.
+- **재배포 필요**: 신규 엔드포인트(`calendar_test`) + 캘린더 훅 + HEADERS `calendarEventId` 추가. "배포 관리 → 편집 → 새 버전 → 배포".
