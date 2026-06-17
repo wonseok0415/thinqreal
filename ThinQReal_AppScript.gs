@@ -518,45 +518,56 @@ function getBookingCalendar() {
   }
 }
 
-// 예약 객체(시트 행 기반) → 캘린더 이벤트 {title, start, end, options}
-function buildCalendarEvent(b) {
+// 예약 객체(시트 행 기반) → 캘린더 이벤트 배열 (회차마다 1건).
+// 회차 사이에는 재정비·점심 공백이 있어 항상 회차별 개별 일정으로 쪼갠다
+// (1·3회차처럼 떨어진 회차를 하나로 묶어 빈 시간까지 점유하는 오류 방지).
+function buildCalendarEvents(b) {
   const slots = normalizeSlotsInput(b.slots, b.slot).sort((a, c) => a - c);
-  if (!slots.length) return null;
+  if (!slots.length) return [];
   const dateStr = normalizeDate(b.date);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
-  const first = SLOT_TIMES[slots[0]];
-  const last  = SLOT_TIMES[slots[slots.length - 1]];
-  if (!first || !last) return null;
-
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return [];
   const [y, m, d] = dateStr.split('-').map(Number);
-  const start = new Date(y, m - 1, d, first.start[0], first.start[1], 0);
-  const end   = new Date(y, m - 1, d, last.end[0],  last.end[1],  0);
 
   const purpose = String(b.purpose || '').trim();
   const subject = String(b.subject || b.org || '').trim();
   const title = '[' + (purpose || 'ThinQ Real') + '] ' + (subject || '예약') +
                 (b.name ? ' · ' + b.name : '');
+  const location = '마곡 LG사이언스파크 W6동 1층';
 
-  // 운영 정보만 — 방문자 명단/연락처(전화·이메일) 제외
-  const lines = [];
-  if (purpose) lines.push('목적: ' + purpose);
-  if (subject) lines.push('주제: ' + subject);
-  if (b.clientCompany) lines.push('고객사: ' + b.clientCompany);
-  lines.push('회차: ' + slots.map(n => SLOT_LABEL_TEXT[n] || (n + '회차')).join(' · '));
-  if (b.count !== '' && b.count != null) lines.push('인원: ' + b.count + '명');
-  if (b.name) lines.push('책임자: ' + b.name);
-  if (b.usagePlan) { lines.push('', '활용 방안:', String(b.usagePlan)); }
-  lines.push('', '— 상세는 관리자 페이지에서 확인', 'https://thinqreal.com/thinqreal_admin.html');
+  return slots.filter(n => SLOT_TIMES[n]).map(n => {
+    const t = SLOT_TIMES[n];
+    const start = new Date(y, m - 1, d, t.start[0], t.start[1], 0);
+    const end   = new Date(y, m - 1, d, t.end[0],   t.end[1],   0);
 
-  return {
-    title: title,
-    start: start,
-    end: end,
-    options: { description: lines.join('\n'), location: '마곡 LG사이언스파크 W6동 1층' },
-  };
+    // 운영 정보만 — 방문자 명단/연락처(전화·이메일) 제외
+    const lines = [];
+    if (purpose) lines.push('목적: ' + purpose);
+    if (subject) lines.push('주제: ' + subject);
+    if (b.clientCompany) lines.push('고객사: ' + b.clientCompany);
+    lines.push('회차: ' + (SLOT_LABEL_TEXT[n] || (n + '회차')));
+    if (b.count !== '' && b.count != null) lines.push('인원: ' + b.count + '명');
+    if (b.name) lines.push('책임자: ' + b.name);
+    if (b.usagePlan) { lines.push('', '활용 방안:', String(b.usagePlan)); }
+    lines.push('', '— 상세는 관리자 페이지에서 확인', 'https://thinqreal.com/thinqreal_admin.html');
+
+    return { title: title, start: start, end: end,
+             options: { description: lines.join('\n'), location: location } };
+  });
 }
 
 function safeGetEvent(cal, eid) { try { return cal.getEventById(eid); } catch(e) { return null; } }
+
+// calendarEventId 셀 파싱 — 신규(JSON 배열) + 레거시(단일 문자열) 모두 처리
+function parseEventIds(raw) {
+  if (!raw) return [];
+  const s = String(raw).trim();
+  if (!s) return [];
+  if (s.charAt(0) === '[') {
+    try { const a = JSON.parse(s); return Array.isArray(a) ? a.filter(Boolean) : []; }
+    catch(e) { return []; }
+  }
+  return [s];  // 레거시 단일 id
+}
 
 // id로 시트 행을 찾아 {sheet, headers, rowNum, obj} 반환 (없으면 null)
 function findBookingRow(id) {
@@ -574,34 +585,42 @@ function findBookingRow(id) {
   return null;
 }
 
-// 확정 예약을 캘린더에 등록/갱신. eventId는 시트에 write-back.
+// 확정 예약을 캘린더에 등록/갱신 — 회차별 개별 일정.
+// 회차 구성이 바뀌어도 정확히 반영되도록 기존 이벤트를 모두 지우고 새로 만든다(delete+recreate).
+// 생성된 이벤트 id 배열을 JSON으로 시트에 write-back.
 function syncCalendarUpsert(id) {
   const cal = getBookingCalendar();
   if (!cal) return;
   const found = findBookingRow(id);
   if (!found) return;
-  const ev = buildCalendarEvent(found.obj);
-  if (!ev) return;
-
   const evIdIdx = found.headers.indexOf('calendarEventId');
-  const existingEventId = evIdIdx >= 0 ? String(found.obj['calendarEventId'] || '') : '';
+
+  // 1) 기존 이벤트 전부 제거
+  const existing = evIdIdx >= 0 ? parseEventIds(found.obj['calendarEventId']) : [];
+  existing.forEach(eid => {
+    const ev = safeGetEvent(cal, eid);
+    if (ev) { try { ev.deleteEvent(); } catch(e) { Logger.log('Cal del(upsert): ' + e.message); } }
+  });
+
+  // 2) 회차별로 새 이벤트 생성
+  const specs = buildCalendarEvents(found.obj);
+  const newIds = [];
   try {
-    let event = existingEventId ? safeGetEvent(cal, existingEventId) : null;
-    if (event) {
-      event.setTitle(ev.title);
-      event.setTime(ev.start, ev.end);
-      event.setDescription(ev.options.description);
-      event.setLocation(ev.options.location);
-    } else {
-      event = cal.createEvent(ev.title, ev.start, ev.end, ev.options);
-      if (evIdIdx >= 0) found.sheet.getRange(found.rowNum, evIdIdx + 1).setValue(event.getId());
-    }
+    specs.forEach(ev => {
+      const created = cal.createEvent(ev.title, ev.start, ev.end, ev.options);
+      newIds.push(created.getId());
+    });
   } catch(e) {
     Logger.log('Calendar upsert error: ' + e.message);
   }
+
+  // 3) id 배열 write-back (없으면 빈 값)
+  if (evIdIdx >= 0) {
+    found.sheet.getRange(found.rowNum, evIdIdx + 1).setValue(newIds.length ? JSON.stringify(newIds) : '');
+  }
 }
 
-// 예약의 캘린더 이벤트를 제거하고 시트의 eventId를 비운다.
+// 예약의 캘린더 이벤트를 모두 제거하고 시트의 eventId를 비운다.
 function syncCalendarDelete(id) {
   const cal = getBookingCalendar();
   if (!cal) return;
@@ -609,10 +628,12 @@ function syncCalendarDelete(id) {
   if (!found) return;
   const evIdIdx = found.headers.indexOf('calendarEventId');
   if (evIdIdx < 0) return;
-  const eid = String(found.obj['calendarEventId'] || '');
-  if (!eid) return;
-  try { const ev = safeGetEvent(cal, eid); if (ev) ev.deleteEvent(); }
-  catch(e) { Logger.log('Calendar delete error: ' + e.message); }
+  const ids = parseEventIds(found.obj['calendarEventId']);
+  if (!ids.length) return;
+  ids.forEach(eid => {
+    const ev = safeGetEvent(cal, eid);
+    if (ev) { try { ev.deleteEvent(); } catch(e) { Logger.log('Cal delete: ' + e.message); } }
+  });
   found.sheet.getRange(found.rowNum, evIdIdx + 1).setValue('');
 }
 
