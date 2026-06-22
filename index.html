@@ -1043,6 +1043,7 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
       <p class="auth-sub" id="authCodeSub">메일로 발송된 6자리 코드를 입력하세요.</p>
       <input type="text" id="authCode" class="auth-input auth-input-code" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code">
       <button type="button" class="auth-btn" id="authVerifyBtn" onclick="authVerify()">확인</button>
+      <button type="button" class="auth-link" id="authResendBtn" onclick="authResend()">코드 다시 보내기</button>
       <button type="button" class="auth-link" onclick="authBackToEmail()">← 이메일 다시 입력</button>
     </div>
     <div id="authError" class="auth-error" style="display:none;"></div>
@@ -1641,6 +1642,38 @@ function authNormalizeEmail(s) {
   return (s || '').trim().toLowerCase();
 }
 
+function authRenderCodeSub(email) {
+  document.getElementById('authCodeSub').innerHTML =
+    '<strong>' + email + '</strong>으로 6자리 코드를 발송했습니다. (20분간 유효)' +
+    '<br><span style="display:inline-block;margin-top:8px;color:#86868b;font-size:13px;line-height:1.55;">' +
+    '※ 사내 메일 보안 검역으로 메일 도착이 지연될 수 있습니다. ' +
+    '받은편지함·스팸함·격리 메일함을 모두 확인하시고, 받으신 코드를 그대로 입력해 주세요.' +
+    '</span>';
+}
+
+let authResendTimerId = null;
+let authResendRemain = 0;
+function authStartResendCooldown(sec) {
+  const btn = document.getElementById('authResendBtn');
+  if (!btn) return;
+  if (authResendTimerId) { clearInterval(authResendTimerId); authResendTimerId = null; }
+  authResendRemain = sec;
+  function tick() {
+    if (authResendRemain <= 0) {
+      btn.disabled = false;
+      btn.textContent = '코드 다시 보내기';
+      clearInterval(authResendTimerId);
+      authResendTimerId = null;
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = '다시 보내기 (' + authResendRemain + '초)';
+    authResendRemain--;
+  }
+  tick();
+  authResendTimerId = setInterval(tick, 1000);
+}
+
 async function authRequest() {
   authClearError();
   const email = authNormalizeEmail(document.getElementById('authEmail').value);
@@ -1660,13 +1693,34 @@ async function authRequest() {
     authCurrentEmail = email;
     document.getElementById('authStepEmail').style.display = 'none';
     document.getElementById('authStepCode').style.display = 'block';
-    document.getElementById('authCodeSub').innerHTML =
-      '<strong>' + email + '</strong>으로 발송된 6자리 코드를 입력하세요.<br>(메일이 보이지 않으면 스팸함도 확인해 주세요.)';
+    authRenderCodeSub(email);
+    authStartResendCooldown(60);
     setTimeout(() => document.getElementById('authCode').focus(), 50);
   } catch (e) {
     authShowError('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
   } finally {
     btn.disabled = false; btn.textContent = '인증 코드 받기';
+  }
+}
+
+async function authResend() {
+  if (!authCurrentEmail) return;
+  authClearError();
+  const btn = document.getElementById('authResendBtn');
+  btn.disabled = true; btn.textContent = '발송 중...';
+  try {
+    const res = await fetch(SCRIPT_URL + '?type=auth_request&email=' + encodeURIComponent(authCurrentEmail));
+    const data = await res.json();
+    if (!data.ok) {
+      authShowError(data.message || '코드 재발송에 실패했습니다.');
+      btn.disabled = false; btn.textContent = '코드 다시 보내기';
+      return;
+    }
+    authRenderCodeSub(authCurrentEmail);
+    authStartResendCooldown(60);
+  } catch (e) {
+    authShowError('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+    btn.disabled = false; btn.textContent = '코드 다시 보내기';
   }
 }
 
@@ -1703,6 +1757,7 @@ function authBackToEmail() {
   document.getElementById('authStepEmail').style.display = 'block';
   document.getElementById('authStepCode').style.display = 'none';
   document.getElementById('authCode').value = '';
+  if (authResendTimerId) { clearInterval(authResendTimerId); authResendTimerId = null; }
 }
 
 // 페이지 로드 즉시 토큰 검사 — 유효하면 게이트 해제 후 일반 페이지 진입

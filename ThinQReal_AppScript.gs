@@ -28,9 +28,13 @@ const GUIDE_URL = 'https://thinqreal.com/#page-guide';
 // 허용 이메일 도메인. 임직원 검증 + 사이트 자체 차단을 동시에 만족.
 const AUTH_ALLOWED_DOMAINS = ['lge.com'];
 // 인증 코드 유효 시간 / 토큰 유효 기간 / 재요청 쿨다운
-const AUTH_CODE_TTL_SEC   = 10 * 60;        // 10분
-const AUTH_TOKEN_TTL_DAYS = 30;             // 30일 쿠키
-const AUTH_COOLDOWN_SEC   = 60;             // 60초 재요청 방지
+// 사내 메일 보안 검역으로 외부 발신 메일이 수분~수십분 지연될 수 있어 코드 TTL을 20분으로 둔다.
+// 그만큼 무차별 대입 노출 시간이 길어지므로 검증 실패 5회 누적 시 잠금.
+const AUTH_CODE_TTL_SEC      = 20 * 60;        // 20분
+const AUTH_TOKEN_TTL_DAYS    = 30;             // 30일 쿠키
+const AUTH_COOLDOWN_SEC      = 60;             // 60초 재요청 방지
+const AUTH_MAX_FAIL_ATTEMPTS = 5;              // 5회 연속 실패 시 잠금
+const AUTH_FAIL_WINDOW_SEC   = 20 * 60;        // 잠금 유지 20분 (코드 TTL과 동일)
 
 // ── 관리자 접근 통제 ─────────────────────────────────────────
 // 이 명단의 메일만 관리자 인증·삭제·승인·슬롯 제어를 수행할 수 있다.
@@ -2388,18 +2392,31 @@ function handleAuthVerify(email, code) {
   }
 
   var cache = CacheService.getScriptCache();
+
+  // 무차별 대입 방어 — 5회 연속 실패 시 잠금
+  var failKey = 'auth_fail_' + email;
+  var failCount = Number(cache.get(failKey) || '0');
+  if (failCount >= AUTH_MAX_FAIL_ATTEMPTS) {
+    return jsonResponse({ ok: false, error: 'too_many_attempts',
+      message: '인증 시도 횟수를 초과했습니다. 잠시 후 새 코드를 요청해 주세요.' });
+  }
+
   var stored = cache.get('auth_code_' + email);
   if (!stored) {
     return jsonResponse({ ok: false, error: 'code_expired',
       message: '인증 코드가 만료되었습니다. 다시 요청해 주세요.' });
   }
   if (stored !== code) {
+    cache.put(failKey, String(failCount + 1), AUTH_FAIL_WINDOW_SEC);
+    var remaining = AUTH_MAX_FAIL_ATTEMPTS - failCount - 1;
     return jsonResponse({ ok: false, error: 'code_mismatch',
-      message: '인증 코드가 일치하지 않습니다.' });
+      message: '인증 코드가 일치하지 않습니다.' +
+        (remaining > 0 ? ' (남은 시도 ' + remaining + '회)' : ' 새 코드를 요청해 주세요.') });
   }
 
-  // 1회용 — 검증 성공 시 코드 즉시 삭제
+  // 1회용 — 검증 성공 시 코드와 실패 카운트 모두 삭제
   cache.remove('auth_code_' + email);
+  cache.remove(failKey);
 
   var exp = Date.now() + AUTH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;
   var token = signAuthToken(email, exp);
@@ -2494,7 +2511,10 @@ function buildAuthCodeText(code) {
     '인증 코드: ' + code,
     '',
     '이 코드를 사이트 인증 화면에 입력하세요.',
-    '코드는 10분간 유효합니다.',
+    '코드는 20분간 유효합니다.',
+    '',
+    '※ 사내 메일 보안 검역으로 메일 도착이 지연될 수 있습니다.',
+    '   메일이 늦게 도착해도 받으신 코드를 그대로 입력해 주세요.',
     '',
     '본인이 요청하지 않았다면 이 메일은 무시하세요.',
     '',
@@ -2516,8 +2536,12 @@ function buildAuthCodeHtml(code) {
             escapeHtml(code) +
           '</div>' +
           '<div style="font-size:13px;color:#6e6e73;line-height:1.55;">' +
-            '· 코드는 <strong>10분간</strong> 유효합니다.<br>' +
+            '· 코드는 <strong>20분간</strong> 유효합니다.<br>' +
             '· 본인이 요청하지 않았다면 이 메일은 무시하세요.' +
+          '</div>' +
+          '<div style="margin-top:14px;padding:12px 14px;background:#fafafa;border-left:3px solid #8fa889;border-radius:4px;font-size:12px;color:#6e6e73;line-height:1.6;">' +
+            '※ 사내 메일 보안 검역으로 메일 도착이 지연될 수 있습니다. ' +
+            '메일이 늦게 도착해도 받으신 코드를 그대로 입력해 주세요.' +
           '</div>' +
         '</td></tr>' +
         '<tr><td style="padding:14px 28px 22px;border-top:1px solid #e8e8ed;font-size:12px;color:#aeaeb2;">' +
@@ -2581,14 +2605,28 @@ function handleAdminAuthVerify(email, code) {
   }
 
   var cache = CacheService.getScriptCache();
+
+  // 무차별 대입 방어 — 5회 연속 실패 시 잠금 (메인 게이트와 동일)
+  var failKey = 'admin_fail_' + email;
+  var failCount = Number(cache.get(failKey) || '0');
+  if (failCount >= AUTH_MAX_FAIL_ATTEMPTS) {
+    return jsonResponse({ ok: false, error: 'too_many_attempts',
+      message: '인증 시도 횟수를 초과했습니다. 잠시 후 새 코드를 요청해 주세요.' });
+  }
+
   var stored = cache.get('admin_code_' + email);
   if (!stored) {
     return jsonResponse({ ok: false, error: 'code_expired', message: '인증 코드가 만료되었습니다. 다시 요청해 주세요.' });
   }
   if (stored !== code) {
-    return jsonResponse({ ok: false, error: 'code_mismatch', message: '인증 코드가 일치하지 않습니다.' });
+    cache.put(failKey, String(failCount + 1), AUTH_FAIL_WINDOW_SEC);
+    var remaining = AUTH_MAX_FAIL_ATTEMPTS - failCount - 1;
+    return jsonResponse({ ok: false, error: 'code_mismatch',
+      message: '인증 코드가 일치하지 않습니다.' +
+        (remaining > 0 ? ' (남은 시도 ' + remaining + '회)' : ' 새 코드를 요청해 주세요.') });
   }
   cache.remove('admin_code_' + email);
+  cache.remove(failKey);
 
   var exp = Date.now() + AUTH_ADMIN_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;
   var token = signAuthToken(email, exp, true);  // admin 스코프
