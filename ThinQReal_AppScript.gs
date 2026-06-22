@@ -28,13 +28,13 @@ const GUIDE_URL = 'https://thinqreal.com/#page-guide';
 // 허용 이메일 도메인. 임직원 검증 + 사이트 자체 차단을 동시에 만족.
 const AUTH_ALLOWED_DOMAINS = ['lge.com'];
 // 인증 코드 유효 시간 / 토큰 유효 기간 / 재요청 쿨다운
-// 사내 메일 보안 검역으로 외부 발신 메일이 수분~수십분 지연될 수 있어 코드 TTL을 60분으로 둔다.
+// 사내 메일 보안 검역으로 외부 발신 메일이 수분~수십분 지연될 수 있어 코드 TTL을 20분으로 둔다.
 // 그만큼 무차별 대입 노출 시간이 길어지므로 검증 실패 5회 누적 시 잠금.
-const AUTH_CODE_TTL_SEC      = 60 * 60;        // 60분
+const AUTH_CODE_TTL_SEC      = 20 * 60;        // 20분
 const AUTH_TOKEN_TTL_DAYS    = 30;             // 30일 쿠키
 const AUTH_COOLDOWN_SEC      = 60;             // 60초 재요청 방지
 const AUTH_MAX_FAIL_ATTEMPTS = 5;              // 5회 연속 실패 시 잠금
-const AUTH_FAIL_WINDOW_SEC   = 60 * 60;        // 잠금 유지 60분 (코드 TTL과 동일)
+const AUTH_FAIL_WINDOW_SEC   = 20 * 60;        // 잠금 유지 20분 (코드 TTL과 동일)
 
 // ── 관리자 접근 통제 ─────────────────────────────────────────
 // 이 명단의 메일만 관리자 인증·삭제·승인·슬롯 제어를 수행할 수 있다.
@@ -2511,7 +2511,7 @@ function buildAuthCodeText(code) {
     '인증 코드: ' + code,
     '',
     '이 코드를 사이트 인증 화면에 입력하세요.',
-    '코드는 60분간 유효합니다.',
+    '코드는 20분간 유효합니다.',
     '',
     '※ 사내 메일 보안 검역으로 메일 도착이 지연될 수 있습니다.',
     '   메일이 늦게 도착해도 받으신 코드를 그대로 입력해 주세요.',
@@ -2536,7 +2536,7 @@ function buildAuthCodeHtml(code) {
             escapeHtml(code) +
           '</div>' +
           '<div style="font-size:13px;color:#6e6e73;line-height:1.55;">' +
-            '· 코드는 <strong>60분간</strong> 유효합니다.<br>' +
+            '· 코드는 <strong>20분간</strong> 유효합니다.<br>' +
             '· 본인이 요청하지 않았다면 이 메일은 무시하세요.' +
           '</div>' +
           '<div style="margin-top:14px;padding:12px 14px;background:#fafafa;border-left:3px solid #8fa889;border-radius:4px;font-size:12px;color:#6e6e73;line-height:1.6;">' +
