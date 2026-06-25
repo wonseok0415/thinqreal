@@ -48,6 +48,25 @@ const AUTH_ADMIN_EMAILS = [
 ];
 const AUTH_ADMIN_TOKEN_TTL_DAYS = 7;        // 관리자 토큰은 7일 (메인보다 짧게)
 
+// ── 임시 관리자 (한시적 권한 부여) ──────────────────────────
+// 침투 테스트·외부 감사·위탁 점검 등 한시적 관리자 권한이 필요할 때 사용.
+// AUTH_ADMIN_EMAILS에 추가하는 대신 만료일을 명시해 자동으로 회수되게 한다.
+// 형식: 이메일(소문자) → 만료일 'YYYY-MM-DD' (KST 23:59:59까지 유효, 다음날 00:00부터 자동 거부).
+// 토큰이 살아 있어도 verifyAdminToken/isAdminEmail이 만료 후 자동 차단하므로 별도 청소 불필요.
+const AUTH_TEMP_ADMINS = {
+  'aelim.go@lge.com': '2026-07-03'  // 사내 정보보호팀 침투테스트 (2026-06-29 ~ 07-03)
+};
+
+// 임시 관리자 활성 여부 — 등록되어 있고 KST 만료일 23:59:59 이전이면 true
+function isTempAdminActive(email) {
+  if (!email) return false;
+  var key = String(email).trim().toLowerCase();
+  var expiry = AUTH_TEMP_ADMINS[key];
+  if (!expiry) return false;
+  var expiryTs = new Date(expiry + 'T23:59:59+09:00').getTime();
+  return Date.now() <= expiryTs;
+}
+
 // ── 텔레그램 알림 (담당자 그룹 채팅) ─────────────────────────
 // Bot 토큰과 그룹 chat_id는 Script Property에 저장 (코드·리포 미커밋).
 //   TELEGRAM_BOT_TOKEN  : @BotFather에서 발급받은 봇 토큰
@@ -2460,12 +2479,13 @@ function verifyAuthToken(token) {
   return { ok: true, email: String(payload.email || '').toLowerCase(), admin: !!payload.admin };
 }
 
-// 관리자 토큰 검증 — 서명 유효 + admin 플래그 + 명단 포함까지 모두 만족해야 통과.
+// 관리자 토큰 검증 — 서명 유효 + admin 플래그 + (영구 명단 OR 활성 임시 권한) 모두 만족해야 통과.
 function verifyAdminToken(token) {
   var v = verifyAuthToken(token);
   if (!v.ok) return v;
   if (!v.admin) return { ok: false, reason: 'not_admin' };
-  if (AUTH_ADMIN_EMAILS.map(function(s){ return s.toLowerCase(); }).indexOf(v.email) < 0) {
+  var inPerm = AUTH_ADMIN_EMAILS.map(function(s){ return s.toLowerCase(); }).indexOf(v.email) >= 0;
+  if (!inPerm && !isTempAdminActive(v.email)) {
     return { ok: false, reason: 'not_in_allowlist' };
   }
   return { ok: true, email: v.email };
@@ -2559,7 +2579,8 @@ function buildAuthCodeHtml(code) {
 function isAdminEmail(email) {
   if (!email) return false;
   var s = String(email).trim().toLowerCase();
-  return AUTH_ADMIN_EMAILS.map(function(x){ return x.toLowerCase(); }).indexOf(s) >= 0;
+  if (AUTH_ADMIN_EMAILS.map(function(x){ return x.toLowerCase(); }).indexOf(s) >= 0) return true;
+  return isTempAdminActive(s);
 }
 
 function handleAdminAuthRequest(email) {
