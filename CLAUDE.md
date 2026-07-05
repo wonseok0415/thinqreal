@@ -1095,3 +1095,13 @@ data.sort((a,b)=>{
 - 카테고리 라벨 변경 시 이 정규식도 함께 점검 (웰컴보드 트리거와 동일 규칙).
 - **재배포 필요** (월간 리포트 빌더 변경 — 7월 리포트 발송 전까지 반영하면 됨).
 - **(후속) 카테고리별 그룹 표시**: 방문 이력 테이블을 단일 표 → **카테고리 그룹**(■ B2B 영업 → ■ 홍보 고정 순서)으로 재구성. 그룹 헤더 = 컬러 도트(PURPOSE_COLORS 동기화) + 라벨 + 건수, 표 컬럼은 일자/주제·소속 2열 (목적 컬럼은 그룹 헤더로 대체). 0건 그룹은 생략.
+
+## 작업 내역 (2026-07-05 후속 — 사내 이전 준비 문서 3종)
+
+사이버보안팀 "사내 인프라 사용" 권고에 따른 이전 준비. 업무혁신팀 답변(제공 인프라 형태) 대기 중에 미리 만들 수 있는 재료를 `docs/migration/`에 작성 — 답변이 오면 이전 계획서로 조립.
+
+- `docs/migration/api-contract.md` — 전체 엔드포인트(GET 15종 + POST 9종) 입출력 스펙, 인증 모델(HMAC 토큰·코드 TTL·잠금), 메일 발송 규칙, 스케줄 작업. 백엔드 재구현 시 설계서.
+- `docs/migration/data-schema.md` — bookings 24컬럼 + roi_snapshots/slot_blocks/monthly_articles + Script Properties/캐시 키/localStorage + 데이터 취급 규칙.
+- `docs/migration/dependency-inventory.md` — Apps Script 플랫폼 API 사용처·대체 매핑, 외부 서비스(QuickChart·Serper·Telegram·Calendar) outbound 검토, 이전 형태별(A/B/C) 재구현 규모, 업무혁신팀 확인 항목 8개, 이전 시 개선 효과.
+
+**주의**: 문서에 비밀값(도어락·Wi-Fi PW·토큰)은 미기재. 문서 갱신 시에도 동일 규칙 유지.
