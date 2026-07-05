@@ -845,6 +845,40 @@ button, input, select, textarea { font-family: inherit; }
 .caution-group ul li .note a { color: var(--c-accent); text-decoration: none; }
 .caution-group ul li strong { color: var(--c-label); }
 
+/* 이용 안내 — 신청 양식 표 (지상주차 · 웰컴보드) */
+.guide-table-wrap {
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  margin: var(--sp-8) 0 var(--sp-4);
+  border: 1px solid var(--c-separator); border-radius: var(--radius-sm);
+}
+.guide-table {
+  width: 100%; border-collapse: collapse; min-width: 640px;
+  font-size: var(--t-footnote); letter-spacing: -0.008em;
+}
+.guide-table th {
+  background: var(--c-bg-2); color: var(--c-label-2); font-weight: 600;
+  padding: var(--sp-8) var(--sp-12); text-align: left; white-space: nowrap;
+  border-bottom: 1px solid var(--c-separator);
+}
+.guide-table td {
+  padding: var(--sp-8) var(--sp-12); color: var(--c-label);
+  border-bottom: 1px solid var(--c-separator); white-space: nowrap;
+}
+.guide-table tr:last-child td { border-bottom: none; }
+.guide-table .gt-ex { color: var(--c-label-3); }
+
+/* 이용 안내 — 지상주차 위치 약도 (SVG) */
+.parking-map {
+  margin: var(--sp-12) 0 var(--sp-4);
+  border: 1px solid var(--c-separator); border-radius: var(--radius-sm);
+  background: var(--c-bg-2); padding: var(--sp-12);
+}
+.parking-map svg { display: block; width: 100%; height: auto; }
+.parking-map-caption {
+  font-size: var(--t-caption); color: var(--c-label-3);
+  margin-top: var(--sp-8); line-height: 1.5;
+}
+
 /* Contact sidebar */
 .contact-stack { display: flex; flex-direction: column; gap: var(--sp-12); }
 .contact-card {
@@ -1580,13 +1614,98 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
         <h2 class="guide-section-title">주차 안내</h2>
         <div class="caution-group">
           <div class="caution-group-header">
-            <span class="caution-cat">주차</span>
-            <span class="caution-cat-sub">방문자 주차 신청</span>
+            <span class="caution-cat">지하</span>
+            <span class="caution-cat-sub">지하주차장 주차</span>
           </div>
           <ul>
             <li>마곡 LG사이언스파크 근무 직원<span class="note">SP Portal (<a href="https://portal.lgsp.co.kr" target="_blank">portal.lgsp.co.kr</a>) → Support → 주차 → <strong>전용건물 방문자 주차</strong>에서 직접 신청</span></li>
             <li>그 외 사업장 근무 직원 및 외부 고객<span class="note">담당자에게 문의해 주세요.</span></li>
           </ul>
+        </div>
+
+        <div class="caution-group">
+          <div class="caution-group-header">
+            <span class="caution-cat">지상</span>
+            <span class="caution-cat-sub">지상주차 신청 (VIP · 프레스투어 등)</span>
+          </div>
+          <ul>
+            <li>명확한 방문 목적과 방문 고객을 명시하고, 아래 신청 양식을 작성하여 마곡주차관리자(<a href="mailto:mgparking@lge.com" style="color:var(--c-accent);text-decoration:none;">mgparking@lge.com</a>)에게 메일로 신청해 주세요.</li>
+          </ul>
+          <div style="padding: 0 var(--sp-20) var(--sp-16);">
+            <div class="guide-table-wrap">
+              <table class="guide-table">
+                <thead>
+                  <tr><th>날짜</th><th>입차 시간</th><th>출차 시간</th><th>신청자</th><th>연락처</th><th>위치</th><th>방문 목적</th><th>차량번호</th><th>차량종류</th></tr>
+                </thead>
+                <tbody>
+                  <tr class="gt-ex"><td class="gt-ex">2026-08-20</td><td class="gt-ex">9:00</td><td class="gt-ex">16:00</td><td class="gt-ex">홍길동</td><td class="gt-ex">10-1234-1234</td><td class="gt-ex">2</td><td class="gt-ex">VIP 지상주차 요청</td><td class="gt-ex">12가1234</td><td class="gt-ex">버스</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="parking-map">
+              <!-- 지상주차 가능 위치 약도 — 실제 축척·배치와 다른 안내용 도식.
+                   위치 번호(1~4)·건물 배치 수정은 아래 <circle>/<text> 좌표만 조정. -->
+              <svg viewBox="0 0 680 400" role="img" aria-label="지상주차 가능 위치 약도">
+                <!-- 도로 -->
+                <rect x="0" y="60" width="680" height="26" fill="var(--c-separator)" opacity="0.55"/>
+                <rect x="0" y="330" width="680" height="26" fill="var(--c-separator)" opacity="0.55"/>
+                <rect x="52" y="0" width="26" height="400" fill="var(--c-separator)" opacity="0.55"/>
+                <text x="340" y="52" text-anchor="middle" font-size="12" fill="var(--c-label-3)">마곡중앙10로</text>
+                <text x="40" y="205" text-anchor="middle" font-size="12" fill="var(--c-label-3)" transform="rotate(-90 40 205)">마곡중앙로</text>
+                <text x="340" y="378" text-anchor="middle" font-size="12" fill="var(--c-label-3)">마곡중앙5로</text>
+                <!-- 건물 블록 (LG사이언스파크) -->
+                <rect x="110" y="108" width="150" height="90" rx="8" fill="var(--c-bg)" stroke="var(--c-separator)"/>
+                <rect x="110" y="218" width="150" height="90" rx="8" fill="var(--c-bg)" stroke="var(--c-separator)"/>
+                <rect x="290" y="218" width="150" height="90" rx="8" fill="var(--c-bg)" stroke="var(--c-separator)"/>
+                <rect x="470" y="108" width="150" height="90" rx="8" fill="var(--c-bg)" stroke="var(--c-separator)"/>
+                <rect x="470" y="218" width="150" height="90" rx="8" fill="var(--c-bg)" stroke="var(--c-separator)"/>
+                <!-- W6동 — ThinQ Real -->
+                <rect x="290" y="108" width="150" height="90" rx="8" fill="var(--c-bg)" stroke="var(--c-accent)" stroke-width="2"/>
+                <text x="365" y="140" text-anchor="middle" font-size="13" font-weight="600" fill="var(--c-label)">W6동</text>
+                <circle cx="365" cy="160" r="5" fill="#d64545"/>
+                <text x="365" y="184" text-anchor="middle" font-size="12" font-weight="600" fill="#d64545">ThinQ Real</text>
+                <!-- 지상주차 가능 위치 1~4 -->
+                <g font-size="13" font-weight="700">
+                  <circle cx="185" cy="73" r="14" fill="var(--c-accent)"/>
+                  <text x="185" y="78" text-anchor="middle" fill="#fff">1</text>
+                  <circle cx="500" cy="73" r="14" fill="var(--c-accent)"/>
+                  <text x="500" y="78" text-anchor="middle" fill="#fff">2</text>
+                  <circle cx="185" cy="343" r="14" fill="var(--c-accent)"/>
+                  <text x="185" y="348" text-anchor="middle" fill="#fff">3</text>
+                  <circle cx="500" cy="343" r="14" fill="var(--c-accent)"/>
+                  <text x="500" y="348" text-anchor="middle" fill="#fff">4</text>
+                </g>
+              </svg>
+              <div class="parking-map-caption">※ 실제 축척·배치와 차이가 있는 안내용 약도입니다. 신청 양식의 <strong>위치</strong> 칸에 희망하는 번호(1~4)를 기재해 주세요.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="guide-section">
+        <h2 class="guide-section-title">웰컴 보드 안내</h2>
+        <div class="caution-group">
+          <div class="caution-group-header">
+            <span class="caution-cat">웰컴 보드</span>
+            <span class="caution-cat-sub">로비 사이니지 환영 문구 (VIP · 고객사 방문 시)</span>
+          </div>
+          <ul>
+            <li>ThinQ Real 내에는 별도의 웰컴보드 시설이 없습니다.<span class="note">ThinQ Real이 위치한 건물 1층에 설치된 2개의 사이니지(W4쪽 · W6동쪽)를 웰컴보드로 활용할 수 있습니다.</span></li>
+            <li>웰컴보드 사진(<strong>3840×2160</strong>)과 아래 신청 양식을 박형기 책임(<a href="mailto:Kuwait.park@lge.com" style="color:var(--c-accent);text-decoration:none;">Kuwait.park@lge.com</a>), 마곡운영지원센터(<a href="mailto:mgoc@lge.com" style="color:var(--c-accent);text-decoration:none;">mgoc@lge.com</a>)로 송부해 주세요.</li>
+          </ul>
+          <div style="padding: 0 var(--sp-20) var(--sp-16);">
+            <div class="guide-table-wrap">
+              <table class="guide-table">
+                <thead>
+                  <tr><th>요청일</th><th>본부</th><th>요청자</th><th>분류</th><th>송출 위치</th><th>시작일</th><th>종료일</th><th>시간</th><th>송출 내용</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td class="gt-ex">2026-06-25</td><td class="gt-ex">HS</td><td class="gt-ex">김현진</td><td class="gt-ex">TV 웰컴보드</td><td class="gt-ex">W4 · W6</td><td class="gt-ex">2026-06-25</td><td class="gt-ex">2026-06-25</td><td class="gt-ex">09:00~13:00</td><td class="gt-ex">고객사 환영 문구</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="parking-map-caption" style="margin-top:var(--sp-8);">※ 송출 위치는 W1~W10 · 지하 중 선택할 수 있으며, ThinQ Real 방문 고객 대상으로는 <strong>W4 · W6</strong>을 권장합니다.</div>
+          </div>
         </div>
       </div>
 

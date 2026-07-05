@@ -927,6 +927,7 @@ function sendGuestMail(data) {
 
 function buildConfirmText(data) {
   const includeAppliances = (data.purpose || '').indexOf('R&D') >= 0;
+  const includeWelcomeBoard = /(B2B|홍보)/.test(data.purpose || '');
 
   const sections = [
     `안녕하세요, ${data.name}님.`,
@@ -949,6 +950,23 @@ function buildConfirmText(data) {
     `🔐 도어락 비밀번호`,
     `   56720275`,
     ``,
+    `🅿 주차 안내`,
+    `   지하주차 : SP Portal (portal.lgsp.co.kr) → Support → 주차`,
+    `              → 전용건물 방문자 주차에서 사전 신청`,
+    `   지상주차 (VIP·프레스투어 등) : 방문 목적·고객을 명시한`,
+    `              신청 양식을 작성해 마곡주차관리자`,
+    `              (mgparking@lge.com)에게 메일로 신청`,
+    `   (양식·지상주차 위치는 이용 안내 페이지의 주차 안내 참조)`,
+    ``,
+    // 웰컴 보드 — VIP·프레스 대응용이라 B2B 영업·홍보 목적 확정 건에만 안내
+    ...(includeWelcomeBoard ? [
+      `🖥 웰컴 보드`,
+      `   건물 1층 사이니지(W4쪽·W6동쪽)를 환영 문구용 웰컴보드로`,
+      `   활용할 수 있습니다. 사진(3840×2160)과 신청 양식을`,
+      `   박형기 책임 (Kuwait.park@lge.com),`,
+      `   마곡운영지원센터 (mgoc@lge.com)로 송부해 주세요.`,
+      ``,
+    ] : []),
     `☎ 문의`,
     `   이철호 책임 연구원 : ch275.lee@lge.com`,
     `   서문수 선임 연구원 : moonsu.seo@lge.com`,
@@ -978,6 +996,7 @@ function buildConfirmText(data) {
 
 function buildConfirmHtml(data) {
   const includeAppliances = (data.purpose || '').indexOf('R&D') >= 0;
+  const includeWelcomeBoard = /(B2B|홍보)/.test(data.purpose || '');
   const name = escapeHtml(data.name);
   const date = escapeHtml(data.date);
   const slot = escapeHtml(data.slotLabel || '');
@@ -1004,6 +1023,15 @@ function buildConfirmHtml(data) {
       '</table>') +
     infoRow('🔐', '도어락 비밀번호',
       '<div style="font-family:Consolas,Menlo,monospace;font-size:15px;color:#1d1d1f;letter-spacing:0.04em;">56720275</div>') +
+    infoRow('🅿', '주차',
+      '<div><strong style="font-size:13px;">지하주차</strong> · SP Portal(portal.lgsp.co.kr) → Support → 주차 → 전용건물 방문자 주차에서 사전 신청</div>' +
+      '<div style="margin-top:4px;"><strong style="font-size:13px;">지상주차 (VIP·프레스투어 등)</strong> · 방문 목적·고객을 명시한 신청 양식을 마곡주차관리자 <a href="mailto:mgparking@lge.com" style="color:#3a5035;text-decoration:none;">mgparking@lge.com</a> 으로 메일 신청</div>' +
+      '<div style="color:#aeaeb2;font-size:12px;margin-top:2px;">신청 양식과 지상주차 위치 약도는 방문 안내 페이지의 주차 안내를 참조해 주세요.</div>') +
+    (includeWelcomeBoard
+      ? infoRow('🖥', '웰컴 보드',
+          '건물 1층 사이니지(W4쪽·W6동쪽)를 환영 문구용 웰컴보드로 활용할 수 있습니다.' +
+          '<div style="color:#6e6e73;font-size:13px;margin-top:2px;">사진(3840×2160)과 신청 양식을 박형기 책임 <a href="mailto:Kuwait.park@lge.com" style="color:#3a5035;text-decoration:none;">Kuwait.park@lge.com</a> · 마곡운영지원센터 <a href="mailto:mgoc@lge.com" style="color:#3a5035;text-decoration:none;">mgoc@lge.com</a> 로 송부해 주세요.</div>')
+      : '') +
     infoRow('☎', '문의',
       '<div>이철호 책임 연구원 · <a href="mailto:ch275.lee@lge.com" style="color:#3a5035;text-decoration:none;">ch275.lee@lge.com</a></div>' +
       '<div>서문수 선임 연구원 · <a href="mailto:moonsu.seo@lge.com" style="color:#3a5035;text-decoration:none;">moonsu.seo@lge.com</a></div>' +
