@@ -1805,7 +1805,7 @@ body {
     <div class="tab-panel" id="tab-appliances">
       <div class="page-header">
         <h1>구비 가전</h1>
-        <p>ThinQ Real 공간에 구비된 가전·IoT·소품 전체 목록입니다. 내부 R&D · 테스트 목적의 예약 확정 메일에는 이 목록이 함께 발송됩니다.</p>
+        <p>ThinQ Real 공간에 구비된 가전·IoT·소품 전체 목록입니다. R&D 목적의 예약 확정 메일에는 이 목록이 함께 발송됩니다.</p>
       </div>
       <div style="background:var(--c-bg-2); border:1px solid var(--c-separator); border-radius:var(--radius-md); padding:var(--sp-16) var(--sp-20); margin-bottom:var(--sp-20); color:var(--c-label-2); font-size:var(--t-subhead); line-height:1.6;">
         리스트 품목 외 연구원들의 개인 장비·물품들이 있으므로 위치 변경이나 분실에 유의해 주세요. (총 <strong id="appliancesCount">45</strong>개 품목)
@@ -2010,6 +2010,16 @@ body {
           <label class="ffield-label">방문 인원</label>
           <input class="finput" id="bfCount" type="number" min="0" inputmode="numeric">
           <span class="fhint">비우면 방문자 명단 수로 자동 설정됩니다.</span>
+        </div>
+      </div>
+      <div class="frow">
+        <div class="ffield">
+          <label class="ffield-label">소속 본부</label>
+          <select class="fselect" id="bfDivision"></select>
+        </div>
+        <div class="ffield">
+          <label class="ffield-label">소속 부서</label>
+          <input class="finput" id="bfDepartment" type="text" autocomplete="off" placeholder="예: AI홈솔루션엔지니어링팀">
         </div>
       </div>
       <div class="frow">
@@ -2354,11 +2364,11 @@ async function loadData() {
     toast(usedCache ? '최신 데이터로 갱신했습니다.' : '데이터를 불러왔습니다.');
   } catch(e) {
     allBookings = [
-      {id:'1',date:'2026-05-20',slot:'1',name:'김엘지',org:'Vision Intelligence 향상',subject:'Vision Intelligence 향상',phone:'010-1234-5678',email:'mj.kim@lge.com',purpose:'내부 R&D · 테스트',purposeKey:'rd',count:'2',usagePlan:'댁내 환경과 유사한 환경에서 vision intelligence 데이터 확보',expectedEffect:'차세대 AI 에이전트 핵심 기술 개발 시 로우데이터 확보',visitors:'[{"name":"서문수","rank":"선임"},{"name":"김엘지","rank":"책임"}]',status:'대기중',timestamp:'2026-05-14T09:00:00'},
-      {id:'2',date:'2026-05-21',slot:'2',name:'김지에스',org:'GS건설',subject:'GS건설',clientCompany:'GS건설',phone:'010-2345-6789',email:'sy.lee@lge.com',purpose:'고객/고객사 영업 활동',purposeKey:'customer',count:'1',usagePlan:'용인 구례지구 재개발 2,342세대 옵션상품 판매를 위한 AI홈 시연',expectedEffect:'프로젝트 진행 시 옵션 판매 매출 2,500~3,000억원 수주',visitors:'[{"name":"김재훈","rank":"사장"}]',status:'확정',timestamp:'2026-05-13T14:30:00'},
-      {id:'3',date:'2026-05-22',slot:'3',name:'김엘지',org:'ES본부 CEO 현장 경영',subject:'ES본부 CEO 현장 경영',phone:'010-3456-7890',email:'dh.park@lge.com',purpose:'내부 행사',purposeKey:'internal-event',count:'3',usagePlan:'CEO 현장 경영 시 신제품 시연 및 피드백',expectedEffect:'전략가전(콜드프리) 완성품 출시 최종 의사 결정 및 개선사항 취합',visitors:'[{"name":"김현진","rank":"선임"},{"name":"이철호","rank":"책임"},{"name":"김엘지","rank":"책임"}]',status:'대기중',timestamp:'2026-05-14T11:00:00'},
+      {id:'1',date:'2026-05-20',slot:'1',name:'김엘지',org:'Vision Intelligence 향상',subject:'Vision Intelligence 향상',phone:'010-1234-5678',email:'mj.kim@lge.com',purpose:'R&D',purposeKey:'rd',count:'2',usagePlan:'댁내 환경과 유사한 환경에서 vision intelligence 데이터 확보',expectedEffect:'차세대 AI 에이전트 핵심 기술 개발 시 로우데이터 확보',visitors:'[{"name":"서문수","rank":"선임"},{"name":"김엘지","rank":"책임"}]',status:'대기중',timestamp:'2026-05-14T09:00:00'},
+      {id:'2',date:'2026-05-21',slot:'2',name:'김지에스',org:'GS건설',subject:'GS건설',clientCompany:'GS건설',phone:'010-2345-6789',email:'sy.lee@lge.com',purpose:'B2B 영업',purposeKey:'b2b',count:'1',usagePlan:'용인 구례지구 재개발 2,342세대 옵션상품 판매를 위한 AI홈 시연',expectedEffect:'프로젝트 진행 시 옵션 판매 매출 2,500~3,000억원 수주',visitors:'[{"name":"김재훈","rank":"사장"}]',status:'확정',timestamp:'2026-05-13T14:30:00'},
+      {id:'3',date:'2026-05-22',slot:'3',name:'김엘지',org:'ES본부 CEO 현장 경영',subject:'ES본부 CEO 현장 경영',phone:'010-3456-7890',email:'dh.park@lge.com',purpose:'내부 커뮤니케이션',purposeKey:'internal-comm',count:'3',usagePlan:'CEO 현장 경영 시 신제품 시연 및 피드백',expectedEffect:'전략가전(콜드프리) 완성품 출시 최종 의사 결정 및 개선사항 취합',visitors:'[{"name":"김현진","rank":"선임"},{"name":"이철호","rank":"책임"},{"name":"김엘지","rank":"책임"}]',status:'대기중',timestamp:'2026-05-14T11:00:00'},
       {id:'4',date:'2026-05-23',slot:'1',name:'김엘지',org:'CS 관련 간편 대응 영상 촬영',subject:'CS 관련 간편 대응 영상 촬영',phone:'010-4567-8901',email:'yj.choi@lge.com',purpose:'콘텐츠 제작',purposeKey:'content',count:'2',usagePlan:'RAC 관련 고객 간편 대응 영상 11종 자가 대응 영상 촬영',expectedEffect:'Case 영상별 평균 2,000회 조회수, 기사 방문 비용 약 50,000원 절감',visitors:'[{"org":"꿈나라 스튜디오","name":"박진우","rank":"감독"},{"org":"꿈나라 스튜디오","name":"이도현","rank":"PD"}]',status:'확정',timestamp:'2026-05-12T16:00:00'},
-      {id:'5',date:'2026-04-15',slot:'2',name:'김엘지',org:'북미 미디어 프레스 투어',subject:'북미 미디어 프레스 투어',phone:'010-5678-9012',email:'ws.jung@lge.com',purpose:'외부 행사',purposeKey:'external-event',count:'1',usagePlan:'미국 주요 일간지 기자들을 초청해 AI홈 시연 및 Q&A 진행',expectedEffect:'기사를 통한 LG전자 홍보 및 마케팅 가치 회당 약 3,000만원 예상',visitors:'[{"org":"워싱턴 포스트","name":"James","rank":"국장"}]',status:'거절',timestamp:'2026-04-10T10:00:00'},
+      {id:'5',date:'2026-04-15',slot:'2',name:'김엘지',org:'북미 미디어 프레스 투어',subject:'북미 미디어 프레스 투어',phone:'010-5678-9012',email:'ws.jung@lge.com',purpose:'홍보 (프레스투어/마케팅)',purposeKey:'pr',count:'1',usagePlan:'미국 주요 일간지 기자들을 초청해 AI홈 시연 및 Q&A 진행',expectedEffect:'기사를 통한 LG전자 홍보 및 마케팅 가치 회당 약 3,000만원 예상',visitors:'[{"org":"워싱턴 포스트","name":"James","rank":"국장"}]',status:'거절',timestamp:'2026-04-10T10:00:00'},
     ];
     allBookings = allBookings.map(normalizeRecord);
     updateKPIs(); renderTable();
@@ -2450,11 +2460,11 @@ function openModal(id) {
   document.getElementById('modalTitle').textContent = (b.name || '예약') + ' 님 예약 상세';
   const cls = b.status==='대기중'?'pending':b.status==='확정'?'confirmed':'rejected';
 
-  // 목적 키 → 1번째 줄 라벨
+  // 목적 키 → 1번째 줄 라벨 (구 키는 마이그레이션 전 옛 데이터 호환용)
   const SUBJ_LABELS = {
-    'customer': '고객/고객사', 'rd': '프로젝트명',
-    'internal-event': '행사명', 'external-event': '행사명',
-    'content': '촬영명', 'other': '제목'
+    'b2b': '고객/고객사', 'rd': '프로젝트명', 'pr': '행사명',
+    'content': '촬영명', 'internal-comm': '행사명', 'other': '제목',
+    'customer': '고객/고객사', 'internal-event': '행사명', 'external-event': '행사명'
   };
   const subjLabel = SUBJ_LABELS[b.purposeKey] || (b.subject ? '주제' : '소속');
   const subjVal   = b.subject || b.org || '';
@@ -2471,6 +2481,9 @@ function openModal(id) {
     + '<span class="detail-label">날짜</span>    <span class="detail-value">' + escapeHtml(b.date||'') + '</span>'
     + '<span class="detail-label">회차</span>    <span class="detail-value">' + fmtSlots(b) + '</span>'
     + '<span class="detail-label">책임자</span>  <span class="detail-value">' + escapeHtml(b.name||'') + '</span>'
+    + ((b.division || b.department)
+        ? '<span class="detail-label">소속</span>    <span class="detail-value">' + escapeHtml([b.division, b.department].filter(Boolean).join(' · ')) + '</span>'
+        : '')
     + '<span class="detail-label">연락처</span>  <span class="detail-value">' + escapeHtml(b.phone||'') + '</span>'
     + '<span class="detail-label">이메일</span>  <span class="detail-value" style="color:var(--c-accent);">' + escapeHtml(b.email||'') + '</span>'
     + '<span class="detail-label">방문 인원</span><span class="detail-value">' + escapeHtml(String(b.count||0)) + '명</span>';
@@ -2620,13 +2633,17 @@ async function updateStatus(id, status) {
 // 시스템 오픈 전 과거 방문 이력을 직접 기록하거나, 고객이 대충 적은
 // 상세를 담당자가 보강·정정한다. 저장 시 알림(메일·텔레그램)은 발송되지 않음.
 const BF_PURPOSE_CONFIG = {
-  'customer':       { label:'고객/고객사 영업 활동', subjectLabel:'고객/고객사', leaderLabel:'고객/고객사 담당자', usageLabel:'방문 목적 (구체적)', hint:'LG전자 제품 검토·구매·시연을 위한 고객사 방문', client:true,  cols:2 },
-  'rd':             { label:'내부 R&D · 테스트',     subjectLabel:'프로젝트명',   leaderLabel:'부서 리더/책임자',   usageLabel:'ThinQ Real 활용 방안', hint:'내부 R&D · 데이터 수집 · 기능 검증',          client:false, cols:2 },
-  'internal-event': { label:'내부 행사',            subjectLabel:'행사명',       leaderLabel:'부서 리더/책임자',   usageLabel:'ThinQ Real 활용 방안', hint:'임직원만 참석하는 사내 행사',                 client:false, cols:2 },
-  'external-event': { label:'외부 행사',            subjectLabel:'행사명',       leaderLabel:'부서 리더/책임자',   usageLabel:'ThinQ Real 활용 방안', hint:'기자단·VIP·언론 등 사외 인원 방문 행사',      client:false, cols:3 },
-  'content':        { label:'콘텐츠 제작',          subjectLabel:'촬영명',       leaderLabel:'부서 리더/책임자',   usageLabel:'ThinQ Real 활용 방안', hint:'사진·영상·인쇄물 등 콘텐츠 제작 촬영',        client:false, cols:3 },
-  'other':          { label:'기타',                subjectLabel:'제목',         leaderLabel:'부서 리더/책임자',   usageLabel:'ThinQ Real 활용 방안', hint:'위 카테고리에 해당하지 않는 방문',            client:false, cols:3 },
+  'b2b':           { label:'B2B 영업',              subjectLabel:'고객/고객사', leaderLabel:'고객/고객사 담당자', usageLabel:'방문 목적 (구체적)', hint:'LG전자 제품 검토·구매·시연을 위한 고객사 방문', client:true,  cols:2 },
+  'rd':            { label:'R&D',                  subjectLabel:'프로젝트명',   leaderLabel:'부서 리더/책임자',   usageLabel:'ThinQ Real 활용 방안', hint:'내부 R&D · 데이터 수집 · 기능 검증',          client:false, cols:2 },
+  'pr':            { label:'홍보 (프레스투어/마케팅)', subjectLabel:'행사명',       leaderLabel:'부서 리더/책임자',   usageLabel:'ThinQ Real 활용 방안', hint:'기자단·미디어·인플루언서 등 홍보·마케팅 방문', client:false, cols:3 },
+  'content':       { label:'콘텐츠 제작',           subjectLabel:'촬영명',       leaderLabel:'부서 리더/책임자',   usageLabel:'ThinQ Real 활용 방안', hint:'사진·영상·인쇄물 등 콘텐츠 제작 촬영',        client:false, cols:3 },
+  'internal-comm': { label:'내부 커뮤니케이션',       subjectLabel:'행사명',       leaderLabel:'부서 리더/책임자',   usageLabel:'ThinQ Real 활용 방안', hint:'임직원 대상 사내 행사·현장 경영·워크샵',       client:false, cols:2 },
+  'other':         { label:'기타',                 subjectLabel:'제목',         leaderLabel:'부서 리더/책임자',   usageLabel:'ThinQ Real 활용 방안', hint:'위 카테고리에 해당하지 않는 방문',            client:false, cols:3 },
 };
+// 2026-07 카테고리 개편 전 구 purposeKey → 신 key (마이그레이션 전 옛 데이터 수정 화면 호환)
+const BF_LEGACY_KEYS = { 'customer':'b2b', 'internal-event':'internal-comm', 'external-event':'pr' };
+// 신청자 소속 본부 — index.html fDivision 드롭다운과 동기화
+const BF_DIVISIONS = ['HS사업본부','MS사업본부','VS사업본부','한국영업본부','해외영업본부','CTO부문','CX센터','고객가치혁신부문','디자인경영센터','기타'];
 const BF_MAX_VISITORS = 10;
 let bfMode = 'create';   // 'create' | 'edit'
 let bfEditId = null;
@@ -2642,6 +2659,17 @@ function bfInit() {
       const o = document.createElement('option');
       o.value = k; o.textContent = BF_PURPOSE_CONFIG[k].label;
       sel.appendChild(o);
+    });
+  }
+  const dsel = document.getElementById('bfDivision');
+  if (dsel.options.length === 0) {
+    const empty = document.createElement('option');
+    empty.value = ''; empty.textContent = '선택 안 함';
+    dsel.appendChild(empty);
+    BF_DIVISIONS.forEach(d => {
+      const o = document.createElement('option');
+      o.value = d; o.textContent = d;
+      dsel.appendChild(o);
     });
   }
   const sc = document.getElementById('bfSlots');
@@ -2727,7 +2755,7 @@ function openBookingFormCreate() {
   bfMode = 'create'; bfEditId = null;
   document.getElementById('bfTitle').textContent = '예약 이력 추가';
   document.getElementById('bfPurpose').value = '';
-  ['bfSubject','bfClient','bfDate','bfName','bfCount','bfPhone','bfEmail','bfUsage','bfEffect','bfNote']
+  ['bfSubject','bfClient','bfDate','bfName','bfCount','bfPhone','bfEmail','bfDivision','bfDepartment','bfUsage','bfEffect','bfNote']
     .forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('bfStatus').value = '확정';
   bfSetSlots([]);
@@ -2743,8 +2771,10 @@ function openBookingFormEdit(id) {
   bfInit();
   bfMode = 'edit'; bfEditId = id;
   document.getElementById('bfTitle').textContent = '예약 상세 수정';
-  // purposeKey 우선, 없으면 한국어 라벨로 역추적
+  // purposeKey 우선(구 키는 신 키로 변환), 없으면 한국어 라벨로 역추적
   let key = b.purposeKey || Object.keys(BF_PURPOSE_CONFIG).find(k => BF_PURPOSE_CONFIG[k].label === b.purpose) || 'other';
+  if (BF_LEGACY_KEYS[key]) key = BF_LEGACY_KEYS[key];
+  if (!BF_PURPOSE_CONFIG[key]) key = 'other';
   document.getElementById('bfPurpose').value = key;
   document.getElementById('bfSubject').value = b.subject || b.org || '';
   document.getElementById('bfClient').value  = b.clientCompany || '';
@@ -2755,6 +2785,8 @@ function openBookingFormEdit(id) {
   document.getElementById('bfCount').value   = (b.count != null && b.count !== '') ? b.count : '';
   document.getElementById('bfPhone').value   = b.phone || '';
   document.getElementById('bfEmail').value   = b.email || '';
+  document.getElementById('bfDivision').value   = b.division || '';
+  document.getElementById('bfDepartment').value = b.department || '';
   document.getElementById('bfUsage').value   = b.usagePlan || '';
   document.getElementById('bfEffect').value  = b.expectedEffect || '';
   document.getElementById('bfNote').value    = b.note || '';
@@ -2818,6 +2850,8 @@ async function saveBookingForm() {
     usagePlan: document.getElementById('bfUsage').value.trim(),
     expectedEffect: document.getElementById('bfEffect').value.trim(),
     purposeKey: key,
+    division: document.getElementById('bfDivision').value,
+    department: document.getElementById('bfDepartment').value.trim(),
   };
 
   const btn = document.getElementById('bfSaveBtn');
@@ -2867,12 +2901,12 @@ async function saveBookingForm() {
 // 목적별 색상 — 디자인 시스템에서 추출. 결정적 매핑이라 항상 같은
 // 목적은 같은 색으로 표시되어 인식이 쉽다.
 const PURPOSE_COLORS = {
-  '고객/고객사 영업 활동': '#ff9500', // orange — B2B 영업
-  '내부 R&D · 테스트':    '#3a5035', // accent (다크 올리브)
-  '내부 행사':            '#7f51e4', // purple
-  '외부 행사':            '#0a84a3', // teal
-  '콘텐츠 제작':           '#cc7000', // amber
-  '기타':                 '#8fa889', // accent-mid
+  'B2B 영업':              '#ff9500', // orange
+  'R&D':                  '#3a5035', // accent (다크 올리브)
+  '홍보 (프레스투어/마케팅)': '#0a84a3', // teal (구 외부 행사)
+  '콘텐츠 제작':            '#cc7000', // amber
+  '내부 커뮤니케이션':       '#7f51e4', // purple (구 내부 행사)
+  '기타':                  '#8fa889', // accent-mid
 };
 const PURPOSE_FALLBACK = ['#3a5035','#ff9500','#7f51e4','#0a84a3','#8fa889','#cc7000','#5e7858','#a86bda'];
 function colorFor(purpose, fallbackIdx) {
@@ -2975,7 +3009,7 @@ function renderStats() {
 }
 
 function exportCSV() {
-  const headers = ['날짜','회차','목적','주제','책임자','연락처','이메일','인원','방문자명단','활용방안','기대효과','상태','신청일시'];
+  const headers = ['날짜','회차','목적','주제','책임자','소속본부','소속부서','연락처','이메일','인원','방문자명단','활용방안','기대효과','상태','신청일시'];
   const rows = allBookings.map(b => {
     let visitorSummary = '';
     try {
@@ -2984,7 +3018,7 @@ function exportCSV() {
     } catch(e) {}
     return [
       b.date, fmtSlots(b), b.purpose, b.subject || b.org,
-      b.name, b.phone, b.email, b.count,
+      b.name, b.division || '', b.department || '', b.phone, b.email, b.count,
       visitorSummary, b.usagePlan || '', b.expectedEffect || '',
       b.status, new Date(b.timestamp).toLocaleString('ko-KR')
     ];

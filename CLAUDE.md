@@ -1012,3 +1012,41 @@ data.sort((a,b)=>{
 - 만료일은 **KST 기준** 23:59:59까지. 다른 타임존(UTC 등)으로 해석되지 않게 `'YYYY-MM-DDT23:59:59+09:00'`로 파싱 — `isTempAdminActive` 변경 시 동일 패턴 유지.
 - 침투테스트/감사가 끝나면 결과 보고서로 발견된 취약점 후속 패치 필요할 수 있음.
 - **재배포 필요**: 코드 상수·검사 함수 추가. "배포 관리 → 편집 → 새 버전 → 배포".
+
+## 작업 내역 (2026-07-05 — B2E 전환: 소속 입력 + 방문 목적 카테고리 개편)
+
+팀장 코멘트("현재 분류 안에 대해 구분이 어렵다") 반영. 사이트가 임직원 전용(B2E)으로 전환됨에 따라 신청자 소속 파악 항목 추가 + 방문 목적 6종을 새 체계로 교체.
+
+### A. 신청자 소속 입력 (index.html + Apps Script + 관리자)
+- 예약 폼에 **소속 본부(드롭다운) + 소속 부서(직접 입력)** 신설 — 둘 다 필수. 본부는 고정 목록, 부서는 조직개편으로 수시 변경되어 자유 입력.
+- 본부 목록 (index.html `#fDivision` / 관리자 `BF_DIVISIONS` 동기화 필수): HS사업본부 / MS사업본부 / VS사업본부 / 한국영업본부 / 해외영업본부 / CTO부문 / CX센터 / 고객가치혁신부문 / 디자인경영센터 / 기타
+- Sheets HEADERS에 **`division`(23)·`department`(24) 컬럼 추가** → 백필 시 컬럼은 이제 **24열**. 옛 행은 공란 허용.
+- 담당자 알림 메일(🏛 소속 행)·텔레그램(🏛 줄)·관리자 상세 모달·이력 추가/수정 폼·CSV(소속본부·소속부서 컬럼)에 반영.
+- 개인정보 수집 항목에 "소속(본부·부서)" 추가 — index.html 동의 문구 + privacy.html §1 양쪽 갱신.
+
+### B. 방문 목적 카테고리 개편 (구 6종 → 신 6종)
+| 구 라벨 (key) | 신 라벨 (key) |
+|---|---|
+| 고객/고객사 영업 활동 (customer) | **B2B 영업 (b2b)** |
+| 내부 R&D · 테스트 (rd) | **R&D (rd)** |
+| 외부 행사 (external-event) | **홍보 (프레스투어/마케팅) (pr)** |
+| 콘텐츠 제작 (content) | 콘텐츠 제작 (content) — 동일 |
+| 내부 행사 (internal-event) | **내부 커뮤니케이션 (internal-comm)** |
+| 기타 (other) | 기타 (other) — 동일 (변경안 5개에 없지만 도피처로 유지 결정) |
+
+- 동기화 지점 4곳 모두 갱신: `PURPOSE_CONFIG`(index.html) / `BF_PURPOSE_CONFIG`·`SUBJ_LABELS`·`PURPOSE_COLORS`(thinqreal_admin.html) / `ADMIN_ALERT_SUBJ_LABELS`·`subjLabelMap`·`PURPOSE_COLORS`(Apps Script).
+- 색상 연속성 유지: B2B 영업=오렌지, R&D=올리브, 홍보=틸(구 외부행사), 콘텐츠=앰버, 내부 커뮤니케이션=퍼플(구 내부행사), 기타=올리브-mid.
+- R&D 가전표 첨부 트리거(`purpose.indexOf('R&D')`)는 신 라벨 'R&D'에도 그대로 동작.
+- 마이그레이션 전 옛 데이터 호환: 관리자 `BF_LEGACY_KEYS`(구 키→신 키) + `SUBJ_LABELS`에 구 키 병기.
+
+### C. 기존 이력 마이그레이션 — `migratePurposeCategories2026()` (1회 실행 필요)
+- Apps Script 끝에 1회성 함수 추가. 에디터에서 함수 선택 후 실행하면 `bookings` 시트의 `purpose`/`purposeKey`를 위 표대로 일괄 변환. **멱등**(재실행 안전) — 이미 신 라벨인 행은 건너뜀.
+- 옛 비표준 라벨 안전망 포함: `B2B 파트너 시연`→b2b, `R&D 연구`→rd, `Press Tour`→pr.
+- 실행 순서: ① 코드 재배포 → ② `migratePurposeCategories2026` 1회 실행 → ③ 관리자 페이지에서 통계 확인.
+
+### 핵심 제약 (다음 세션에서도 유지)
+- 본부 목록 변경 시 index.html `#fDivision` 옵션과 관리자 `BF_DIVISIONS` **양쪽 동시 수정**.
+- 카테고리 라벨/키 변경 시 위 §B의 동기화 지점 4곳 + CLAUDE.md 함께 수정 (기존 규칙과 동일).
+- 시트 백필 컬럼은 이제 **24열**(`id`~`department`). `division`/`department`는 옛 행 공란 허용.
+- purposeKey 신 체계: `b2b`/`rd`/`pr`/`content`/`internal-comm`/`other` — 구 키(customer 등)는 마이그레이션 후 시트에 남지 않아야 정상.
+- **재배포 필요** + **마이그레이션 함수 1회 실행 필요** (§C 순서대로).

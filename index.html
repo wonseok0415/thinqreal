@@ -1125,7 +1125,7 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
   <section class="cta-band">
     <span class="label-overline" style="color:rgba(255,255,255,0.6);">Visit</span>
     <h2 class="section-title">ThinQ Real을<br>직접 경험해 보세요</h2>
-    <p class="section-body">고객사 영업 활동, 내부 R&D · 테스트, 내부·외부 행사, 콘텐츠 제작 등 다양한 목적으로 예약 가능합니다.</p>
+    <p class="section-body">B2B 영업, R&D, 홍보, 콘텐츠 제작, 내부 커뮤니케이션 등 다양한 목적으로 예약 가능합니다.</p>
     <button class="btn btn-white" onclick="showPage('reserve')">예약 신청하기</button>
   </section>
 
@@ -1311,11 +1311,11 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
           <div class="form-select-wrap">
             <select class="form-select" id="fPurpose" required onchange="renderFormByPurpose()">
               <option value="">선택해 주세요</option>
-              <option value="customer">고객/고객사 영업 활동</option>
-              <option value="rd">내부 R&amp;D · 테스트</option>
-              <option value="internal-event">내부 행사</option>
-              <option value="external-event">외부 행사</option>
+              <option value="b2b">B2B 영업</option>
+              <option value="rd">R&amp;D</option>
+              <option value="pr">홍보 (프레스투어/마케팅)</option>
               <option value="content">콘텐츠 제작</option>
+              <option value="internal-comm">내부 커뮤니케이션</option>
               <option value="other">기타</option>
             </select>
           </div>
@@ -1336,6 +1336,34 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
             <div class="form-group">
               <label class="form-label">담당자 연락처 *</label>
               <input class="form-input" id="fPhone" type="tel" placeholder="010-0000-0000" maxlength="15" inputmode="tel">
+            </div>
+          </div>
+
+          <!-- 신청자 소속 — B2E 전환으로 임직원 소속 파악 필요. 본부는 고정 드롭다운,
+               부서는 조직개편으로 수시 변경되어 직접 입력 방식. -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">소속 본부 *</label>
+              <div class="form-select-wrap">
+                <select class="form-select" id="fDivision" required>
+                  <option value="">선택해 주세요</option>
+                  <option>HS사업본부</option>
+                  <option>MS사업본부</option>
+                  <option>VS사업본부</option>
+                  <option>한국영업본부</option>
+                  <option>해외영업본부</option>
+                  <option>CTO부문</option>
+                  <option>CX센터</option>
+                  <option>고객가치혁신부문</option>
+                  <option>디자인경영센터</option>
+                  <option>기타</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">소속 부서 *</label>
+              <input class="form-input" id="fDepartment" type="text" placeholder="예: AI홈솔루션엔지니어링팀">
+              <span class="form-hint-inline">현재 소속 부서명을 입력해 주세요.</span>
             </div>
           </div>
 
@@ -1372,7 +1400,7 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
             <input type="checkbox" id="fPrivacyCollect">
             <span class="form-agreement-text">
               <strong>[필수] 개인정보 수집·이용 동의</strong> —
-              예약 처리·방문 운영·운영 통계를 위해 책임자 이름·연락처·이메일,
+              예약 처리·방문 운영·운영 통계를 위해 책임자 이름·연락처·이메일·소속(본부·부서),
               방문자 소속·이름·직급을 수집·이용함에 동의합니다.
               (보유 기간: 방문일로부터 3년)
               <a href="privacy.html" target="_blank" rel="noopener">자세히 보기</a>
@@ -1995,8 +2023,8 @@ function updateSummary() {
 const MAX_VISITORS = 10;
 
 const PURPOSE_CONFIG = {
-  'customer': {
-    label: '고객/고객사 영업 활동',
+  'b2b': {
+    label: 'B2B 영업',
     hint: 'LG전자 제품 검토·구매·시연을 위한 고객사 방문입니다.',
     subjectLabel: '고객/고객사 *',
     subjectPlaceholder: '예: GS건설',
@@ -2007,7 +2035,7 @@ const PURPOSE_CONFIG = {
     visitorCols: 2
   },
   'rd': {
-    label: '내부 R&D · 테스트',
+    label: 'R&D',
     hint: 'LG전자 내부 R&D · 데이터 수집 · 기능 검증 목적의 방문입니다.',
     subjectLabel: '프로젝트명 *',
     subjectPlaceholder: '예: Vision Intelligence 향상',
@@ -2017,20 +2045,9 @@ const PURPOSE_CONFIG = {
     usagePlanPlaceholder: '예: 댁내 환경과 유사한 환경에서 vision intelligence 데이터 확보',
     visitorCols: 2
   },
-  'internal-event': {
-    label: '내부 행사',
-    hint: 'LG전자 임직원만 참석하는 사내 행사입니다.',
-    subjectLabel: '행사명 *',
-    subjectPlaceholder: '예: ES본부 CEO 현장 경영',
-    leaderLabel: '부서 리더/책임자 *',
-    leaderPlaceholder: '예: 김엘지',
-    usagePlanLabel: 'ThinQ Real 활용 방안 (구체적) *',
-    usagePlanPlaceholder: '예: CEO 현장 경영 시 신제품 시연 및 피드백',
-    visitorCols: 2
-  },
-  'external-event': {
-    label: '외부 행사',
-    hint: '기자단·VIP·언론 등 사외 인원이 방문하는 행사입니다.',
+  'pr': {
+    label: '홍보 (프레스투어/마케팅)',
+    hint: '기자단·미디어·인플루언서 등 홍보·마케팅 목적의 방문입니다.',
     subjectLabel: '행사명 *',
     subjectPlaceholder: '예: 북미 미디어 프레스 투어',
     leaderLabel: '부서 리더/책임자 *',
@@ -2049,6 +2066,17 @@ const PURPOSE_CONFIG = {
     usagePlanLabel: 'ThinQ Real 활용 방안 (구체적) *',
     usagePlanPlaceholder: '예: RAC 관련 고객 간편 대응 영상 11종 자가 대응 영상 촬영',
     visitorCols: 3
+  },
+  'internal-comm': {
+    label: '내부 커뮤니케이션',
+    hint: 'LG전자 임직원 대상 사내 행사·현장 경영·워크샵 등 내부 커뮤니케이션 방문입니다.',
+    subjectLabel: '행사명 *',
+    subjectPlaceholder: '예: ES본부 CEO 현장 경영',
+    leaderLabel: '부서 리더/책임자 *',
+    leaderPlaceholder: '예: 김엘지',
+    usagePlanLabel: 'ThinQ Real 활용 방안 (구체적) *',
+    usagePlanPlaceholder: '예: CEO 현장 경영 시 신제품 시연 및 피드백',
+    visitorCols: 2
   },
   'other': {
     label: '기타',
@@ -2160,12 +2188,16 @@ async function submitBooking() {
   const leader   = get('fLeader');
   const phone    = get('fPhone');
   const email    = get('fEmail');
+  const division   = get('fDivision');
+  const department = get('fDepartment');
   const usagePlan      = get('fUsagePlan');
   const expectedEffect = get('fExpectedEffect');
 
   if (!subject || !leader || !phone || !email) {
     toast('필수 항목을 모두 입력해 주세요.'); return;
   }
+  if (!division)   { toast('소속 본부를 선택해 주세요.'); return; }
+  if (!department) { toast('소속 부서를 입력해 주세요.'); return; }
   if (!usagePlan || !expectedEffect) {
     toast('활용 방안과 기대 효과를 입력해 주세요.'); return;
   }
@@ -2223,11 +2255,14 @@ async function submitBooking() {
     status:  '대기중',
     // 신규 필드
     subject,
-    clientCompany:  purposeKey === 'customer' ? subject : '',
+    clientCompany:  purposeKey === 'b2b' ? subject : '',
     visitors:       JSON.stringify(visitors),
     usagePlan,
     expectedEffect,
     purposeKey,
+    // 신청자 소속 (B2E 전환 — 2026-07)
+    division,
+    department,
     // 개인정보 수집·이용 + 국외 이전 동의 기록 (체크 없으면 제출 자체가 차단됨)
     privacyConsent: 'Y'
   };
@@ -2244,7 +2279,7 @@ async function submitBooking() {
 
 function resetForm() {
   selectedDate = null; selectedSlots = new Set();
-  ['fSubject','fLeader','fPhone','fEmail','fUsagePlan','fExpectedEffect'].forEach(id => {
+  ['fSubject','fLeader','fPhone','fEmail','fDivision','fDepartment','fUsagePlan','fExpectedEffect'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   document.getElementById('fPurpose').value = '';
