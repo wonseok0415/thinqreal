@@ -675,7 +675,7 @@ function syncCalendarByStatus(id, status) {
 // 담당자 알림 메일 (신규 예약 접수 시)
 // 목적별 1번째 줄(주제) 라벨 매핑
 const ADMIN_ALERT_SUBJ_LABELS = {
-  'b2b':           '고객/고객사',
+  'b2b':           '고객사',
   'rd':            '프로젝트명',
   'pr':            '행사명',
   'content':       '촬영명',
@@ -927,6 +927,7 @@ function sendGuestMail(data) {
 
 function buildConfirmText(data) {
   const includeAppliances = (data.purpose || '').indexOf('R&D') >= 0;
+  const includeWelcomeBoard = /(B2B|홍보)/.test(data.purpose || '');
 
   const sections = [
     `안녕하세요, ${data.name}님.`,
@@ -949,6 +950,23 @@ function buildConfirmText(data) {
     `🔐 도어락 비밀번호`,
     `   56720275`,
     ``,
+    `🅿 주차 안내`,
+    `   지하주차 : SP Portal (portal.lgsp.co.kr) → Support → 주차`,
+    `              → 전용건물 방문자 주차에서 사전 신청`,
+    `   지상주차 (VIP·프레스투어 등) : 방문 목적·고객을 명시한`,
+    `              신청 양식을 작성해 마곡주차관리자`,
+    `              (mgparking@lge.com)에게 메일로 신청`,
+    `   (양식·지상주차 위치는 이용 안내 페이지의 주차 안내 참조)`,
+    ``,
+    // 웰컴 보드 — VIP·프레스 대응용이라 B2B 영업·홍보 목적 확정 건에만 안내
+    ...(includeWelcomeBoard ? [
+      `🖥 웰컴 보드`,
+      `   건물 1층 사이니지(W4쪽·W6동쪽)를 환영 문구용 웰컴보드로`,
+      `   활용할 수 있습니다. 사진(3840×2160)과 신청 양식을`,
+      `   박형기 책임 (Kuwait.park@lge.com),`,
+      `   마곡운영지원센터 (mgoc@lge.com)로 송부해 주세요.`,
+      ``,
+    ] : []),
     `☎ 문의`,
     `   이철호 책임 연구원 : ch275.lee@lge.com`,
     `   서문수 선임 연구원 : moonsu.seo@lge.com`,
@@ -978,6 +996,7 @@ function buildConfirmText(data) {
 
 function buildConfirmHtml(data) {
   const includeAppliances = (data.purpose || '').indexOf('R&D') >= 0;
+  const includeWelcomeBoard = /(B2B|홍보)/.test(data.purpose || '');
   const name = escapeHtml(data.name);
   const date = escapeHtml(data.date);
   const slot = escapeHtml(data.slotLabel || '');
@@ -1004,6 +1023,15 @@ function buildConfirmHtml(data) {
       '</table>') +
     infoRow('🔐', '도어락 비밀번호',
       '<div style="font-family:Consolas,Menlo,monospace;font-size:15px;color:#1d1d1f;letter-spacing:0.04em;">56720275</div>') +
+    infoRow('🅿', '주차',
+      '<div><strong style="font-size:13px;">지하주차</strong> · SP Portal(portal.lgsp.co.kr) → Support → 주차 → 전용건물 방문자 주차에서 사전 신청</div>' +
+      '<div style="margin-top:4px;"><strong style="font-size:13px;">지상주차 (VIP·프레스투어 등)</strong> · 방문 목적·고객을 명시한 신청 양식을 마곡주차관리자 <a href="mailto:mgparking@lge.com" style="color:#3a5035;text-decoration:none;">mgparking@lge.com</a> 으로 메일 신청</div>' +
+      '<div style="color:#aeaeb2;font-size:12px;margin-top:2px;">신청 양식과 지상주차 위치 약도는 방문 안내 페이지의 주차 안내를 참조해 주세요.</div>') +
+    (includeWelcomeBoard
+      ? infoRow('🖥', '웰컴 보드',
+          '건물 1층 사이니지(W4쪽·W6동쪽)를 환영 문구용 웰컴보드로 활용할 수 있습니다.' +
+          '<div style="color:#6e6e73;font-size:13px;margin-top:2px;">사진(3840×2160)과 신청 양식을 박형기 책임 <a href="mailto:Kuwait.park@lge.com" style="color:#3a5035;text-decoration:none;">Kuwait.park@lge.com</a> · 마곡운영지원센터 <a href="mailto:mgoc@lge.com" style="color:#3a5035;text-decoration:none;">mgoc@lge.com</a> 로 송부해 주세요.</div>')
+      : '') +
     infoRow('☎', '문의',
       '<div>이철호 책임 연구원 · <a href="mailto:ch275.lee@lge.com" style="color:#3a5035;text-decoration:none;">ch275.lee@lge.com</a></div>' +
       '<div>서문수 선임 연구원 · <a href="mailto:moonsu.seo@lge.com" style="color:#3a5035;text-decoration:none;">moonsu.seo@lge.com</a></div>' +
@@ -1740,19 +1768,26 @@ function buildMonthlyReportText(d) {
   });
   L.push('');
 
+  // 임원 가독성: 핵심 이력(B2B 영업·홍보)만 상세 표시, 나머지는 건수로만 요약 (2026-07-05 결정)
+  const keyVisitsT = d.confirmed.filter(b => /(B2B|홍보)/.test(String(b.purpose || '')));
+  const otherCountT = d.confirmed.length - keyVisitsT.length;
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   L.push('📅 방문 이력');
-  L.push(`   이번 달 확정된 방문 ${d.confirmed.length}건의 일자별 상세`);
+  L.push(`   이번 달 확정 방문 중 핵심 이력(B2B 영업 · 홍보) ${keyVisitsT.length}건`);
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  if (!d.confirmed.length) {
-    L.push('   (이번 달 확정된 방문 없음)');
+  if (!keyVisitsT.length) {
+    L.push('   (이번 달 B2B 영업·홍보 방문 없음' + (otherCountT ? ` — 그 외 목적 ${otherCountT}건` : '') + ')');
   } else {
-    d.confirmed.forEach(b => {
+    keyVisitsT.forEach(b => {
       const subj = [b.subject, b.clientCompany].filter(Boolean).join(' · ');
       L.push(`   ${b.date}  ·  ${b.purpose || '-'}`);
       L.push(`     ${subj || '-'}`);
       L.push('');
     });
+    if (otherCountT) {
+      L.push(`   ※ 그 외 목적(R&D·콘텐츠 제작·내부 커뮤니케이션 등) ${otherCountT}건은 생략`);
+      L.push('     (전체 내역은 관리자 페이지에서 확인 가능)');
+    }
   }
 
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -1897,16 +1932,20 @@ function buildMonthlyReportHtml(d) {
   }
 
   // ── 3) 방문 이력 (일자 / 목적 / 주제·소속) ──
+  // 임원 가독성: 핵심 이력(B2B 영업·홍보)만 상세 표시, 나머지는 건수로만 요약 (2026-07-05 결정)
+  const keyVisits = d.confirmed.filter(b => /(B2B|홍보)/.test(String(b.purpose || '')));
+  const otherCount = d.confirmed.length - keyVisits.length;
   let visitsBody;
-  if (!d.confirmed.length) {
-    visitsBody = '<div style="font-size:14px;color:#aeaeb2;padding:8px 0;">이번 달 확정된 방문 없음</div>';
+  if (!keyVisits.length) {
+    visitsBody = '<div style="font-size:14px;color:#aeaeb2;padding:8px 0;">이번 달 B2B 영업·홍보 방문 없음' +
+      (otherCount ? ' <span style="font-size:12px;">(그 외 목적 ' + otherCount + '건)</span>' : '') + '</div>';
   } else {
     const th = (txt) => '<th align="left" style="font-size:12px;color:#6e6e73;font-weight:600;letter-spacing:0.04em;padding:10px 12px;border-bottom:1px solid #e0e0e0;background:#fafafa;">' + escapeHtml(txt) + '</th>';
     const td = (html, opts) => '<td style="padding:12px;font-size:14px;color:#1d1d1f;border-bottom:1px solid #f2f2f2;vertical-align:top;line-height:1.5;' + ((opts && opts.nowrap) ? 'white-space:nowrap;' : '') + '">' + html + '</td>';
     visitsBody = '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' +
       '<thead><tr>' + th('일자') + th('목적') + th('주제 및 소속') + '</tr></thead>' +
       '<tbody>' +
-        d.confirmed.map(b => {
+        keyVisits.map(b => {
           const subj = [b.subject, b.clientCompany].filter(Boolean).map(escapeHtml).join(' · ');
           return '<tr>' +
             td(escapeHtml(b.date), { nowrap: true }) +
@@ -1915,7 +1954,10 @@ function buildMonthlyReportHtml(d) {
           '</tr>';
         }).join('') +
       '</tbody>' +
-    '</table>';
+    '</table>' +
+    (otherCount
+      ? '<div style="font-size:12px;color:#aeaeb2;margin-top:8px;">그 외 목적(R&amp;D · 콘텐츠 제작 · 내부 커뮤니케이션 등) ' + otherCount + '건은 생략 — 전체 내역은 관리자 페이지에서 확인할 수 있습니다.</div>'
+      : '');
   }
 
   // ── 4) ROI 누적 분석 결과 (최근 시나리오 기준) ──
@@ -2115,7 +2157,7 @@ function buildMonthlyReportHtml(d) {
   // 섹션별 한 줄 설명 (임원진 가독성 우선 — 무엇을 보여주는지 즉시 이해)
   const descKpi = '이번 달 운영 성과의 핵심 지표';
   const descPurpose = '확정된 방문이 어떤 목적으로 진행되었는지의 비중';
-  const descVisits = '이번 달 확정된 방문 ' + d.confirmed.length + '건의 일자별 상세';
+  const descVisits = '이번 달 확정 방문 중 핵심 이력(B2B 영업 · 홍보) ' + keyVisits.length + '건의 일자별 상세';
   const descRoi = '저장된 시나리오 기반의 실시간 산출 결과입니다. ' +
                   '특히 영업 지원 · 기여 영업 이익은 실제 영업 진행 상황에 따라 매월 갱신되므로, ' +
                   '본 수치는 작성 시점의 시나리오를 기준으로 한 추정치입니다.';
@@ -2813,7 +2855,7 @@ function sendTelegramNewBooking(data, id) {
   var e = escapeTelegramHtml;
   var slotLabel = data.slotLabel || (data.slot ? data.slot + '회차' : '');
   var subjLabelMap = {
-    'b2b':           '고객/고객사',
+    'b2b':           '고객사',
     'rd':            '프로젝트명',
     'pr':            '행사명',
     'content':       '촬영명',
