@@ -1768,19 +1768,26 @@ function buildMonthlyReportText(d) {
   });
   L.push('');
 
+  // 임원 가독성: 핵심 이력(B2B 영업·홍보)만 상세 표시, 나머지는 건수로만 요약 (2026-07-05 결정)
+  const keyVisitsT = d.confirmed.filter(b => /(B2B|홍보)/.test(String(b.purpose || '')));
+  const otherCountT = d.confirmed.length - keyVisitsT.length;
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   L.push('📅 방문 이력');
-  L.push(`   이번 달 확정된 방문 ${d.confirmed.length}건의 일자별 상세`);
+  L.push(`   이번 달 확정 방문 중 핵심 이력(B2B 영업 · 홍보) ${keyVisitsT.length}건`);
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  if (!d.confirmed.length) {
-    L.push('   (이번 달 확정된 방문 없음)');
+  if (!keyVisitsT.length) {
+    L.push('   (이번 달 B2B 영업·홍보 방문 없음' + (otherCountT ? ` — 그 외 목적 ${otherCountT}건` : '') + ')');
   } else {
-    d.confirmed.forEach(b => {
+    keyVisitsT.forEach(b => {
       const subj = [b.subject, b.clientCompany].filter(Boolean).join(' · ');
       L.push(`   ${b.date}  ·  ${b.purpose || '-'}`);
       L.push(`     ${subj || '-'}`);
       L.push('');
     });
+    if (otherCountT) {
+      L.push(`   ※ 그 외 목적(R&D·콘텐츠 제작·내부 커뮤니케이션 등) ${otherCountT}건은 생략`);
+      L.push('     (전체 내역은 관리자 페이지에서 확인 가능)');
+    }
   }
 
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -1925,16 +1932,20 @@ function buildMonthlyReportHtml(d) {
   }
 
   // ── 3) 방문 이력 (일자 / 목적 / 주제·소속) ──
+  // 임원 가독성: 핵심 이력(B2B 영업·홍보)만 상세 표시, 나머지는 건수로만 요약 (2026-07-05 결정)
+  const keyVisits = d.confirmed.filter(b => /(B2B|홍보)/.test(String(b.purpose || '')));
+  const otherCount = d.confirmed.length - keyVisits.length;
   let visitsBody;
-  if (!d.confirmed.length) {
-    visitsBody = '<div style="font-size:14px;color:#aeaeb2;padding:8px 0;">이번 달 확정된 방문 없음</div>';
+  if (!keyVisits.length) {
+    visitsBody = '<div style="font-size:14px;color:#aeaeb2;padding:8px 0;">이번 달 B2B 영업·홍보 방문 없음' +
+      (otherCount ? ' <span style="font-size:12px;">(그 외 목적 ' + otherCount + '건)</span>' : '') + '</div>';
   } else {
     const th = (txt) => '<th align="left" style="font-size:12px;color:#6e6e73;font-weight:600;letter-spacing:0.04em;padding:10px 12px;border-bottom:1px solid #e0e0e0;background:#fafafa;">' + escapeHtml(txt) + '</th>';
     const td = (html, opts) => '<td style="padding:12px;font-size:14px;color:#1d1d1f;border-bottom:1px solid #f2f2f2;vertical-align:top;line-height:1.5;' + ((opts && opts.nowrap) ? 'white-space:nowrap;' : '') + '">' + html + '</td>';
     visitsBody = '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' +
       '<thead><tr>' + th('일자') + th('목적') + th('주제 및 소속') + '</tr></thead>' +
       '<tbody>' +
-        d.confirmed.map(b => {
+        keyVisits.map(b => {
           const subj = [b.subject, b.clientCompany].filter(Boolean).map(escapeHtml).join(' · ');
           return '<tr>' +
             td(escapeHtml(b.date), { nowrap: true }) +
@@ -1943,7 +1954,10 @@ function buildMonthlyReportHtml(d) {
           '</tr>';
         }).join('') +
       '</tbody>' +
-    '</table>';
+    '</table>' +
+    (otherCount
+      ? '<div style="font-size:12px;color:#aeaeb2;margin-top:8px;">그 외 목적(R&amp;D · 콘텐츠 제작 · 내부 커뮤니케이션 등) ' + otherCount + '건은 생략 — 전체 내역은 관리자 페이지에서 확인할 수 있습니다.</div>'
+      : '');
   }
 
   // ── 4) ROI 누적 분석 결과 (최근 시나리오 기준) ──
@@ -2143,7 +2157,7 @@ function buildMonthlyReportHtml(d) {
   // 섹션별 한 줄 설명 (임원진 가독성 우선 — 무엇을 보여주는지 즉시 이해)
   const descKpi = '이번 달 운영 성과의 핵심 지표';
   const descPurpose = '확정된 방문이 어떤 목적으로 진행되었는지의 비중';
-  const descVisits = '이번 달 확정된 방문 ' + d.confirmed.length + '건의 일자별 상세';
+  const descVisits = '이번 달 확정 방문 중 핵심 이력(B2B 영업 · 홍보) ' + keyVisits.length + '건의 일자별 상세';
   const descRoi = '저장된 시나리오 기반의 실시간 산출 결과입니다. ' +
                   '특히 영업 지원 · 기여 영업 이익은 실제 영업 진행 상황에 따라 매월 갱신되므로, ' +
                   '본 수치는 작성 시점의 시나리오를 기준으로 한 추정치입니다.';
