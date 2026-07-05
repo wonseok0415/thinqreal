@@ -1949,9 +1949,10 @@ function buildMonthlyReportHtml(d) {
     const th = (txt) => '<th align="left" style="font-size:12px;color:#6e6e73;font-weight:600;letter-spacing:0.04em;padding:10px 12px;border-bottom:1px solid #e0e0e0;background:#fafafa;">' + escapeHtml(txt) + '</th>';
     const td = (html, opts) => '<td style="padding:12px;font-size:14px;color:#1d1d1f;border-bottom:1px solid #f2f2f2;vertical-align:top;line-height:1.5;' + ((opts && opts.nowrap) ? 'white-space:nowrap;' : '') + '">' + html + '</td>';
     // 카테고리별 그룹 표시 (고정 순서: B2B 영업 → 홍보) — 그룹 헤더 색상은 PURPOSE_COLORS와 동기화
+    // col: 카테고리별 주제 컬럼명 (예약 폼 subjectLabel과 동일 매핑 — b2b=고객사, pr=행사명)
     const visitGroups = [
-      { label: 'B2B 영업', re: /B2B/ },
-      { label: '홍보 (프레스투어/마케팅)', re: /홍보/ },
+      { label: 'B2B 영업', re: /B2B/, col: '고객사' },
+      { label: '홍보 (프레스투어/마케팅)', re: /홍보/, col: '행사명' },
     ];
     visitsBody = visitGroups.map((g, gi) => {
       const rows = keyVisits.filter(b => g.re.test(String(b.purpose || '')));
@@ -1964,7 +1965,7 @@ function buildMonthlyReportHtml(d) {
           ' <span style="color:#8e8e93;font-weight:500;font-size:13px;">· ' + rows.length + '건</span>' +
         '</div>' +
         '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' +
-          '<thead><tr>' + th('일자') + th('주제 및 소속') + '</tr></thead>' +
+          '<thead><tr>' + th('일자') + th(g.col) + '</tr></thead>' +
           '<tbody>' +
             rows.map(b => {
               // b2b는 subject=clientCompany로 저장되므로 중복 제거 후 표시
