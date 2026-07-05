@@ -1784,7 +1784,8 @@ function buildMonthlyReportText(d) {
       if (!rows.length) return;
       L.push(`   ■ ${pair[0]}  —  ${rows.length}건`);
       rows.forEach(b => {
-        const subj = [b.subject, b.clientCompany].filter(Boolean).join(' · ');
+        // b2b는 subject=clientCompany로 저장되므로 중복 제거 후 표시
+        const subj = [...new Set([b.subject, b.clientCompany].filter(Boolean))].join(' · ');
         L.push(`     ${b.date}  ·  ${subj || '-'}`);
       });
       L.push('');
@@ -1966,7 +1967,8 @@ function buildMonthlyReportHtml(d) {
           '<thead><tr>' + th('일자') + th('주제 및 소속') + '</tr></thead>' +
           '<tbody>' +
             rows.map(b => {
-              const subj = [b.subject, b.clientCompany].filter(Boolean).map(escapeHtml).join(' · ');
+              // b2b는 subject=clientCompany로 저장되므로 중복 제거 후 표시
+              const subj = [...new Set([b.subject, b.clientCompany].filter(Boolean))].map(escapeHtml).join(' · ');
               return '<tr>' +
                 td(escapeHtml(b.date), { nowrap: true }) +
                 td(subj || '<span style="color:#aeaeb2;">-</span>') +
