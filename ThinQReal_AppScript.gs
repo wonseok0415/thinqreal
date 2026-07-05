@@ -486,7 +486,8 @@ function handleAdminEditBooking(data, byEmail) {
 
   // 나머지 편집 가능한 필드만 갱신 (undefined는 건너뜀)
   ['date', 'slotLabel', 'name', 'org', 'phone', 'email', 'purpose', 'count', 'note', 'status',
-   'subject', 'clientCompany', 'visitors', 'usagePlan', 'expectedEffect', 'purposeKey'
+   'subject', 'clientCompany', 'visitors', 'usagePlan', 'expectedEffect', 'purposeKey',
+   'division', 'department'
   ].forEach(f => { if (data[f] !== undefined) setField(f, data[f]); });
 
   // 캘린더 동기화 — 갱신된 행의 최종 상태 기준 (확정이면 등록/갱신, 아니면 제거)
@@ -674,12 +675,12 @@ function syncCalendarByStatus(id, status) {
 // 담당자 알림 메일 (신규 예약 접수 시)
 // 목적별 1번째 줄(주제) 라벨 매핑
 const ADMIN_ALERT_SUBJ_LABELS = {
-  'customer':       '고객/고객사',
-  'rd':             '프로젝트명',
-  'internal-event': '행사명',
-  'external-event': '행사명',
-  'content':        '촬영명',
-  'other':          '제목'
+  'b2b':           '고객/고객사',
+  'rd':            '프로젝트명',
+  'pr':            '행사명',
+  'content':       '촬영명',
+  'internal-comm': '행사명',
+  'other':         '제목'
 };
 
 function sendAdminAlert(data, id) {
@@ -725,6 +726,7 @@ function buildAdminAlertText(data, id) {
   목  적  : ${data.purpose}
   ${subjLabel.padEnd(7, ' ')}: ${data.subject || data.org || ''}
   책임자  : ${data.name}
+  소  속  : ${[data.division, data.department].filter(Boolean).join(' · ')}
   연락처  : ${data.phone}
   이메일  : ${data.email}
   인  원  : ${data.count}명${visitorsLines}
@@ -749,6 +751,7 @@ function buildAdminAlertHtml(data, id) {
   const subjVal  = escapeHtml(data.subject || data.org || '');
   const client   = escapeHtml(data.clientCompany || '');
   const name     = escapeHtml(data.name || '');
+  const belong   = escapeHtml([data.division, data.department].filter(Boolean).join(' · '));
   const phone    = escapeHtml(data.phone || '');
   const email    = escapeHtml(data.email || '');
   const count    = escapeHtml(String(data.count || ''));
@@ -804,6 +807,7 @@ function buildAdminAlertHtml(data, id) {
 
   rows +=
     infoRow('👤', '책임자', name) +
+    infoRow('🏛', '소속', belong || '<span style="color:#aeaeb2;">—</span>') +
     infoRow('☎', '연락처',
       '<div>' + phone + '</div>' +
       '<div style="color:#6e6e73;font-size:13px;"><a href="mailto:' + email + '" style="color:#3a5035;text-decoration:none;">' + email + '</a></div>') +
@@ -1103,14 +1107,15 @@ function buildRejectHtml(data) {
 const MONTHLY_REPORT_QUERY = 'LG전자 ThinQ Real';
 const PROP_LAST_SENT_KEY   = 'monthly_report_last_sent_month';
 
-// 방문 목적별 카테고리 색상 — 관리자 페이지 PURPOSE_COLORS와 동기화 (thinqreal_admin.html line 2296)
+// 방문 목적별 카테고리 색상 — 관리자 페이지 PURPOSE_COLORS와 동기화 (thinqreal_admin.html)
+// 2026-07 카테고리 개편: B2B 영업 / R&D / 홍보 / 콘텐츠 제작 / 내부 커뮤니케이션 / 기타
 const PURPOSE_COLORS = {
-  '고객/고객사 영업 활동': '#ff9500',
-  '내부 R&D · 테스트':    '#3a5035',
-  '내부 행사':            '#7f51e4',
-  '외부 행사':            '#0a84a3',
-  '콘텐츠 제작':           '#cc7000',
-  '기타':                 '#8fa889',
+  'B2B 영업':              '#ff9500',
+  'R&D':                  '#3a5035',
+  '홍보 (프레스투어/마케팅)': '#0a84a3',
+  '콘텐츠 제작':            '#cc7000',
+  '내부 커뮤니케이션':       '#7f51e4',
+  '기타':                  '#8fa889',
 };
 
 // ROI 가치 항목별 색상/라벨 — ROI 툴(ThinQ_Real_ROI_Tool.html line 1723-1726)과 동기화
@@ -2303,7 +2308,9 @@ function getOrCreateHeaders(sheet) {
     // 2026-06 개인정보 수집·이용 + 국외 이전 동의 기록 ('Y' = 동의, 동의 시각은 timestamp와 동일)
     'privacyConsent',
     // 2026-06 Google 캘린더 연동 — 확정 예약의 캘린더 이벤트 id (갱신·삭제 추적용)
-    'calendarEventId'
+    'calendarEventId',
+    // 2026-07 B2E 전환 — 신청자 소속 (본부 드롭다운 / 부서 직접 입력)
+    'division', 'department'
   ];
   const lastCol  = Math.max(sheet.getLastColumn(), 1);
   const firstRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
@@ -2806,17 +2813,18 @@ function sendTelegramNewBooking(data, id) {
   var e = escapeTelegramHtml;
   var slotLabel = data.slotLabel || (data.slot ? data.slot + '회차' : '');
   var subjLabelMap = {
-    'customer':       '고객/고객사',
-    'rd':             '프로젝트명',
-    'internal-event': '행사명',
-    'external-event': '행사명',
-    'content':        '촬영명',
-    'other':          '제목'
+    'b2b':           '고객/고객사',
+    'rd':            '프로젝트명',
+    'pr':            '행사명',
+    'content':       '촬영명',
+    'internal-comm': '행사명',
+    'other':         '제목'
   };
   var subjLabel = subjLabelMap[data.purposeKey] || '제목';
   var subject   = data.subject || data.org || '';
   var company   = data.clientCompany || '';
   var count     = data.count || '';
+  var belong    = [data.division, data.department].filter(Boolean).join(' · ');
 
   var lines = [];
   lines.push('🆕 <b>새 예약 신청</b>');
@@ -2826,6 +2834,7 @@ function sendTelegramNewBooking(data, id) {
   if (subject) lines.push('📝 ' + e(subjLabel) + ': ' + e(subject));
   if (company) lines.push('🏢 ' + e(company));
   lines.push('👤 ' + e(data.name) + (count ? '  ·  총 ' + e(count) + '명' : ''));
+  if (belong) lines.push('🏛 ' + e(belong));
   if (data.phone) lines.push('☎ ' + e(data.phone));
   lines.push('');
   lines.push('<a href="https://thinqreal.com/thinqreal_admin.html">관리자 페이지에서 승인/거절</a>');
@@ -2905,4 +2914,58 @@ function handleCalendarTest() {
       hint: '읽기는 되지만 일정 생성에 실패했습니다. 공유 권한이 "변경 권한"(이벤트 변경) 이상인지 확인하세요.',
       error: e.message });
   }
+}
+
+
+// ============================================================
+//  [1회성] 방문 목적 카테고리 개편 마이그레이션 (2026-07)
+//  구 6종 → 신 6종으로 bookings 시트의 purpose/purposeKey를 일괄 변환.
+//  실행 방법: Apps Script 에디터에서 함수 선택 → migratePurposeCategories2026 실행 (1회만).
+//  재실행해도 안전 (이미 신 라벨인 행은 건너뜀 — 멱등).
+// ============================================================
+function migratePurposeCategories2026() {
+  // 구 라벨 → [신 라벨, 신 purposeKey]
+  var LABEL_MAP = {
+    '고객/고객사 영업 활동': ['B2B 영업', 'b2b'],
+    '내부 R&D · 테스트':    ['R&D', 'rd'],
+    '외부 행사':            ['홍보 (프레스투어/마케팅)', 'pr'],
+    '콘텐츠 제작':           ['콘텐츠 제작', 'content'],
+    '내부 행사':            ['내부 커뮤니케이션', 'internal-comm'],
+    '기타':                 ['기타', 'other'],
+    // 백필 이전의 옛 비표준 라벨 안전망
+    'B2B 파트너 시연':      ['B2B 영업', 'b2b'],
+    'R&D 연구':             ['R&D', 'rd'],
+    'Press Tour':           ['홍보 (프레스투어/마케팅)', 'pr']
+  };
+  // purpose가 비어 있고 구 purposeKey만 있는 행 대비
+  var KEY_MAP = {
+    'customer': ['B2B 영업', 'b2b'],
+    'rd': ['R&D', 'rd'],
+    'external-event': ['홍보 (프레스투어/마케팅)', 'pr'],
+    'content': ['콘텐츠 제작', 'content'],
+    'internal-event': ['내부 커뮤니케이션', 'internal-comm'],
+    'other': ['기타', 'other']
+  };
+
+  var sheet = getSheet();
+  var rows = sheet.getDataRange().getValues();
+  var headers = rows[0];
+  var pIdx = headers.indexOf('purpose');
+  var kIdx = headers.indexOf('purposeKey');
+  if (pIdx < 0) { Logger.log('purpose 컬럼 없음 — 중단'); return; }
+
+  var changed = 0, skipped = 0;
+  for (var i = 1; i < rows.length; i++) {
+    var oldLabel = String(rows[i][pIdx] || '').trim();
+    var oldKey = kIdx >= 0 ? String(rows[i][kIdx] || '').trim() : '';
+    var target = LABEL_MAP[oldLabel] || KEY_MAP[oldKey] || null;
+    if (!target) { skipped++; continue; }  // 이미 신 라벨이거나 매핑 불가 — 그대로 둠
+    var needLabel = target[0] !== oldLabel;
+    var needKey = kIdx >= 0 && target[1] !== oldKey;
+    if (!needLabel && !needKey) { skipped++; continue; }
+    if (needLabel) sheet.getRange(i + 1, pIdx + 1).setValue(target[0]);
+    if (needKey)   sheet.getRange(i + 1, kIdx + 1).setValue(target[1]);
+    changed++;
+  }
+  Logger.log('마이그레이션 완료 — 변환 ' + changed + '건 / 건너뜀 ' + skipped + '건');
 }
