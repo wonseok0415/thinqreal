@@ -1778,10 +1778,15 @@ function buildMonthlyReportText(d) {
   if (!keyVisitsT.length) {
     L.push('   (이번 달 B2B 영업·홍보 방문 없음' + (otherCountT ? ` — 그 외 목적 ${otherCountT}건` : '') + ')');
   } else {
-    keyVisitsT.forEach(b => {
-      const subj = [b.subject, b.clientCompany].filter(Boolean).join(' · ');
-      L.push(`   ${b.date}  ·  ${b.purpose || '-'}`);
-      L.push(`     ${subj || '-'}`);
+    // 카테고리별 그룹 표시 (고정 순서: B2B 영업 → 홍보)
+    [['B2B 영업', /B2B/], ['홍보 (프레스투어/마케팅)', /홍보/]].forEach(pair => {
+      const rows = keyVisitsT.filter(b => pair[1].test(String(b.purpose || '')));
+      if (!rows.length) return;
+      L.push(`   ■ ${pair[0]}  —  ${rows.length}건`);
+      rows.forEach(b => {
+        const subj = [b.subject, b.clientCompany].filter(Boolean).join(' · ');
+        L.push(`     ${b.date}  ·  ${subj || '-'}`);
+      });
       L.push('');
     });
     if (otherCountT) {
@@ -1942,21 +1947,37 @@ function buildMonthlyReportHtml(d) {
   } else {
     const th = (txt) => '<th align="left" style="font-size:12px;color:#6e6e73;font-weight:600;letter-spacing:0.04em;padding:10px 12px;border-bottom:1px solid #e0e0e0;background:#fafafa;">' + escapeHtml(txt) + '</th>';
     const td = (html, opts) => '<td style="padding:12px;font-size:14px;color:#1d1d1f;border-bottom:1px solid #f2f2f2;vertical-align:top;line-height:1.5;' + ((opts && opts.nowrap) ? 'white-space:nowrap;' : '') + '">' + html + '</td>';
-    visitsBody = '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' +
-      '<thead><tr>' + th('일자') + th('목적') + th('주제 및 소속') + '</tr></thead>' +
-      '<tbody>' +
-        keyVisits.map(b => {
-          const subj = [b.subject, b.clientCompany].filter(Boolean).map(escapeHtml).join(' · ');
-          return '<tr>' +
-            td(escapeHtml(b.date), { nowrap: true }) +
-            td(escapeHtml(b.purpose || '-')) +
-            td(subj || '<span style="color:#aeaeb2;">-</span>') +
-          '</tr>';
-        }).join('') +
-      '</tbody>' +
-    '</table>' +
+    // 카테고리별 그룹 표시 (고정 순서: B2B 영업 → 홍보) — 그룹 헤더 색상은 PURPOSE_COLORS와 동기화
+    const visitGroups = [
+      { label: 'B2B 영업', re: /B2B/ },
+      { label: '홍보 (프레스투어/마케팅)', re: /홍보/ },
+    ];
+    visitsBody = visitGroups.map((g, gi) => {
+      const rows = keyVisits.filter(b => g.re.test(String(b.purpose || '')));
+      if (!rows.length) return '';
+      const color = PURPOSE_COLORS[g.label] || '#8fa889';
+      return (
+        '<div style="margin:' + (gi === 0 ? '2px' : '18px') + ' 0 6px;font-size:14px;font-weight:600;color:#1d1d1f;">' +
+          '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + color + ';margin-right:7px;"></span>' +
+          escapeHtml(g.label) +
+          ' <span style="color:#8e8e93;font-weight:500;font-size:13px;">· ' + rows.length + '건</span>' +
+        '</div>' +
+        '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' +
+          '<thead><tr>' + th('일자') + th('주제 및 소속') + '</tr></thead>' +
+          '<tbody>' +
+            rows.map(b => {
+              const subj = [b.subject, b.clientCompany].filter(Boolean).map(escapeHtml).join(' · ');
+              return '<tr>' +
+                td(escapeHtml(b.date), { nowrap: true }) +
+                td(subj || '<span style="color:#aeaeb2;">-</span>') +
+              '</tr>';
+            }).join('') +
+          '</tbody>' +
+        '</table>'
+      );
+    }).join('') +
     (otherCount
-      ? '<div style="font-size:12px;color:#aeaeb2;margin-top:8px;">그 외 목적(R&amp;D · 콘텐츠 제작 · 내부 커뮤니케이션 등) ' + otherCount + '건은 생략 — 전체 내역은 관리자 페이지에서 확인할 수 있습니다.</div>'
+      ? '<div style="font-size:12px;color:#aeaeb2;margin-top:10px;">그 외 목적(R&amp;D · 콘텐츠 제작 · 내부 커뮤니케이션 등) ' + otherCount + '건은 생략 — 전체 내역은 관리자 페이지에서 확인할 수 있습니다.</div>'
       : '');
   }
 
