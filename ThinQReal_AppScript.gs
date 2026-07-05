@@ -675,7 +675,7 @@ function syncCalendarByStatus(id, status) {
 // 담당자 알림 메일 (신규 예약 접수 시)
 // 목적별 1번째 줄(주제) 라벨 매핑
 const ADMIN_ALERT_SUBJ_LABELS = {
-  'b2b':           '고객/고객사',
+  'b2b':           '고객사',
   'rd':            '프로젝트명',
   'pr':            '행사명',
   'content':       '촬영명',
@@ -2813,7 +2813,7 @@ function sendTelegramNewBooking(data, id) {
   var e = escapeTelegramHtml;
   var slotLabel = data.slotLabel || (data.slot ? data.slot + '회차' : '');
   var subjLabelMap = {
-    'b2b':           '고객/고객사',
+    'b2b':           '고객사',
     'rd':            '프로젝트명',
     'pr':            '행사명',
     'content':       '촬영명',

@@ -1305,6 +1305,40 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
           <strong id="summaryText">—</strong>
         </div>
 
+        <!-- 신청자 소속 + 이메일 — 목적과 무관한 신청자 기본 정보라 방문 목적보다 먼저 입력.
+             본부는 고정 드롭다운, 부서는 조직개편으로 수시 변경되어 직접 입력 방식. -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">소속 본부 *</label>
+            <div class="form-select-wrap">
+              <select class="form-select" id="fDivision" required>
+                <option value="">선택해 주세요</option>
+                <option>HS사업본부</option>
+                <option>MS사업본부</option>
+                <option>VS사업본부</option>
+                <option>한국영업본부</option>
+                <option>해외영업본부</option>
+                <option>CTO부문</option>
+                <option>CX센터</option>
+                <option>고객가치혁신부문</option>
+                <option>디자인경영센터</option>
+                <option>기타</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">소속 부서 *</label>
+            <input class="form-input" id="fDepartment" type="text" placeholder="예: AI홈솔루션엔지니어링팀">
+            <span class="form-hint-inline">현재 소속 부서명을 입력해 주세요.</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">신청자 이메일 *</label>
+          <input class="form-input" id="fEmail" type="email" placeholder="name@lge.com">
+          <span class="form-hint-inline">예약 확정 메일이 이 주소로 발송됩니다.</span>
+        </div>
+
         <!-- 방문 목적 — 트리거. 목적에 따라 아래 항목이 동적으로 바뀝니다. -->
         <div class="form-group">
           <label class="form-label">방문 목적 *</label>
@@ -1339,39 +1373,6 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
             </div>
           </div>
 
-          <!-- 신청자 소속 — B2E 전환으로 임직원 소속 파악 필요. 본부는 고정 드롭다운,
-               부서는 조직개편으로 수시 변경되어 직접 입력 방식. -->
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">소속 본부 *</label>
-              <div class="form-select-wrap">
-                <select class="form-select" id="fDivision" required>
-                  <option value="">선택해 주세요</option>
-                  <option>HS사업본부</option>
-                  <option>MS사업본부</option>
-                  <option>VS사업본부</option>
-                  <option>한국영업본부</option>
-                  <option>해외영업본부</option>
-                  <option>CTO부문</option>
-                  <option>CX센터</option>
-                  <option>고객가치혁신부문</option>
-                  <option>디자인경영센터</option>
-                  <option>기타</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">소속 부서 *</label>
-              <input class="form-input" id="fDepartment" type="text" placeholder="예: AI홈솔루션엔지니어링팀">
-              <span class="form-hint-inline">현재 소속 부서명을 입력해 주세요.</span>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">신청자 이메일 *</label>
-            <input class="form-input" id="fEmail" type="email" placeholder="name@lge.com">
-            <span class="form-hint-inline">예약 확정 메일이 이 주소로 발송됩니다.</span>
-          </div>
 
           <div class="form-group">
             <label class="form-label">
@@ -2026,9 +2027,9 @@ const PURPOSE_CONFIG = {
   'b2b': {
     label: 'B2B 영업',
     hint: 'LG전자 제품 검토·구매·시연을 위한 고객사 방문입니다.',
-    subjectLabel: '고객/고객사 *',
+    subjectLabel: '고객사 *',
     subjectPlaceholder: '예: GS건설',
-    leaderLabel: '고객/고객사 담당자 *',
+    leaderLabel: '고객사 담당자 *',
     leaderPlaceholder: '예: 김지에스',
     usagePlanLabel: '방문 목적 (구체적) *',
     usagePlanPlaceholder: '예: GS건설과 협업하는 용인 구례지구 재개발 2,342세대 옵션상품 판매를 위한 AI홈 시연',

@@ -368,7 +368,7 @@ body {
   overflow-x:auto; overflow-y:hidden;
   -webkit-overflow-scrolling:touch;
 }
-.booking-table { width:100%; border-collapse:collapse; min-width:680px; }
+.booking-table { width:100%; border-collapse:collapse; min-width:760px; }
 .booking-table thead tr { background:var(--c-bg-2); border-bottom:1px solid var(--c-separator); }
 .booking-table th { padding:var(--sp-12) var(--sp-16); text-align:left; font-size:var(--t-caption); font-weight:600; color:var(--c-label-2); letter-spacing:0.04em; text-transform:uppercase; white-space:nowrap; }
 .booking-table td { padding:var(--sp-12) var(--sp-16); font-size:var(--t-subhead); border-bottom:1px solid var(--c-separator); letter-spacing:-0.016em; vertical-align:middle; }
@@ -2419,7 +2419,7 @@ function renderTable() {
       <td style="color:var(--c-label-2);white-space:nowrap;">${fmtSlotsCompact(b)}</td>
       <td style="font-weight:500;">${b.name}</td>
       <td style="color:var(--c-label-2);">${b.org}</td>
-      <td>${b.purpose}</td>
+      <td style="white-space:nowrap;">${b.purpose}</td>
       <td style="text-align:center;white-space:nowrap;">${b.count}명</td>
       <td style="color:var(--c-label-3);white-space:nowrap;">${applied}</td>
       <td style="white-space:nowrap;"><span class="badge badge-${cls}">${b.status}</span></td>
@@ -2462,9 +2462,9 @@ function openModal(id) {
 
   // 목적 키 → 1번째 줄 라벨 (구 키는 마이그레이션 전 옛 데이터 호환용)
   const SUBJ_LABELS = {
-    'b2b': '고객/고객사', 'rd': '프로젝트명', 'pr': '행사명',
+    'b2b': '고객사', 'rd': '프로젝트명', 'pr': '행사명',
     'content': '촬영명', 'internal-comm': '행사명', 'other': '제목',
-    'customer': '고객/고객사', 'internal-event': '행사명', 'external-event': '행사명'
+    'customer': '고객사', 'internal-event': '행사명', 'external-event': '행사명'
   };
   const subjLabel = SUBJ_LABELS[b.purposeKey] || (b.subject ? '주제' : '소속');
   const subjVal   = b.subject || b.org || '';
@@ -2633,7 +2633,7 @@ async function updateStatus(id, status) {
 // 시스템 오픈 전 과거 방문 이력을 직접 기록하거나, 고객이 대충 적은
 // 상세를 담당자가 보강·정정한다. 저장 시 알림(메일·텔레그램)은 발송되지 않음.
 const BF_PURPOSE_CONFIG = {
-  'b2b':           { label:'B2B 영업',              subjectLabel:'고객/고객사', leaderLabel:'고객/고객사 담당자', usageLabel:'방문 목적 (구체적)', hint:'LG전자 제품 검토·구매·시연을 위한 고객사 방문', client:true,  cols:2 },
+  'b2b':           { label:'B2B 영업',              subjectLabel:'고객사',     leaderLabel:'고객사 담당자',     usageLabel:'방문 목적 (구체적)', hint:'LG전자 제품 검토·구매·시연을 위한 고객사 방문', client:true,  cols:2 },
   'rd':            { label:'R&D',                  subjectLabel:'프로젝트명',   leaderLabel:'부서 리더/책임자',   usageLabel:'ThinQ Real 활용 방안', hint:'내부 R&D · 데이터 수집 · 기능 검증',          client:false, cols:2 },
   'pr':            { label:'홍보 (프레스투어/마케팅)', subjectLabel:'행사명',       leaderLabel:'부서 리더/책임자',   usageLabel:'ThinQ Real 활용 방안', hint:'기자단·미디어·인플루언서 등 홍보·마케팅 방문', client:false, cols:3 },
   'content':       { label:'콘텐츠 제작',           subjectLabel:'촬영명',       leaderLabel:'부서 리더/책임자',   usageLabel:'ThinQ Real 활용 방안', hint:'사진·영상·인쇄물 등 콘텐츠 제작 촬영',        client:false, cols:3 },

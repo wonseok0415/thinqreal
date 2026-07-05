@@ -1050,3 +1050,8 @@ data.sort((a,b)=>{
 - 시트 백필 컬럼은 이제 **24열**(`id`~`department`). `division`/`department`는 옛 행 공란 허용.
 - purposeKey 신 체계: `b2b`/`rd`/`pr`/`content`/`internal-comm`/`other` — 구 키(customer 등)는 마이그레이션 후 시트에 남지 않아야 정상.
 - **재배포 필요** + **마이그레이션 함수 1회 실행 필요** (§C 순서대로).
+
+### 후속 보완 (2026-07-05, 담당자 피드백 3건)
+1. **폼 순서 변경**: 소속 본부/부서 + 신청자 이메일을 **방문 목적보다 위**로 이동 — 목적과 무관한 신청자 기본 정보라 항상 표시 영역(트리거 밖)에 배치. 동적 영역에는 주제/책임자/연락처/방문자/활용/기대만 남음.
+2. **'고객/고객사' → '고객사'**: b2b 카테고리의 1번째 줄 라벨·담당자 라벨을 '고객사'로 통일. 반영 지점 4곳 — `PURPOSE_CONFIG`(index) / `SUBJ_LABELS`·`BF_PURPOSE_CONFIG`(admin) / `ADMIN_ALERT_SUBJ_LABELS`·`subjLabelMap`(Apps Script).
+3. **관리자 표 방문 목적 한 줄 표기**: 목적 셀에 `white-space:nowrap` + `.booking-table` min-width 680→760px (모바일 가로 스크롤 보장 폭 상향).
