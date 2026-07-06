@@ -1105,3 +1105,12 @@ data.sort((a,b)=>{
 - `docs/migration/dependency-inventory.md` — Apps Script 플랫폼 API 사용처·대체 매핑, 외부 서비스(QuickChart·Serper·Telegram·Calendar) outbound 검토, 이전 형태별(A/B/C) 재구현 규모, 업무혁신팀 확인 항목 8개, 이전 시 개선 효과.
 
 **주의**: 문서에 비밀값(도어락·Wi-Fi PW·토큰)은 미기재. 문서 갱신 시에도 동일 규칙 유지.
+
+## 작업 내역 (2026-07-06 — 관리자 모달 오닫힘 수정)
+
+이력 추가/수정 폼 작성 중 여러 번 클릭하다 보면 모달이 닫히는 버그 수정 (thinqreal_admin.html만 변경 — Apps Script 재배포 불필요).
+
+- **원인**: 백드롭의 `onclick="if(event.target===this)close...()"` 패턴. `click` 이벤트는 mousedown/mouseup의 **공통 조상**에서 발생하므로, 모달 안에서 누르고(입력란 텍스트 드래그 선택 등) 백드롭 위에서 손을 떼면 백드롭 클릭으로 판정돼 닫혔음. 클릭으로 레이아웃이 변하는 요소(방문자 행 × 삭제 등) 연타 시에도 발생.
+- **수정**: 인라인 onclick 제거 → `bindBackdropClose(bgId, closeFn)` 헬퍼 신설 (`closeBookingForm` 아래). `pointerdown`과 `pointerup`이 **모두 백드롭 자신**일 때만 닫음. 상세 모달(`modalBg`)·폼 모달(`bookingFormBg`) 둘 다 적용.
+- **유지되는 동작**: 순수하게 배경을 클릭하면 여전히 닫힘 (백드롭 닫기 기능 자체는 존치). ✕/취소 버튼 경로는 무관.
+- **핵심 제약**: 새 모달을 추가할 때 백드롭 닫기는 인라인 `onclick` 대신 `bindBackdropClose()`를 쓸 것 — 같은 버그 재발 방지.
