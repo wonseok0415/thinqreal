@@ -1138,3 +1138,17 @@ data.sort((a,b)=>{
 - **이관 작업은 전용 세션에서 진행** — 운영 유지보수(현행 사이트 수정)와 채팅을 분리한다. 이관 세션은 `docs/migration/decisions-2026-07-06.md` §5(1단계 작업 정의)부터 시작.
 - 현행 시스템(GitHub Pages + Apps Script)은 이관 완료 전까지 정상 운영·수정 지속 — 두 트랙이 병행된다.
 - 이관 세션에서 결정·진행된 사항도 이 CLAUDE.md 또는 docs/migration/에 기록해 세션 간 맥락을 잇는다.
+
+## 작업 내역 (2026-07-07 — 이관 1단계 설계안 작성)
+
+이관 전용 세션 1회차. 구현 착수 전 **1단계(단일 도커 컨테이너) 코드 구조 설계안**을 작성 — 상세는 `docs/migration/stage1-container-design.md`(v1 제안, 담당자 검토 대기)가 단일 소스.
+
+### 설계 요지
+- **런타임**: Node.js 22 LTS + Express, 플레인 JS(ESM) + JSDoc — 현행 .gs 3,038줄(특히 메일 빌더 ~1,200줄)이 JS라 거의 그대로 이식되는 것이 핵심 근거. 빌드 스텝 0. 베이스 이미지 `node:22-slim` + 한글 차트 폰트(fonts-noto-cjk).
+- **구조**: 이 리포 `server/` 하위 (별도 리포 미정). API는 `/api` 단일 경로에 현행 `type` 라우팅 그대로 → 프론트 수정은 전환 시점에 `SCRIPT_URL` 3곳만. 정적 파일은 컨테이너가 함께 서빙 (Dockerfile 빌드 컨텍스트 = 리포 루트).
+- **저장소 어댑터**: 도메인 연산 단위 인터페이스 5종(Bookings/Roi/SlotBlocks/Articles/State) + `STORE_BACKEND` env 팩토리. 구현체 `memory`(로컬 검증용) → `sheets`(서비스 계정 인증) → `dynamo`(2단계 스텁). 레코드는 현행 24컬럼 필드명 그대로. Script Properties 상태값은 `app_state` 시트 탭으로.
+- **비밀값 전부 env로**: `AUTH_SECRET`은 자동 생성 제거·필수 주입 (현행 값 이식 시 기존 토큰 무중단). **Wi-Fi PW·도어락 PIN도 .gs 하드코딩 → env로 이동 (개선점)**.
+- **전제**: 단일 레플리카 (인메모리 TTL 캐시 + 프로세스 내 쓰기 mutex — 멀티 레플리카 시 Redis 교체 지점 명시).
+
+### 다음 이관 세션
+- 설계 승인 후 **구현 착수** — 설계 문서 §7 TODO 목록 참조 (스캐폴드 → store → auth → handlers → mail → report → Dockerfile → README 순).
