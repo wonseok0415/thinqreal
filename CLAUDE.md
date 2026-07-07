@@ -1114,3 +1114,4 @@ data.sort((a,b)=>{
 - **수정**: 인라인 onclick 제거 → `bindBackdropClose(bgId, closeFn)` 헬퍼 신설 (`closeBookingForm` 아래). `pointerdown`과 `pointerup`이 **모두 백드롭 자신**일 때만 닫음. 상세 모달(`modalBg`)·폼 모달(`bookingFormBg`) 둘 다 적용.
 - **유지되는 동작**: 순수하게 배경을 클릭하면 여전히 닫힘 (백드롭 닫기 기능 자체는 존치). ✕/취소 버튼 경로는 무관.
 - **핵심 제약**: 새 모달을 추가할 때 백드롭 닫기는 인라인 `onclick` 대신 `bindBackdropClose()`를 쓸 것 — 같은 버그 재발 방지.
+- **(2026-07-07 후속) 이력 추가/수정 폼은 백드롭 닫기 자체를 제거**: 담당자 확인 결과 순수 바깥 클릭에도 작성 중 입력 내용이 사라지는 게 문제 → `bookingFormBg`에는 `bindBackdropClose`를 바인딩하지 않음. 폼 모달은 ✕/취소 버튼으로만 닫힘. 조회용 상세 모달(`modalBg`)은 백드롭 클릭 닫기 유지. **입력 폼 성격의 모달은 앞으로도 백드롭 닫기 미바인딩이 원칙.**
