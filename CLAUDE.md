@@ -47,7 +47,7 @@ images/{파일명}
 | Sheets ID | `1-Z158TV46MtSEArir9bW4h4KQ438NCuhb3qaGyOooA0` |
 | 시트 탭명 | `bookings` (변경 금지) |
 | Apps Script URL | `https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec` |
-| 관리자 인증 | **이메일 코드 (명단 한정)** — 공유 비밀번호(`thinqreal2026`) 폐기. `AUTH_ADMIN_EMAILS` 5명만 로그인·삭제·슬롯 제어 가능 (2026-06-11 §접근 통제 강화 참조) |
+| 관리자 인증 | **이메일 코드 (명단 한정)** — 공유 비밀번호(`thinqreal2026`) 폐기. `AUTH_ADMIN_EMAILS` 6명만 로그인·삭제·슬롯 제어 가능 (2026-06-11 §접근 통제 강화 참조) |
 | 담당자 알림 메일 수신 | 이철호(`ch275.lee@lge.com`), 서문수(`moonsu.seo@lge.com`), 김현진(`hj8462.kim@lge.com`) — 콤마 구분으로 일괄 발송 |
 | CC 수신자 | `kang.wonseok@lge.com` (담당자 알림·예약자 메일 모두에 CC) |
 
@@ -851,7 +851,7 @@ data.sort((a,b)=>{
 
 ### A. 관리자 인증 — 이메일 코드 (명단 한정)
 - 공유 비밀번호 폐기 → 관리자 본인 `@lge.com` 이메일 + 6자리 코드 (메인 게이트 흐름 재사용, 단 허용 대상을 명단으로 한정).
-- **단일 소스**: Apps Script `AUTH_ADMIN_EMAILS` (kang.wonseok / jhs.kim / ch275.lee / moonsu.seo / hj8462.kim 5명). 명단 변경 시 이 배열만 수정.
+- **단일 소스**: Apps Script `AUTH_ADMIN_EMAILS` (kang.wonseok / jhs.kim / ch275.lee / moonsu.seo / hj8462.kim / kwangsoo.park 6명 — 박광수는 2026-07-07 추가). 명단 변경 시 이 배열만 수정.
 - 엔드포인트: `?type=admin_auth_request` / `?type=admin_auth_verify`. 코드 캐시 키는 `admin_code_<email>` (메인 게이트 `auth_code_`와 분리).
 - 관리자 토큰은 payload `{email, exp, admin:true}` HMAC-SHA256 서명, **7일 유효**(`AUTH_ADMIN_TOKEN_TTL_DAYS`, 메인 30일보다 짧게). `localStorage('thinqreal_admin_token')`.
 

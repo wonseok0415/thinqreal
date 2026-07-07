@@ -44,7 +44,8 @@ const AUTH_ADMIN_EMAILS = [
   'jhs.kim@lge.com',       // 김재훈 팀장
   'ch275.lee@lge.com',     // 이철호 책임
   'moonsu.seo@lge.com',    // 서문수 선임
-  'hj8462.kim@lge.com'     // 김현진 선임
+  'hj8462.kim@lge.com',    // 김현진 선임
+  'kwangsoo.park@lge.com'  // 박광수
 ];
 const AUTH_ADMIN_TOKEN_TTL_DAYS = 7;        // 관리자 토큰은 7일 (메인보다 짧게)
 
