@@ -28,7 +28,8 @@ COPY images ./public/images
 ENV NODE_ENV=production \
     TZ=Asia/Seoul \
     PORT=8080 \
-    STATIC_DIR=/app/public
+    STATIC_DIR=/app/public \
+    CHART_FONT_PATH=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
 
 EXPOSE 8080
 

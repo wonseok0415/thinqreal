@@ -21,7 +21,8 @@ async function getRenderer() {
         ]);
         const { Chart, registerables } = chartjs;
         Chart.register(...registerables, datalabels.default);
-        Chart.defaults.font.family = "'Noto Sans CJK KR','Noto Sans KR',sans-serif"; // 한글 라벨
+        const family = registerKoreanFont(napiCanvas.GlobalFonts);
+        Chart.defaults.font.family = family; // 한글 라벨 — 폰트 없으면 □ 로 깨진다
         Chart.defaults.devicePixelRatio = 1;
         return { createCanvas: napiCanvas.createCanvas, Chart };
       } catch (e) {
@@ -31,6 +32,37 @@ async function getRenderer() {
     })();
   }
   return rendererPromise;
+}
+
+// 한글 폰트 등록 — 차트 라벨은 서버 폰트로 래스터되므로 CJK 폰트가 반드시 필요.
+// 우선순위: env CHART_FONT_PATH → 도커 이미지의 fonts-noto-cjk 표준 경로 → 시스템 폰트 스캔.
+// 아무것도 못 찾으면 경고 로그 (라벨이 □ 로 렌더링됨 — 이미지에 폰트 포함 여부 확인).
+function registerKoreanFont(GlobalFonts) {
+  const FAMILY = "'Noto Sans CJK KR','Noto Sans KR',sans-serif";
+  const candidates = [
+    process.env.CHART_FONT_PATH,
+    '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',  // Debian fonts-noto-cjk
+    '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
+    '/usr/share/fonts/opentype/noto/NotoSansCJKkr-Regular.otf',
+  ].filter(Boolean);
+
+  for (const p of candidates) {
+    try {
+      if (GlobalFonts.registerFromPath(p, 'Noto Sans CJK KR')) {
+        console.log('[charts] 한글 폰트 등록: ' + p);
+        return FAMILY;
+      }
+    } catch { /* 다음 후보 */ }
+  }
+  // 시스템 폰트 스캔 결과에 CJK 폰트가 이미 있으면 그대로 사용
+  const families = (GlobalFonts.families || []).map((f) => f.family);
+  const cjk = families.find((f) => /CJK|KR|Korean|Gothic|Nanum|Malgun/i.test(f));
+  if (cjk) {
+    console.log('[charts] 시스템 한글 폰트 사용: ' + cjk);
+    return `'${cjk}',sans-serif`;
+  }
+  console.warn('[charts] ⚠ 한글 폰트를 찾지 못함 — 차트 라벨이 □로 깨집니다. env CHART_FONT_PATH 또는 fonts-noto-cjk 설치 확인');
+  return FAMILY;
 }
 
 // 메일 클라이언트 호환을 위해 흰 배경을 깔아주는 플러그인 (chart.js 기본은 투명)
