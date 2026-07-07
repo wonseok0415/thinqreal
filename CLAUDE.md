@@ -1139,9 +1139,19 @@ data.sort((a,b)=>{
 - 현행 시스템(GitHub Pages + Apps Script)은 이관 완료 전까지 정상 운영·수정 지속 — 두 트랙이 병행된다.
 - 이관 세션에서 결정·진행된 사항도 이 CLAUDE.md 또는 docs/migration/에 기록해 세션 간 맥락을 잇는다.
 
-## 작업 내역 (2026-07-07 — 이관 1단계 설계안 작성)
+## 작업 내역 (2026-07-07 — 이관 1단계 설계안 작성 + 구현 완료)
 
-이관 전용 세션 1회차. 구현 착수 전 **1단계(단일 도커 컨테이너) 코드 구조 설계안**을 작성 — 상세는 `docs/migration/stage1-container-design.md`(v1 제안, 담당자 검토 대기)가 단일 소스.
+이관 전용 세션 1회차. 설계안 작성 후 같은 세션에서 담당자 승인을 받아 **구현까지 완료** — 코드는 `server/` 하위, 설계·구현 결과는 `docs/migration/stage1-container-design.md`(§8 구현 결과 포함), 실행 가이드는 `server/README.md`가 단일 소스.
+
+### ⚠ 라이브 시스템 무영향 (두 트랙 분리 확인됨)
+- 이 작업은 `server/` 디렉토리 **신규 추가 + docs/ 문서**뿐 — 라이브 파일(index.html·thinqreal_admin.html·ThinQReal_AppScript.gs·images/)은 1바이트도 변경하지 않음.
+- GitHub Pages는 main 브랜치를 서빙하므로 이관 브랜치가 머지되기 전까지 라이브에 아무 영향 없음. 머지 후에도 `server/`는 정적 파일로 서빙될 뿐(코드 노출 수준은 기존 .gs와 동일, 비밀값 0) 사이트 동작 불변.
+- 현행 운영(GitHub Pages + Apps Script)은 이관 완료 전까지 그대로 지속 — 프론트 `SCRIPT_URL` 교체는 실제 전환 시점에만.
+
+### 구현 검증 내역 (2026-07-07 세션)
+- memory store + 콘솔 메일 모드로 전 엔드포인트 curl 검증: 인증 플로우(코드→토큰→보호 API), 예약 생애주기(신청→확정→차단→삭제), ROI, 리포트 미리보기(차트 3종 서버 렌더링 임베드), 진단 4종.
+- node:22-slim 컨테이너에서 `docker run` 기동 검증 완료. 단 **정식 Dockerfile의 apt/npm 레이어는 개발 샌드박스 네트워크 정책으로 최종 확인 못함** → 담당자 로컬에서 `docker build -f server/Dockerfile .` 1회 확인 필요 (설계 문서 §7 TODO).
+- 차트 스택은 설계의 chartjs-node-canvas 대신 **@napi-rs/canvas + chart.js v4** (프리빌드가 npm 레지스트리에 내장 — 사내망/프록시 안전). datalabels 플러그인은 반드시 ESM 빌드로 import (CJS면 도넛 크래시 — charts.js 주석 참조).
 
 ### 설계 요지
 - **런타임**: Node.js 22 LTS + Express, 플레인 JS(ESM) + JSDoc — 현행 .gs 3,038줄(특히 메일 빌더 ~1,200줄)이 JS라 거의 그대로 이식되는 것이 핵심 근거. 빌드 스텝 0. 베이스 이미지 `node:22-slim` + 한글 차트 폰트(fonts-noto-cjk).
@@ -1151,4 +1161,4 @@ data.sort((a,b)=>{
 - **전제**: 단일 레플리카 (인메모리 TTL 캐시 + 프로세스 내 쓰기 mutex — 멀티 레플리카 시 Redis 교체 지점 명시).
 
 ### 다음 이관 세션
-- 설계 승인 후 **구현 착수** — 설계 문서 §7 TODO 목록 참조 (스캐폴드 → store → auth → handlers → mail → report → Dockerfile → README 순).
+- 설계 문서 §7 TODO 참조: ① 표준 네트워크에서 `docker build` 정식 검증 ② 서비스 계정 생성 + 시트 공유 후 `STORE_BACKEND=sheets` 실연동 검증 ③ Teams 웹훅 URL 수령 후 페이로드 확정 ④ 사내 SMTP 스펙 ⑤ SSO 검토 ⑥ DynamoDB 설계.

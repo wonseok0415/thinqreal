@@ -1,8 +1,8 @@
 # 1단계 — Apps Script 대체 단일 도커 컨테이너: 코드 구조 설계 (v1 제안)
 
-> 세션: 2026-07-07 이관 전용 세션. `decisions-2026-07-06.md` §5(1단계 작업 정의)의 **구현 전 설계안**.
-> 상태: **제안 — 담당자 검토 대기.** 승인 후 다음 세션에서 이 문서를 기준으로 구현 착수.
-> 참고 문서: api-contract.md(엔드포인트 계약) · data-schema.md(데이터 스키마) · dependency-inventory.md(의존성 매핑)
+> 세션: 2026-07-07 이관 전용 세션. `decisions-2026-07-06.md` §5(1단계 작업 정의)의 설계안.
+> 상태: **구현 완료 (동일 세션, 2026-07-07)** — 코드는 `server/` 하위, 실행 가이드는 `server/README.md`.
+> 구현 중 설계에서 달라진 점은 §8 참조. 참고 문서: api-contract.md · data-schema.md · dependency-inventory.md
 
 ## 0. 설계 목표 (decisions §5 재확인)
 
@@ -28,7 +28,7 @@
 | HTTP 서버·정적 서빙 | `express` | |
 | Google Sheets | `googleapis` (공식) | 서비스 계정 인증 (§4) |
 | 메일(SMTP) | `nodemailer` | HTML+plain 동시 발송 — 현행 `MailApp` 규칙 그대로 |
-| 차트 렌더링 | `chartjs-node-canvas` + `chart.js` | **현행 `quickChartUrl()`이 만드는 Chart.js config 객체를 그대로 재사용** — QuickChart 자체가 Chart.js 렌더러라 스펙 호환. URL 인코딩 대신 서버에서 PNG 버퍼 생성 → 메일에 `cid:` 인라인 첨부 (외부 유출 0, decisions §2-⑦ 충족) |
+| 차트 렌더링 | `@napi-rs/canvas` + `chart.js` v4 (구현 시 변경 — §8-1) | QuickChart가 Chart.js 렌더러라 config 이식 용이. 서버에서 PNG 버퍼 생성 → 메일에 `cid:` 인라인 첨부 (외부 유출 0, decisions §2-⑦ 충족) |
 | HMAC/base64url | Node 내장 `crypto` | 토큰 형식 유지 → 기존 발급 토큰·클라이언트 그대로 유효 |
 | 캘린더 | `googleapis` (calendar v3) | 미러링 엑스트라 — env 미설정 시 silent skip (현행 규칙) |
 
@@ -220,7 +220,9 @@ CMD ["node", "src/index.js"]
 
 ## 7. 다음 세션으로 넘기는 TODO (범위 밖 기록)
 
-- [ ] **구현 착수** — 이 설계 승인 후: 스캐폴드 → store(memory→sheets) → auth → handlers → mail → report/charts → notify/calendar → Dockerfile → README 순 권장
+- [x] **구현 착수** — 2026-07-07 동일 세션에서 완료 (§8)
+- [ ] **표준 네트워크에서 docker build 정식 검증** — 이 개발 샌드박스는 프록시 정책으로 apt(deb.debian.org)·컨테이너 내 npm이 막혀, 정식 Dockerfile 빌드는 담당자 로컬(또는 사내 빌드 환경)에서 1회 확인 필요. 런타임 자체는 샌드박스에서 컨테이너 기동·엔드포인트 검증 완료 (§8-3)
+- [ ] **STORE_BACKEND=sheets 실연동 검증** — 서비스 계정 생성 + 시트 공유 후 (server/README.md 절차)
 - [ ] Teams 워크플로 웹훅 URL 수령 후 실제 페이로드 포맷 확정 (김건우 TL, 액션 #6)
 - [ ] 서비스 계정 생성 + 시트/캘린더 공유 (운영 1회 작업 — 구현 세션에서 절차 안내)
 - [ ] 사내 SMTP 스펙 확인 (발신 주소·표시명 'ThinQ Real' 가능 여부·한도)
@@ -228,3 +230,35 @@ CMD ["node", "src/index.js"]
 - [ ] DynamoDB PK/SK·GSI 설계 (DB팀 협의와 병행 — store 인터페이스 §3 기준)
 - [ ] 전환 시점에 프론트 `SCRIPT_URL` 3곳 → `/api` 교체 + `no-cors` 제거 검토
 - [ ] privacy.html 국외 이전 조항 개정 검토 (데이터가 사내로 완전 이관된 후)
+
+## 8. 구현 결과 (2026-07-07 동일 세션)
+
+`server/` 하위 소스 약 35파일. 설계 §7 순서대로 구현 완료. 실행 방법·구조는 `server/README.md`가 단일 소스.
+
+### 8-1. 설계 대비 변경점
+
+| 항목 | 설계(v1) | 구현 | 이유 |
+|---|---|---|---|
+| 차트 스택 | chartjs-node-canvas + chart.js | **@napi-rs/canvas + chart.js v4 직접 연동** (`src/report/charts.js`) | chartjs-node-canvas의 `canvas` 의존성은 프리빌드 바이너리를 **GitHub 릴리스에서 다운로드** — 프록시/사내망에서 막히고, 실패 시 cairo 네이티브 빌드로 떨어져 슬림 이미지에서 실패. @napi-rs/canvas는 프리빌드가 **npm 레지스트리 패키지 안에** 있어 npm만 되면 어디서든 설치됨 |
+| datalabels 로딩 | (미명시) | 반드시 **ESM 빌드를 직접 import** (`chartjs-plugin-datalabels/dist/….esm.js`) | 기본(main) CJS 빌드는 chart.js를 CJS로 이중 로드 → `instanceof ArcElement` 실패로 도넛 차트 크래시 (이중 패키지 해저드). 코드 주석에도 기록 |
+| Dockerfile 베이스 | `node:22-slim` 고정 | `ARG BASE_IMAGE=node:22-slim` | Docker Hub 접근 제한 환경(개발 샌드박스는 `mirror.gcr.io`, 사내는 사내 이미지 저장소)에서 베이스만 교체 가능하게 |
+| Outlook 외부 이미지 안내 배너 | (현행 리포트 본문에 존재) | **제거** | 차트가 외부 URL이 아닌 `cid:` 인라인 첨부로 바뀌어 외부 이미지 차단의 영향이 없어짐 |
+| 진단 엔드포인트 | 현행 15종 | `teams_test` 1종 추가 (additive) | Teams 웹훅 연동 점검용 — 기존 계약 비파괴 |
+
+### 8-2. 계약 준수 확인 포인트
+
+- GET 15종 + POST 9종 모두 구현, 응답 스키마 현행 유지 (`monthly_report_preview`만 text/html — 현행 동일)
+- POST body는 `express.text({type:'*/*'})`로 수신 — 프론트의 `mode:'no-cors'`(text/plain 강제)와 호환
+- HMAC 토큰 형식·인증 코드 TTL/쿨다운/5회 잠금 로직 현행 그대로 (기존 AUTH_SECRET 이식 시 발급 토큰 무중단)
+- Wi-Fi/도어락은 env로 이동 — **확정 메일 빌더가 config 참조** (.gs의 하드코딩 제거, 리포에 비밀값 0)
+
+### 8-3. 검증 내역 (이 세션에서 실행)
+
+- `node --check` 전 소스 통과, `npm install` 성공 (Node 22.22)
+- memory store + 콘솔 메일 모드로 기동 후 curl 검증:
+  - `availability` — 확정=마감·대기=카운트·차단 합류 정상 / `bookings` 무토큰 → `unauthorized`
+  - 관리자 인증 플로우: 비명단 거부 → 코드 발급(콘솔 로그) → 오코드 실패 카운트 → 정코드 → 토큰 → `bookings` 조회
+  - booking POST(text/plain) → 무토큰 update 차단 → 토큰 update(확정, R&D 가전표 메일 확인) → slot_block/unblock → booking_delete
+  - ROI 저장/조회, `monthly_report_send` confirm 가드, 진단 4종 not_configured 응답
+- 차트 3종(목적 도넛·ROI 가치 도넛·누적 손익 라인) PNG 렌더링 성공, 리포트 미리보기에 data URI 임베드 확인
+- **컨테이너 기동 검증**: node:22-slim 기반 이미지로 `docker run` → healthz·availability·정적 index.html·리포트 미리보기 정상. 단, 샌드박스 네트워크 정책(apt·컨테이너 내 npm 차단) 때문에 정식 Dockerfile의 apt/npm 레이어는 표준 네트워크에서 최종 확인 필요 (§7 TODO)

@@ -1,0 +1,6 @@
+# docker build -f server/Dockerfile . (컨텍스트 = 리포 루트) 용
+.git
+docs
+server/node_modules
+server/.env
+*.md

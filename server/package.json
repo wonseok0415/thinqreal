@@ -1,0 +1,27 @@
+{
+  "name": "thinqreal-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ThinQ Real — Apps Script 대체 단일 컨테이너 백엔드 (정적 프론트 서빙 포함)",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "report": "node src/jobs/monthlyReport.js",
+    "check": "node --check src/index.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "googleapis": "^144.0.0",
+    "iconv-lite": "^0.6.3",
+    "nodemailer": "^6.9.16"
+  },
+  "optionalDependencies": {
+    "@napi-rs/canvas": "^1.0.2",
+    "chart.js": "^4.4.8",
+    "chartjs-plugin-datalabels": "^2.2.0"
+  }
+}
