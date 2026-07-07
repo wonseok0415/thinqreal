@@ -2,6 +2,8 @@
 
 > Apps Script 전용 API·외부 서비스 사용처 전수 목록 + 대체 매핑.
 > 이 표의 "대체" 열이 사내 이전 시 재구현 범위를 정의한다.
+>
+> **⚠ 2026-07-06 개발팀 회의로 이관 방향이 확정됨 — 최신 결정은 `decisions-2026-07-06.md`가 우선한다.** (EKS 단일 컨테이너 / DynamoDB 우선 검토 / 사내 SSO / 사내 SMTP / Teams 웹훅 / 차트 내부 렌더링 / CronJob / `thinqreal.lge.com`) 이 문서의 §4(이전 형태 A/B/C)·§5(업무혁신팀 확인 항목)는 회의로 상당 부분 답변됨.
 
 ## 1. Google Apps Script 플랫폼 API
 
