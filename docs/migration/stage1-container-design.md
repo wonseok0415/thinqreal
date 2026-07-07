@@ -262,3 +262,14 @@ CMD ["node", "src/index.js"]
   - ROI 저장/조회, `monthly_report_send` confirm 가드, 진단 4종 not_configured 응답
 - 차트 3종(목적 도넛·ROI 가치 도넛·누적 손익 라인) PNG 렌더링 성공, 리포트 미리보기에 data URI 임베드 확인
 - **컨테이너 기동 검증**: node:22-slim 기반 이미지로 `docker run` → healthz·availability·정적 index.html·리포트 미리보기 정상. 단, 샌드박스 네트워크 정책(apt·컨테이너 내 npm 차단) 때문에 정식 Dockerfile의 apt/npm 레이어는 표준 네트워크에서 최종 확인 필요 (§7 TODO)
+
+### 8-4. 담당자 검수 피드백 반영 — 리포트 미리보기 글자 깨짐 (커밋 `e3cd1d9`)
+
+담당자가 미리보기 HTML을 파일로 저장해 열었을 때 두 종류의 깨짐 발견 → 원인·수정:
+
+| 증상 | 원인 | 수정 |
+|---|---|---|
+| Safari에서 본문 전체 모지바케 (Chrome은 정상) | 미리보기가 메일용 `<div>` 조각을 그대로 반환 — HTTP로 볼 땐 응답 헤더가 UTF-8을 알려주지만 **file://로 열면 헤더가 없어** 브라우저가 인코딩을 추측 (Safari가 레거시 한국어 인코딩으로 오추측) | `handlers/report.js` — 미리보기를 `<meta charset="utf-8">` 포함 완전한 HTML 문서로 래핑. 실제 메일은 MIME이 charset을 명시하므로 원래도 무관 |
+| 차트 이미지 안 한글만 □ (브라우저 무관) | 차트는 서버에서 PNG로 래스터되므로 **서버에 CJK 폰트가 필요** — 폰트 없는 환경에서 렌더 시 발생 | `report/charts.js` — `registerKoreanFont()` 신설: env `CHART_FONT_PATH` → 도커 fonts-noto-cjk 표준 경로 → 시스템 CJK 스캔 순으로 등록, 미발견 시 경고 로그. Dockerfile에 `CHART_FONT_PATH` 기본값 고정 (이미지에서는 결정적 로딩) |
+
+교훈: 서버 렌더링 산출물(차트 PNG·저장용 HTML)은 **배포 환경의 폰트·인코딩 선언에 의존** — 새 렌더링 산출물 추가 시 이 두 가지를 체크리스트로.

@@ -1152,6 +1152,7 @@ data.sort((a,b)=>{
 - memory store + 콘솔 메일 모드로 전 엔드포인트 curl 검증: 인증 플로우(코드→토큰→보호 API), 예약 생애주기(신청→확정→차단→삭제), ROI, 리포트 미리보기(차트 3종 서버 렌더링 임베드), 진단 4종.
 - node:22-slim 컨테이너에서 `docker run` 기동 검증 완료. 단 **정식 Dockerfile의 apt/npm 레이어는 개발 샌드박스 네트워크 정책으로 최종 확인 못함** → 담당자 로컬에서 `docker build -f server/Dockerfile .` 1회 확인 필요 (설계 문서 §7 TODO).
 - 차트 스택은 설계의 chartjs-node-canvas 대신 **@napi-rs/canvas + chart.js v4** (프리빌드가 npm 레지스트리에 내장 — 사내망/프록시 안전). datalabels 플러그인은 반드시 ESM 빌드로 import (CJS면 도넛 크래시 — charts.js 주석 참조).
+- **담당자 검수 피드백 — 미리보기 글자 깨짐 수정 (커밋 `e3cd1d9`)**: ① 미리보기 HTML을 `<meta charset="utf-8">` 포함 완전한 문서로 래핑 (file://로 열면 HTTP charset 헤더가 없어 Safari가 인코딩 오추측) ② 차트는 서버 래스터라 CJK 폰트 필수 — `registerKoreanFont()`(env `CHART_FONT_PATH` → 도커 fonts-noto-cjk → 시스템 스캔) + Dockerfile에 `CHART_FONT_PATH` 고정. 상세는 설계 문서 §8-4.
 
 ### 설계 요지
 - **런타임**: Node.js 22 LTS + Express, 플레인 JS(ESM) + JSDoc — 현행 .gs 3,038줄(특히 메일 빌더 ~1,200줄)이 JS라 거의 그대로 이식되는 것이 핵심 근거. 빌드 스텝 0. 베이스 이미지 `node:22-slim` + 한글 차트 폰트(fonts-noto-cjk).
