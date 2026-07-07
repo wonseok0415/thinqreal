@@ -45,9 +45,9 @@ const AUTH_ADMIN_EMAILS = [
   'ch275.lee@lge.com',     // 이철호 책임
   'moonsu.seo@lge.com',    // 서문수 선임
   'hj8462.kim@lge.com',    // 김현진 선임
-  'kwangsoo.park@lge.com'  // 박광수
+  'kwangsoo.park@lge.com'  // 박광수 책임
 ];
-const AUTH_ADMIN_TOKEN_TTL_DAYS = 7;        // 관리자 토큰은 7일 (메인보다 짧게)
+const AUTH_ADMIN_TOKEN_TTL_DAYS = 90;       // 관리자 토큰 유효 기간 (2026-07-07 7일→90일 연장)
 
 // ── 임시 관리자 (한시적 권한 부여) ──────────────────────────
 // 침투 테스트·외부 감사·위탁 점검 등 한시적 관리자 권한이 필요할 때 사용.

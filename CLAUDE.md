@@ -851,9 +851,9 @@ data.sort((a,b)=>{
 
 ### A. 관리자 인증 — 이메일 코드 (명단 한정)
 - 공유 비밀번호 폐기 → 관리자 본인 `@lge.com` 이메일 + 6자리 코드 (메인 게이트 흐름 재사용, 단 허용 대상을 명단으로 한정).
-- **단일 소스**: Apps Script `AUTH_ADMIN_EMAILS` (kang.wonseok / jhs.kim / ch275.lee / moonsu.seo / hj8462.kim / kwangsoo.park 6명 — 박광수는 2026-07-07 추가). 명단 변경 시 이 배열만 수정.
+- **단일 소스**: Apps Script `AUTH_ADMIN_EMAILS` (kang.wonseok / jhs.kim / ch275.lee / moonsu.seo / hj8462.kim / kwangsoo.park 6명 — 박광수 책임은 2026-07-07 추가). 명단 변경 시 이 배열만 수정.
 - 엔드포인트: `?type=admin_auth_request` / `?type=admin_auth_verify`. 코드 캐시 키는 `admin_code_<email>` (메인 게이트 `auth_code_`와 분리).
-- 관리자 토큰은 payload `{email, exp, admin:true}` HMAC-SHA256 서명, **7일 유효**(`AUTH_ADMIN_TOKEN_TTL_DAYS`, 메인 30일보다 짧게). `localStorage('thinqreal_admin_token')`.
+- 관리자 토큰은 payload `{email, exp, admin:true}` HMAC-SHA256 서명, **90일 유효**(`AUTH_ADMIN_TOKEN_TTL_DAYS` — 도입 시 7일이었으나 재로그인 빈도 완화 요청으로 2026-07-07 90일로 연장). `localStorage('thinqreal_admin_token')`.
 
 ### B. 백엔드 권한 통제 (핵심 — 화면 우회 방어)
 - `doPost`에서 파괴적 작업(`update`·`booking_delete`·`roi_delete`·`slot_block`·`slot_unblock`)은 **모두 `verifyAdminToken(data.token)` 통과 필수**. 명단 외·만료·위조 토큰은 백엔드가 거부.
@@ -1000,7 +1000,7 @@ data.sort((a,b)=>{
 - 헬퍼 `isTempAdminActive(email)` — 등록 + 미만료 검사 1줄 함수.
 - `isAdminEmail`: 영구 OR 활성 임시 둘 다 허용 → 인증 코드 발급 게이트.
 - `verifyAdminToken`: 영구 OR 활성 임시 둘 다 허용 → 모든 파괴적 작업의 백엔드 게이트.
-- 토큰 자체 TTL(7일)은 그대로. 임시 만료일 이후엔 토큰이 남아 있어도 백엔드가 거부 → **이중 방어**.
+- 토큰 자체 TTL(`AUTH_ADMIN_TOKEN_TTL_DAYS`, 2026-07-07부터 90일)은 그대로. 임시 만료일 이후엔 토큰이 남아 있어도 백엔드가 거부 → **이중 방어**. (임시 관리자의 실효 기간은 토큰 TTL이 아니라 `AUTH_TEMP_ADMINS` 만료일이 기준)
 
 ### B. 운영 절차
 1. 새 임시 권한 부여: `AUTH_TEMP_ADMINS`에 한 줄 추가 (이메일 → 만료일, 주석에 사유 명시) → 재배포.
@@ -1115,3 +1115,9 @@ data.sort((a,b)=>{
 - **유지되는 동작**: 순수하게 배경을 클릭하면 여전히 닫힘 (백드롭 닫기 기능 자체는 존치). ✕/취소 버튼 경로는 무관.
 - **핵심 제약**: 새 모달을 추가할 때 백드롭 닫기는 인라인 `onclick` 대신 `bindBackdropClose()`를 쓸 것 — 같은 버그 재발 방지.
 - **(2026-07-07 후속) 이력 추가/수정 폼은 백드롭 닫기 자체를 제거**: 담당자 확인 결과 순수 바깥 클릭에도 작성 중 입력 내용이 사라지는 게 문제 → `bookingFormBg`에는 `bindBackdropClose`를 바인딩하지 않음. 폼 모달은 ✕/취소 버튼으로만 닫힘. 조회용 상세 모달(`modalBg`)은 백드롭 클릭 닫기 유지. **입력 폼 성격의 모달은 앞으로도 백드롭 닫기 미바인딩이 원칙.**
+
+## 작업 내역 (2026-07-07 — 관리자 계정 추가 + 토큰 유효 기간 연장)
+
+- **관리자 추가**: `AUTH_ADMIN_EMAILS`에 박광수 책임(`kwangsoo.park@lge.com`) 추가 — 5명 → **6명**.
+- **관리자 토큰 유효 기간 연장**: `AUTH_ADMIN_TOKEN_TTL_DAYS` **7 → 90** — 주 단위 재로그인 마찰 완화 요청 반영. 토큰이 길어진 만큼 명단 이탈자 발생 시 배열에서 즉시 제거 + 재배포로 회수할 것 (백엔드 `verifyAdminToken`이 명단 포함 여부를 매 요청 검사하므로 토큰이 남아 있어도 제거 즉시 차단됨).
+- **재배포 필요**: 두 변경 모두 Apps Script 상수 — script.google.com에서 동일하게 수정 후 "배포 관리 → 편집 → 새 버전 → 배포" (기존 URL 유지).
