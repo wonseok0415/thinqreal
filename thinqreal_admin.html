@@ -2004,6 +2004,7 @@ body {
       </div>
 
       <h2 class="sv-section-title">📝 설문 응답</h2>
+      <p class="sv-section-desc">행을 클릭하면 상세 내용을 확인하고, 상세 화면의 수정 버튼으로 오탈자·내용을 정정할 수 있습니다.</p>
       <div class="table-card">
         <table class="booking-table" style="min-width:780px;">
           <thead>
@@ -2016,9 +2017,9 @@ body {
       </div>
 
       <h2 class="sv-section-title">📒 성과 추적 대장</h2>
-      <p class="sv-section-desc">설문의 성과 연결 응답에서 자동 생성됩니다. 후보 → 확정(실제 금액 입력) / 드롭 — 행 삭제 없이 상태로만 관리합니다.</p>
+      <p class="sv-section-desc">설문의 성과 연결 응답에서 자동 생성됩니다. 후보 → 확정(실제 금액 입력) / 드롭 — 행 삭제 없이 상태로만 관리하며, 수정 버튼으로 과제명·기여도 등 내용을 정정할 수 있습니다.</p>
       <div class="table-card">
-        <table class="booking-table" style="min-width:880px;">
+        <table class="booking-table" style="min-width:920px;">
           <thead>
             <tr><th>상태</th><th>카테고리</th><th>과제명</th><th>예상 규모</th><th>기여도</th><th>확정 금액</th><th>ROI 반영</th><th>처리</th></tr>
           </thead>
@@ -2187,7 +2188,24 @@ body {
     </div>
     <div class="detail-grid" id="surveyModalGrid"></div>
     <div class="modal-actions">
+      <button class="modal-btn-edit" onclick="openSurveyEdit(surveyModalTarget)">수정</button>
       <button class="modal-btn-close" onclick="closeSurveyModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 설문 응답 수정 폼 모달 (입력 폼 — 백드롭 닫기 미바인딩 원칙) -->
+<div class="modal-backdrop" id="surveyEditBg">
+  <div class="modal fmodal" style="width:min(560px,calc(100vw - 32px));">
+    <div class="modal-header">
+      <h2 class="modal-title">설문 응답 수정</h2>
+      <button class="modal-close" onclick="closeSurveyEdit()">✕</button>
+    </div>
+    <p id="seMeta" style="font-size:13px; color:var(--c-label-3); margin-bottom:var(--sp-12);"></p>
+    <div id="seFields" style="display:flex; flex-direction:column; gap:var(--sp-12);"></div>
+    <div class="modal-actions">
+      <button class="modal-btn-close" onclick="closeSurveyEdit()">취소</button>
+      <button class="modal-btn-confirm" onclick="saveSurveyEdit()">저장</button>
     </div>
   </div>
 </div>
@@ -2201,6 +2219,39 @@ body {
     </div>
     <p id="lmProject" style="font-size:13px; color:var(--c-label-3); margin-bottom:var(--sp-12);"></p>
     <div style="display:flex; flex-direction:column; gap:var(--sp-12);">
+      <div id="lmEditWrap" style="display:none; flex-direction:column; gap:var(--sp-12);">
+        <div>
+          <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;">카테고리</label>
+          <select class="toolbar-input" id="leCategory" style="width:100%;">
+            <option value="홍보·광고 마케팅">홍보·광고 마케팅</option>
+            <option value="신규 Task·기타">신규 Task·기타</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;">과제명</label>
+          <input type="text" class="toolbar-input" id="leProject" style="width:100%;" placeholder="예: 2026 AI홈 가을 캠페인">
+        </div>
+        <div>
+          <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;">예상 규모</label>
+          <input type="text" class="toolbar-input" id="leScale" style="width:100%;" placeholder="예: 1~10억">
+        </div>
+        <div>
+          <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;">기여도 (%)</label>
+          <input type="number" class="toolbar-input" id="leAttrPct" min="0" max="100" style="width:100%;" placeholder="0~100">
+        </div>
+        <div>
+          <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;">방문일</label>
+          <input type="date" class="toolbar-input" id="leVisitDate" style="width:100%;">
+        </div>
+        <div>
+          <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;">응답자</label>
+          <input type="text" class="toolbar-input" id="leRespondent" style="width:100%;">
+        </div>
+        <div>
+          <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;">부서</label>
+          <input type="text" class="toolbar-input" id="leDept" style="width:100%;">
+        </div>
+      </div>
       <div id="lmAmountWrap">
         <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;">확정 금액 (만원)</label>
         <input type="number" class="toolbar-input" id="lmAmount" min="0" style="width:100%;" placeholder="예: 3000">
@@ -2209,7 +2260,7 @@ body {
         <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;">확정 일자</label>
         <input type="date" class="toolbar-input" id="lmDate" style="width:100%;">
       </div>
-      <div>
+      <div id="lmNoteWrap">
         <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;" id="lmNoteLabel">근거</label>
         <input type="text" class="toolbar-input" id="lmNote" style="width:100%;" placeholder="예: 캠페인 결과 보고서 기준">
       </div>
@@ -3508,6 +3559,7 @@ function renderSurveyTab() {
       + '<td>' + amt + '</td>'
       + '<td style="text-align:center;">' + roiChk + '</td>'
       + '<td style="white-space:nowrap;">'
+      + '<button class="sv-save-btn" onclick="openLedgerModal(\'' + escapeHtml(String(l.ledger_id)) + '\', \'수정\')">수정</button> '
       + '<button class="sv-save-btn" onclick="openLedgerModal(\'' + escapeHtml(String(l.ledger_id)) + '\', \'확정\')">확정</button> '
       + '<button class="sv-save-btn" style="border-color:rgba(0,0,0,0.2); color:var(--c-label-3);" onclick="openLedgerModal(\'' + escapeHtml(String(l.ledger_id)) + '\', \'드롭\')">드롭</button>'
       + '</td></tr>';
@@ -3527,7 +3579,7 @@ function renderSurveyTab() {
     return '<tr data-issue="' + id + '">'
       + '<td style="font-size:11px; color:var(--c-label-3);">' + id + '</td>'
       + '<td><input class="sv-mini-input" data-f="device" value="' + escapeHtml(x.device || '') + '" placeholder="기기명"></td>'
-      + '<td style="max-width:220px;" title="' + escapeHtml(x.symptom || '') + '">' + escapeHtml(String(x.symptom || '').slice(0, 40)) + (String(x.symptom || '').length > 40 ? '…' : '') + '</td>'
+      + '<td style="min-width:200px;"><input class="sv-mini-input" data-f="symptom" style="width:100%;" value="' + escapeHtml(x.symptom || '') + '" title="' + escapeHtml(x.symptom || '') + '" placeholder="증상"></td>'
       + '<td><select class="sv-mini-select" data-f="severity">' + opt(sevOpts, x.severity) + '</select></td>'
       + '<td><select class="sv-mini-select" data-f="channel">' + opt(chOpts, x.channel) + '</select></td>'
       + '<td><input class="sv-mini-input" data-f="q_ship" type="number" min="0" value="' + escapeHtml(String(x.q_ship || '')) + '"></td>'
@@ -3567,9 +3619,11 @@ const SV_FIELD_LABELS = [
   ['satisfaction', '만족도'], ['feedback', '자유 의견']
 ];
 
+let surveyModalTarget = null;   // 상세 모달에서 '수정'으로 넘어갈 때 사용
 function openSurveyModal(id) {
   const r = (surveyData?.responses || []).find(x => String(x.response_id) === String(id));
   if (!r) return;
+  surveyModalTarget = String(id);
   let html = '<span class="detail-label">트랙</span><span class="detail-value"><strong>'
     + escapeHtml(SV_TRACK_LABEL[r.track] || r.track) + '</strong></span>';
   SV_FIELD_LABELS.forEach(([k, label]) => {
@@ -3583,25 +3637,126 @@ function openSurveyModal(id) {
 }
 function closeSurveyModal() { document.getElementById('surveyModalBg').classList.remove('open'); }
 bindBackdropClose('surveyModalBg', closeSurveyModal);
-// ledgerModalBg는 입력 폼 성격 — 백드롭 닫기 미바인딩 원칙 (✕/취소로만 닫음)
+// ledgerModalBg·surveyEditBg는 입력 폼 성격 — 백드롭 닫기 미바인딩 원칙 (✕/취소로만 닫음)
 
-// ── 성과 대장: 확정/드롭 ──
-let ledgerTarget = null;   // { id, mode }
+// ── 설문 응답 수정 (오탈자·내용 정정) ──
+// 제출 원문 증빙(submitted_at/track/raw_json)과 파생 트리거 3종(media_link/etc_link/iot_defect)은
+// 백엔드 IMMUTABLE — 수정 폼에도 노출하지 않는다. 연결 오류는 대장 드롭/이슈 기각으로 처리.
+const SV_EDIT_COMMON = [
+  ['visit_date', '방문일', 'date'],
+  ['visit_count', '방문 횟수', 'select', ['', '첫 방문', '2회차', '3~5회차', '6회 이상']],
+  ['name', '작성자', 'text'],
+  ['dept', '부서', 'text'],
+  ['client', '고객사/대상', 'text'],
+  ['purpose', '방문 목적', 'text'],
+  ['satisfaction', '만족도', 'text'],
+  ['feedback', '자유 의견', 'textarea']
+];
+const SV_EDIT_TRACK = {
+  sales: [
+    ['deal_stage', '딜 단계', 'text'], ['deal_size', '딜 규모', 'text'],
+    ['deal_area', '제품·솔루션 영역', 'text'], ['reaction', '방문 후 고객 반응', 'text'],
+    ['attr', '기여 수준', 'text']
+  ],
+  media: [
+    ['media_work', '활용 내용', 'text'], ['media_days', '사용 기간', 'text'],
+    ['media_alt', '대체 시나리오', 'text'], ['media_cost', '실비·견적가', 'text'],
+    ['media_link_name', '캠페인·과제명', 'text'], ['media_link_size', '예상 규모', 'text'],
+    ['media_link_attr', '기여 수준(캠페인)', 'text']
+  ],
+  etc: [
+    ['etc_work', '활용 내용', 'text'], ['etc_days', '사용 기간', 'text'],
+    ['etc_alt', '대체 시나리오', 'text'], ['iot_defect_detail', '이슈 상세', 'textarea'],
+    ['etc_link_name', '과제·기획명', 'text'], ['etc_link_size', '예상 규모', 'text'],
+    ['etc_link_attr', '기여 수준(과제)', 'text']
+  ]
+};
+
+let surveyEditTarget = null;
+function openSurveyEdit(id) {
+  const r = (surveyData?.responses || []).find(x => String(x.response_id) === String(id));
+  if (!r) return;
+  surveyEditTarget = String(id);
+  document.getElementById('seMeta').textContent =
+    '[' + (SV_TRACK_LABEL[r.track] || r.track) + '] ' + (r.visit_date || '-') + ' · ' + (r.name || '-')
+    + ' — 성과 연결·이슈 발견 여부는 제출 시점 기록이라 수정할 수 없습니다.';
+  const fields = SV_EDIT_COMMON.concat(SV_EDIT_TRACK[r.track] || []);
+  document.getElementById('seFields').innerHTML = fields.map(([k, label, type, opts]) => {
+    const v = r[k] == null ? '' : String(r[k]);
+    let input;
+    if (type === 'select') {
+      const list = opts.slice();
+      if (v && list.indexOf(v) < 0) list.push(v);   // 비표준 기존 값 보존
+      input = '<select class="toolbar-input" data-se="' + k + '" style="width:100%;">'
+        + list.map(o => '<option value="' + escapeHtml(o) + '"' + (o === v ? ' selected' : '') + '>'
+          + (o === '' ? '—' : escapeHtml(o)) + '</option>').join('')
+        + '</select>';
+    } else if (type === 'textarea') {
+      input = '<textarea class="toolbar-input" data-se="' + k + '" rows="3" style="width:100%; resize:vertical; font-family:inherit;">'
+        + escapeHtml(v) + '</textarea>';
+    } else {
+      input = '<input type="' + type + '" class="toolbar-input" data-se="' + k + '" value="' + escapeHtml(v) + '" style="width:100%;">';
+    }
+    return '<div><label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;">'
+      + escapeHtml(label) + '</label>' + input + '</div>';
+  }).join('');
+  closeSurveyModal();
+  document.getElementById('surveyEditBg').classList.add('open');
+}
+function closeSurveyEdit() { document.getElementById('surveyEditBg').classList.remove('open'); surveyEditTarget = null; }
+
+async function saveSurveyEdit() {
+  if (!surveyEditTarget) return;
+  const id = surveyEditTarget;
+  const r = (surveyData?.responses || []).find(x => String(x.response_id) === String(id));
+  const payload = { type: 'survey_update', id };
+  document.querySelectorAll('#seFields [data-se]').forEach(el => {
+    const val = el.value.trim();
+    payload[el.dataset.se] = val;
+    if (r) r[el.dataset.se] = val;   // 낙관적 로컬 반영
+  });
+  closeSurveyEdit();
+  renderSurveyTab();
+  if (await svPost(payload)) toast('설문 응답을 수정했습니다.');
+}
+
+// ── 성과 대장: 확정/드롭/수정 ──
+let ledgerTarget = null;   // { id, mode } — mode: '확정' | '드롭' | '수정'
 function openLedgerModal(id, mode) {
   const l = (surveyData?.ledger || []).find(x => String(x.ledger_id) === String(id));
   if (!l) return;
   ledgerTarget = { id, mode };
-  document.getElementById('ledgerModalTitle').textContent = mode === '확정' ? '성과 확정' : '드롭 처리';
+  const isEdit = mode === '수정';
+  const isConfirm = mode === '확정';
+  document.getElementById('ledgerModalTitle').textContent =
+    isEdit ? '대장 내용 수정' : (isConfirm ? '성과 확정' : '드롭 처리');
   document.getElementById('lmProject').textContent =
     '[' + (l.category || '') + '] ' + (l.project_name || '(무명)') + ' · 기여도 ' + (l.attribution_pct !== '' ? l.attribution_pct + '%' : '-');
-  const isConfirm = mode === '확정';
+  document.getElementById('lmEditWrap').style.display = isEdit ? 'flex' : 'none';
   document.getElementById('lmAmountWrap').style.display = isConfirm ? '' : 'none';
   document.getElementById('lmDateWrap').style.display = isConfirm ? '' : 'none';
-  document.getElementById('lmNoteLabel').textContent = isConfirm ? '근거' : '드롭 사유';
-  document.getElementById('lmAmount').value = l.confirmed_amount || '';
-  document.getElementById('lmDate').value = l.confirmed_date || new Date().toISOString().slice(0, 10);
-  document.getElementById('lmNote').value = l.confirmed_note || '';
-  document.getElementById('lmSaveBtn').textContent = isConfirm ? '확정 저장' : '드롭 저장';
+  document.getElementById('lmNoteWrap').style.display = isEdit ? 'none' : '';
+  if (isEdit) {
+    const catSel = document.getElementById('leCategory');
+    if (l.category && ![...catSel.options].some(o => o.value === l.category)) {
+      const o = document.createElement('option');   // 비표준 기존 값 보존
+      o.value = o.textContent = l.category;
+      catSel.appendChild(o);
+    }
+    catSel.value = l.category || '홍보·광고 마케팅';
+    document.getElementById('leProject').value = l.project_name || '';
+    document.getElementById('leScale').value = l.expected_scale || '';
+    document.getElementById('leAttrPct').value = l.attribution_pct !== '' && l.attribution_pct != null ? l.attribution_pct : '';
+    document.getElementById('leVisitDate').value = l.visit_date || '';
+    document.getElementById('leRespondent').value = l.respondent || '';
+    document.getElementById('leDept').value = l.dept || '';
+  } else {
+    document.getElementById('lmNoteLabel').textContent = isConfirm ? '근거' : '드롭 사유';
+    document.getElementById('lmAmount').value = l.confirmed_amount || '';
+    document.getElementById('lmDate').value = l.confirmed_date || new Date().toISOString().slice(0, 10);
+    document.getElementById('lmNote').value = l.confirmed_note || '';
+  }
+  document.getElementById('lmSaveBtn').textContent = isEdit ? '수정 저장' : (isConfirm ? '확정 저장' : '드롭 저장');
   document.getElementById('ledgerModalBg').classList.add('open');
 }
 function closeLedgerModal() { document.getElementById('ledgerModalBg').classList.remove('open'); ledgerTarget = null; }
@@ -3609,6 +3764,27 @@ function closeLedgerModal() { document.getElementById('ledgerModalBg').classList
 async function saveLedgerModal() {
   if (!ledgerTarget) return;
   const { id, mode } = ledgerTarget;
+  const l = (surveyData?.ledger || []).find(x => String(x.ledger_id) === String(id));
+
+  if (mode === '수정') {
+    // 내용 정정 — status는 보내지 않음 (상태 전환과 분리)
+    const payload = {
+      type: 'ledger_update', id,
+      category: document.getElementById('leCategory').value,
+      project_name: document.getElementById('leProject').value.trim(),
+      expected_scale: document.getElementById('leScale').value.trim(),
+      attribution_pct: document.getElementById('leAttrPct').value.trim(),
+      visit_date: document.getElementById('leVisitDate').value,
+      respondent: document.getElementById('leRespondent').value.trim(),
+      dept: document.getElementById('leDept').value.trim()
+    };
+    if (l) Object.keys(payload).forEach(k => { if (k !== 'type' && k !== 'id') l[k] = payload[k]; });
+    closeLedgerModal();
+    renderSurveyTab();
+    if (await svPost(payload)) toast('대장 내용을 수정했습니다.');
+    return;
+  }
+
   const payload = { type: 'ledger_update', id, status: mode, confirmed_note: document.getElementById('lmNote').value.trim() };
   if (mode === '확정') {
     const amt = document.getElementById('lmAmount').value.trim();
@@ -3617,7 +3793,6 @@ async function saveLedgerModal() {
     payload.confirmed_date = document.getElementById('lmDate').value;
   }
   // 낙관적 로컬 반영
-  const l = (surveyData?.ledger || []).find(x => String(x.ledger_id) === String(id));
   if (l) {
     l.status = mode; l.confirmed_note = payload.confirmed_note;
     if (mode === '확정') { l.confirmed_amount = payload.confirmed_amount; l.confirmed_date = payload.confirmed_date; }
@@ -3642,8 +3817,8 @@ async function saveIssueRow(id) {
   const get = f => tr.querySelector('[data-f="' + f + '"]').value.trim();
   const payload = {
     type: 'issue_update', id,
-    device: get('device'), severity: get('severity'), channel: get('channel'),
-    q_ship: get('q_ship'), status: get('status')
+    device: get('device'), symptom: get('symptom'), severity: get('severity'),
+    channel: get('channel'), q_ship: get('q_ship'), status: get('status')
   };
   if (await svPost(payload)) {
     toast('저장했습니다. 예상 가치는 서버 계산 후 갱신됩니다.');

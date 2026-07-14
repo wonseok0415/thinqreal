@@ -62,8 +62,9 @@
 | `roi_snapshot` | — ⚠️ | ROI 시나리오 저장 `{label, author, inputs, outputs}` | — |
 | `roi_delete` | — ⚠️ | ROI 스냅샷 삭제 `{id}` | — |
 | `survey_submit` | — | 설문 응답 append + 파생 행(대장 `후보`·이슈 `등록`) 자동 생성 (2026-07-09) | 텔레그램 발송 (관리자 그룹) |
-| `ledger_update` | 관리자 토큰 | 성과 대장 상태 전환·확정 필드 갱신 (`status/confirmed_*/roi_included`) | — (행 삭제 없음 — 의도) |
-| `issue_update` | 관리자 토큰 | 이슈 속성 부여 (`device/severity/channel/q_ship/status`) + est_value 서버 계산 | — (행 삭제 없음 — 의도) |
+| `survey_update` | 관리자 토큰 | 설문 응답 내용 정정 (2026-07-14). 불변: `response_id/submitted_at/track/raw_json` + 파생 트리거 3종(`media_link/etc_link/iot_defect`) | — (행 삭제 없음 — 의도) |
+| `ledger_update` | 관리자 토큰 | 성과 대장 상태 전환·확정 필드 + 내용 정정(`category/project_name/expected_scale/attribution_pct/visit_date/respondent/dept` — 2026-07-14 확장). `attribution_text`(라디오 원문)는 불변 | — (행 삭제 없음 — 의도) |
+| `issue_update` | 관리자 토큰 | 이슈 속성 부여 (`device/symptom/severity/channel/q_ship/status`) + est_value 서버 계산 | — (행 삭제 없음 — 의도) |
 
 ⚠️ ROI 2종은 토큰 미적용 — ROI 툴이 별창으로도 열려 토큰 전달 경로가 없음 (저위험 판단, 현행 유지). **사내 이전 시 세션 기반 인증으로 보호 권장.**
 
