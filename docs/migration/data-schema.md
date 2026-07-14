@@ -74,6 +74,19 @@
 
 우선순위: 시트에 해당 월 행 있으면 그것만 사용 → 없으면 Serper API → 없으면 CSE → 안내문.
 
+## 4.5 설문 파이프라인 탭 3종 (2026-07-09 추가 — 이관 범위 포함 필수)
+
+### `survey_responses` (설문 응답 원본, 34컬럼)
+`response_id`(=`Date.now()` 문자열) · `submitted_at`(ISO) · `visit_date/dept/name/client/visit_count` · `track`(sales/media/etc) · `purpose` · Track A(`deal_stage/deal_size/deal_area/reaction/attr`) · Track B(`media_work/media_days/media_alt/media_cost/media_link/media_link_name/media_link_size/media_link_attr`) · Track C(`etc_work/etc_days/etc_alt/iot_defect/iot_defect_detail/etc_link/etc_link_name/etc_link_size/etc_link_attr`) · `satisfaction/feedback` · `raw_json`(페이로드 원본 — 스키마 진화 대비)
+
+### `performance_ledger` (성과 추적 대장, 15컬럼)
+`ledger_id`(`{response_id}-L{n}`) · `response_id` · `category`(홍보·광고 마케팅 / 신규 Task·기타) · `project_name/expected_scale` · `attribution_text/attribution_pct`(원문 괄호 `(N%)` 파싱) · `visit_date/respondent/dept` · `status`(**후보→확정/드롭** — 행 삭제 없음) · `confirmed_amount`(**만원 단위**)/`confirmed_date/confirmed_note` · `roi_included`(Y/'')
+
+### `iot_issue_log` (IoT 품질 이슈, 9컬럼)
+`issue_id`(`{response_id}-I1`) · `response_id` · `device/symptom` · `severity`(높음50%/가끔10%/드묾1%) · `channel`(원격/내방/출장) · `q_ship` · `status`(등록→검토→반영/기각) · `est_value`(서버 계산 — 참고용, ROI 미산입)
+
+컬럼 단일 소스: `ThinQReal_AppScript.gs`의 `SURVEY_HEADERS`/`LEDGER_HEADERS`/`ISSUE_HEADERS` 상수. 세 탭 모두 첫 호출 시 자동 생성.
+
 ## 5. 런타임 상태 (Script Properties — 이전 시 설정 저장소/환경변수로)
 
 | 키 | 용도 |
@@ -85,6 +98,7 @@
 | `CALENDAR_ID` | 팀 공유 캘린더 |
 | `SERPER_API_KEY` | 뉴스 검색 (우선) |
 | `GOOGLE_CSE_ID` / `GOOGLE_CSE_KEY` | 뉴스 검색 (폴백, 현재 계정 정책으로 차단 상태) |
+| `SURVEY_CAS_JSON` | IoT 이슈 est_value용 채널 단가 `{"원격":N,"내방":N,"출장":N}` — **민감 단가라 코드·리포 미기재**, 이 Property가 유일한 위치 |
 
 ## 6. 휘발성 캐시 (CacheService — 이전 시 Redis/TTL 테이블로)
 
