@@ -180,6 +180,9 @@ function doGet(e) {
   if (type === 'calendar_test') {
     return handleCalendarTest();
   }
+  if (type === 'survey_data') {
+    return handleGetSurveyData(e.parameter.token);
+  }
 
   return jsonResponse({ error: 'Unknown type' });
 }
@@ -316,6 +319,7 @@ function doPost(e) {
   }
 
   if (data.type === 'booking') return handleNewBooking(data);
+  if (data.type === 'survey_submit') return handleSurveySubmit(data);
   if (data.type === 'roi_snapshot') return handleNewRoiSnapshot(data);
   // roi_delete는 ROI 툴(별창 포함)에서 호출돼 토큰 경로가 없어 게이트하지 않음 (저위험, §향후 검토)
   if (data.type === 'roi_delete')   return handleDeleteRoiSnapshot(data);
@@ -324,7 +328,8 @@ function doPost(e) {
   // 클라이언트 화면을 우회해도 백엔드가 토큰을 검증하므로 명단 외 요청은 거부된다.
   if (data.type === 'update' || data.type === 'booking_delete' ||
       data.type === 'slot_block' || data.type === 'slot_unblock' ||
-      data.type === 'admin_booking_create' || data.type === 'admin_booking_edit') {
+      data.type === 'admin_booking_create' || data.type === 'admin_booking_edit' ||
+      data.type === 'ledger_update' || data.type === 'issue_update') {
     var admin = verifyAdminToken(data.token);
     if (!admin.ok) {
       return jsonResponse({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
@@ -335,6 +340,8 @@ function doPost(e) {
     if (data.type === 'slot_unblock')         return handleSlotUnblock(data);
     if (data.type === 'admin_booking_create') return handleAdminCreateBooking(data, admin.email);
     if (data.type === 'admin_booking_edit')   return handleAdminEditBooking(data, admin.email);
+    if (data.type === 'ledger_update')        return handleLedgerUpdate(data);
+    if (data.type === 'issue_update')         return handleIssueUpdate(data);
   }
 
   return jsonResponse({ error: 'Unknown type' });
@@ -3035,4 +3042,218 @@ function migratePurposeCategories2026() {
     changed++;
   }
   Logger.log('마이그레이션 완료 — 변환 ' + changed + '건 / 건너뜀 ' + skipped + '건');
+}
+
+
+// ============================================================
+//  설문 데이터 파이프라인 (2026-07 — ThinQReal_Survey_DB_Spec.md)
+//  - 제출(survey_submit)은 공개 경로 (예약 booking과 동일 — 토큰 불요)
+//  - 조회(survey_data)·상태 전환(ledger_update/issue_update)은 관리자 토큰 필수
+//  - 행 삭제 엔드포인트는 만들지 않는다 — 드롭·기각도 상태 전환으로만 (명세 §3)
+// ============================================================
+
+const SURVEY_SHEET_NAME = 'survey_responses';
+const LEDGER_SHEET_NAME = 'performance_ledger';
+const ISSUE_SHEET_NAME  = 'iot_issue_log';
+
+const SURVEY_HEADERS = ['response_id','submitted_at','visit_date','dept','name','client','visit_count','track','purpose','deal_stage','deal_size','deal_area','reaction','attr','media_work','media_days','media_alt','media_cost','media_link','media_link_name','media_link_size','media_link_attr','etc_work','etc_days','etc_alt','iot_defect','iot_defect_detail','etc_link','etc_link_name','etc_link_size','etc_link_attr','satisfaction','feedback','raw_json'];
+const LEDGER_HEADERS = ['ledger_id','response_id','category','project_name','expected_scale','attribution_text','attribution_pct','visit_date','respondent','dept','status','confirmed_amount','confirmed_date','confirmed_note','roi_included'];
+const ISSUE_HEADERS  = ['issue_id','response_id','device','symptom','severity','channel','q_ship','status','est_value'];
+
+// 시트 확보 + 헤더 자동 생성 (getRoiSheet/getOrCreateRoiHeaders 패턴)
+function getNamedSheet(name, headers) {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName(name) || ss.insertSheet(name);
+  const firstRow = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+  if (!firstRow[0]) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    const headerRange = sheet.getRange(1, 1, 1, headers.length);
+    headerRange.setBackground('#3a5035');
+    headerRange.setFontColor('#ffffff');
+    headerRange.setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+// 기여 수준 라디오 원문에서 % 파싱 — "…(25%)" → 25. 미매칭 시 공란.
+function parseAttrPct(text) {
+  const m = String(text || '').match(/\((\d{1,3})%\)/);
+  return m ? Number(m[1]) : '';
+}
+
+// ── 설문 제출 (공개 경로 — 토큰 불요) ──────────────────────
+function handleSurveySubmit(data) {
+  const track = String(data.track || '');
+  if (['sales', 'media', 'etc'].indexOf(track) < 0) {
+    return jsonResponse({ ok: false, error: 'invalid_track' });
+  }
+  const responseId = String(Date.now());
+  const submittedAt = new Date().toISOString();
+
+  const sheet = getNamedSheet(SURVEY_SHEET_NAME, SURVEY_HEADERS);
+  sheet.appendRow(SURVEY_HEADERS.map(h => {
+    if (h === 'response_id')  return responseId;
+    if (h === 'submitted_at') return submittedAt;
+    if (h === 'raw_json')     return JSON.stringify(data);
+    return data[h] == null ? '' : String(data[h]);
+  }));
+
+  // ── 파생 1: 성과 추적 대장 (성과 연결 응답 시, status=후보) ──
+  const ledgerRows = [];
+  if (track === 'media' && data.media_link === '특정 캠페인·프로모션과 연결됨') {
+    ledgerRows.push({ category: '홍보·광고 마케팅', name: data.media_link_name, scale: data.media_link_size, attr: data.media_link_attr });
+  }
+  if (track === 'etc' && data.etc_link === '신규 Task·과제') {
+    ledgerRows.push({ category: '신규 Task·기타', name: data.etc_link_name, scale: data.etc_link_size, attr: data.etc_link_attr });
+  }
+  if (ledgerRows.length) {
+    const ledger = getNamedSheet(LEDGER_SHEET_NAME, LEDGER_HEADERS);
+    ledgerRows.forEach((r, i) => {
+      ledger.appendRow(LEDGER_HEADERS.map(h => {
+        if (h === 'ledger_id')        return responseId + '-L' + (i + 1);
+        if (h === 'response_id')      return responseId;
+        if (h === 'category')         return r.category;
+        if (h === 'project_name')     return r.name || '';
+        if (h === 'expected_scale')   return r.scale || '';
+        if (h === 'attribution_text') return r.attr || '';
+        if (h === 'attribution_pct')  return parseAttrPct(r.attr);
+        if (h === 'visit_date')       return data.visit_date || '';
+        if (h === 'respondent')       return data.name || '';
+        if (h === 'dept')             return data.dept || '';
+        if (h === 'status')           return '후보';
+        return '';
+      }));
+    });
+  }
+
+  // ── 파생 2: IoT 이슈 로그 ('발견함' 응답 시, status=등록) ──
+  let issueCount = 0;
+  if (track === 'etc' && data.iot_defect === '발견함') {
+    getNamedSheet(ISSUE_SHEET_NAME, ISSUE_HEADERS).appendRow(ISSUE_HEADERS.map(h => {
+      if (h === 'issue_id')    return responseId + '-I1';
+      if (h === 'response_id') return responseId;
+      if (h === 'symptom')     return data.iot_defect_detail || '';
+      if (h === 'status')      return '등록';
+      return '';
+    }));
+    issueCount = 1;
+  }
+
+  // 텔레그램 알림 — 실패해도 제출은 성공 처리 (메일·예약과 동일한 격리 원칙)
+  try { sendTelegramSurvey(data, track, ledgerRows.length, issueCount); }
+  catch (err) { Logger.log('[survey] telegram fail: ' + err); }
+
+  return jsonResponse({ ok: true, response_id: responseId });
+}
+
+function sendTelegramSurvey(data, track, ledgerCount, issueCount) {
+  var e = escapeTelegramHtml;
+  var trackLabel = { sales: 'B2B 영업', media: '콘텐츠·홍보', etc: 'R&D·내부·기타' }[track] || track;
+  var lines = [];
+  lines.push('📝 <b>설문 접수</b> [' + e(trackLabel) + ']');
+  lines.push('');
+  lines.push('📅 방문일 ' + e(data.visit_date || '-') + (data.visit_count ? ' · ' + e(data.visit_count) : ''));
+  lines.push('👤 ' + e(data.name || '-') + ' (' + e(data.dept || '-') + ')');
+  if (data.satisfaction) lines.push('⭐ ' + e(data.satisfaction));
+  if (ledgerCount) lines.push('📒 성과 추적 대장 +' + ledgerCount + '건 (후보)');
+  if (issueCount)  lines.push('⚠ IoT 이슈 로그 +' + issueCount + '건');
+  sendTelegramMessage(lines.join('\n'));
+}
+
+// ── 설문·대장·이슈 통합 조회 (관리자 토큰 필수) ─────────────
+function handleGetSurveyData(token) {
+  const admin = verifyAdminToken(token);
+  if (!admin.ok) {
+    return jsonResponse({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
+  }
+  return jsonResponse({
+    responses: readSheetRecords(SURVEY_SHEET_NAME, SURVEY_HEADERS),
+    ledger:    readSheetRecords(LEDGER_SHEET_NAME, LEDGER_HEADERS),
+    issues:    readSheetRecords(ISSUE_SHEET_NAME, ISSUE_HEADERS)
+  });
+}
+
+function readSheetRecords(name, headers) {
+  const sheet = getNamedSheet(name, headers);
+  const rows = sheet.getDataRange().getValues();
+  const hs = rows[0];
+  return rows.slice(1).map(row => {
+    const obj = {};
+    hs.forEach((h, j) => {
+      let v = row[j];
+      if (Object.prototype.toString.call(v) === '[object Date]') {
+        v = (h === 'visit_date' || h === 'confirmed_date') ? normalizeDate(v) : v.toISOString();
+      }
+      obj[h] = v == null ? '' : v;
+    });
+    return obj;
+  }).filter(r => r[hs[0]]);
+}
+
+// ── 성과 추적 대장 상태 전환 (관리자 토큰 게이트 — doPost에서 검증 후 호출) ──
+// status: 후보 → 확정(확정 금액·일자·근거 입력) / 드롭(사유). 행 삭제 없음.
+function handleLedgerUpdate(data) {
+  const sheet = getNamedSheet(LEDGER_SHEET_NAME, LEDGER_HEADERS);
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+  const idIdx = headers.indexOf('ledger_id');
+  const EDITABLE = ['status', 'confirmed_amount', 'confirmed_date', 'confirmed_note', 'roi_included'];
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][idIdx]) === String(data.id)) {
+      EDITABLE.forEach(f => {
+        if (data[f] !== undefined) {
+          const col = headers.indexOf(f);
+          if (col >= 0) sheet.getRange(i + 1, col + 1).setValue(data[f]);
+        }
+      });
+      return jsonResponse({ ok: true });
+    }
+  }
+  return jsonResponse({ ok: false, error: 'not_found' });
+}
+
+// ── IoT 이슈 상태·속성 부여 (관리자 토큰 게이트) ─────────────
+// C_AS 채널 단가는 민감 정보 — 코드·리포에 두지 않고 Script Property
+// SURVEY_CAS_JSON 에만 둔다. 형식: {"원격":6220,...} (실제 값은 콘솔에서 입력).
+// 미설정 시 est_value 공란 유지 (참고용 표시일 뿐 ROI 미산입이라 무해).
+const SEVERITY_PCT = { '높음': 0.5, '가끔': 0.1, '드묾': 0.01 };
+
+function computeIssueEstValue(severity, channel, qShip) {
+  let cas = null;
+  try {
+    const raw = PropertiesService.getScriptProperties().getProperty('SURVEY_CAS_JSON');
+    cas = raw ? JSON.parse(raw) : null;
+  } catch (err) { cas = null; }
+  if (!cas || !severity || !channel || !qShip) return '';
+  const p = SEVERITY_PCT[severity];
+  const c = cas[channel];
+  if (p == null || c == null) return '';
+  return Math.round(p * Number(qShip) * Number(c));
+}
+
+function handleIssueUpdate(data) {
+  const sheet = getNamedSheet(ISSUE_SHEET_NAME, ISSUE_HEADERS);
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+  const idIdx = headers.indexOf('issue_id');
+  const EDITABLE = ['device', 'symptom', 'severity', 'channel', 'q_ship', 'status'];
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][idIdx]) === String(data.id)) {
+      EDITABLE.forEach(f => {
+        if (data[f] !== undefined) {
+          const col = headers.indexOf(f);
+          if (col >= 0) sheet.getRange(i + 1, col + 1).setValue(data[f]);
+        }
+      });
+      // severity·channel·q_ship 3종 모두 있을 때만 est_value 서버 계산 (참고용·ROI 미산입)
+      const cur = sheet.getRange(i + 1, 1, 1, headers.length).getValues()[0];
+      const get = h => cur[headers.indexOf(h)];
+      const est = computeIssueEstValue(get('severity'), get('channel'), get('q_ship'));
+      const estCol = headers.indexOf('est_value');
+      if (estCol >= 0) sheet.getRange(i + 1, estCol + 1).setValue(est);
+      return jsonResponse({ ok: true, est_value: est });
+    }
+  }
+  return jsonResponse({ ok: false, error: 'not_found' });
 }

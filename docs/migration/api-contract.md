@@ -43,6 +43,7 @@
 | `slot_blocks` | `date=` (선택) | — | 차단 슬롯 현황 (비민감) |
 | `telegram_test` | — | — | `{ok:true}` 또는 `{ok:false, reason:'not_configured'}` |
 | `calendar_test` | — | — | 캘린더 연동 점검 (테스트 일정 생성 후 즉시 삭제) |
+| `survey_data` | `token` | 관리자 | `{responses:[], ledger:[], issues:[]}` — 설문·대장·이슈 통합 조회 (2026-07-09 추가) |
 
 ### 인증 관련 오류 응답
 `{ok:false, error:...}` — `not_allowed_domain` / `not_admin` / `cooldown` / `mail_failed` / `invalid_code` / `expired_code` / `too_many_attempts`
@@ -60,6 +61,9 @@
 | `slot_unblock` | 관리자 토큰 | `{date, slot}` 또는 `{id}` 차단 해제 | — |
 | `roi_snapshot` | — ⚠️ | ROI 시나리오 저장 `{label, author, inputs, outputs}` | — |
 | `roi_delete` | — ⚠️ | ROI 스냅샷 삭제 `{id}` | — |
+| `survey_submit` | — | 설문 응답 append + 파생 행(대장 `후보`·이슈 `등록`) 자동 생성 (2026-07-09) | 텔레그램 발송 (관리자 그룹) |
+| `ledger_update` | 관리자 토큰 | 성과 대장 상태 전환·확정 필드 갱신 (`status/confirmed_*/roi_included`) | — (행 삭제 없음 — 의도) |
+| `issue_update` | 관리자 토큰 | 이슈 속성 부여 (`device/severity/channel/q_ship/status`) + est_value 서버 계산 | — (행 삭제 없음 — 의도) |
 
 ⚠️ ROI 2종은 토큰 미적용 — ROI 툴이 별창으로도 열려 토큰 전달 경로가 없음 (저위험 판단, 현행 유지). **사내 이전 시 세션 기반 인증으로 보호 권장.**
 
