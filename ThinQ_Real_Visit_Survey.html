@@ -528,14 +528,16 @@ function radioVal(name) {
   const el = document.querySelector(`input[name="${name}"]:checked`);
   return el ? el.value : '';
 }
-document.querySelectorAll('input[name="mediaLink"]').forEach(r => r.addEventListener('change', () => {
+function updateLinkDetails() {
   document.getElementById('mediaLinkDetail').style.display =
     (radioVal('mediaLink') === '특정 캠페인·프로모션과 연결됨') ? 'block' : 'none';
-}));
-document.querySelectorAll('input[name="etcLink"]').forEach(r => r.addEventListener('change', () => {
   document.getElementById('etcLinkDetail').style.display =
     (radioVal('etcLink') === '신규 Task·과제') ? 'block' : 'none';
-}));
+}
+// change 이벤트는 커스텀 클릭 핸들러가 checked를 먼저 설정해 발생하지 않을 수 있음
+// → 클릭 핸들러에서도 직접 호출 (아래 옵션 선택 스타일 참조)
+document.querySelectorAll('input[name="mediaLink"], input[name="etcLink"]').forEach(r =>
+  r.addEventListener('change', updateLinkDetails));
 
 // ==================== 옵션 선택 스타일 ====================
 document.querySelectorAll('.track .opt, #commonCard .opt, .opt-group[data-name="visitCount"] .opt').forEach(opt => {
@@ -551,6 +553,7 @@ document.querySelectorAll('.track .opt, #commonCard .opt, .opt-group[data-name="
       input.checked = !input.checked;
       opt.classList.toggle('selected', input.checked);
     }
+    updateLinkDetails();
   });
 });
 
