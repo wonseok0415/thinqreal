@@ -899,6 +899,22 @@ body {
   .page-header h1 { font-size: clamp(22px, 6vw, 28px); }
   .kpi-num { font-size: 28px; }
 }
+/* ── 설문·대장 탭 ── */
+.sv-section-title { font-size:15px; font-weight:600; color:var(--c-label); margin:var(--sp-24) 0 var(--sp-12); }
+.sv-section-desc { font-size:12px; color:var(--c-label-3); margin:-4px 0 var(--sp-12); }
+.sv-badge { display:inline-block; padding:2px 10px; border-radius:980px; font-size:11px; font-weight:600; white-space:nowrap; }
+.sv-badge.cand { background:var(--c-orange-light); color:#C2540A; }
+.sv-badge.conf { background:var(--c-accent-light); color:var(--c-accent); }
+.sv-badge.drop { background:var(--c-fill); color:var(--c-label-3); }
+.sv-badge.track-sales { background:var(--c-accent-light); color:var(--c-accent); }
+.sv-badge.track-media { background:var(--c-orange-light); color:#C2540A; }
+.sv-badge.track-etc   { background:#F5EDFB; color:#AF52DE; }
+.sv-mini-input { width:84px; padding:4px 7px; border:1px solid rgba(0,0,0,0.14); border-radius:6px; font-size:12px; font-family:inherit; }
+.sv-mini-select { padding:4px 6px; border:1px solid rgba(0,0,0,0.14); border-radius:6px; font-size:12px; font-family:inherit; background:white; }
+.sv-save-btn { padding:5px 12px; border-radius:8px; border:1px solid var(--c-accent); background:white; color:var(--c-accent); font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; }
+.sv-save-btn:hover { background:var(--c-accent-light); }
+.sv-row-click { cursor:pointer; }
+.sv-row-click:hover { background:var(--c-fill); }
 </style>
 </head>
 <body>
@@ -973,6 +989,9 @@ body {
     <span class="nav-section-label" style="margin-top:var(--sp-8);">분석</span>
     <div class="nav-item" id="nav-roi" onclick="switchTab('roi')">
       <span class="nav-item-icon">📈</span>ROI 분석
+    </div>
+    <div class="nav-item" id="nav-survey" onclick="switchTab('survey')">
+      <span class="nav-item-icon">📝</span>설문·대장
     </div>
     <span class="nav-section-label" style="margin-top:var(--sp-8);">도구</span>
     <div class="nav-item" onclick="loadData()">
@@ -1924,6 +1943,105 @@ body {
       </section>
     </div>
 
+    <!-- Survey / Performance ledger -->
+    <div class="tab-panel" id="tab-survey">
+      <div class="page-header" style="display:flex; align-items:flex-end; justify-content:space-between; gap:var(--sp-16); flex-wrap:wrap;">
+        <div>
+          <h1>설문·대장</h1>
+          <p>방문 후기 설문 응답, 성과 추적 대장, IoT 이슈 로그를 관리합니다.</p>
+        </div>
+        <div style="display:flex; gap:var(--sp-8); flex-wrap:wrap; align-items:center;">
+          <button class="toolbar-btn" onclick="copySurveyLink()">🔗 설문 링크 복사</button>
+          <a class="roi-open-btn" href="ThinQ_Real_Visit_Survey.html" target="_blank" rel="noopener">설문 폼 새 창에서 열기 ↗</a>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">설문 응답</span>
+            <div class="kpi-icon" style="background:var(--c-accent-light);">📝</div>
+          </div>
+          <div class="kpi-num accent" id="kpiSvTotal">0</div>
+          <div class="kpi-card-sub" id="kpiSvTrackDist">—</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">재방문 응답률</span>
+            <div class="kpi-icon" style="background:var(--c-accent-light);">🔁</div>
+          </div>
+          <div class="kpi-num accent" id="kpiSvRevisit">—</div>
+          <div class="kpi-card-sub" id="kpiSvRevisitDist">첫/2/3~5/6+ 분포</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">성과 추적 대장</span>
+            <div class="kpi-icon" style="background:var(--c-orange-light);">📒</div>
+          </div>
+          <div class="kpi-num orange" id="kpiSvLedger">0</div>
+          <div class="kpi-card-sub" id="kpiSvLedgerDist">후보 0 · 확정 0 · 드롭 0</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">IoT 이슈</span>
+            <div class="kpi-icon" style="background:var(--c-red-light);">⚠</div>
+          </div>
+          <div class="kpi-num red" id="kpiSvIssues">0</div>
+          <div class="kpi-card-sub">품질 이슈 리포트 누적</div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <select class="toolbar-select" id="svTrackFilter" onchange="renderSurveyTab()">
+          <option value="">전체 트랙</option>
+          <option value="sales">B2B 영업</option>
+          <option value="media">콘텐츠·홍보</option>
+          <option value="etc">R&D·내부·기타</option>
+        </select>
+        <input type="month" class="toolbar-input" id="svMonthFilter" onchange="renderSurveyTab()">
+        <span class="toolbar-spacer"></span>
+        <button class="toolbar-btn" onclick="loadSurveyData(true)">↺ 새로고침</button>
+      </div>
+
+      <h2 class="sv-section-title">📝 설문 응답</h2>
+      <div class="table-card">
+        <table class="booking-table" style="min-width:780px;">
+          <thead>
+            <tr><th>방문일</th><th>트랙</th><th>작성자</th><th>부서</th><th>고객사/대상</th><th>방문 횟수</th><th>만족도</th><th>연결</th></tr>
+          </thead>
+          <tbody id="svRespBody">
+            <tr><td colspan="8"><div class="empty-state"><div class="empty-state-text">좌측 새로고침으로 데이터를 불러오세요.</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="sv-section-title">📒 성과 추적 대장</h2>
+      <p class="sv-section-desc">설문의 성과 연결 응답에서 자동 생성됩니다. 후보 → 확정(실제 금액 입력) / 드롭 — 행 삭제 없이 상태로만 관리합니다.</p>
+      <div class="table-card">
+        <table class="booking-table" style="min-width:880px;">
+          <thead>
+            <tr><th>상태</th><th>카테고리</th><th>과제명</th><th>예상 규모</th><th>기여도</th><th>확정 금액</th><th>ROI 반영</th><th>처리</th></tr>
+          </thead>
+          <tbody id="svLedgerBody">
+            <tr><td colspan="8"><div class="empty-state"><div class="empty-state-text">—</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="sv-section-title">⚠ IoT 이슈 로그</h2>
+      <p class="sv-section-desc">심각도·채널·목표 수량을 부여하면 예상 가치가 서버에서 계산됩니다 (참고용 — ROI 미산입). 단가는 Script Property로만 관리됩니다.</p>
+      <div class="table-card">
+        <table class="booking-table" style="min-width:940px;">
+          <thead>
+            <tr><th>ID</th><th>기기</th><th>증상</th><th>심각도</th><th>채널</th><th>목표 수량</th><th>상태</th><th>예상 가치</th><th></th></tr>
+          </thead>
+          <tbody id="svIssueBody">
+            <tr><td colspan="9"><div class="empty-state"><div class="empty-state-text">—</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
    </div>
   </main>
 </div>
@@ -2058,6 +2176,50 @@ body {
 </div>
 
 <div class="toast" id="toast"></div>
+
+
+<!-- 설문 응답 상세 모달 (조회용 — 백드롭 클릭 닫기 허용) -->
+<div class="modal-backdrop" id="surveyModalBg">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">설문 응답 상세</h2>
+      <button class="modal-close" onclick="closeSurveyModal()">✕</button>
+    </div>
+    <div class="detail-grid" id="surveyModalGrid"></div>
+    <div class="modal-actions">
+      <button class="modal-btn-close" onclick="closeSurveyModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 성과 대장 확정/드롭 폼 모달 (입력 폼 — 백드롭 닫기 미바인딩 원칙) -->
+<div class="modal-backdrop" id="ledgerModalBg">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <h2 class="modal-title" id="ledgerModalTitle">성과 확정</h2>
+      <button class="modal-close" onclick="closeLedgerModal()">✕</button>
+    </div>
+    <p id="lmProject" style="font-size:13px; color:var(--c-label-3); margin-bottom:var(--sp-12);"></p>
+    <div style="display:flex; flex-direction:column; gap:var(--sp-12);">
+      <div id="lmAmountWrap">
+        <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;">확정 금액 (만원)</label>
+        <input type="number" class="toolbar-input" id="lmAmount" min="0" style="width:100%;" placeholder="예: 3000">
+      </div>
+      <div id="lmDateWrap">
+        <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;">확정 일자</label>
+        <input type="date" class="toolbar-input" id="lmDate" style="width:100%;">
+      </div>
+      <div>
+        <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;" id="lmNoteLabel">근거</label>
+        <input type="text" class="toolbar-input" id="lmNote" style="width:100%;" placeholder="예: 캠페인 결과 보고서 기준">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn-close" onclick="closeLedgerModal()">취소</button>
+      <button class="modal-btn-confirm" id="lmSaveBtn" onclick="saveLedgerModal()">저장</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec';
@@ -2212,6 +2374,7 @@ function switchTab(id) {
   if (id === 'stats') renderStats();
   if (id === 'slots') initSlotTab();
   if (id === 'appliances') renderAppliances();
+  if (id === 'survey') loadSurveyData();
   if (id === 'roi') {
     const f = document.getElementById('roiFrame');
     // 캐시 무력화: 빌드 토큰을 쿼리로 부착해 GitHub Pages/iframe 캐시 우회
@@ -3244,6 +3407,250 @@ async function loadAllBlocks() {
     wrap.innerHTML = '<p class="slot-ctrl-empty">불러오기 실패</p>';
   }
 }
+
+// ==================== 설문·대장 탭 (survey_data / ledger_update / issue_update) ====================
+const SURVEY_URL = 'https://thinqreal.com/ThinQ_Real_Visit_Survey.html';
+const SV_TRACK_LABEL = { sales: 'B2B 영업', media: '콘텐츠·홍보', etc: 'R&D·내부·기타' };
+const SV_TRACK_CLS   = { sales: 'track-sales', media: 'track-media', etc: 'track-etc' };
+let surveyData = null;   // { responses, ledger, issues }
+
+function copySurveyLink() {
+  (navigator.clipboard && navigator.clipboard.writeText)
+    ? navigator.clipboard.writeText(SURVEY_URL).then(() => toast('설문 링크가 복사되었습니다.'))
+    : toast(SURVEY_URL);
+}
+
+async function loadSurveyData(force, quiet) {
+  if (surveyData && !force) { renderSurveyTab(); return; }
+  if (!adminTokenValid()) { adminSessionExpired(); return; }
+  if (!quiet && !surveyData) {
+    document.getElementById('svRespBody').innerHTML =
+      '<tr><td colspan="8"><div class="empty-state"><div class="empty-state-spinner"></div><div class="empty-state-text">설문 데이터를 가져오는 중…</div></div></td></tr>';
+  }
+  try {
+    const res = await fetch(SCRIPT_URL + '?type=survey_data&token=' + encodeURIComponent(adminToken()));
+    const data = await res.json();
+    if (data.error === 'unauthorized') { adminSessionExpired(); return; }
+    surveyData = data;
+    renderSurveyTab();
+    if (!quiet && force) toast('설문 데이터를 갱신했습니다.');
+  } catch (e) {
+    if (!quiet) toast('설문 데이터를 불러오지 못했습니다.');
+  }
+}
+
+function svMonthMatch(r, m) {
+  if (!m) return true;
+  return String(r.visit_date || '').slice(0, 7) === m || String(r.submitted_at || '').slice(0, 7) === m;
+}
+
+function renderSurveyTab() {
+  if (!surveyData) return;
+  const track = document.getElementById('svTrackFilter').value;
+  const month = document.getElementById('svMonthFilter').value;
+  const all = surveyData.responses || [];
+
+  // ── KPI (필터 무관 전체 기준) ──
+  document.getElementById('kpiSvTotal').textContent = all.length;
+  const tCnt = { sales: 0, media: 0, etc: 0 };
+  all.forEach(r => { if (tCnt[r.track] != null) tCnt[r.track]++; });
+  document.getElementById('kpiSvTrackDist').textContent =
+    '영업 ' + tCnt.sales + ' · 콘텐츠 ' + tCnt.media + ' · 기타 ' + tCnt.etc;
+  const vc = { '첫 방문': 0, '2회차': 0, '3~5회차': 0, '6회 이상': 0 };
+  let vcTotal = 0;
+  all.forEach(r => { if (vc[r.visit_count] != null) { vc[r.visit_count]++; vcTotal++; } });
+  document.getElementById('kpiSvRevisit').textContent =
+    vcTotal ? Math.round((vcTotal - vc['첫 방문']) / vcTotal * 100) + '%' : '—';
+  document.getElementById('kpiSvRevisitDist').textContent =
+    '첫 ' + vc['첫 방문'] + ' · 2회 ' + vc['2회차'] + ' · 3~5회 ' + vc['3~5회차'] + ' · 6+ ' + vc['6회 이상'];
+  const ledger = surveyData.ledger || [];
+  const lc = { '후보': 0, '확정': 0, '드롭': 0 };
+  ledger.forEach(l => { if (lc[l.status] != null) lc[l.status]++; });
+  document.getElementById('kpiSvLedger').textContent = ledger.length;
+  document.getElementById('kpiSvLedgerDist').textContent =
+    '후보 ' + lc['후보'] + ' · 확정 ' + lc['확정'] + ' · 드롭 ' + lc['드롭'];
+  document.getElementById('kpiSvIssues').textContent = (surveyData.issues || []).length;
+
+  // ── 설문 응답 테이블 ──
+  let rs = all.slice().filter(r => (!track || r.track === track) && svMonthMatch(r, month));
+  rs.sort((a, b) => String(b.response_id).localeCompare(String(a.response_id)));
+  const respBody = document.getElementById('svRespBody');
+  respBody.innerHTML = rs.length ? rs.map(r => {
+    const linked = (r.media_link === '특정 캠페인·프로모션과 연결됨' || r.etc_link === '신규 Task·과제') ? '📒' :
+                   (r.iot_defect === '발견함' ? '⚠' : '');
+    return '<tr class="sv-row-click" onclick="openSurveyModal(\'' + escapeHtml(String(r.response_id)) + '\')">'
+      + '<td>' + escapeHtml(r.visit_date || '-') + '</td>'
+      + '<td><span class="sv-badge ' + (SV_TRACK_CLS[r.track] || '') + '">' + escapeHtml(SV_TRACK_LABEL[r.track] || r.track) + '</span></td>'
+      + '<td>' + escapeHtml(r.name || '-') + '</td>'
+      + '<td>' + escapeHtml(r.dept || '-') + '</td>'
+      + '<td>' + escapeHtml(r.client || '-') + '</td>'
+      + '<td>' + escapeHtml(r.visit_count || '-') + '</td>'
+      + '<td>' + escapeHtml(String(r.satisfaction || '-').split(' ')[0]) + '</td>'
+      + '<td>' + linked + '</td></tr>';
+  }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="empty-state-text">조건에 맞는 응답이 없습니다.</div></div></td></tr>';
+
+  // ── 성과 추적 대장 테이블 ──
+  let ls = ledger.slice().filter(l => svMonthMatch(l, month));
+  ls.sort((a, b) => String(b.ledger_id).localeCompare(String(a.ledger_id)));
+  const badgeCls = { '후보': 'cand', '확정': 'conf', '드롭': 'drop' };
+  document.getElementById('svLedgerBody').innerHTML = ls.length ? ls.map(l => {
+    const amt = l.confirmed_amount !== '' && l.confirmed_amount != null
+      ? Number(l.confirmed_amount).toLocaleString() + '만원' : '-';
+    const roiChk = '<input type="checkbox" ' + (l.roi_included === 'Y' ? 'checked' : '')
+      + (l.status === '확정' ? '' : ' disabled')
+      + ' onchange="toggleRoiIncluded(\'' + escapeHtml(String(l.ledger_id)) + '\', this.checked)">';
+    return '<tr>'
+      + '<td><span class="sv-badge ' + (badgeCls[l.status] || 'cand') + '">' + escapeHtml(l.status || '후보') + '</span></td>'
+      + '<td>' + escapeHtml(l.category || '-') + '</td>'
+      + '<td>' + escapeHtml(l.project_name || '(무명)') + '</td>'
+      + '<td>' + escapeHtml(l.expected_scale || '-') + '</td>'
+      + '<td>' + (l.attribution_pct !== '' ? escapeHtml(String(l.attribution_pct)) + '%' : '-') + '</td>'
+      + '<td>' + amt + '</td>'
+      + '<td style="text-align:center;">' + roiChk + '</td>'
+      + '<td style="white-space:nowrap;">'
+      + '<button class="sv-save-btn" onclick="openLedgerModal(\'' + escapeHtml(String(l.ledger_id)) + '\', \'확정\')">확정</button> '
+      + '<button class="sv-save-btn" style="border-color:rgba(0,0,0,0.2); color:var(--c-label-3);" onclick="openLedgerModal(\'' + escapeHtml(String(l.ledger_id)) + '\', \'드롭\')">드롭</button>'
+      + '</td></tr>';
+  }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="empty-state-text">대장 항목이 없습니다. 설문의 성과 연결 응답에서 자동 생성됩니다.</div></div></td></tr>';
+
+  // ── IoT 이슈 테이블 ──
+  let iss = (surveyData.issues || []).slice();
+  iss.sort((a, b) => String(b.issue_id).localeCompare(String(a.issue_id)));
+  const sevOpts = ['', '높음', '가끔', '드묾'];
+  const chOpts = ['', '원격', '내방', '출장'];
+  const stOpts = ['등록', '검토', '반영', '기각'];
+  document.getElementById('svIssueBody').innerHTML = iss.length ? iss.map(x => {
+    const opt = (list, cur) => list.map(o =>
+      '<option value="' + escapeHtml(o) + '"' + (String(cur) === o ? ' selected' : '') + '>' + (o || '—') + '</option>').join('');
+    const est = x.est_value !== '' && x.est_value != null ? Number(x.est_value).toLocaleString() + '원' : '-';
+    const id = escapeHtml(String(x.issue_id));
+    return '<tr data-issue="' + id + '">'
+      + '<td style="font-size:11px; color:var(--c-label-3);">' + id + '</td>'
+      + '<td><input class="sv-mini-input" data-f="device" value="' + escapeHtml(x.device || '') + '" placeholder="기기명"></td>'
+      + '<td style="max-width:220px;" title="' + escapeHtml(x.symptom || '') + '">' + escapeHtml(String(x.symptom || '').slice(0, 40)) + (String(x.symptom || '').length > 40 ? '…' : '') + '</td>'
+      + '<td><select class="sv-mini-select" data-f="severity">' + opt(sevOpts, x.severity) + '</select></td>'
+      + '<td><select class="sv-mini-select" data-f="channel">' + opt(chOpts, x.channel) + '</select></td>'
+      + '<td><input class="sv-mini-input" data-f="q_ship" type="number" min="0" value="' + escapeHtml(String(x.q_ship || '')) + '"></td>'
+      + '<td><select class="sv-mini-select" data-f="status">' + opt(stOpts, x.status || '등록') + '</select></td>'
+      + '<td>' + est + '</td>'
+      + '<td><button class="sv-save-btn" onclick="saveIssueRow(\'' + id + '\')">저장</button></td></tr>';
+  }).join('') : '<tr><td colspan="9"><div class="empty-state"><div class="empty-state-text">등록된 이슈가 없습니다. R&D 트랙 설문의 결함 리포트에서 자동 생성됩니다.</div></div></td></tr>';
+}
+
+// ── 관리자 쓰기 공통 (no-cors POST — 백엔드 verifyAdminToken이 게이트) ──
+async function svPost(payload) {
+  if (!adminTokenValid()) { adminSessionExpired(); return false; }
+  payload.token = adminToken();
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return true;
+  } catch (e) { toast('저장 실패 — 네트워크 오류'); return false; }
+}
+
+// ── 설문 상세 모달 (조회) ──
+const SV_FIELD_LABELS = [
+  ['submitted_at', '제출 시각'], ['visit_date', '방문일'], ['visit_count', '방문 횟수'],
+  ['name', '작성자'], ['dept', '부서'], ['client', '고객사/대상'], ['purpose', '방문 목적'],
+  ['deal_stage', '딜 단계'], ['deal_size', '딜 규모'], ['deal_area', '제품·솔루션 영역'],
+  ['reaction', '방문 후 고객 반응'], ['attr', '기여 수준'],
+  ['media_work', '활용 내용'], ['media_days', '사용 기간'], ['media_alt', '대체 시나리오'],
+  ['media_cost', '실비·견적가'], ['media_link', '성과 연결'], ['media_link_name', '캠페인·과제명'],
+  ['media_link_size', '예상 규모'], ['media_link_attr', '기여 수준(캠페인)'],
+  ['etc_work', '활용 내용'], ['etc_days', '사용 기간'], ['etc_alt', '대체 시나리오'],
+  ['iot_defect', 'IoT 품질 이슈'], ['iot_defect_detail', '이슈 상세'],
+  ['etc_link', '성과 연결'], ['etc_link_name', '과제·기획명'], ['etc_link_size', '예상 규모'],
+  ['etc_link_attr', '기여 수준(과제)'],
+  ['satisfaction', '만족도'], ['feedback', '자유 의견']
+];
+
+function openSurveyModal(id) {
+  const r = (surveyData?.responses || []).find(x => String(x.response_id) === String(id));
+  if (!r) return;
+  let html = '<span class="detail-label">트랙</span><span class="detail-value"><strong>'
+    + escapeHtml(SV_TRACK_LABEL[r.track] || r.track) + '</strong></span>';
+  SV_FIELD_LABELS.forEach(([k, label]) => {
+    const v = r[k];
+    if (v == null || v === '') return;
+    const shown = k === 'submitted_at' ? String(v).slice(0, 16).replace('T', ' ') : String(v);
+    html += '<span class="detail-label">' + escapeHtml(label) + '</span><span class="detail-value">' + fmtMultiline(shown) + '</span>';
+  });
+  document.getElementById('surveyModalGrid').innerHTML = html;
+  document.getElementById('surveyModalBg').classList.add('open');
+}
+function closeSurveyModal() { document.getElementById('surveyModalBg').classList.remove('open'); }
+bindBackdropClose('surveyModalBg', closeSurveyModal);
+// ledgerModalBg는 입력 폼 성격 — 백드롭 닫기 미바인딩 원칙 (✕/취소로만 닫음)
+
+// ── 성과 대장: 확정/드롭 ──
+let ledgerTarget = null;   // { id, mode }
+function openLedgerModal(id, mode) {
+  const l = (surveyData?.ledger || []).find(x => String(x.ledger_id) === String(id));
+  if (!l) return;
+  ledgerTarget = { id, mode };
+  document.getElementById('ledgerModalTitle').textContent = mode === '확정' ? '성과 확정' : '드롭 처리';
+  document.getElementById('lmProject').textContent =
+    '[' + (l.category || '') + '] ' + (l.project_name || '(무명)') + ' · 기여도 ' + (l.attribution_pct !== '' ? l.attribution_pct + '%' : '-');
+  const isConfirm = mode === '확정';
+  document.getElementById('lmAmountWrap').style.display = isConfirm ? '' : 'none';
+  document.getElementById('lmDateWrap').style.display = isConfirm ? '' : 'none';
+  document.getElementById('lmNoteLabel').textContent = isConfirm ? '근거' : '드롭 사유';
+  document.getElementById('lmAmount').value = l.confirmed_amount || '';
+  document.getElementById('lmDate').value = l.confirmed_date || new Date().toISOString().slice(0, 10);
+  document.getElementById('lmNote').value = l.confirmed_note || '';
+  document.getElementById('lmSaveBtn').textContent = isConfirm ? '확정 저장' : '드롭 저장';
+  document.getElementById('ledgerModalBg').classList.add('open');
+}
+function closeLedgerModal() { document.getElementById('ledgerModalBg').classList.remove('open'); ledgerTarget = null; }
+
+async function saveLedgerModal() {
+  if (!ledgerTarget) return;
+  const { id, mode } = ledgerTarget;
+  const payload = { type: 'ledger_update', id, status: mode, confirmed_note: document.getElementById('lmNote').value.trim() };
+  if (mode === '확정') {
+    const amt = document.getElementById('lmAmount').value.trim();
+    if (!amt) { toast('확정 금액을 입력해 주세요.'); return; }
+    payload.confirmed_amount = Number(amt);
+    payload.confirmed_date = document.getElementById('lmDate').value;
+  }
+  // 낙관적 로컬 반영
+  const l = (surveyData?.ledger || []).find(x => String(x.ledger_id) === String(id));
+  if (l) {
+    l.status = mode; l.confirmed_note = payload.confirmed_note;
+    if (mode === '확정') { l.confirmed_amount = payload.confirmed_amount; l.confirmed_date = payload.confirmed_date; }
+  }
+  closeLedgerModal();
+  renderSurveyTab();
+  if (await svPost(payload)) toast(mode === '확정' ? '확정 처리했습니다. ROI 툴에 수동 반영 후 "ROI 반영"을 체크하세요.' : '드롭 처리했습니다.');
+}
+
+async function toggleRoiIncluded(id, checked) {
+  const l = (surveyData?.ledger || []).find(x => String(x.ledger_id) === String(id));
+  if (l) l.roi_included = checked ? 'Y' : '';
+  if (await svPost({ type: 'ledger_update', id, roi_included: checked ? 'Y' : '' })) {
+    toast(checked ? 'ROI 반영 완료로 표시했습니다.' : 'ROI 반영 표시를 해제했습니다.');
+  }
+}
+
+// ── IoT 이슈: 행 저장 ──
+async function saveIssueRow(id) {
+  const tr = document.querySelector('tr[data-issue="' + id + '"]');
+  if (!tr) return;
+  const get = f => tr.querySelector('[data-f="' + f + '"]').value.trim();
+  const payload = {
+    type: 'issue_update', id,
+    device: get('device'), severity: get('severity'), channel: get('channel'),
+    q_ship: get('q_ship'), status: get('status')
+  };
+  if (await svPost(payload)) {
+    toast('저장했습니다. 예상 가치는 서버 계산 후 갱신됩니다.');
+    setTimeout(() => loadSurveyData(true, true), 1500);   // est_value 서버 계산 반영
+  }
+}
+
 </script>
 </body>
 </html>
