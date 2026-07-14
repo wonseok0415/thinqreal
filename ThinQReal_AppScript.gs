@@ -329,6 +329,7 @@ function doPost(e) {
   if (data.type === 'update' || data.type === 'booking_delete' ||
       data.type === 'slot_block' || data.type === 'slot_unblock' ||
       data.type === 'admin_booking_create' || data.type === 'admin_booking_edit' ||
+      data.type === 'survey_update' ||
       data.type === 'ledger_update' || data.type === 'issue_update') {
     var admin = verifyAdminToken(data.token);
     if (!admin.ok) {
@@ -340,6 +341,7 @@ function doPost(e) {
     if (data.type === 'slot_unblock')         return handleSlotUnblock(data);
     if (data.type === 'admin_booking_create') return handleAdminCreateBooking(data, admin.email);
     if (data.type === 'admin_booking_edit')   return handleAdminEditBooking(data, admin.email);
+    if (data.type === 'survey_update')        return handleSurveyUpdate(data);
     if (data.type === 'ledger_update')        return handleLedgerUpdate(data);
     if (data.type === 'issue_update')         return handleIssueUpdate(data);
   }
@@ -3048,7 +3050,7 @@ function migratePurposeCategories2026() {
 // ============================================================
 //  설문 데이터 파이프라인 (2026-07 — ThinQReal_Survey_DB_Spec.md)
 //  - 제출(survey_submit)은 공개 경로 (예약 booking과 동일 — 토큰 불요)
-//  - 조회(survey_data)·상태 전환(ledger_update/issue_update)은 관리자 토큰 필수
+//  - 조회(survey_data)·수정(survey_update)·상태 전환(ledger_update/issue_update)은 관리자 토큰 필수
 //  - 행 삭제 엔드포인트는 만들지 않는다 — 드롭·기각도 상태 전환으로만 (명세 §3)
 // ============================================================
 
@@ -3191,14 +3193,43 @@ function readSheetRecords(name, headers) {
   }).filter(r => r[hs[0]]);
 }
 
-// ── 성과 추적 대장 상태 전환 (관리자 토큰 게이트 — doPost에서 검증 후 호출) ──
+// ── 설문 응답 내용 수정 (관리자 토큰 게이트 — 오탈자·내용 정정용) ──
+// 불변 필드: response_id·submitted_at·track은 식별/집계 기준, raw_json은 제출 원문 증빙.
+// 파생 트리거 3종(media_link/etc_link/iot_defect)도 불변 — 제출 시점에만 대장·이슈 행을
+// 생성하므로 사후 변경하면 파생 행과 어긋난다. 연결 오류는 대장 드롭/이슈 기각으로 처리.
+function handleSurveyUpdate(data) {
+  const sheet = getNamedSheet(SURVEY_SHEET_NAME, SURVEY_HEADERS);
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+  const idIdx = headers.indexOf('response_id');
+  const IMMUTABLE = ['response_id', 'submitted_at', 'track', 'raw_json',
+                     'media_link', 'etc_link', 'iot_defect'];
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][idIdx]) === String(data.id)) {
+      SURVEY_HEADERS.forEach(f => {
+        if (IMMUTABLE.indexOf(f) >= 0) return;
+        if (data[f] !== undefined) {
+          const col = headers.indexOf(f);
+          if (col >= 0) sheet.getRange(i + 1, col + 1).setValue(data[f]);
+        }
+      });
+      return jsonResponse({ ok: true });
+    }
+  }
+  return jsonResponse({ ok: false, error: 'not_found' });
+}
+
+// ── 성과 추적 대장 상태 전환 + 내용 수정 (관리자 토큰 게이트 — doPost에서 검증 후 호출) ──
 // status: 후보 → 확정(확정 금액·일자·근거 입력) / 드롭(사유). 행 삭제 없음.
+// 내용 필드(category~dept)는 오탈자 정정용. attribution_text(라디오 원문)·response_id는 증빙으로 불변.
 function handleLedgerUpdate(data) {
   const sheet = getNamedSheet(LEDGER_SHEET_NAME, LEDGER_HEADERS);
   const rows = sheet.getDataRange().getValues();
   const headers = rows[0];
   const idIdx = headers.indexOf('ledger_id');
-  const EDITABLE = ['status', 'confirmed_amount', 'confirmed_date', 'confirmed_note', 'roi_included'];
+  const EDITABLE = ['status', 'confirmed_amount', 'confirmed_date', 'confirmed_note', 'roi_included',
+                    'category', 'project_name', 'expected_scale', 'attribution_pct',
+                    'visit_date', 'respondent', 'dept'];
   for (let i = 1; i < rows.length; i++) {
     if (String(rows[i][idIdx]) === String(data.id)) {
       EDITABLE.forEach(f => {
