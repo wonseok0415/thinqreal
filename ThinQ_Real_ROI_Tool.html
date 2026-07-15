@@ -521,6 +521,19 @@
     font-weight: 500;
     transition: all 0.15s;
   }
+  .cat-field select {
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    font-family: inherit;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+    font-weight: 500;
+  }
+  .cat-field.full { grid-column: 1 / -1; }
+  .cat-calc.pipeline { background: rgba(58,80,53,0.07); color: var(--text); }
   .cat-field input:focus {
     outline: none;
     border-color: var(--accent);
@@ -670,6 +683,23 @@
   .hero-value, .summary-item .value {
     transition: color 0.3s ease;
   }
+  /* 기여 영업이익 — 2단계 계산 가이드 & 카드별 상태줄 */
+  .calc-guide {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+    font-size: 11.5px; color: var(--text-2, #4b5563);
+    background: rgba(58,80,53,0.05); border: 1px solid rgba(58,80,53,0.15);
+    border-radius: 10px; padding: 9px 12px; margin-bottom: 14px; line-height: 1.5;
+  }
+  .calc-guide b { font-weight: 700; }
+  .calc-guide .arrow { color: var(--text-3); font-weight: 700; }
+  .cat-calc {
+    font-size: 11px; margin-top: 8px; padding: 7px 10px;
+    border-radius: 8px; line-height: 1.55;
+  }
+  .cat-calc.pending { background: rgba(134,134,139,0.08); color: var(--text-3); font-style: italic; }
+  .cat-calc.partial { background: #FFF7ED; color: #C2540A; }
+  .cat-calc.active  { background: rgba(90,117,83,0.10); color: var(--text); }
+  .cat-calc .dim { color: var(--text-3); font-style: italic; }
 
   /* ===== Snapshots (시나리오 이력) ===== */
   .snapshots-list {
@@ -876,18 +906,24 @@
     <div class="summary-item">
       <div class="label">영업 지원 (기여이익)</div>
       <div class="value" id="sum-sales-contrib">0원</div>
+      <div style="font-size:10.5px; color:var(--text-3); margin-top:2px;" id="sum-pipeline">파이프라인(참고) 0원</div>
     </div>
     <div class="summary-item">
       <div class="label">PR 가치</div>
       <div class="value" id="sum-pr">7,500만원</div>
     </div>
     <div class="summary-item">
-      <div class="label">품질 가치</div>
+      <div class="label" style="display:flex; align-items:center; justify-content:center; gap:4px;">품질 가치
+        <button class="info-btn" onclick="showInfo('vquality')" aria-label="품질 가치 설명 보기" style="padding:2px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        </button>
+      </div>
       <div class="value muted">정성 처리</div>
     </div>
     <div class="summary-item total">
-      <div class="label">연간 합계</div>
+      <div class="label">연간 합계 (확정 기준)</div>
       <div class="value" id="sum-total">2억 1,400만원</div>
+      <div style="font-size:10.5px; color:var(--text-3); margin-top:4px; line-height:1.4;">총식은 덧셈 — 미집계 항은 +0일 뿐, 합계를 훼손하지 않음</div>
     </div>
   </div>
 
@@ -1128,12 +1164,33 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
           </button>
         </div>
-        <p class="panel-desc">각 부서로부터 수령한 데이터를 직접 입력하면 자동으로 산입됩니다.</p>
+        <p class="panel-desc">수주금액 × 이익률로 <strong>딜 영업이익</strong>을 먼저 구하고(①), 그중 ThinQ Real <strong>기여도만큼만 귀속</strong> 산입합니다(②). 각 부서가 데이터를 직접 입력하며, 도착 전 0원은 '가치 없음'이 아니라 <strong>'집계 전'</strong>입니다. <strong>확정 딜(계약 체결)은 실제 계약 금액을 입력</strong>하세요 — 설문의 범위 하한은 미확정 딜의 파이프라인 계산용입니다.</p>
+
+        <div class="calc-guide">
+          <span><b>①</b> 수주금액 × 이익률 = <b>딜 영업이익</b></span>
+          <span class="arrow">→</span>
+          <span><b>②</b> 딜 영업이익 × 기여도 = <b>ThinQ Real 귀속분</b></span>
+          <span class="arrow">→</span>
+          <span><b>③</b> 미확정 딜은 × 단계 확률 = <b>파이프라인 (참고)</b></span>
+        </div>
 
         <div id="categories"></div>
+
+        <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:180px; background:rgba(90,117,83,0.08); border-radius:10px; padding:10px 14px;">
+            <div style="font-size:10.5px; color:var(--text-3); margin-bottom:2px;">확정 기여이익 (ROI 산입)</div>
+            <div style="font-size:16px; font-weight:700;" id="panel-confirmed">0원</div>
+          </div>
+          <div style="flex:1; min-width:180px; background:rgba(58,80,53,0.06); border-radius:10px; padding:10px 14px;">
+            <div style="font-size:10.5px; color:var(--text-3); margin-bottom:2px;">기대 파이프라인 가치 (참고 · ROI 미산입)</div>
+            <div style="font-size:16px; font-weight:700;" id="panel-pipeline">0원</div>
+            <div style="font-size:10px; color:var(--text-3); margin-top:2px; font-style:italic;">= Σ 귀속분 × 단계 확률 — 단계 앵커: 초기10 / 제안25 / 협상50 / 우선협상75% (CRM 표준, 한영본 기준 확보 시 교체)</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
+
 
   <!-- 저장된 시나리오 (이력 관리) -->
   <div class="panel" style="margin-top:24px;">
@@ -1149,6 +1206,7 @@
       <div class="snapshots-empty">불러오는 중…</div>
     </div>
   </div>
+
 
   <footer>
     ThinQ Real ROI 분석툴 · 2026년 5월 · 데이터가 쌓일수록 더 강해지는 공간
@@ -1352,21 +1410,41 @@ const infoContent = {
     title: 'V_Sales — 기여 영업이익',
     body: `
       <div class="modal-section">
-        <h4>개념</h4>
-        <p>ThinQ Real 방문이 실제 수주·계약·기획·홍보에 기여한 영업이익을 6개 카테고리로 분해하여 산정합니다.</p>
-        <div class="modal-formula">Σ ( <span class="accent">V_pipe,k</span> × <span class="accent">R_margin,k</span> × <span class="accent">W_attr,k</span> )</div>
+        <h4>개념 — 두 단계로 읽는 산식</h4>
+        <p>세 값의 단순 곱셈이 아니라, <strong>재무 단계(①)와 귀속 단계(②)</strong>로 나뉩니다.</p>
+        <div class="modal-formula">V_Sales(B) = Σ [ ( <span class="accent">V_pipe</span> × <span class="accent">R_margin</span> ) × <span class="accent">W_attr</span> ]</div>
+        <ul class="modal-list">
+          <li><strong>① 딜 영업이익</strong> = 수주금액 × 이익률 — "이 딜에서 회사가 실제로 남기는 이익" (표준 재무 산식)</li>
+          <li><strong>② ThinQ Real 귀속분</strong> = 딜 영업이익 × 기여도 — "그 이익 중 공간이 기여한 몫만 떼어 산입"</li>
+        </ul>
       </div>
       <div class="modal-section">
-        <h4>핵심 원칙</h4>
-        <p><strong>ThinQ Real팀은 데이터 입력 주체가 아닌 취합·검증 주체입니다.</strong> 각 카테고리의 데이터는 해당 부서가 직접 입력하여 객관성을 확보합니다.</p>
+        <h4>구성원 설명용 스크립트 (그대로 말하면 됩니다)</h4>
+        <p>"10억짜리 수주가 있었다고 하자. 이익률이 4.9%니까 회사가 이 딜에서 남기는 영업이익은 <strong>4,900만원</strong>이다 — 여기까지는 회사 재무제표와 같은 계산이다(①). 그런데 이 딜이 100% ThinQ Real 덕분은 아니니까, 영업팀이 평가한 기여도가 25%라면 4,900만원의 25%인 <strong>1,225만원만</strong> ThinQ Real의 가치로 잡는다(②). 딜 전체 10억을 가져오는 게 아니라 이익의 일부 몫만 가져오는, 오히려 보수적인 구조다."</p>
+      </div>
+      <div class="modal-section">
+        <h4>지금 0원인 이유 — 그리고 파이프라인 층위</h4>
+        <p>수주금액·기여도는 설문·부서 데이터가 원천인 <strong>사실 데이터</strong>라, 도착 전에는 0(미산입)으로 두는 것이 임의 수치 배제 원칙입니다. 즉 현재의 0원은 <strong>"가치가 없다"가 아니라 "아직 집계되지 않았다"</strong>는 뜻이며, 데이터가 도착하는 순간 자동 산입됩니다. 각 카드 하단의 상태줄이 집계 전/부분 집계/산입 중을 구분해 보여줍니다.</p>
+        <p style="margin-top:8px;">여기에 더해, B2B 수주는 사이클이 3~5년이라 <strong>계약 전 딜은 몇 년간 확정 0원</strong>일 수 있습니다. 이를 위해 <strong>기대 파이프라인 가치</strong> 층위를 분리했습니다: 미확정 딜은 <strong>귀속분 × 단계 확률</strong>(CRM 표준 기대값 방식)로 환산해 <strong>ROI에는 산입하지 않고 참고로 병기</strong>합니다. 딜이 단계를 오르면(초기 10% → 제안 25% → 협상 50% → 우선협상 75%) 파이프라인 숫자가 상승하고, 계약 체결 시 확정 층위로 이동해 그때 ROI에 산입됩니다. 월간 보고에서 "확정 0원"이어도 <strong>진행 중인 가치가 움직이는 숫자로 보입니다</strong>.</p>
+        <p style="margin-top:8px;"><strong>예시</strong>: 3년 후 완공 아파트 수주(예상 200억)를 위한 건설사 방문, 기여도 25% — 초기 상담 단계면 200억 × 4.9% × 25% × 10% = <strong>파이프라인 2,450만원</strong>. 제안 단계 진입 시 6,125만원으로 상승.</p>
+        <p style="margin-top:8px;"><span style="font-size:12px; color:var(--text-3);">단계 확률 앵커: CRM 업계 표준값 (초기 10 / 제안 25 / 협상 50 / 우선협상 75%). 한영본 수주관리 단계 기준 확보 시 교체 — 이익률 공시 폴백과 동일한 처리.</span></p>
+      </div>
+      <div class="modal-section">
+        <h4>데이터 수집 채널 — 6칸 전부 설문이 공급</h4>
+        <p><strong>IoT·가전</strong>: 설문 Track A(딜 단계·규모·기여도) → 확정 산입 / 미확정 파이프라인. <strong>홍보광고·신규 Task·기타</strong>: 설문 Track B·C의 성과 연결 응답 → <strong>성과 추적 대장</strong>에 과제명·예상 규모·기여도(카테고리별 행동 앵커)를 기록하고, 성과 확정 시(캠페인 종료·과제 성과 확정) 실제 금액 × 이익률 × 대장의 기여도로 이 패널에 확정 입력합니다. 그 전까지 금액 0 유지 — 파이프라인 병기 없음(보수 원칙).</p>
+        <p style="margin-top:8px;"><strong>ThinQ Real팀은 취합·검증 주체입니다.</strong> 기여도는 방문을 주관한 해당 부서 구성원이 행동 앵커로 응답해 객관성을 확보합니다.</p>
       </div>
       <div class="modal-section">
         <h4>각 변수 의미</h4>
         <ul class="modal-list">
-          <li><strong>V_pipe</strong>: 해당 카테고리의 수주 또는 매출 기여 금액</li>
-          <li><strong>R_margin</strong>: 영업이익률 (%)</li>
-          <li><strong>W_attr</strong>: ThinQ Real이 해당 성과에 기여한 비율 (%)</li>
+          <li><strong>V_pipe</strong>: 해당 카테고리의 수주 또는 매출 기여 금액 — 설문 데이터 원천 (미확보 시 0 = 미산입)</li>
+          <li><strong>R_margin</strong>: 영업이익률 (%) — <strong>기본값 4.9% = HS사업본부 2025년 연간 공시 영업이익률</strong> (매출 26조 1,259억, 영업이익 1조 2,793억 / 2026.1.30 실적 발표). 세부 사업 이익률 확보 시 수동 수정</li>
+          <li><strong>W_attr</strong>: ThinQ Real 기여 비율 (%) — 설문 행동 앵커로 환산 (미확보 시 0 = 미산입)</li>
         </ul>
+      </div>
+      <div class="modal-section">
+        <h4>이익률만 기본값이 있는 이유</h4>
+        <p>수주금액·기여도는 설문에서 와야 하는 <strong>사실 데이터</strong>이므로 없으면 0(미산입)이 정당합니다. 반면 이익률은 응답자에게 묻지 않고 <strong>공시값으로 대입하는 파라미터</strong>이므로 비어 있을 이유가 없습니다. 곱셈 구조에서 이익률이 0이면 유효한 설문 데이터까지 유실되는 문제를 방지합니다.</p>
       </div>
       <div class="modal-section">
         <h4>현재 상태</h4>
@@ -1461,6 +1539,34 @@ const infoContent = {
       </div>
     `
   },
+  vquality: {
+    symbol: 'V_Quality',
+    title: '품질 가치 — IoT 한정 (미산입 · C_AS 실측 확보)',
+    body: `
+      <div class="modal-section">
+        <h4>개념 · 범위</h4>
+        <p><strong>IoT 기기(ThinQ ON, 스마트 스위치, 모션/조도 센서, 스마트 도어락 등)의 시장 품질 결함</strong>을 양산 전 발견해 고객 환경 AS 비용을 회피하는 가치입니다. 가전(냉장고·세탁기 등) 테스트는 V_R&D(테스트 인프라 대체)에서 이미 산정하므로 제외 — 이중계산 방지와 조직 미션(AI홈솔루션사업개발) 정합.</p>
+        <div class="modal-formula">V_Quality = Σ ( <span class="accent">N_edge</span> × <span class="accent">P_occ</span> × <span class="accent">Q_ship</span> × <span class="accent">C_AS</span> )</div>
+      </div>
+      <div class="modal-section">
+        <h4>현재 처리 — 미산입 (정성)</h4>
+        <p>이슈 로그 축적 전이라 ROI에는 산입하지 않습니다. <strong>이 값은 위 합계·BEP에 영향을 주지 않습니다.</strong></p>
+      </div>
+      <div class="modal-section">
+        <h4>변수별 확보 현황</h4>
+        <ul class="modal-list">
+          <li><strong>N_edge</strong> (결함 건수) — 이슈 로그 시트 + <strong>방문 설문 R&D 트랙의 IoT 결함 리포트</strong>가 입구. 유일하게 남는 축적 과제</li>
+          <li><strong>P_occ</strong> (발생 확률) — 심각도 등급 매핑(높음 50% / 가끔 10% / 드묾 1%)을 운영팀이 직접 적용</li>
+          <li><strong>Q_ship</strong> (출하량) — IoT 솔루션 출시 목표 수량. 미확보 시 해당 건 미산입(AND 게이트)</li>
+          <li><strong>C_AS</strong> (건당 AS비용) — <strong>CS팀 실측 단가 확보 완료(1순위)</strong>. IoT 결함은 LG전자고객센터로 접수되며, 결함 유형별 채널 매핑(원격/내방/출장)으로 산정. 채널 불확실 시 낮은 값 적용(보수). 상세 단가는 사내 보고 자료 참조 — 외부 공시 폴백: 제조사 출장점검료 약 2.8만원/건</li>
+        </ul>
+      </div>
+      <div class="modal-section">
+        <h4>산입 조건</h4>
+        <p>이슈 로그 6개월 누적 시 정량 산출 가능. 채널 단가 출처: AI홈 제품 서비스비용 기준(사내 문서, 2026.7) — 상세 수치는 사내 보고 자료 참조.</p>
+      </div>
+    `
+  },
 };
 
 // ==================== 카테고리별 정보 ====================
@@ -1498,20 +1604,6 @@ const catInfo = {
       <div class="modal-section">
         <h4>해당 범위</h4>
         <p>ThinQ Real 방문 고객사에서 발생한 가전 제품 동반 수주 영업이익입니다.</p>
-      </div>
-    `
-  },
-  planning: {
-    symbol: 'k = 상품기획',
-    title: 'HS/ES 상품기획 기여',
-    body: `
-      <div class="modal-section">
-        <h4>데이터 입력 주체</h4>
-        <p><strong>HS/ES 상품기획팀</strong>이 직접 입력합니다.</p>
-      </div>
-      <div class="modal-section">
-        <h4>해당 범위</h4>
-        <p>ThinQ Real에서의 시연·검증을 통해 상품 기획에 반영되어 매출 또는 영업이익을 창출한 경우입니다.</p>
       </div>
     `
   },
@@ -1578,13 +1670,13 @@ document.addEventListener('keydown', (e) => {
 
 // ==================== 카테고리 정의 ====================
 const categories = [
-  { id: 'iot',       name: 'IoT 영업이익',       input: '영업팀',       color: '#3a5035' },
-  { id: 'home',      name: '가전 영업이익',      input: '영업팀',       color: '#34C759' },
-  { id: 'planning',  name: 'HS/ES 상품기획',     input: '상품기획팀',   color: '#8fa889' },
-  { id: 'marketing', name: '홍보·광고 마케팅',   input: '홍보·광고팀',  color: '#FF9500' },
-  { id: 'task',      name: '신규 Task 기여',     input: 'Task 담당팀',  color: '#AF52DE' },
-  { id: 'etc',       name: '기타 기여',           input: '사안별 담당팀', color: '#86868B' },
+  { id: 'iot',       name: 'IoT 영업이익',       input: '설문 Track A',   color: '#3a5035' },
+  { id: 'home',      name: '가전 영업이익',      input: '설문 Track A',   color: '#34C759' },
+  { id: 'marketing', name: '홍보·광고 마케팅',   input: '설문 B → 대장',  color: '#FF9500' },
+  { id: 'task',      name: '신규 Task 기여',     input: '설문 C → 대장',  color: '#AF52DE' },
+  { id: 'etc',       name: '기타 기여',           input: '설문 C → 대장',  color: '#86868B' },
 ];
+// HS/ES 상품기획: v4.6에서 삭제 — 기획 검증 가치는 V_R&D에서 산정 (이중계산 방지)
 
 // ==================== 카테고리 카드 렌더 ====================
 const catContainer = document.getElementById('categories');
@@ -1609,13 +1701,25 @@ categories.forEach(c => {
       </div>
       <div class="cat-field">
         <label>이익률(%)</label>
-        <input type="number" id="${c.id}-margin" value="0" min="0" max="100" step="0.1">
+        <input type="number" id="${c.id}-margin" value="4.9" min="0" max="100" step="0.1" title="미입력 시 HS사업본부 공시 평균 4.9% 적용">
       </div>
       <div class="cat-field">
         <label>기여도(%)</label>
         <input type="number" id="${c.id}-attr" value="0" min="0" max="100" step="1">
       </div>
+      <div class="cat-field full">
+        <label>딜 단계 <span style="font-weight:400;">(미확정 딜은 파이프라인 층위로 분리 — ROI 미산입)</span></label>
+        <select id="${c.id}-stage">
+          <option value="100" selected>계약 체결 — 확정 (ROI 산입)</option>
+          <option value="75">우선협상·구두 합의 (75%)</option>
+          <option value="50">협상 진행 (50%)</option>
+          <option value="25">제안·견적 (25%)</option>
+          <option value="10">초기 상담·탐색 (10%)</option>
+        </select>
+      </div>
     </div>
+    <div class="cat-calc pending" id="${c.id}-calc">집계 전 — 부서 데이터·설문 도착 시 자동 산입</div>
+    <div style="font-size:10px; color:var(--text-3); margin-top:8px; font-style:italic;">이익률 기본값 4.9% = HS사업본부 '25년 공시 영업이익률 (세부값 확보 시 수정)</div>
   `;
   catContainer.appendChild(card);
 });
@@ -1630,7 +1734,7 @@ linkedPairs.forEach(id => {
 });
 
 categories.forEach(c => {
-  ['pipe', 'margin', 'attr'].forEach(field => {
+  ['pipe', 'margin', 'attr', 'stage'].forEach(field => {
     document.getElementById(`${c.id}-${field}`).addEventListener('input', calculate);
   });
 });
@@ -1775,6 +1879,7 @@ function fmt(n) {
   else str = str.trim() + '원';
   return (isNeg ? '-' : '') + str.trim();
 }
+const fmtShort = fmt;  // 카드별 2단계 계산 표시용 별칭
 
 function fmtBep(years) {
   if (years === Infinity || years < 0) return '회수 불가';
@@ -1799,12 +1904,35 @@ function calculate() {
   const cAgency = (+document.getElementById('cAgency').value) * 1e6;
   const vSalesInfra = cVenue * nVisit + cAgency;
 
-  let vSalesContrib = 0;
+  let vSalesContrib = 0;   // 확정 (ROI 산입)
+  let vPipeline = 0;       // 기대 파이프라인 가치 (참고·미산입)
   categories.forEach(c => {
     const pipe = (+document.getElementById(`${c.id}-pipe`).value) * 1e6;
     const margin = (+document.getElementById(`${c.id}-margin`).value) / 100;
     const attr = (+document.getElementById(`${c.id}-attr`).value) / 100;
-    vSalesContrib += pipe * margin * attr;
+    const stage = (+document.getElementById(`${c.id}-stage`).value) / 100;
+    const dealProfit = pipe * margin;         // ① 딜 영업이익
+    const contrib = dealProfit * attr;        // ② ThinQ Real 귀속분
+    const isConfirmed = stage >= 1;
+    if (isConfirmed) vSalesContrib += contrib;
+    else vPipeline += contrib * stage;        // ③ 단계 확률 가중
+
+    const calcEl = document.getElementById(`${c.id}-calc`);
+    if (calcEl) {
+      if (pipe <= 0) {
+        calcEl.className = 'cat-calc pending';
+        calcEl.innerHTML = `집계 전 — 부서 데이터·설문 도착 시 자동 산입 <span class="dim">(0원 = 미집계 상태, 가치 없음 아님)</span>`;
+      } else if (attr <= 0) {
+        calcEl.className = 'cat-calc partial';
+        calcEl.innerHTML = `① 딜 영업이익 = ${fmtShort(pipe)} × ${(margin*100).toFixed(1)}% = <strong>${fmtShort(dealProfit)}</strong> → ② 기여도 입력 대기 (귀속분 미산입)`;
+      } else if (isConfirmed) {
+        calcEl.className = 'cat-calc active';
+        calcEl.innerHTML = `① 딜 영업이익 = ${fmtShort(pipe)} × ${(margin*100).toFixed(1)}% = ${fmtShort(dealProfit)} → ② ThinQ Real 귀속분 (${Math.round(attr*100)}%) = <strong>${fmtShort(contrib)}</strong> <span class="dim">— 확정, ROI 산입</span>`;
+      } else {
+        calcEl.className = 'cat-calc pipeline';
+        calcEl.innerHTML = `① 딜 영업이익 ${fmtShort(dealProfit)} → ② 귀속분(${Math.round(attr*100)}%) ${fmtShort(contrib)} → ③ 단계 확률 ${Math.round(stage*100)}% = <strong>파이프라인 ${fmtShort(contrib*stage)}</strong> <span class="dim">(ROI 미산입·참고)</span>`;
+      }
+    }
   });
 
   // V_PR (PR 가치) — AVE 기반 보수적 산정
@@ -1836,6 +1964,9 @@ function calculate() {
   document.getElementById('sum-rnd').textContent = fmt(vRnD);
   document.getElementById('sum-sales-infra').textContent = fmt(vSalesInfra);
   document.getElementById('sum-sales-contrib').textContent = fmt(vSalesContrib);
+  document.getElementById('sum-pipeline').textContent = '파이프라인(참고) ' + fmt(vPipeline);
+  document.getElementById('panel-confirmed').textContent = fmt(vSalesContrib);
+  document.getElementById('panel-pipeline').textContent = fmt(vPipeline);
   document.getElementById('sum-pr').textContent = fmt(vPR);
   document.getElementById('sum-total').textContent = fmt(annualValue);
 
@@ -1859,6 +1990,10 @@ function calculate() {
 }
 
 // ==================== 프리셋 ====================
+// 이익률(margin)은 HS사업본부 공시 평균 4.9%가 기본값 — 리셋 시에도 유지
+// (수주금액·기여도는 설문 데이터가 원천이므로 0이 정당, 이익률은 공시값 폴백이 원칙)
+const DEFAULT_MARGIN = 4.9;
+
 function resetToDefaults() {
   const defaults = { capex:354, opex:9.2, cExtLab:1.0, dTest:39, cVenue:2.0, nVisit:30, cAgency:40, nPress:3, rMedia:50, kAdj:0.5 };
   Object.entries(defaults).forEach(([id, val]) => {
@@ -1867,8 +2002,9 @@ function resetToDefaults() {
   });
   categories.forEach(c => {
     document.getElementById(`${c.id}-pipe`).value = 0;
-    document.getElementById(`${c.id}-margin`).value = 0;
+    document.getElementById(`${c.id}-margin`).value = DEFAULT_MARGIN;
     document.getElementById(`${c.id}-attr`).value = 0;
+    document.getElementById(`${c.id}-stage`).value = 100;
   });
   calculate();
 }
@@ -1876,8 +2012,9 @@ function resetToDefaults() {
 function resetToZeroContribution() {
   categories.forEach(c => {
     document.getElementById(`${c.id}-pipe`).value = 0;
-    document.getElementById(`${c.id}-margin`).value = 0;
+    document.getElementById(`${c.id}-margin`).value = DEFAULT_MARGIN;
     document.getElementById(`${c.id}-attr`).value = 0;
+    document.getElementById(`${c.id}-stage`).value = 100;
   });
   calculate();
 }
@@ -1905,6 +2042,7 @@ function collectInputs() {
       pipe:   +document.getElementById(`${c.id}-pipe`).value,
       margin: +document.getElementById(`${c.id}-margin`).value,
       attr:   +document.getElementById(`${c.id}-attr`).value,
+      stage:  +document.getElementById(`${c.id}-stage`).value,
     };
   });
   return inputs;
@@ -1922,9 +2060,10 @@ function applyInputs(inputs) {
     categories.forEach(c => {
       const ci = inputs.categories[c.id];
       if (!ci) return;
-      ['pipe','margin','attr'].forEach(f => {
+      ['pipe','margin','attr','stage'].forEach(f => {
         if (ci[f] != null) document.getElementById(`${c.id}-${f}`).value = ci[f];
       });
+      if (ci.stage == null) document.getElementById(`${c.id}-stage`).value = 100;
     });
   }
   calculate();
@@ -1940,12 +2079,16 @@ function collectOutputs() {
   const nVisit = +document.getElementById('nVisit').value;
   const cAgency = (+document.getElementById('cAgency').value) * 1e6;
   const vSalesInfra = cVenue * nVisit + cAgency;
-  let vSalesContrib = 0;
+  let vSalesContrib = 0;   // 확정 (ROI 산입)
+  let vPipeline = 0;       // 기대 파이프라인 (참고·미산입)
   categories.forEach(c => {
     const pipe = (+document.getElementById(`${c.id}-pipe`).value) * 1e6;
     const margin = (+document.getElementById(`${c.id}-margin`).value) / 100;
     const attr = (+document.getElementById(`${c.id}-attr`).value) / 100;
-    vSalesContrib += pipe * margin * attr;
+    const stage = (+document.getElementById(`${c.id}-stage`).value) / 100;
+    const contrib = pipe * margin * attr;
+    if (stage >= 1) vSalesContrib += contrib;
+    else vPipeline += contrib * stage;
   });
   const nPress = +document.getElementById('nPress').value;
   const rMedia = (+document.getElementById('rMedia').value) * 1e6;
@@ -1963,6 +2106,7 @@ function collectOutputs() {
     bepText: document.getElementById('kpi-bep').textContent,
     roi3, roi5, profit3, profit5,
     annualValue, vRnD, vSalesInfra, vSalesContrib, vPR,
+    vPipeline,
     totalCost,
   };
 }
@@ -2110,6 +2254,7 @@ async function deleteSnapshot(id) {
     alert('삭제 실패: ' + err.message);
   }
 }
+
 
 // ==================== 초기 실행 ====================
 initCharts();

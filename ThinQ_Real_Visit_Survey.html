@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ThinQ Real 방문 후기</title>
+<style>
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  :root {
+    --bg: #FBFBFD;
+    --card: #FFFFFF;
+    --text: #1D1D1F;
+    --text-2: #515154;
+    --text-3: #86868B;
+    --accent: #0071E3;
+    --teal: #00A5B5;
+    --teal-light: #E5F4F6;
+    --orange: #FF9500;
+    --orange-light: #FFF4E5;
+    --purple: #AF52DE;
+    --purple-light: #F5EDFB;
+    --border: rgba(0,0,0,0.1);
+    --radius: 14px;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+    letter-spacing: -0.01em;
+    padding: 32px 20px 64px;
+  }
+  .container { max-width: 680px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 36px; }
+  header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+  header p { font-size: 14px; color: var(--text-3); }
+  header .time-badge {
+    display: inline-block; margin-top: 12px;
+    background: var(--teal-light); color: var(--teal);
+    font-size: 12px; font-weight: 600; padding: 5px 14px; border-radius: 980px;
+  }
+  header .nudge {
+    display: block; margin: 14px auto 0; max-width: 480px;
+    background: #FFF7ED; color: #C2540A; border: 1px solid #FED7AA;
+    font-size: 13px; font-weight: 600; line-height: 1.55;
+    padding: 10px 18px; border-radius: 12px;
+  }
+
+  .card {
+    background: var(--card); border-radius: var(--radius);
+    padding: 26px 28px; margin-bottom: 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .card h2 {
+    font-size: 15px; font-weight: 600; margin-bottom: 4px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card .q-num {
+    background: var(--text); color: white; font-size: 11px; font-weight: 700;
+    width: 20px; height: 20px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .card .q-desc { font-size: 12.5px; color: var(--text-3); margin-bottom: 16px; margin-left: 28px; }
+
+  input[type="text"], input[type="date"], input[type="number"], textarea {
+    width: 100%; padding: 11px 14px;
+    border: 1px solid var(--border); border-radius: 10px;
+    font-size: 14px; font-family: inherit; color: var(--text);
+    background: var(--card); transition: all 0.15s;
+  }
+  input:focus, textarea:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,113,227,0.12);
+  }
+  textarea { resize: vertical; min-height: 72px; }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 540px) { .row { grid-template-columns: 1fr; } }
+  .field-label { font-size: 12px; font-weight: 600; color: var(--text-2); margin: 12px 0 6px; display: block; }
+  .field-label:first-of-type { margin-top: 0; }
+
+  /* 필수 응답 미선택 하이라이트 (Track A 검증) */
+  .card.need-answer { box-shadow: 0 0 0 2px #d05a5a, 0 1px 3px rgba(0,0,0,0.05); }
+  .req-msg { margin: 12px 0 0 28px; font-size: 13px; color: #c0392b; font-weight: 600; }
+
+  /* 선택 옵션 (라디오/체크 카드) */
+  .opt-group { display: flex; flex-direction: column; gap: 8px; margin-left: 28px; }
+  .opt {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px;
+    cursor: pointer; transition: all 0.15s; background: var(--card);
+  }
+  .opt:hover { border-color: var(--accent); background: rgba(0,113,227,0.03); }
+  .opt.selected { border-color: var(--accent); background: rgba(0,113,227,0.06); box-shadow: 0 0 0 1px var(--accent); }
+  .opt input { display: none; }
+  .opt .radio-dot {
+    width: 18px; height: 18px; border: 2px solid var(--border); border-radius: 50%;
+    flex-shrink: 0; margin-top: 1px; transition: all 0.15s; position: relative;
+  }
+  .opt.selected .radio-dot { border-color: var(--accent); }
+  .opt.selected .radio-dot::after {
+    content: ''; position: absolute; inset: 3px;
+    background: var(--accent); border-radius: 50%;
+  }
+  .opt.checkbox .radio-dot { border-radius: 5px; }
+  .opt.checkbox.selected .radio-dot::after { border-radius: 2px; }
+  .opt-text { flex: 1; }
+  .opt-title { font-size: 14px; font-weight: 500; color: var(--text); }
+  .opt-sub { font-size: 12px; color: var(--text-3); margin-left: 8px; }
+  .opt-sub::before { content: '('; }
+  .opt-sub::after { content: ')'; }
+
+  /* 유형별 배지 */
+  .track-badge {
+    font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 980px;
+    display: inline-block; margin-left: 6px;
+  }
+  .badge-sales { background: var(--teal-light); color: var(--teal); }
+  .badge-media { background: var(--orange-light); color: var(--orange); }
+  .badge-etc { background: var(--purple-light); color: var(--purple); }
+
+  .track { display: none; }
+  .track.active { display: block; animation: fadeIn 0.3s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* 제출 */
+  .submit-area { text-align: center; margin-top: 28px; }
+  .btn-submit {
+    background: var(--accent); color: white; border: none;
+    padding: 15px 44px; border-radius: 980px;
+    font-size: 15px; font-weight: 600; font-family: inherit;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn-submit:hover { background: #0077ED; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,113,227,0.3); }
+  .submit-note { font-size: 12px; color: var(--text-3); margin-top: 12px; }
+
+  .hidden { display: none !important; }
+  .footer-note {
+    text-align: center; font-size: 11.5px; color: var(--text-3);
+    margin-top: 32px; font-style: italic;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>ThinQ Real 방문 후기</h1>
+    <p>방문해 주셔서 감사합니다. 공간 운영 개선과 가치 측정을 위해 활용됩니다.</p>
+    <span class="time-badge">소요 시간 약 3분</span>
+    <p class="nudge">🎁 매월 <strong>베스트 리뷰어 세 분</strong>을 선정해 소정의 사은품을 드립니다!<br>구체적인 후기일수록 선정 확률이 올라가요 ✨</p>
+  </header>
+
+  <!-- 기본 정보 -->
+  <div class="card">
+    <h2><span class="q-num">1</span>방문 정보</h2>
+    <p class="q-desc">기본 정보를 입력해 주세요.</p>
+    <div style="margin-left:28px;">
+      <div class="row">
+        <div>
+          <label class="field-label">방문일</label>
+          <input type="date" id="visitDate">
+        </div>
+        <div>
+          <label class="field-label">소속 부서</label>
+          <input type="text" id="dept" placeholder="예: 한국영업본부 B2B영업팀">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label class="field-label">작성자 성명</label>
+          <input type="text" id="name" placeholder="홍길동">
+        </div>
+        <div>
+          <label class="field-label">방문 고객사/대상 (해당 시)</label>
+          <input type="text" id="client" placeholder="예: OO건설, 사내 교육 등">
+        </div>
+      </div>
+      <label class="field-label" style="margin-top:14px;">ThinQ Real 방문 횟수 <span style="font-weight:400; color:var(--text-3);">(본인 기준)</span></label>
+      <div class="opt-group" data-name="visitCount" style="flex-direction: row; flex-wrap: wrap;">
+        <label class="opt" style="flex:1; min-width:90px; justify-content:center;"><input type="radio" name="visitCount" value="첫 방문"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">첫 방문</span></span></label>
+        <label class="opt" style="flex:1; min-width:90px; justify-content:center;"><input type="radio" name="visitCount" value="2회차"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">2회차</span></span></label>
+        <label class="opt" style="flex:1; min-width:90px; justify-content:center;"><input type="radio" name="visitCount" value="3~5회차"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">3~5회차</span></span></label>
+        <label class="opt" style="flex:1; min-width:90px; justify-content:center;"><input type="radio" name="visitCount" value="6회 이상"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">6회 이상</span></span></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- 방문 목적 선택 -->
+  <div class="card">
+    <h2><span class="q-num">2</span>방문 목적</h2>
+    <p class="q-desc">이번 방문의 주된 목적을 선택해 주세요. <strong>예약 시 선택한 방문 목적</strong>과 같은 항목을 고르시면 됩니다. 목적에 따라 이후 질문이 달라집니다.</p>
+    <div class="opt-group" id="purposeGroup">
+      <label class="opt" data-track="sales">
+        <input type="radio" name="purpose" value="B2B 영업">
+        <span class="radio-dot"></span>
+        <span class="opt-text">
+          <span class="opt-title">B2B 영업 <span class="track-badge badge-sales">고객사 동반</span></span>
+          <span class="opt-sub">예약 카테고리 「B2B 영업」 — 고객사·파트너사와 함께 방문한 경우</span>
+        </span>
+      </label>
+      <label class="opt" data-track="media">
+        <input type="radio" name="purpose" value="콘텐츠 제작·홍보">
+        <span class="radio-dot"></span>
+        <span class="opt-text">
+          <span class="opt-title">콘텐츠 제작 · 홍보 <span class="track-badge badge-media">촬영/프레스</span></span>
+          <span class="opt-sub">예약 카테고리 「콘텐츠 제작」·「홍보 (프레스투어/마케팅)」 — 촬영, 취재 지원, 미디어 행사 등</span>
+        </span>
+      </label>
+      <label class="opt" data-track="etc">
+        <input type="radio" name="purpose" value="R&D·내부 커뮤니케이션·기타">
+        <span class="radio-dot"></span>
+        <span class="opt-text">
+          <span class="opt-title">R&amp;D · 내부 커뮤니케이션 · 기타 <span class="track-badge badge-etc">사내</span></span>
+          <span class="opt-sub">예약 카테고리 「R&amp;D」·「내부 커뮤니케이션」·「기타」 — 기술 검증, 사내 교육, 견학, 임원 보고 등</span>
+        </span>
+      </label>
+    </div>
+  </div>
+
+  <!-- ========== TRACK A: 영업 응대 ========== -->
+  <div class="track" id="track-sales">
+    <div class="card">
+      <h2><span class="q-num">3</span>연관된 딜(수주 논의)의 현재 단계</h2>
+      <p class="q-desc">이번 방문과 연관된 딜이 있다면, 현재 어느 단계인가요? 미확정 딜도 단계별로 가치가 집계되니 편하게 선택해 주세요.</p>
+      <div class="opt-group" data-name="deal">
+        <label class="opt"><input type="radio" name="deal" value="계약 체결 완료 (확정)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">계약 체결 완료</span><span class="opt-sub">확정 — 수주 완료</span></span></label>
+        <label class="opt"><input type="radio" name="deal" value="우선협상·구두 합의 (75%)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">우선협상 대상 · 구두 합의</span><span class="opt-sub">계약 직전 단계</span></span></label>
+        <label class="opt"><input type="radio" name="deal" value="협상 진행 (50%)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">협상 진행 중</span><span class="opt-sub">조건·범위 협의 단계</span></span></label>
+        <label class="opt"><input type="radio" name="deal" value="제안·견적 (25%)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">제안 · 견적 단계</span><span class="opt-sub">제안서·견적 제출 또는 준비</span></span></label>
+        <label class="opt"><input type="radio" name="deal" value="초기 상담·탐색 (10%)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">초기 상담 · 탐색 단계</span><span class="opt-sub">니즈 파악, 첫 논의</span></span></label>
+        <label class="opt"><input type="radio" name="deal" value="딜 없음 (견학/관계 유지 목적)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">딜 없음</span><span class="opt-sub">견학, 관계 유지 목적의 방문</span></span></label>
+      </div>
+      <div id="dealAmountWrap" style="display:none; margin-left:28px; margin-top:12px;">
+        <label class="field-label">실제 계약 금액 (선택)</label>
+        <input type="text" id="dealAmount" placeholder="예: 12.5억 / 알 수 없으면 비워두세요">
+        <p style="font-size:11.5px; color:var(--text-3); margin-top:6px; line-height:1.5;">비워두셔도 됩니다 — 미입력 시 범위 하한을 임시 적용하고 운영팀이 영업 담당께 확인합니다.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="q-num">4</span>방문 규모 (해당 시)</h2>
+      <p class="q-desc">연관된 딜이 있다면, 대략적인 규모 범위를 선택해 주세요. 정확한 금액이 아닌 범위입니다.</p>
+      <div class="opt-group" data-name="dealSize">
+        <label class="opt"><input type="radio" name="dealSize" value="1억 미만"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">1억원 미만</span></span></label>
+        <label class="opt"><input type="radio" name="dealSize" value="1~10억"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">1억 ~ 10억원</span></span></label>
+        <label class="opt"><input type="radio" name="dealSize" value="10~50억"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">10억 ~ 50억원</span></span></label>
+        <label class="opt"><input type="radio" name="dealSize" value="50억 이상"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">50억원 이상</span></span></label>
+        <label class="opt"><input type="radio" name="dealSize" value="해당 없음/모름"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">해당 없음 / 알 수 없음</span></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="q-num">5</span>논의 중인 제품·솔루션 영역 (해당 시)</h2>
+      <p class="q-desc">연관된 딜이 있다면, 주로 어떤 영역의 논의인가요?</p>
+      <div class="opt-group" data-name="dealArea">
+        <label class="opt"><input type="radio" name="dealArea" value="가전 중심"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">가전 중심</span><span class="opt-sub">냉장고, 세탁기, 에어컨 등</span></span></label>
+        <label class="opt"><input type="radio" name="dealArea" value="AI홈 IoT 솔루션 중심"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">AI홈 IoT 솔루션 중심</span><span class="opt-sub">ThinQ ON, 스마트 스위치, 센서, 도어락 등</span></span></label>
+        <label class="opt"><input type="radio" name="dealArea" value="복합 (가전 + IoT)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">복합 (가전 + IoT 솔루션)</span></span></label>
+        <label class="opt"><input type="radio" name="dealArea" value="해당 없음"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">해당 없음</span></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="q-num">6</span>방문 후 고객의 반응</h2>
+      <p class="q-desc">방문 이후 고객에게서 관찰된 행동을 모두 선택해 주세요. (복수 선택 가능)</p>
+      <div class="opt-group" data-name="reaction">
+        <label class="opt checkbox"><input type="checkbox" name="reaction" value="추가 미팅 요청"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">추가 미팅을 요청함</span></span></label>
+        <label class="opt checkbox"><input type="checkbox" name="reaction" value="구체적 견적/제안 요청"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">구체적인 견적 또는 제안을 요청함</span></span></label>
+        <label class="opt checkbox"><input type="checkbox" name="reaction" value="타 부서/임원 재방문 의사"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">타 부서·임원과 재방문 의사를 밝힘</span></span></label>
+        <label class="opt checkbox"><input type="checkbox" name="reaction" value="계약 논의 중 방문 경험 언급"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">이후 계약 논의 과정에서 방문 경험을 직접 언급함</span></span></label>
+        <label class="opt checkbox"><input type="checkbox" name="reaction" value="특별한 변화 없음"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">특별한 변화 없음</span></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="q-num">7</span>ThinQ Real의 기여 수준</h2>
+      <p class="q-desc">"기여도 몇 %"가 아닌, 실제 있었던 일에 가장 가까운 항목을 선택해 주세요.</p>
+      <div class="opt-group" data-name="attr">
+        <label class="opt"><input type="radio" name="attr" value="0% - 방문과 무관하게 딜 진행"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">방문과 무관하게 딜이 진행됨</span><span class="opt-sub">기여도 환산: 0%</span></span></label>
+        <label class="opt"><input type="radio" name="attr" value="25% - 긍정적 분위기 조성"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">긍정적 분위기 조성에 도움이 됨</span><span class="opt-sub">기여도 환산: 25%</span></span></label>
+        <label class="opt"><input type="radio" name="attr" value="50% - 의사결정 논의가 눈에 띄게 진전"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">고객 의사결정 논의가 방문 이후 눈에 띄게 진전됨</span><span class="opt-sub">기여도 환산: 50%</span></span></label>
+        <label class="opt"><input type="radio" name="attr" value="75% - 고객이 방문 경험을 직접 언급"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">고객이 계약 논의에서 방문 경험을 직접 언급함</span><span class="opt-sub">기여도 환산: 75%</span></span></label>
+        <label class="opt"><input type="radio" name="attr" value="100% - 방문 없었다면 계약 논의 자체가 없었음"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">방문이 없었다면 계약 논의 자체가 없었을 것</span><span class="opt-sub">기여도 환산: 100%</span></span></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== TRACK B: 콘텐츠 제작·촬영 ========== -->
+  <div class="track" id="track-media">
+    <div class="card">
+      <h2><span class="q-num">3</span>활용 내용</h2>
+      <p class="q-desc">ThinQ Real에서 어떤 작업을 하셨나요? (복수 선택 가능)</p>
+      <div class="opt-group" data-name="mediaWork">
+        <label class="opt checkbox"><input type="checkbox" name="mediaWork" value="영상 촬영 (광고/SNS)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">영상 촬영 (광고, SNS 콘텐츠)</span></span></label>
+        <label class="opt checkbox"><input type="checkbox" name="mediaWork" value="사진 촬영"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">사진 촬영</span></span></label>
+        <label class="opt checkbox"><input type="checkbox" name="mediaWork" value="언론 취재 지원"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">언론 취재 지원</span></span></label>
+        <label class="opt checkbox"><input type="checkbox" name="mediaWork" value="프레스투어/미디어 행사 지원"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">프레스투어 / 미디어 행사 지원</span></span></label>
+        <label class="opt checkbox"><input type="checkbox" name="mediaWork" value="라이브/이벤트 진행"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">라이브 방송 / 이벤트 진행</span></span></label>
+        <label class="opt checkbox"><input type="checkbox" name="mediaWork" value="기타"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">기타</span></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="q-num">4</span>사용 기간</h2>
+      <p class="q-desc">공간을 총 며칠 사용하셨나요? (준비·철수 포함)</p>
+      <div class="opt-group" data-name="mediaDays">
+        <label class="opt"><input type="radio" name="mediaDays" value="반일 (0.5일)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">반일 (4시간 이내)</span></span></label>
+        <label class="opt"><input type="radio" name="mediaDays" value="1일"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">1일</span></span></label>
+        <label class="opt"><input type="radio" name="mediaDays" value="2일"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">2일</span></span></label>
+        <label class="opt"><input type="radio" name="mediaDays" value="3일 이상"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">3일 이상</span></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="q-num">5</span>대체 시나리오</h2>
+      <p class="q-desc">ThinQ Real이 없었다면, 이 작업을 어떻게 진행하셨을까요?</p>
+      <div class="opt-group" data-name="mediaAlt">
+        <label class="opt"><input type="radio" name="mediaAlt" value="외부 스튜디오 대관 (가전/가구 세팅 포함)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">외부 스튜디오를 대관했을 것</span><span class="opt-sub">가전·가구 세팅 비용 별도 발생</span></span></label>
+        <label class="opt"><input type="radio" name="mediaAlt" value="세트 제작"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">세트를 직접 제작했을 것</span></span></label>
+        <label class="opt"><input type="radio" name="mediaAlt" value="다른 사내 공간 활용 (품질 저하 감수)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">다른 사내 공간을 활용했을 것</span><span class="opt-sub">연출 품질 저하 감수</span></span></label>
+        <label class="opt"><input type="radio" name="mediaAlt" value="진행 자체가 어려웠을 것"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">진행 자체가 어려웠을 것</span></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="q-num">6</span>실제 소요 비용 · 견적가 (선택)</h2>
+      <p class="q-desc">이번 작업과 관련해 실제 지출한 비용이나 받아본 견적가가 있다면 적어주세요 (장비 렌탈, 외부 스튜디오 견적 등). 없거나 모르시면 비워두세요 — 표준 단가(100만원/일)로 환산됩니다.</p>
+      <div style="margin-left:28px;">
+        <input type="text" id="mediaCost" placeholder="예: 스튜디오 견적 350만원 / 장비 렌탈 80만원 지출">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="q-num">7</span>성과 연결 <span style="font-size:12px; font-weight:400; color:var(--text-3);">(캠페인·프로모션)</span></h2>
+      <p class="q-desc">이번 콘텐츠·홍보 활동이 특정 캠페인·프로모션과 연결되나요? 연결된 활동은 성과 추적 대장에 기록되어, 캠페인 성과 확정 시 ThinQ Real의 기여로 산입됩니다.</p>
+      <div class="opt-group" data-name="mediaLink">
+        <label class="opt"><input type="radio" name="mediaLink" value="특정 캠페인·프로모션과 연결됨"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">특정 캠페인·프로모션과 연결됨</span><span class="opt-sub">아래 항목을 적어주세요</span></span></label>
+        <label class="opt"><input type="radio" name="mediaLink" value="상시 콘텐츠 (특정 성과 연결 없음)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">상시 콘텐츠</span><span class="opt-sub">특정 성과 연결 없음</span></span></label>
+        <label class="opt"><input type="radio" name="mediaLink" value="모름"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">모름</span></span></label>
+      </div>
+      <div id="mediaLinkDetail" style="display:none; margin-left:28px; margin-top:12px;">
+        <label class="field-label">캠페인·과제명</label>
+        <input type="text" id="mediaLinkName" placeholder="예: 2026 AI홈 가을 캠페인">
+        <label class="field-label" style="margin-top:14px;">예상 매출 규모</label>
+        <div class="opt-group" data-name="mediaLinkSize">
+          <label class="opt"><input type="radio" name="mediaLinkSize" value="1억 미만"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">1억 미만</span></span></label>
+          <label class="opt"><input type="radio" name="mediaLinkSize" value="1~10억"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">1~10억</span></span></label>
+          <label class="opt"><input type="radio" name="mediaLinkSize" value="10~50억"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">10~50억</span></span></label>
+          <label class="opt"><input type="radio" name="mediaLinkSize" value="50억 이상"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">50억 이상</span></span></label>
+          <label class="opt"><input type="radio" name="mediaLinkSize" value="모름"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">모름</span><span class="opt-sub">과제명만으로도 대장에 기록됩니다</span></span></label>
+        </div>
+        <label class="field-label" style="margin-top:14px;">기여 수준</label>
+        <div class="opt-group" data-name="mediaLinkAttr">
+          <label class="opt"><input type="radio" name="mediaLinkAttr" value="방문과 무관하게 캠페인이 진행됨 (0%)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">방문과 무관하게 캠페인이 진행됨</span><span class="opt-sub">환산 0%</span></span></label>
+          <label class="opt"><input type="radio" name="mediaLinkAttr" value="촬영·소재 확보에 보조적으로 활용됨 (25%)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">촬영·소재 확보에 보조적으로 활용됨</span><span class="opt-sub">환산 25%</span></span></label>
+          <label class="opt"><input type="radio" name="mediaLinkAttr" value="캠페인의 핵심 콘텐츠가 여기서 제작됨 (50%)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">캠페인의 핵심 콘텐츠가 여기서 제작됨</span><span class="opt-sub">환산 50%</span></span></label>
+          <label class="opt"><input type="radio" name="mediaLinkAttr" value="캠페인 기획 자체가 공간 경험에서 출발함 (75%)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">캠페인 기획 자체가 공간 경험에서 출발함</span><span class="opt-sub">환산 75%</span></span></label>
+          <label class="opt"><input type="radio" name="mediaLinkAttr" value="이 공간 없이는 캠페인이 불가능했음 (100%)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">이 공간 없이는 캠페인이 불가능했음</span><span class="opt-sub">환산 100%</span></span></label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== TRACK C: 기타 ========== -->
+  <div class="track" id="track-etc">
+    <div class="card">
+      <h2><span class="q-num">3</span>활용 내용</h2>
+      <p class="q-desc">ThinQ Real에서 어떤 활동을 하셨나요? (복수 선택 가능)</p>
+      <div class="opt-group" data-name="etcWork">
+        <label class="opt checkbox"><input type="checkbox" name="etcWork" value="사내 교육"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">사내 교육</span></span></label>
+        <label class="opt checkbox"><input type="checkbox" name="etcWork" value="타 부서 견학/벤치마킹"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">타 부서 견학 / 벤치마킹</span></span></label>
+        <label class="opt checkbox"><input type="checkbox" name="etcWork" value="임원 보고/시연"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">임원 보고 / 시연</span></span></label>
+        <label class="opt checkbox"><input type="checkbox" name="etcWork" value="기술 검증/테스트"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">기술 검증 / 테스트</span></span></label>
+        <label class="opt checkbox"><input type="checkbox" name="etcWork" value="기타"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">기타</span></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="q-num">4</span>사용 기간</h2>
+      <p class="q-desc">공간을 총 며칠 사용하셨나요?</p>
+      <div class="opt-group" data-name="etcDays">
+        <label class="opt"><input type="radio" name="etcDays" value="반일 (0.5일)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">반일 (4시간 이내)</span></span></label>
+        <label class="opt"><input type="radio" name="etcDays" value="1일"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">1일</span></span></label>
+        <label class="opt"><input type="radio" name="etcDays" value="2일"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">2일</span></span></label>
+        <label class="opt"><input type="radio" name="etcDays" value="3일 이상"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">3일 이상</span></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="q-num">5</span>대체 시나리오</h2>
+      <p class="q-desc">ThinQ Real이 없었다면, 이 활동을 어떻게 진행하셨을까요?</p>
+      <div class="opt-group" data-name="etcAlt">
+        <label class="opt"><input type="radio" name="etcAlt" value="외부 시설 대관 (스마트홈 체험관 등)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">외부 시설을 대관했을 것</span><span class="opt-sub">스마트홈 체험관, 교육장 등</span></span></label>
+        <label class="opt"><input type="radio" name="etcAlt" value="사내 회의실 (실물 시연 불가 감수)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">사내 회의실에서 진행했을 것</span><span class="opt-sub">실물 시연 불가 감수</span></span></label>
+        <label class="opt"><input type="radio" name="etcAlt" value="진행 자체가 어려웠을 것"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">진행 자체가 어려웠을 것</span></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="q-num">6</span>IoT 제품 품질 이슈 리포트 <span style="font-size:12px; font-weight:400; color:var(--text-3);">(기술 검증·테스트 수행 시)</span></h2>
+      <p class="q-desc">테스트 중 IoT 제품(ThinQ ON, 스마트 스위치, 모션/조도 센서, 스마트 도어락 등)에서 결함·이상 동작을 확인하셨다면 알려주세요. ThinQ Real에서 문제가 새로 생긴 것이 아니라, <strong>제품이 원래 갖고 있던 품질 이슈를 고객보다 먼저 발견</strong>한 것입니다 — 이 리포트 1건이 시장 출시 후 발생했을 고객 AS 비용을 예방합니다. (공간·설비 고장이나 이용 중 불편은 마지막 자유 의견란에 남겨주세요.)</p>
+      <div class="opt-group" data-name="iotDefect">
+        <label class="opt"><input type="radio" name="iotDefect" value="발견함"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">제품 품질 이슈를 발견함</span><span class="opt-sub">아래에 기기·증상을 간단히 적어주세요</span></span></label>
+        <label class="opt"><input type="radio" name="iotDefect" value="발견하지 못함 / 해당 없음"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">발견하지 못함 / 해당 없음</span></span></label>
+      </div>
+      <div style="margin-left:28px; margin-top:10px;">
+        <label class="field-label">발견한 제품 품질 이슈 (해당 시)</label>
+        <textarea id="iotDefectDetail" placeholder="예: 스마트 도어락 — 원격 해제 간헐 실패 / ThinQ ON — Wi-Fi 재연결 후 오프라인 유지"></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="q-num">7</span>성과 연결 <span style="font-size:12px; font-weight:400; color:var(--text-3);">(신규 과제)</span></h2>
+      <p class="q-desc">이번 활동이 신규 Task·과제와 연결되나요? 연결된 활동은 성과 추적 대장에 기록되어, 과제 성과 확정 시 ThinQ Real의 기여로 산입됩니다. (신제품 기획 검증은 별도 기재가 필요 없습니다 — V_R&amp;D 가치로 자동 산정됩니다.)</p>
+      <div class="opt-group" data-name="etcLink">
+        <label class="opt"><input type="radio" name="etcLink" value="신규 Task·과제"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">신규 Task·과제</span><span class="opt-sub">아래 항목을 적어주세요</span></span></label>
+        <label class="opt"><input type="radio" name="etcLink" value="해당 없음"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">해당 없음</span></span></label>
+      </div>
+      <div id="etcLinkDetail" style="display:none; margin-left:28px; margin-top:12px;">
+        <label class="field-label">과제·기획명</label>
+        <input type="text" id="etcLinkName" placeholder="예: AI홈 구독 서비스 신규 과제">
+        <label class="field-label" style="margin-top:14px;">예상 규모</label>
+        <div class="opt-group" data-name="etcLinkSize">
+          <label class="opt"><input type="radio" name="etcLinkSize" value="1억 미만"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">1억 미만</span></span></label>
+          <label class="opt"><input type="radio" name="etcLinkSize" value="1~10억"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">1~10억</span></span></label>
+          <label class="opt"><input type="radio" name="etcLinkSize" value="10~50억"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">10~50억</span></span></label>
+          <label class="opt"><input type="radio" name="etcLinkSize" value="50억 이상"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">50억 이상</span></span></label>
+          <label class="opt"><input type="radio" name="etcLinkSize" value="모름"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">모름</span><span class="opt-sub">과제명만으로도 대장에 기록됩니다</span></span></label>
+        </div>
+        <label class="field-label" style="margin-top:14px;">기여 수준</label>
+        <div class="opt-group" id="etcAnchorTask" data-name="etcLinkAttrTask">
+          <label class="opt"><input type="radio" name="etcLinkAttrTask" value="방문과 무관하게 과제가 진행됨 (0%)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">방문과 무관하게 과제가 진행됨</span><span class="opt-sub">환산 0%</span></span></label>
+          <label class="opt"><input type="radio" name="etcLinkAttrTask" value="과제 논의에 참고 자료로 활용됨 (25%)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">과제 논의에 참고 자료로 활용됨</span><span class="opt-sub">환산 25%</span></span></label>
+          <label class="opt"><input type="radio" name="etcLinkAttrTask" value="과제 방향 결정에 방문 결과가 반영됨 (50%)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">과제 방향 결정에 방문 결과가 반영됨</span><span class="opt-sub">환산 50%</span></span></label>
+          <label class="opt"><input type="radio" name="etcLinkAttrTask" value="방문을 계기로 과제가 구체화·승인됨 (75%)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">방문을 계기로 과제가 구체화·승인됨</span><span class="opt-sub">환산 75%</span></span></label>
+          <label class="opt"><input type="radio" name="etcLinkAttrTask" value="방문이 과제 발족의 직접 계기가 됨 (100%)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">방문이 과제 발족의 직접 계기가 됨</span><span class="opt-sub">환산 100%</span></span></label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 공통: 만족도 + 자유 의견 -->
+  <div class="card hidden" id="commonCard">
+    <h2><span class="q-num" id="commonQNum">7</span>공간 만족도 및 의견</h2>
+    <p class="q-desc">이번 방문의 전반적 만족도와 개선 의견을 남겨주세요.</p>
+    <div class="opt-group" data-name="satisfaction" style="flex-direction: row; flex-wrap: wrap;">
+      <label class="opt" style="flex:1; min-width:80px; justify-content:center;"><input type="radio" name="satisfaction" value="5 - 매우 만족"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">매우 만족</span></span></label>
+      <label class="opt" style="flex:1; min-width:80px; justify-content:center;"><input type="radio" name="satisfaction" value="4 - 만족"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">만족</span></span></label>
+      <label class="opt" style="flex:1; min-width:80px; justify-content:center;"><input type="radio" name="satisfaction" value="3 - 보통"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">보통</span></span></label>
+      <label class="opt" style="flex:1; min-width:80px; justify-content:center;"><input type="radio" name="satisfaction" value="2 - 미흡"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">미흡</span></span></label>
+    </div>
+    <div style="margin-left:28px; margin-top:14px;">
+      <label class="field-label">자유 의견 (선택)</label>
+      <textarea id="freeComment" placeholder="개선이 필요한 점, 좋았던 점 등을 자유롭게 적어주세요."></textarea>
+    </div>
+  </div>
+
+  <!-- 제출 -->
+  <div class="submit-area hidden" id="submitArea">
+    <button class="btn-submit" onclick="submitForm()">응답 제출하기</button>
+    <p class="submit-note">버튼을 누르면 응답이 바로 접수됩니다.</p>
+  </div>
+
+  <!-- 제출 완료 카드 (fetch 접수 성공) -->
+  <div class="card hidden" id="successCard" style="border: 2px solid var(--teal); text-align:center;">
+    <h2 style="color: var(--teal); justify-content:center;">✓ 응답이 접수되었습니다</h2>
+    <p class="q-desc" style="margin-left:0; margin-top:10px;">
+      소중한 후기 감사합니다!<br>응답은 ThinQ Real 공간 운영 개선과 가치 측정에 활용됩니다.
+    </p>
+    <p style="display:inline-block; margin-top:6px; background:#FFF7ED; color:#C2540A; border:1px solid #FED7AA; font-size:13px; font-weight:600; line-height:1.55; padding:10px 18px; border-radius:12px;">
+      🎁 매월 <strong>베스트 리뷰어 세 분</strong>을 선정해 소정의 사은품을 드립니다!
+    </p>
+  </div>
+
+  <!-- 제출 결과 패널 (mailto 폴백 경로) -->
+  <div class="card hidden" id="resultCard" style="border: 2px solid var(--teal);">
+    <p id="fallbackNote" style="background:#FFF7ED; color:#C2540A; border:1px solid #FED7AA; font-size:13px; font-weight:600; padding:10px 14px; border-radius:10px; margin-bottom:14px;">⚠ 네트워크 문제로 자동 접수가 되지 않아 메일 방식으로 전환되었습니다. 아래 안내대로 보내주시면 동일하게 접수됩니다.</p>
+    <h2 style="color: var(--teal);">✓ 응답이 준비되었습니다</h2>
+    <p class="q-desc" style="margin-left:0; margin-top:8px;">
+      응답 내용이 <strong>클립보드에 복사</strong>되었습니다.<br>
+      메일 앱이 자동으로 열리지 않았다면, 아래 방법으로 보내주세요.
+    </p>
+    <div style="background: var(--teal-light); border-radius: 10px; padding: 14px 18px; margin-bottom: 14px; font-size: 13.5px; line-height: 1.7;">
+      ① Outlook에서 새 메일 작성<br>
+      ② 받는 사람: <strong id="recipientDisplay"></strong>
+      <button onclick="copyRecipient()" style="margin-left:8px; font-size:11px; padding:3px 10px; border:1px solid var(--teal); background:white; color:var(--teal); border-radius:6px; cursor:pointer; font-family:inherit;">주소 복사</button><br>
+      ③ 본문에 <strong>붙여넣기 (Ctrl+V)</strong> 후 발송
+    </div>
+    <details>
+      <summary style="font-size:12.5px; color:var(--text-3); cursor:pointer; margin-bottom:8px;">응답 내용 확인 / 수동 복사</summary>
+      <textarea id="resultText" readonly style="min-height:180px; font-size:12px; font-family:'SF Mono', Menlo, monospace; background:#F8FAFC;"></textarea>
+      <button onclick="copyResult()" style="margin-top:8px; font-size:12px; padding:8px 18px; border:1px solid var(--border); background:white; border-radius:8px; cursor:pointer; font-family:inherit;">응답 내용 다시 복사</button>
+    </details>
+  </div>
+
+  <p class="footer-note">ThinQ Real 운영팀 · AI Home Solution Engineering Team</p>
+</div>
+
+<script>
+// ==================== 설정 ====================
+// 예약 시스템과 동일한 Apps Script 웹앱 — 설문 응답을 Sheets에 직접 적재 (survey_submit)
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec';
+const RECIPIENT = 'kang.wonseok@lge.com';  // mailto 폴백 수신자 (fetch 실패 시에만 사용)
+
+// ==================== 방문 목적 → 트랙 전환 ====================
+let currentTrack = null;
+
+document.querySelectorAll('#purposeGroup .opt').forEach(opt => {
+  opt.addEventListener('click', () => {
+    document.querySelectorAll('#purposeGroup .opt').forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    opt.querySelector('input').checked = true;
+
+    const track = opt.dataset.track;
+    currentTrack = track;
+    document.querySelectorAll('.track').forEach(t => t.classList.remove('active'));
+    document.getElementById('track-' + track).classList.add('active');
+
+    // 공통 카드 & 제출 버튼 표시
+    document.getElementById('commonCard').classList.remove('hidden');
+    document.getElementById('submitArea').classList.remove('hidden');
+    // 공통 질문 번호 조정
+    // 성과 연결 카드 추가로 세 트랙 모두 공통 카드 = 8번
+    document.getElementById('commonQNum').textContent = '8';
+  });
+});
+
+// ==================== 성과 연결 조건부 표시 ====================
+function radioVal(name) {
+  const el = document.querySelector(`input[name="${name}"]:checked`);
+  return el ? el.value : '';
+}
+function updateLinkDetails() {
+  document.getElementById('mediaLinkDetail').style.display =
+    (radioVal('mediaLink') === '특정 캠페인·프로모션과 연결됨') ? 'block' : 'none';
+  document.getElementById('etcLinkDetail').style.display =
+    (radioVal('etcLink') === '신규 Task·과제') ? 'block' : 'none';
+  // Track A: 계약 체결(확정) 선택 시에만 실제 계약 금액 입력 노출 (무응답 정상 — 필수 아님)
+  document.getElementById('dealAmountWrap').style.display =
+    (radioVal('deal') === '계약 체결 완료 (확정)') ? 'block' : 'none';
+}
+// change 이벤트는 커스텀 클릭 핸들러가 checked를 먼저 설정해 발생하지 않을 수 있음
+// → 클릭 핸들러에서도 직접 호출 (아래 옵션 선택 스타일 참조)
+document.querySelectorAll('input[name="mediaLink"], input[name="etcLink"], input[name="deal"]').forEach(r =>
+  r.addEventListener('change', updateLinkDetails));
+
+// ==================== 옵션 선택 스타일 ====================
+document.querySelectorAll('.track .opt, #commonCard .opt, .opt-group[data-name="visitCount"] .opt').forEach(opt => {
+  opt.addEventListener('click', () => {
+    const input = opt.querySelector('input');
+    if (input.type === 'radio') {
+      const group = opt.closest('.opt-group');
+      group.querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+      input.checked = true;
+    } else {
+      // checkbox
+      input.checked = !input.checked;
+      opt.classList.toggle('selected', input.checked);
+    }
+    updateLinkDetails();
+    // 필수 응답 하이라이트는 답을 고르는 즉시 해제
+    const card = opt.closest('.card');
+    if (card && card.classList.contains('need-answer')) {
+      card.classList.remove('need-answer');
+      const m = card.querySelector('.req-msg');
+      if (m) m.remove();
+    }
+  });
+});
+
+// ==================== 메일 본문 생성 및 제출 ====================
+function getRadio(name) {
+  const el = document.querySelector(`input[name="${name}"]:checked`);
+  return el ? el.value : '(미응답)';
+}
+function getChecks(name) {
+  const els = document.querySelectorAll(`input[name="${name}"]:checked`);
+  return els.length ? [...els].map(e => e.value).join(', ') : '(미응답)';
+}
+function getText(id) {
+  const v = document.getElementById(id).value.trim();
+  return v || '(미입력)';
+}
+
+// ── 구조화 페이로드 (Sheets 적재용 — 미응답은 빈 문자열) ──
+function rawRadio(name) {
+  const el = document.querySelector(`input[name="${name}"]:checked`);
+  return el ? el.value : '';
+}
+function rawChecks(name) {
+  return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(e => e.value).join(', ');
+}
+function rawText(id) { return document.getElementById(id).value.trim(); }
+
+function buildPayload() {
+  const p = {
+    type: 'survey_submit',
+    track: currentTrack,
+    visit_date: rawText('visitDate'),
+    dept: rawText('dept'),
+    name: rawText('name'),
+    client: rawText('client'),
+    visit_count: rawRadio('visitCount'),
+    purpose: rawRadio('purpose'),
+    satisfaction: rawRadio('satisfaction'),
+    feedback: rawText('freeComment')
+  };
+  if (currentTrack === 'sales') {
+    Object.assign(p, {
+      deal_stage: rawRadio('deal'), deal_size: rawRadio('dealSize'), deal_area: rawRadio('dealArea'),
+      reaction: rawChecks('reaction'), attr: rawRadio('attr'),
+      deal_amount: rawText('dealAmount')   // 계약 체결 시에만 노출되는 선택 입력 (무응답 정상)
+    });
+  } else if (currentTrack === 'media') {
+    Object.assign(p, {
+      media_work: rawChecks('mediaWork'), media_days: rawRadio('mediaDays'), media_alt: rawRadio('mediaAlt'),
+      media_cost: rawText('mediaCost'), media_link: rawRadio('mediaLink'),
+      media_link_name: rawText('mediaLinkName'), media_link_size: rawRadio('mediaLinkSize'),
+      media_link_attr: rawRadio('mediaLinkAttr')
+    });
+  } else {
+    Object.assign(p, {
+      etc_work: rawChecks('etcWork'), etc_days: rawRadio('etcDays'), etc_alt: rawRadio('etcAlt'),
+      iot_defect: rawRadio('iotDefect'), iot_defect_detail: rawText('iotDefectDetail'),
+      etc_link: rawRadio('etcLink'), etc_link_name: rawText('etcLinkName'),
+      etc_link_size: rawRadio('etcLinkSize'), etc_link_attr: rawRadio('etcLinkAttrTask')
+    });
+  }
+  return p;
+}
+
+// ── Track A 필수 응답 검증 (Survey Spec §8-2-B) ──
+// 딜 단계는 항상 필수, 딜이 있으면(≠딜 없음) 규모·기여 수준도 필수.
+// dealAmount(실제 계약 금액)는 무응답이 정상 케이스 — 검증 대상 아님.
+const REQUIRED_MSG = {
+  deal: '딜 단계를 선택해 주세요. 딜이 없는 방문이면 "딜 없음"을 선택하시면 됩니다.',
+  dealSize: '딜 규모를 선택해 주세요. 알 수 없으면 "해당 없음 / 알 수 없음"을 선택하시면 됩니다.',
+  attr: '기여 수준을 선택해 주세요. 실제 있었던 일에 가장 가까운 항목이면 됩니다.'
+};
+function firstMissingRequired() {
+  if (currentTrack !== 'sales') return null;
+  const deal = rawRadio('deal');
+  if (!deal) return 'deal';
+  if (deal !== '딜 없음 (견학/관계 유지 목적)') {
+    if (!rawRadio('dealSize')) return 'dealSize';
+    if (!rawRadio('attr')) return 'attr';
+  }
+  return null;
+}
+function clearRequiredMarks() {
+  document.querySelectorAll('.card.need-answer').forEach(c => c.classList.remove('need-answer'));
+  document.querySelectorAll('.req-msg').forEach(m => m.remove());
+}
+function markRequired(name) {
+  const group = document.querySelector('.opt-group[data-name="' + name + '"]');
+  if (!group) return;
+  const card = group.closest('.card');
+  card.classList.add('need-answer');
+  const msg = document.createElement('p');
+  msg.className = 'req-msg';
+  msg.textContent = REQUIRED_MSG[name] || '이 항목을 선택해 주세요.';
+  card.appendChild(msg);
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ── 제출: fetch 자동 접수 (기본) → 실패 시 mailto 폴백 ──
+async function submitForm() {
+  if (!currentTrack) { alert('방문 목적을 선택해 주세요.'); return; }
+  clearRequiredMarks();
+  const missing = firstMissingRequired();
+  if (missing) { markRequired(missing); return; }
+  const btn = document.querySelector('.btn-submit');
+  btn.disabled = true; btn.textContent = '제출 중…';
+  try {
+    // 예약 폼(index.html)과 동일한 검증된 패턴: no-cors POST (응답은 못 읽지만 서버는 처리)
+    await fetch(SCRIPT_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildPayload())
+    });
+    document.getElementById('submitArea').classList.add('hidden');
+    document.getElementById('successCard').classList.remove('hidden');
+    document.getElementById('successCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  } catch (err) {
+    // 네트워크 차단·오프라인 → 기존 메일 방식으로 폴백
+    btn.disabled = false; btn.textContent = '응답 제출하기';
+    submitViaMail();
+  }
+}
+
+// ── mailto 폴백 (구 제출 방식 — 삭제하지 않고 유지) ──
+function submitViaMail() {
+
+  const lines = [];
+  lines.push('=== ThinQ Real 방문 후기 ===');
+  lines.push('');
+  lines.push('[기본 정보]');
+  lines.push('방문일: ' + getText('visitDate'));
+  lines.push('소속: ' + getText('dept'));
+  lines.push('작성자: ' + getText('name'));
+  lines.push('방문 고객사/대상: ' + getText('client'));
+  lines.push('방문 횟수: ' + getRadio('visitCount'));
+  lines.push('방문 목적: ' + getRadio('purpose'));
+  lines.push('');
+
+  if (currentTrack === 'sales') {
+    lines.push('[B2B 영업 상세]');
+    lines.push('딜 단계: ' + getRadio('deal'));
+    if (getRadio('deal') === '계약 체결 완료 (확정)') {
+      lines.push('실제 계약 금액: ' + getText('dealAmount'));
+    }
+    lines.push('딜 규모: ' + getRadio('dealSize'));
+    lines.push('제품·솔루션 영역: ' + getRadio('dealArea'));
+    lines.push('방문 후 고객 반응: ' + getChecks('reaction'));
+    lines.push('기여 수준: ' + getRadio('attr'));
+  } else if (currentTrack === 'media') {
+    lines.push('[콘텐츠 제작·홍보 상세]');
+    lines.push('활용 내용: ' + getChecks('mediaWork'));
+    lines.push('사용 기간: ' + getRadio('mediaDays'));
+    lines.push('대체 시나리오: ' + getRadio('mediaAlt'));
+    lines.push('실제 소요 비용·견적가: ' + getText('mediaCost'));
+    lines.push('성과 연결: ' + getRadio('mediaLink'));
+    if (getRadio('mediaLink') === '특정 캠페인·프로모션과 연결됨') {
+      lines.push('📒 성과 추적 대장 등록 대상 [홍보·광고 마케팅]');
+      lines.push('  · 과제명: ' + getText('mediaLinkName'));
+      lines.push('  · 예상 규모: ' + getRadio('mediaLinkSize'));
+      lines.push('  · 기여 수준: ' + getRadio('mediaLinkAttr'));
+    }
+  } else {
+    lines.push('[R&D·내부 커뮤니케이션·기타 상세]');
+    lines.push('활용 내용: ' + getChecks('etcWork'));
+    lines.push('사용 기간: ' + getRadio('etcDays'));
+    lines.push('대체 시나리오: ' + getRadio('etcAlt'));
+    lines.push('IoT 제품 품질 이슈: ' + getRadio('iotDefect'));
+    if (getRadio('iotDefect') === '발견함') {
+      lines.push('⚠ IoT 제품 품질 이슈 상세 (이슈 로그 등록 대상): ' + getText('iotDefectDetail'));
+    }
+    lines.push('성과 연결: ' + getRadio('etcLink'));
+    if (getRadio('etcLink') === '신규 Task·과제') {
+      lines.push('📒 성과 추적 대장 등록 대상 [신규 Task·기타]');
+      lines.push('  · 과제명: ' + getText('etcLinkName'));
+      lines.push('  · 예상 규모: ' + getRadio('etcLinkSize'));
+      lines.push('  · 기여 수준: ' + getRadio('etcLinkAttrTask'));
+    }
+  }
+
+  lines.push('');
+  lines.push('[만족도 및 의견]');
+  lines.push('만족도: ' + getRadio('satisfaction'));
+  lines.push('자유 의견: ' + getText('freeComment'));
+  lines.push('');
+  lines.push('--- 본 회신은 ThinQ Real ROI 분석 데이터로 활용됩니다 ---');
+
+  const bodyText = lines.join('\n');
+  const subjectText = '[ThinQ Real 방문 후기] ' + getText('dept') + ' / ' + getText('visitDate');
+
+  // ① 클립보드에 자동 복사 (mailto 실패 대비)
+  copyToClipboard(bodyText);
+
+  // ② 결과 패널 표시
+  document.getElementById('recipientDisplay').textContent = RECIPIENT;
+  document.getElementById('resultText').value = bodyText;
+  document.getElementById('resultCard').classList.remove('hidden');
+  document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // ③ 메일 앱 열기 시도 (연결되어 있으면 자동으로 열림)
+  const subject = encodeURIComponent(subjectText);
+  const body = encodeURIComponent(bodyText);
+  const mailtoLink = `mailto:${RECIPIENT}?subject=${subject}&body=${body}`;
+  // 새 탭이 아닌 현재 창에서 시도 — 실패해도 페이지 유지됨
+  const a = document.createElement('a');
+  a.href = mailtoLink;
+  a.click();
+}
+
+// 클립보드 복사 (구형 브라우저 폴백 포함)
+function copyToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch(e) {}
+  document.body.removeChild(ta);
+}
+function copyResult() {
+  copyToClipboard(document.getElementById('resultText').value);
+  alert('응답 내용이 복사되었습니다. 메일 본문에 붙여넣어 주세요.');
+}
+function copyRecipient() {
+  copyToClipboard(RECIPIENT);
+  alert('메일 주소가 복사되었습니다: ' + RECIPIENT);
+}
+</script>
+</body>
+</html>
