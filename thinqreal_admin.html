@@ -2409,7 +2409,7 @@ window.addEventListener('resize', () => {
 })();
 
 // ROI 툴 캐시 무력화 토큰 (ROI 툴을 갱신할 때마다 이 숫자를 올리세요)
-const ROI_BUILD = '20260709a';
+const ROI_BUILD = '20260715a';
 
 // "새 창에서 열기" 링크에도 동일 토큰 부착
 (function attachRoiBuild() {
@@ -3607,7 +3607,7 @@ async function svPost(payload) {
 const SV_FIELD_LABELS = [
   ['submitted_at', '제출 시각'], ['visit_date', '방문일'], ['visit_count', '방문 횟수'],
   ['name', '작성자'], ['dept', '부서'], ['client', '고객사/대상'], ['purpose', '방문 목적'],
-  ['deal_stage', '딜 단계'], ['deal_size', '딜 규모'], ['deal_area', '제품·솔루션 영역'],
+  ['deal_stage', '딜 단계'], ['deal_amount', '실제 계약 금액'], ['deal_size', '딜 규모'], ['deal_area', '제품·솔루션 영역'],
   ['reaction', '방문 후 고객 반응'], ['attr', '기여 수준'],
   ['media_work', '활용 내용'], ['media_days', '사용 기간'], ['media_alt', '대체 시나리오'],
   ['media_cost', '실비·견적가'], ['media_link', '성과 연결'], ['media_link_name', '캠페인·과제명'],
@@ -3654,7 +3654,7 @@ const SV_EDIT_COMMON = [
 ];
 const SV_EDIT_TRACK = {
   sales: [
-    ['deal_stage', '딜 단계', 'text'], ['deal_size', '딜 규모', 'text'],
+    ['deal_stage', '딜 단계', 'text'], ['deal_amount', '실제 계약 금액', 'text'], ['deal_size', '딜 규모', 'text'],
     ['deal_area', '제품·솔루션 영역', 'text'], ['reaction', '방문 후 고객 반응', 'text'],
     ['attr', '기여 수준', 'text']
   ],

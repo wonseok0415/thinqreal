@@ -85,6 +85,10 @@
   .field-label { font-size: 12px; font-weight: 600; color: var(--text-2); margin: 12px 0 6px; display: block; }
   .field-label:first-of-type { margin-top: 0; }
 
+  /* 필수 응답 미선택 하이라이트 (Track A 검증) */
+  .card.need-answer { box-shadow: 0 0 0 2px #d05a5a, 0 1px 3px rgba(0,0,0,0.05); }
+  .req-msg { margin: 12px 0 0 28px; font-size: 13px; color: #c0392b; font-weight: 600; }
+
   /* 선택 옵션 (라디오/체크 카드) */
   .opt-group { display: flex; flex-direction: column; gap: 8px; margin-left: 28px; }
   .opt {
@@ -232,6 +236,11 @@
         <label class="opt"><input type="radio" name="deal" value="제안·견적 (25%)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">제안 · 견적 단계</span><span class="opt-sub">제안서·견적 제출 또는 준비</span></span></label>
         <label class="opt"><input type="radio" name="deal" value="초기 상담·탐색 (10%)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">초기 상담 · 탐색 단계</span><span class="opt-sub">니즈 파악, 첫 논의</span></span></label>
         <label class="opt"><input type="radio" name="deal" value="딜 없음 (견학/관계 유지 목적)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">딜 없음</span><span class="opt-sub">견학, 관계 유지 목적의 방문</span></span></label>
+      </div>
+      <div id="dealAmountWrap" style="display:none; margin-left:28px; margin-top:12px;">
+        <label class="field-label">실제 계약 금액 (선택)</label>
+        <input type="text" id="dealAmount" placeholder="예: 12.5억 / 알 수 없으면 비워두세요">
+        <p style="font-size:11.5px; color:var(--text-3); margin-top:6px; line-height:1.5;">비워두셔도 됩니다 — 미입력 시 범위 하한을 임시 적용하고 운영팀이 영업 담당께 확인합니다.</p>
       </div>
     </div>
 
@@ -533,10 +542,13 @@ function updateLinkDetails() {
     (radioVal('mediaLink') === '특정 캠페인·프로모션과 연결됨') ? 'block' : 'none';
   document.getElementById('etcLinkDetail').style.display =
     (radioVal('etcLink') === '신규 Task·과제') ? 'block' : 'none';
+  // Track A: 계약 체결(확정) 선택 시에만 실제 계약 금액 입력 노출 (무응답 정상 — 필수 아님)
+  document.getElementById('dealAmountWrap').style.display =
+    (radioVal('deal') === '계약 체결 완료 (확정)') ? 'block' : 'none';
 }
 // change 이벤트는 커스텀 클릭 핸들러가 checked를 먼저 설정해 발생하지 않을 수 있음
 // → 클릭 핸들러에서도 직접 호출 (아래 옵션 선택 스타일 참조)
-document.querySelectorAll('input[name="mediaLink"], input[name="etcLink"]').forEach(r =>
+document.querySelectorAll('input[name="mediaLink"], input[name="etcLink"], input[name="deal"]').forEach(r =>
   r.addEventListener('change', updateLinkDetails));
 
 // ==================== 옵션 선택 스타일 ====================
@@ -554,6 +566,13 @@ document.querySelectorAll('.track .opt, #commonCard .opt, .opt-group[data-name="
       opt.classList.toggle('selected', input.checked);
     }
     updateLinkDetails();
+    // 필수 응답 하이라이트는 답을 고르는 즉시 해제
+    const card = opt.closest('.card');
+    if (card && card.classList.contains('need-answer')) {
+      card.classList.remove('need-answer');
+      const m = card.querySelector('.req-msg');
+      if (m) m.remove();
+    }
   });
 });
 
@@ -597,7 +616,8 @@ function buildPayload() {
   if (currentTrack === 'sales') {
     Object.assign(p, {
       deal_stage: rawRadio('deal'), deal_size: rawRadio('dealSize'), deal_area: rawRadio('dealArea'),
-      reaction: rawChecks('reaction'), attr: rawRadio('attr')
+      reaction: rawChecks('reaction'), attr: rawRadio('attr'),
+      deal_amount: rawText('dealAmount')   // 계약 체결 시에만 노출되는 선택 입력 (무응답 정상)
     });
   } else if (currentTrack === 'media') {
     Object.assign(p, {
@@ -617,9 +637,46 @@ function buildPayload() {
   return p;
 }
 
+// ── Track A 필수 응답 검증 (Survey Spec §8-2-B) ──
+// 딜 단계는 항상 필수, 딜이 있으면(≠딜 없음) 규모·기여 수준도 필수.
+// dealAmount(실제 계약 금액)는 무응답이 정상 케이스 — 검증 대상 아님.
+const REQUIRED_MSG = {
+  deal: '딜 단계를 선택해 주세요. 딜이 없는 방문이면 "딜 없음"을 선택하시면 됩니다.',
+  dealSize: '딜 규모를 선택해 주세요. 알 수 없으면 "해당 없음 / 알 수 없음"을 선택하시면 됩니다.',
+  attr: '기여 수준을 선택해 주세요. 실제 있었던 일에 가장 가까운 항목이면 됩니다.'
+};
+function firstMissingRequired() {
+  if (currentTrack !== 'sales') return null;
+  const deal = rawRadio('deal');
+  if (!deal) return 'deal';
+  if (deal !== '딜 없음 (견학/관계 유지 목적)') {
+    if (!rawRadio('dealSize')) return 'dealSize';
+    if (!rawRadio('attr')) return 'attr';
+  }
+  return null;
+}
+function clearRequiredMarks() {
+  document.querySelectorAll('.card.need-answer').forEach(c => c.classList.remove('need-answer'));
+  document.querySelectorAll('.req-msg').forEach(m => m.remove());
+}
+function markRequired(name) {
+  const group = document.querySelector('.opt-group[data-name="' + name + '"]');
+  if (!group) return;
+  const card = group.closest('.card');
+  card.classList.add('need-answer');
+  const msg = document.createElement('p');
+  msg.className = 'req-msg';
+  msg.textContent = REQUIRED_MSG[name] || '이 항목을 선택해 주세요.';
+  card.appendChild(msg);
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 // ── 제출: fetch 자동 접수 (기본) → 실패 시 mailto 폴백 ──
 async function submitForm() {
   if (!currentTrack) { alert('방문 목적을 선택해 주세요.'); return; }
+  clearRequiredMarks();
+  const missing = firstMissingRequired();
+  if (missing) { markRequired(missing); return; }
   const btn = document.querySelector('.btn-submit');
   btn.disabled = true; btn.textContent = '제출 중…';
   try {
@@ -658,6 +715,9 @@ function submitViaMail() {
   if (currentTrack === 'sales') {
     lines.push('[B2B 영업 상세]');
     lines.push('딜 단계: ' + getRadio('deal'));
+    if (getRadio('deal') === '계약 체결 완료 (확정)') {
+      lines.push('실제 계약 금액: ' + getText('dealAmount'));
+    }
     lines.push('딜 규모: ' + getRadio('dealSize'));
     lines.push('제품·솔루션 영역: ' + getRadio('dealArea'));
     lines.push('방문 후 고객 반응: ' + getChecks('reaction'));

@@ -1332,6 +1332,12 @@ function collectMonthlyData(month) {
     articles.source = articles.provider || 'auto';
   }
 
+  // 4) 설문·성과 지표 (Phase 5 — 설문 파이프라인 월간 집계)
+  //    집계 실패가 리포트 발송 자체를 막지 않도록 격리 (텔레그램·캘린더와 동일 원칙)
+  let survey = null;
+  try { survey = collectMonthlySurvey(month); }
+  catch (err) { Logger.log('[monthly] survey metrics fail: ' + err); }
+
   return {
     month, year, monthNum,
     kpi: {
@@ -1346,6 +1352,7 @@ function collectMonthlyData(month) {
     roi,
     roiLatest,
     articles,
+    survey,
   };
 }
 
@@ -1806,6 +1813,21 @@ function buildMonthlyReportText(d) {
     }
   }
 
+  // 설문·성과 지표 (Phase 5)
+  if (d.survey) {
+    const s = d.survey;
+    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    L.push('📋 설문·성과 지표');
+    L.push('   방문 후기 설문 기반 지표 (확정 산입액 = 이번 달 대장 확정 합계)');
+    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    L.push(`   설문 응답        ${s.count}건 (영업 ${s.tracks.sales} · 콘텐츠 ${s.tracks.media} · 기타 ${s.tracks.etc})`);
+    L.push(`   재방문 응답률    ${s.revisitPct == null ? '—' : s.revisitPct + '%'}`);
+    L.push(`   성과 추적 대장   신규 ${s.ledgerNew}건 · 확정 ${s.ledgerConfirmed}건 · 드롭 ${s.ledgerDropped}건`);
+    L.push(`   월 확정 산입액   ${Number(s.confirmedSum).toLocaleString()}만원`);
+    L.push(`   IoT 이슈 등록    ${s.issueCount}건`);
+    L.push('');
+  }
+
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   L.push(`💰 ${d.monthNum}월 ROI 누적 분석 결과`);
   L.push('   저장된 시나리오 기반의 실시간 산출 결과');
@@ -2188,6 +2210,28 @@ function buildMonthlyReportHtml(d) {
     }).join('');
   }
 
+  // ── 3.5) 설문·성과 지표 (Phase 5 — 방문 후기 설문 파이프라인 월간 집계) ──
+  let surveyKpiRow = '', surveyChipsRow = '';
+  if (d.survey) {
+    const s = d.survey;
+    surveyKpiRow =
+      '<tr><td style="padding:0 28px 8px;">' +
+        '<table role="presentation" cellspacing="14" cellpadding="0" border="0" style="border-collapse:separate;width:100%;">' +
+          '<tr>' +
+            kpiCell('설문 응답', s.count, '건', '#3a5035') +
+            kpiCell('재방문 응답률', s.revisitPct == null ? '—' : s.revisitPct, s.revisitPct == null ? '' : '%', '#3a5035') +
+            kpiCell('월 확정 산입액', Number(s.confirmedSum).toLocaleString(), '만원', '#3a5035') +
+            kpiCell('IoT 이슈 등록', s.issueCount, '건', '#3a5035') +
+          '</tr>' +
+        '</table>' +
+      '</td></tr>';
+    surveyChipsRow =
+      '<tr><td style="padding:0 28px 16px;">' +
+        roiChip('트랙 분포', '영업 ' + s.tracks.sales + ' · 콘텐츠 ' + s.tracks.media + ' · 기타 ' + s.tracks.etc) +
+        roiChip('성과 대장', '신규 ' + s.ledgerNew + ' · 확정 ' + s.ledgerConfirmed + ' · 드롭 ' + s.ledgerDropped) +
+      '</td></tr>';
+  }
+
   // 섹션별 한 줄 설명 (임원진 가독성 우선 — 무엇을 보여주는지 즉시 이해)
   const descKpi = '이번 달 운영 성과의 핵심 지표';
   const descPurpose = '확정된 방문이 어떤 목적으로 진행되었는지의 비중';
@@ -2198,6 +2242,7 @@ function buildMonthlyReportHtml(d) {
   const descArticles = d.articles.source === 'manual'
     ? '담당자가 큐레이션한 이번 달 ThinQ Real 관련 보도 ' + d.articles.items.length + '건'
     : 'Google 검색 결과 기준의 최근 1개월 ThinQ Real 관련 보도';
+  const descSurvey = '방문 후기 설문 기반 지표 — 월 확정 산입액은 성과 추적 대장에서 이번 달 확정 처리된 금액의 합계입니다.';
 
   return (
     '<div style="background:#f5f5f7;padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,\'Helvetica Neue\',\'Apple SD Gothic Neo\',\'Malgun Gothic\',sans-serif;">' +
@@ -2215,6 +2260,7 @@ function buildMonthlyReportHtml(d) {
         '<tr><td style="padding:0 28px 16px;">' + purposeBody + '</td></tr>' +
         sectionHeader('📅', '방문 이력', descVisits) +
         '<tr><td style="padding:0 28px 16px;">' + visitsBody + '</td></tr>' +
+        (d.survey ? sectionHeader('📋', '설문·성과 지표', descSurvey) + surveyKpiRow + surveyChipsRow : '') +
         sectionHeader('💰', d.monthNum + '월 ROI 누적 분석 결과', descRoi) +
         '<tr><td style="padding:0 28px 16px;">' + roiBody + '</td></tr>' +
         sectionHeader('📰', '관련 기사', descArticles) +
@@ -3058,22 +3104,36 @@ const SURVEY_SHEET_NAME = 'survey_responses';
 const LEDGER_SHEET_NAME = 'performance_ledger';
 const ISSUE_SHEET_NAME  = 'iot_issue_log';
 
-const SURVEY_HEADERS = ['response_id','submitted_at','visit_date','dept','name','client','visit_count','track','purpose','deal_stage','deal_size','deal_area','reaction','attr','media_work','media_days','media_alt','media_cost','media_link','media_link_name','media_link_size','media_link_attr','etc_work','etc_days','etc_alt','iot_defect','iot_defect_detail','etc_link','etc_link_name','etc_link_size','etc_link_attr','satisfaction','feedback','raw_json'];
+// ⚠ 새 컬럼은 반드시 배열 "끝"에만 추가할 것 — handleSurveySubmit이 이 순서대로 appendRow하므로
+//   중간 삽입 시 기존 시트 컬럼과 어긋난다. 기존 시트에는 getNamedSheet가 누락 헤더를 끝에 자동 append.
+// deal_amount: 계약 체결 딜의 실제 계약 금액 (2026-07 S9 — 선택 입력, 무응답 정상)
+const SURVEY_HEADERS = ['response_id','submitted_at','visit_date','dept','name','client','visit_count','track','purpose','deal_stage','deal_size','deal_area','reaction','attr','media_work','media_days','media_alt','media_cost','media_link','media_link_name','media_link_size','media_link_attr','etc_work','etc_days','etc_alt','iot_defect','iot_defect_detail','etc_link','etc_link_name','etc_link_size','etc_link_attr','satisfaction','feedback','raw_json','deal_amount'];
 const LEDGER_HEADERS = ['ledger_id','response_id','category','project_name','expected_scale','attribution_text','attribution_pct','visit_date','respondent','dept','status','confirmed_amount','confirmed_date','confirmed_note','roi_included'];
 const ISSUE_HEADERS  = ['issue_id','response_id','device','symptom','severity','channel','q_ship','status','est_value'];
 
 // 시트 확보 + 헤더 자동 생성 (getRoiSheet/getOrCreateRoiHeaders 패턴)
+// 기존 시트에 상수의 새 컬럼이 없으면 끝에 자동 append — bookings getOrCreateHeaders와 동일한 스키마 진화 방식
 function getNamedSheet(name, headers) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const sheet = ss.getSheetByName(name) || ss.insertSheet(name);
-  const firstRow = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
-  if (!firstRow[0]) {
+  const lastCol = sheet.getLastColumn();
+  const firstRow = lastCol ? sheet.getRange(1, 1, 1, lastCol).getValues()[0] : [];
+  const paintHeader = range => {
+    range.setBackground('#3a5035');
+    range.setFontColor('#ffffff');
+    range.setFontWeight('bold');
+  };
+  if (!firstRow.length || !firstRow[0]) {
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    const headerRange = sheet.getRange(1, 1, 1, headers.length);
-    headerRange.setBackground('#3a5035');
-    headerRange.setFontColor('#ffffff');
-    headerRange.setFontWeight('bold');
+    paintHeader(sheet.getRange(1, 1, 1, headers.length));
     sheet.setFrozenRows(1);
+  } else {
+    const missing = headers.filter(h => firstRow.indexOf(h) < 0);
+    if (missing.length) {
+      const start = firstRow.length;
+      sheet.getRange(1, start + 1, 1, missing.length).setValues([missing]);
+      paintHeader(sheet.getRange(1, start + 1, 1, missing.length));
+    }
   }
   return sheet;
 }
@@ -3191,6 +3251,45 @@ function readSheetRecords(name, headers) {
     });
     return obj;
   }).filter(r => r[hs[0]]);
+}
+
+// ── Phase 5: 월간 리포트용 설문·성과 집계 (Survey Spec §5-4) ─────────
+// 응답 수·트랙 분포·재방문율·대장 신규/확정/드롭·확정 산입액 합계(만원)·이슈 등록 건수.
+// 시트 3종이 아직 없으면 getNamedSheet가 빈 시트를 만들고 전부 0건으로 집계된다.
+function collectMonthlySurvey(month) {
+  const responses = readSheetRecords(SURVEY_SHEET_NAME, SURVEY_HEADERS);
+  const ledger    = readSheetRecords(LEDGER_SHEET_NAME, LEDGER_HEADERS);
+  const issues    = readSheetRecords(ISSUE_SHEET_NAME, ISSUE_HEADERS);
+
+  const respMonth = r => String(r.visit_date || r.submitted_at || '').slice(0, 7);
+  const monthResponses = responses.filter(r => respMonth(r) === month);
+
+  const tracks = { sales: 0, media: 0, etc: 0 };
+  monthResponses.forEach(r => { if (tracks[r.track] != null) tracks[r.track]++; });
+
+  const answered = monthResponses.filter(r => r.visit_count);
+  const revisit = answered.filter(r => r.visit_count !== '첫 방문').length;
+  const revisitPct = answered.length ? Math.round(revisit / answered.length * 100) : null;
+
+  // 대장: 신규 = 해당 월 방문(visit_date) 기준 / 확정 = confirmed_date 기준 / 드롭 = 해당 월 신규 중 드롭
+  const ledgerNew = ledger.filter(l => String(l.visit_date || '').slice(0, 7) === month);
+  const confirmedRows = ledger.filter(l =>
+    l.status === '확정' && String(l.confirmed_date || '').slice(0, 7) === month);
+  const confirmedSum = confirmedRows.reduce((s, l) => s + (Number(l.confirmed_amount) || 0), 0); // 만원
+  const droppedNew = ledgerNew.filter(l => l.status === '드롭').length;
+
+  // 이슈는 출처 응답의 월 기준 — response_id → 응답 월 매핑으로 조인
+  const respMonthById = {};
+  responses.forEach(r => { respMonthById[String(r.response_id)] = respMonth(r); });
+  const issueCount = issues.filter(x => respMonthById[String(x.response_id)] === month).length;
+
+  return {
+    count: monthResponses.length, tracks,
+    revisitPct,
+    ledgerNew: ledgerNew.length, ledgerConfirmed: confirmedRows.length,
+    ledgerDropped: droppedNew, confirmedSum,
+    issueCount
+  };
 }
 
 // ── 설문 응답 내용 수정 (관리자 토큰 게이트 — 오탈자·내용 정정용) ──
