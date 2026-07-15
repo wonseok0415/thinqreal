@@ -21,7 +21,7 @@ RUN npm install --omit=dev && npm cache clean --force
 COPY server/src ./src
 
 # 정적 프론트 (리포 루트에서) — 컨테이너가 함께 서빙
-COPY index.html thinqreal_admin.html ThinQ_Real_ROI_Tool.html privacy.html ./public/
+COPY index.html thinqreal_admin.html ThinQ_Real_ROI_Tool.html ThinQ_Real_Visit_Survey.html privacy.html ./public/
 COPY CNAME .nojekyll ./public/
 COPY images ./public/images
 

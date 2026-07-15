@@ -59,6 +59,20 @@ export function buildNewBookingMessage(data, id) {
   return lines.join('\n');
 }
 
+// 설문 접수 알림 — .gs sendTelegramSurvey 이식
+export function buildSurveyMessage(data, track, ledgerCount, issueCount) {
+  const trackLabel = { sales: 'B2B 영업', media: '콘텐츠·홍보', etc: 'R&D·내부·기타' }[track] || track;
+  const lines = [];
+  lines.push('📝 <b>설문 접수</b> [' + esc(trackLabel) + ']');
+  lines.push('');
+  lines.push('📅 방문일 ' + esc(data.visit_date || '-') + (data.visit_count ? ' · ' + esc(data.visit_count) : ''));
+  lines.push('👤 ' + esc(data.name || '-') + ' (' + esc(data.dept || '-') + ')');
+  if (data.satisfaction) lines.push('⭐ ' + esc(data.satisfaction));
+  if (ledgerCount) lines.push('📒 성과 추적 대장 +' + ledgerCount + '건 (후보)');
+  if (issueCount) lines.push('⚠ IoT 이슈 로그 +' + issueCount + '건');
+  return lines.join('\n');
+}
+
 export function buildStatusChangeMessage(booking, status) {
   const date = normalizeDate(booking.date);
   const slotLabel = booking.slotLabel || '';

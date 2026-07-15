@@ -12,6 +12,7 @@ import { handleMonthlyReportPreview, handleMonthlyReportSend } from '../handlers
 import {
   handleMailStatus, handleMailTest, handleTelegramTest, handleTeamsTest, handleCalendarTest,
 } from '../handlers/diagnostics.js';
+import { handleGetSurveyData } from '../handlers/survey.js';
 
 export function createGetRouter(store) {
   const router = Router();
@@ -57,6 +58,8 @@ export function createGetRouter(store) {
           return res.json(await handleTeamsTest());
         case 'calendar_test':
           return res.json(await handleCalendarTest());
+        case 'survey_data': // 설문·대장·이슈 통합 조회 (관리자 토큰 필수 — 핸들러 내부 검증)
+          return res.json(await handleGetSurveyData(store, q.token));
         default:
           return res.json({ error: 'Unknown type' });
       }

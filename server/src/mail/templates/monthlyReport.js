@@ -108,6 +108,21 @@ export function buildMonthlyReportText(d) {
     }
   }
 
+  // 설문·성과 지표 (Phase 5)
+  if (d.survey) {
+    const s = d.survey;
+    L.push(BAR);
+    L.push('📋 설문·성과 지표');
+    L.push('   방문 후기 설문 기반 지표 (확정 산입액 = 이번 달 대장 확정 합계)');
+    L.push(BAR);
+    L.push(`   설문 응답        ${s.count}건 (영업 ${s.tracks.sales} · 콘텐츠 ${s.tracks.media} · 기타 ${s.tracks.etc})`);
+    L.push(`   재방문 응답률    ${s.revisitPct == null ? '—' : s.revisitPct + '%'}`);
+    L.push(`   성과 추적 대장   신규 ${s.ledgerNew}건 · 확정 ${s.ledgerConfirmed}건 · 드롭 ${s.ledgerDropped}건`);
+    L.push(`   월 확정 산입액   ${Number(s.confirmedSum).toLocaleString()}만원`);
+    L.push(`   IoT 이슈 등록    ${s.issueCount}건`);
+    L.push('');
+  }
+
   L.push(BAR);
   L.push(`💰 ${d.monthNum}월 ROI 누적 분석 결과`);
   L.push('   저장된 시나리오 기반의 실시간 산출 결과');
@@ -330,6 +345,32 @@ export function buildMonthlyReportHtml(d, chartSrc = () => null) {
     }).join('');
   }
 
+  // ── 5.5) 설문·성과 지표 (Phase 5 — 방문 후기 설문 파이프라인 월간 집계) ──
+  const chip = (label, value) =>
+    '<span style="display:inline-block;margin:0 8px 6px 0;padding:5px 10px;background:#f5f5f7;border-radius:999px;font-size:12px;color:#1d1d1f;">' +
+      '<span style="color:#6e6e73;">' + escapeHtml(label) + '</span>&nbsp;<strong>' + escapeHtml(String(value)) + '</strong>' +
+    '</span>';
+  let surveyKpiRow = '', surveyChipsRow = '';
+  if (d.survey) {
+    const s = d.survey;
+    surveyKpiRow =
+      '<tr><td style="padding:0 28px 8px;">' +
+        '<table role="presentation" cellspacing="14" cellpadding="0" border="0" style="border-collapse:separate;width:100%;">' +
+          '<tr>' +
+            kpiCell('설문 응답', s.count, '건', '#3a5035') +
+            kpiCell('재방문 응답률', s.revisitPct == null ? '—' : s.revisitPct, s.revisitPct == null ? '' : '%', '#3a5035') +
+            kpiCell('월 확정 산입액', Number(s.confirmedSum).toLocaleString(), '만원', '#3a5035') +
+            kpiCell('IoT 이슈 등록', s.issueCount, '건', '#3a5035') +
+          '</tr>' +
+        '</table>' +
+      '</td></tr>';
+    surveyChipsRow =
+      '<tr><td style="padding:0 28px 16px;">' +
+        chip('트랙 분포', '영업 ' + s.tracks.sales + ' · 콘텐츠 ' + s.tracks.media + ' · 기타 ' + s.tracks.etc) +
+        chip('성과 대장', '신규 ' + s.ledgerNew + ' · 확정 ' + s.ledgerConfirmed + ' · 드롭 ' + s.ledgerDropped) +
+      '</td></tr>';
+  }
+
   const descKpi = '이번 달 운영 성과의 핵심 지표';
   const descPurpose = '확정된 방문이 어떤 목적으로 진행되었는지의 비중';
   const descVisits = '이번 달 확정 방문 중 핵심 이력(B2B 영업 · 홍보) ' + keyVisits.length + '건의 일자별 상세';
@@ -339,6 +380,7 @@ export function buildMonthlyReportHtml(d, chartSrc = () => null) {
   const descArticles = d.articles.source === 'manual'
     ? '담당자가 큐레이션한 이번 달 ThinQ Real 관련 보도 ' + d.articles.items.length + '건'
     : 'Google 검색 결과 기준의 최근 1개월 ThinQ Real 관련 보도';
+  const descSurvey = '방문 후기 설문 기반 지표 — 월 확정 산입액은 성과 추적 대장에서 이번 달 확정 처리된 금액의 합계입니다.';
 
   return (
     '<div style="background:#f5f5f7;padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,\'Helvetica Neue\',\'Apple SD Gothic Neo\',\'Malgun Gothic\',sans-serif;">' +
@@ -355,6 +397,7 @@ export function buildMonthlyReportHtml(d, chartSrc = () => null) {
         '<tr><td style="padding:0 28px 16px;">' + purposeBody + '</td></tr>' +
         sectionHeader('📅', '방문 이력', descVisits) +
         '<tr><td style="padding:0 28px 16px;">' + visitsBody + '</td></tr>' +
+        (d.survey ? sectionHeader('📋', '설문·성과 지표', descSurvey) + surveyKpiRow + surveyChipsRow : '') +
         sectionHeader('💰', d.monthNum + '월 ROI 누적 분석 결과', descRoi) +
         '<tr><td style="padding:0 28px 16px;">' + roiBody + '</td></tr>' +
         sectionHeader('📰', '관련 기사', descArticles) +

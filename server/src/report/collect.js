@@ -1,6 +1,46 @@
 // 월간 리포트 데이터 수집 — .gs collectMonthlyData 이식 (store 어댑터 기반)
 import { getManualArticles, fetchThinqRealArticles } from './articles.js';
 
+// Phase 5: 설문·성과 월간 집계 — .gs collectMonthlySurvey 이식 (Survey Spec §5-4).
+// 응답 수·트랙 분포·재방문율·대장 신규/확정/드롭·확정 산입액 합계(만원)·이슈 등록 건수.
+export async function collectMonthlySurvey(store, month) {
+  const [responses, ledger, issues] = await Promise.all([
+    store.survey.listResponses(),
+    store.survey.listLedger(),
+    store.survey.listIssues(),
+  ]);
+
+  const respMonth = (r) => String(r.visit_date || r.submitted_at || '').slice(0, 7);
+  const monthResponses = responses.filter((r) => respMonth(r) === month);
+
+  const tracks = { sales: 0, media: 0, etc: 0 };
+  monthResponses.forEach((r) => { if (tracks[r.track] != null) tracks[r.track]++; });
+
+  const answered = monthResponses.filter((r) => r.visit_count);
+  const revisit = answered.filter((r) => r.visit_count !== '첫 방문').length;
+  const revisitPct = answered.length ? Math.round((revisit / answered.length) * 100) : null;
+
+  // 대장: 신규 = 해당 월 방문(visit_date) 기준 / 확정 = confirmed_date 기준 / 드롭 = 해당 월 신규 중 드롭
+  const ledgerNew = ledger.filter((l) => String(l.visit_date || '').slice(0, 7) === month);
+  const confirmedRows = ledger.filter((l) =>
+    l.status === '확정' && String(l.confirmed_date || '').slice(0, 7) === month);
+  const confirmedSum = confirmedRows.reduce((s, l) => s + (Number(l.confirmed_amount) || 0), 0); // 만원
+  const droppedNew = ledgerNew.filter((l) => l.status === '드롭').length;
+
+  // 이슈는 출처 응답의 월 기준 — response_id → 응답 월 매핑으로 조인
+  const respMonthById = {};
+  responses.forEach((r) => { respMonthById[String(r.response_id)] = respMonth(r); });
+  const issueCount = issues.filter((x) => respMonthById[String(x.response_id)] === month).length;
+
+  return {
+    count: monthResponses.length, tracks,
+    revisitPct,
+    ledgerNew: ledgerNew.length, ledgerConfirmed: confirmedRows.length,
+    ledgerDropped: droppedNew, confirmedSum,
+    issueCount,
+  };
+}
+
 export async function collectMonthlyData(store, month) {
   const [yStr, mStr] = month.split('-');
   const year = Number(yStr), monthNum = Number(mStr);
@@ -53,6 +93,11 @@ export async function collectMonthlyData(store, month) {
     articles.source = articles.provider || 'auto';
   }
 
+  // 4) 설문·성과 지표 (Phase 5) — 집계 실패가 리포트 발송을 막지 않도록 격리
+  let survey = null;
+  try { survey = await collectMonthlySurvey(store, month); }
+  catch (e) { console.warn('[monthly] survey metrics fail: ' + e.message); }
+
   return {
     month, year, monthNum,
     kpi: {
@@ -67,5 +112,6 @@ export async function collectMonthlyData(store, month) {
     roi,
     roiLatest,
     articles,
+    survey,
   };
 }

@@ -70,6 +70,18 @@ export async function sendTeamsStatusChange(booking, status) {
   ], '관리자 페이지 열기'));
 }
 
+// 설문 접수 — Teams는 이관 후 메인 채널이므로 설문 알림도 카드로 (텔레그램 메시지와 동일 정보)
+export async function sendTeamsSurvey(data, track, ledgerCount, issueCount) {
+  const trackLabel = { sales: 'B2B 영업', media: '콘텐츠·홍보', etc: 'R&D·내부·기타' }[track] || track;
+  return postCard(baseCard(`📝 설문 접수 [${trackLabel}]`, [
+    { title: '방문일', value: `${data.visit_date || '-'}${data.visit_count ? ' · ' + data.visit_count : ''}` },
+    { title: '응답자', value: `${data.name || '-'} (${data.dept || '-'})` },
+    { title: '만족도', value: String(data.satisfaction || '') },
+    { title: '성과 대장', value: ledgerCount ? `+${ledgerCount}건 (후보)` : '' },
+    { title: 'IoT 이슈', value: issueCount ? `+${issueCount}건` : '' },
+  ], '관리자 페이지 열기'));
+}
+
 export async function sendTeamsTest() {
   if (!teamsConfigured()) return { ok: false, reason: 'not_configured', hint: 'env TEAMS_WEBHOOK_URL 확인' };
   return postCard(baseCard('🧪 ThinQ Real Teams 연동 테스트', [

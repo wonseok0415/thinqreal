@@ -79,6 +79,10 @@ export const config = {
   serperApiKey: env('SERPER_API_KEY'),
   cse: { id: env('GOOGLE_CSE_ID'), key: env('GOOGLE_CSE_KEY') },
 
+  // 설문 이슈 est_value 계산용 CS 채널 단가 — 민감 정보 (.gs Script Property SURVEY_CAS_JSON 이식).
+  // 형식: {"원격":N,"내방":N,"출장":N} (원 단위). 미설정 시 est_value 공란 (참고용·ROI 미산입이라 무해).
+  surveyCasJson: env('SURVEY_CAS_JSON'),
+
   guideUrl: env('GUIDE_URL', 'https://thinqreal.com/#page-guide'),
   adminPageUrl: env('ADMIN_PAGE_URL', 'https://thinqreal.com/thinqreal_admin.html'),
 };

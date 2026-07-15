@@ -3,6 +3,8 @@
 import {
   SHEET_NAME, ROI_SHEET_NAME, ARTICLES_SHEET_NAME, SLOT_BLOCKS_SHEET_NAME, STATE_SHEET_NAME,
   BOOKING_HEADERS, ROI_HEADERS, ARTICLES_HEADERS, SLOT_BLOCKS_HEADERS, STATE_HEADERS,
+  SURVEY_SHEET_NAME, LEDGER_SHEET_NAME, ISSUE_SHEET_NAME,
+  SURVEY_HEADERS, LEDGER_HEADERS, ISSUE_HEADERS,
 } from '../../lib/constants.js';
 import { normalizeDate, normalizeMonth, formatPublishedDate } from '../../lib/dates.js';
 import { SheetsClient } from './client.js';
@@ -163,6 +165,49 @@ export function createSheetsStore({ serviceAccount, sheetId }) {
         await client.updateCells(ARTICLES_SHEET_NAME, updates);
       },
     },
+
+    // 설문 파이프라인 탭 3종 — 행 삭제 연산 없음 (드롭·기각도 상태 전환만, 명세 §3)
+    survey: (() => {
+      // 표별 id 컬럼이 다르다 (response_id/ledger_id/issue_id) — 공용 헬퍼로 처리
+      const DATE_FIELDS = ['visit_date', 'confirmed_date']; // .gs readSheetRecords와 동일 정규화 대상
+      async function listTable(title, HEADERS, idField) {
+        const { records } = await readTable(title, HEADERS);
+        return records
+          .filter((r) => String(r[idField] ?? '').trim())
+          .map((r) => {
+            const out = { ...r };
+            for (const f of DATE_FIELDS) if (out[f]) out[f] = normalizeDate(out[f]);
+            return strip(out);
+          });
+      }
+      async function appendTo(title, HEADERS, record) {
+        const headers = await client.ensureHeaders(title, HEADERS);
+        await client.appendRow(title, objToRow(headers, record));
+      }
+      async function updateIn(title, HEADERS, idField, id, fields) {
+        const { headers, records } = await readTable(title, HEADERS);
+        const found = records.find((r) => String(r[idField]) === String(id)) || null;
+        if (!found) return null;
+        const updates = [];
+        for (const [k, v] of Object.entries(fields)) {
+          const col = headers.indexOf(k);
+          if (col >= 0) updates.push({ rowNum: found._rowNum, colIndex: col, value: v == null ? '' : v });
+        }
+        await client.updateCells(title, updates);
+        return strip({ ...found, ...fields });
+      }
+      return {
+        listResponses: () => listTable(SURVEY_SHEET_NAME, SURVEY_HEADERS, 'response_id'),
+        listLedger: () => listTable(LEDGER_SHEET_NAME, LEDGER_HEADERS, 'ledger_id'),
+        listIssues: () => listTable(ISSUE_SHEET_NAME, ISSUE_HEADERS, 'issue_id'),
+        appendResponse: (r) => appendTo(SURVEY_SHEET_NAME, SURVEY_HEADERS, r),
+        appendLedger: (r) => appendTo(LEDGER_SHEET_NAME, LEDGER_HEADERS, r),
+        appendIssue: (r) => appendTo(ISSUE_SHEET_NAME, ISSUE_HEADERS, r),
+        updateResponse: (id, fields) => updateIn(SURVEY_SHEET_NAME, SURVEY_HEADERS, 'response_id', id, fields),
+        updateLedger: (id, fields) => updateIn(LEDGER_SHEET_NAME, LEDGER_HEADERS, 'ledger_id', id, fields),
+        updateIssue: (id, fields) => updateIn(ISSUE_SHEET_NAME, ISSUE_HEADERS, 'issue_id', id, fields),
+      };
+    })(),
 
     // Script Properties의 런타임 상태값 대체 — app_state 탭 (key/value)
     state: {

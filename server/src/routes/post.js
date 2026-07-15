@@ -10,10 +10,14 @@ import {
 } from '../handlers/bookings.js';
 import { handleNewRoiSnapshot, handleDeleteRoiSnapshot } from '../handlers/roi.js';
 import { handleSlotBlock, handleSlotUnblock } from '../handlers/slotBlocks.js';
+import {
+  handleSurveySubmit, handleSurveyUpdate, handleLedgerUpdate, handleIssueUpdate,
+} from '../handlers/survey.js';
 
 const ADMIN_TYPES = new Set([
   'update', 'booking_delete', 'slot_block', 'slot_unblock',
   'admin_booking_create', 'admin_booking_edit',
+  'survey_update', 'ledger_update', 'issue_update',
 ]);
 
 export function createPostRouter(store) {
@@ -31,6 +35,8 @@ export function createPostRouter(store) {
       }
 
       if (data.type === 'booking') return res.json(await handleNewBooking(store, data));
+      // 설문 제출 — 공개 경로 (booking과 동일, 응답자는 토큰이 없음 — 게이트에 넣지 말 것)
+      if (data.type === 'survey_submit') return res.json(await handleSurveySubmit(store, data));
       if (data.type === 'roi_snapshot') return res.json(await handleNewRoiSnapshot(store, data));
       // roi_delete는 ROI 툴(별창 포함)에서 호출돼 토큰 경로가 없어 게이트하지 않음 (현행 계약 유지)
       if (data.type === 'roi_delete') return res.json(await handleDeleteRoiSnapshot(store, data));
@@ -46,6 +52,9 @@ export function createPostRouter(store) {
         if (data.type === 'slot_unblock') return res.json(await handleSlotUnblock(store, data));
         if (data.type === 'admin_booking_create') return res.json(await handleAdminCreateBooking(store, data, admin.email));
         if (data.type === 'admin_booking_edit') return res.json(await handleAdminEditBooking(store, data, admin.email));
+        if (data.type === 'survey_update') return res.json(await handleSurveyUpdate(store, data));
+        if (data.type === 'ledger_update') return res.json(await handleLedgerUpdate(store, data));
+        if (data.type === 'issue_update') return res.json(await handleIssueUpdate(store, data));
       }
 
       return res.json({ error: 'Unknown type' });

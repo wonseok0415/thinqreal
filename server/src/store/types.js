@@ -36,12 +36,24 @@
  * @property {(key: string) => Promise<string>} get
  * @property {(key: string, value: string) => Promise<void>} set
  *
+ * @typedef {object} SurveyStore — 설문 파이프라인 탭 3종 (행 삭제 연산은 의도적으로 없음 — 명세 §3)
+ * @property {() => Promise<object[]>} listResponses
+ * @property {() => Promise<object[]>} listLedger
+ * @property {() => Promise<object[]>} listIssues
+ * @property {(r: object) => Promise<void>} appendResponse
+ * @property {(r: object) => Promise<void>} appendLedger
+ * @property {(r: object) => Promise<void>} appendIssue
+ * @property {(id: string, fields: object) => Promise<object|null>} updateResponse  id = response_id, 갱신 후 레코드
+ * @property {(id: string, fields: object) => Promise<object|null>} updateLedger    id = ledger_id
+ * @property {(id: string, fields: object) => Promise<object|null>} updateIssue     id = issue_id (est_value 재계산용으로 갱신 레코드 필요)
+ *
  * @typedef {object} Store
  * @property {BookingsStore} bookings
  * @property {RoiStore} roi
  * @property {SlotBlocksStore} slotBlocks
  * @property {ArticlesStore} articles
  * @property {StateStore} state
+ * @property {SurveyStore} survey
  * @property {string} backend
  */
 

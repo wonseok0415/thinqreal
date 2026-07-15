@@ -22,6 +22,21 @@ export const ARTICLES_HEADERS = ['month', 'title', 'url', 'source', 'summary', '
 export const SLOT_BLOCKS_HEADERS = ['id', 'date', 'slot', 'timestamp', 'by', 'reason'];
 export const STATE_HEADERS = ['key', 'value'];
 
+// ── 설문 데이터 파이프라인 (2026-07 — ThinQReal_Survey_DB_Spec) ──────────
+// 탭 3종 — 컬럼 단일 소스는 .gs와 동일한 이 상수 배열 (api-contract.md §4.5)
+export const SURVEY_SHEET_NAME = 'survey_responses';
+export const LEDGER_SHEET_NAME = 'performance_ledger';
+export const ISSUE_SHEET_NAME = 'iot_issue_log';
+
+// ⚠ 새 컬럼은 반드시 배열 "끝"에만 추가할 것 — 제출이 이 순서대로 append하므로
+//   중간 삽입 시 기존 시트 컬럼과 어긋난다 (기존 시트엔 누락 헤더 끝 자동 append).
+export const SURVEY_HEADERS = ['response_id', 'submitted_at', 'visit_date', 'dept', 'name', 'client', 'visit_count', 'track', 'purpose', 'deal_stage', 'deal_size', 'deal_area', 'reaction', 'attr', 'media_work', 'media_days', 'media_alt', 'media_cost', 'media_link', 'media_link_name', 'media_link_size', 'media_link_attr', 'etc_work', 'etc_days', 'etc_alt', 'iot_defect', 'iot_defect_detail', 'etc_link', 'etc_link_name', 'etc_link_size', 'etc_link_attr', 'satisfaction', 'feedback', 'raw_json', 'deal_amount'];
+export const LEDGER_HEADERS = ['ledger_id', 'response_id', 'category', 'project_name', 'expected_scale', 'attribution_text', 'attribution_pct', 'visit_date', 'respondent', 'dept', 'status', 'confirmed_amount', 'confirmed_date', 'confirmed_note', 'roi_included'];
+export const ISSUE_HEADERS = ['issue_id', 'response_id', 'device', 'symptom', 'severity', 'channel', 'q_ship', 'status', 'est_value'];
+
+// 이슈 est_value 계산 — severity 라벨 → 발생 확률 (참고용, ROI 미산입)
+export const SEVERITY_PCT = { '높음': 0.5, '가끔': 0.1, '드묾': 0.01 };
+
 // ── 사이트 접근 통제 ─────────────────────────────────────────
 export const AUTH_ALLOWED_DOMAINS = ['lge.com'];
 export const AUTH_CODE_TTL_SEC = 20 * 60;      // 20분 (사내 메일 검역 지연 대응)

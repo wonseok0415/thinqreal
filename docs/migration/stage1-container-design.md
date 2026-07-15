@@ -273,3 +273,19 @@ CMD ["node", "src/index.js"]
 | 차트 이미지 안 한글만 □ (브라우저 무관) | 차트는 서버에서 PNG로 래스터되므로 **서버에 CJK 폰트가 필요** — 폰트 없는 환경에서 렌더 시 발생 | `report/charts.js` — `registerKoreanFont()` 신설: env `CHART_FONT_PATH` → 도커 fonts-noto-cjk 표준 경로 → 시스템 CJK 스캔 순으로 등록, 미발견 시 경고 로그. Dockerfile에 `CHART_FONT_PATH` 기본값 고정 (이미지에서는 결정적 로딩) |
 
 교훈: 서버 렌더링 산출물(차트 PNG·저장용 HTML)은 **배포 환경의 폰트·인코딩 선언에 의존** — 새 렌더링 산출물 추가 시 이 두 가지를 체크리스트로.
+
+### 8-5. main 병합 + 설문 파이프라인 이식 (2026-07-15)
+
+브랜치 분기 후 main에 추가된 **설문 데이터 파이프라인**(.gs ~350줄: survey_submit·survey_data·survey_update·ledger_update·issue_update + 시트 탭 3종 + 월간 리포트 Phase 5)을 컨테이너에 이식. 병합 규칙: 라이브 파일(HTML 5종·.gs)은 main 채택, `server/`·`docs/migration/`은 브랜치 채택, CLAUDE.md는 양쪽 로그 보존.
+
+| 항목 | 구현 위치 | 비고 |
+|---|---|---|
+| 상수 (SURVEY/LEDGER/ISSUE_HEADERS·SEVERITY_PCT) | `lib/constants.js` | .gs 배열 그대로 — "새 컬럼은 끝에만" 규칙 주석 포함 |
+| SurveyStore 인터페이스 + memory/sheets 구현 | `store/types.js`·`memory.js`·`sheets/index.js` | 행 삭제 연산 없음(명세 §3). 표별 id 컬럼(response_id/ledger_id/issue_id) 공용 헬퍼 |
+| 핸들러 5종 | `handlers/survey.js` | 제출=공개, 나머지=관리자 토큰. 파생 규칙(대장 후보·이슈 등록)·attribution_pct 파싱·불변 필드(IMMUTABLE 7종) .gs 동일 |
+| est_value 채널 단가 | env `SURVEY_CAS_JSON` | .gs Script Property → env 이식. 미설정 시 공란 (커밋 금지 원칙 유지) |
+| 알림 | `notify/` — 텔레그램(.gs 동일) + **Teams 카드 추가** | Teams는 이관 후 메인 채널이라 설문 알림도 카드로 (additive) |
+| 월간 리포트 Phase 5 | `report/collect.js`(collectMonthlySurvey) + `mail/templates/monthlyReport.js`(📋 섹션) | try/catch 격리 — 집계 실패가 발송을 막지 않음 |
+| 정적 서빙 | `Dockerfile` COPY에 `ThinQ_Real_Visit_Survey.html` 추가 | 컨테이너가 설문 폼도 함께 서빙 |
+
+검증(memory store): 트랙 3종 제출 → 파생 행(대장 2건 % 파싱 50/25·이슈 1건) / 무토큰 차단 / 불변 필드(track) 변경 무시 / 대장 확정(만원) / est_value 더미 단가 계산(0.1×100,000×3,000=30,000,000 정확) / 리포트 📋 섹션 기대값 전부 일치(응답 3·재방문 33%·산입액 3,500만원·이슈 1) / 예약·정적 서빙 회귀 통과.

@@ -36,6 +36,9 @@ export function createMemoryStore({ seed } = {}) {
   const slotBlocks = [];
   const articles = [];
   const state = new Map();
+  const surveyResponses = [];
+  const surveyLedger = [];
+  const surveyIssues = [];
 
   return {
     backend: 'memory',
@@ -113,6 +116,32 @@ export function createMemoryStore({ seed } = {}) {
     state: {
       async get(key) { return state.get(key) || ''; },
       async set(key, value) { state.set(key, String(value)); },
+    },
+    survey: {
+      async listResponses() { return surveyResponses.map((r) => ({ ...r })); },
+      async listLedger() { return surveyLedger.map((r) => ({ ...r })); },
+      async listIssues() { return surveyIssues.map((r) => ({ ...r })); },
+      async appendResponse(r) { surveyResponses.push({ ...r }); },
+      async appendLedger(r) { surveyLedger.push({ ...r }); },
+      async appendIssue(r) { surveyIssues.push({ ...r }); },
+      async updateResponse(id, fields) {
+        const row = surveyResponses.find((r) => String(r.response_id) === String(id));
+        if (!row) return null;
+        Object.assign(row, fields);
+        return { ...row };
+      },
+      async updateLedger(id, fields) {
+        const row = surveyLedger.find((r) => String(r.ledger_id) === String(id));
+        if (!row) return null;
+        Object.assign(row, fields);
+        return { ...row };
+      },
+      async updateIssue(id, fields) {
+        const row = surveyIssues.find((r) => String(r.issue_id) === String(id));
+        if (!row) return null;
+        Object.assign(row, fields);
+        return { ...row };
+      },
     },
   };
 }

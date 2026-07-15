@@ -4,6 +4,8 @@
 > 근거 문서: `decisions-2026-07-06.md`(확정 방향) · `stage1-container-design.md`(설계+구현 상세)
 > 이 문서는 현재 진행 상태 요약 — 코드/실행 상세는 `server/README.md`, 설계 근거는 `stage1-container-design.md` §8을 참조.
 
+> **📌 2026-07-15 갱신**: 이관 브랜치에 main을 병합해 최신화(설문 폼·ROI v4.6·설문 파이프라인 반영)했고, main에 추가된 **설문 데이터 파이프라인**(엔드포인트 5종 + 시트 탭 3종 + 월간 리포트 설문 지표)을 컨테이너에도 이식 완료. 이제 컨테이너 API는 **GET 16종 + POST 13종** (`survey_data` / `survey_submit`·`survey_update`·`ledger_update`·`issue_update` 추가). 채널 단가는 env `SURVEY_CAS_JSON`. 상세: `stage1-container-design.md` §8-5.
+
 ---
 
 ## 1. 1단계 작업 정의 및 완료 상태

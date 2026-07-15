@@ -1275,3 +1275,22 @@ claude.ai ROI 세션에서 개편된 `ThinQ_ROI_Tool_v46.html`을 리포 `ThinQ_
 - dealAmount는 **필수 검증 대상 아님** — "답변하지 않을 수도 있음"이 사용자 확정 사항. 필수는 딜 단계·(딜 있을 때) 규모·기여 수준 3종만.
 - BEP 대표 수치는 **1.65년(약 1년 8개월)** — "2년 7개월"은 PR 제외 감응도 체크용이므로 UI·문서에 대표 수치로 쓰지 말 것 (Spec §8-2-C).
 - **재배포 필요**: Phase 5 + deal_amount는 Apps Script 변경 — "배포 관리 → 편집 → 새 버전 → 배포".
+
+## 작업 내역 (2026-07-15 — 이관 브랜치 main 병합 + 설문 파이프라인 컨테이너 이식)
+
+이관 전용 세션(브랜치 `claude/magical-babbage-y98vkf`). Stage1 컨테이너가 최신 main 기준으로 포장되도록 정비.
+
+### A. main 병합 (merge main into branch)
+- 분기 후 main의 15커밋(설문 폼 개편·ROI v4.6·설문 파이프라인·관리자 설문 탭 등)을 브랜치로 병합.
+- 채택 규칙: **라이브 파일(index/admin/ROI/Survey/privacy/.gs)은 main** / **`server/`·`docs/migration/` 이관 작업물은 브랜치** / **CLAUDE.md는 양쪽 로그 보존**. 충돌은 CLAUDE.md 1건뿐(양쪽 로그 append) — 병합 후 라이브 파일 diff 0 검증 완료.
+
+### B. 설문 파이프라인 server/ 이식 (§계약: api-contract.md — "이관 범위 포함 필수")
+- .gs 설문 코드(~350줄)를 컨테이너에 완전 이식 — 컨테이너 API는 이제 **GET 16종 + POST 13종**.
+- 구현: `handlers/survey.js`(5종) / SurveyStore 인터페이스 + memory·sheets 구현(행 삭제 연산 없음) / 상수 3종(SURVEY·LEDGER·ISSUE_HEADERS) / 알림(텔레그램 .gs 동일 + Teams 카드 additive) / 월간 리포트 📋 설문·성과 지표 섹션(collectMonthlySurvey, try/catch 격리) / Dockerfile에 설문 HTML COPY.
+- **채널 단가(C_AS)는 env `SURVEY_CAS_JSON`** — .gs Script Property를 env로 이식 (커밋 금지 원칙 유지, .env.example에 키만 문서화).
+- 검증: 트랙 3종 제출→파생(대장 % 파싱·이슈)·불변 필드·확정 처리·est_value 더미 단가 계산·리포트 섹션 기대값·예약/정적 서빙 회귀 전부 통과. 상세는 설계 문서 §8-5.
+
+### 핵심 제약 (다음 세션에서도 유지)
+- 이관 브랜치는 이제 main 병합 시점(3c8ed88) 기준 — **이후 main에 라이브 변경이 또 쌓이면 Stage1 최종 전달 전에 재병합**할 것 (같은 채택 규칙).
+- 컨테이너 설문 엔드포인트도 .gs와 동일하게 **행 삭제 없음 / 제출 공개 경로 / 불변 필드 7종** 계약 유지.
+- `SURVEY_CAS_JSON`은 env로만 — 코드·리포·문서에 실단가 기재 금지 (§6.5 grep 규칙 동일 적용).
