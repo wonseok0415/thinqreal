@@ -76,8 +76,8 @@
 
 ## 4.5 설문 파이프라인 탭 3종 (2026-07-09 추가 — 이관 범위 포함 필수)
 
-### `survey_responses` (설문 응답 원본, 35컬럼)
-`response_id`(=`Date.now()` 문자열) · `submitted_at`(ISO) · `visit_date/dept/name/client/visit_count` · `track`(sales/media/etc) · `purpose` · Track A(`deal_stage/deal_size/deal_area/reaction/attr`) · Track B(`media_work/media_days/media_alt/media_cost/media_link/media_link_name/media_link_size/media_link_attr`) · Track C(`etc_work/etc_days/etc_alt/iot_defect/iot_defect_detail/etc_link/etc_link_name/etc_link_size/etc_link_attr`) · `satisfaction/feedback` · `raw_json`(페이로드 원본 — 스키마 진화 대비) · `deal_amount`(계약 체결 딜 실제 계약 금액 — 2026-07 S9 추가, 선택 입력. 시트 끝 컬럼 — 신규 컬럼은 상수 끝에만 추가하는 규칙)
+### `survey_responses` (설문 응답 원본, 36컬럼)
+`response_id`(=`Date.now()` 문자열) · `submitted_at`(ISO) · `visit_date/dept/name/client/visit_count` · `track`(sales/media/etc) · `purpose` · Track A(`deal_stage/deal_size/deal_area/reaction/attr`) · Track B(`media_work/media_days/media_alt/media_cost/media_link/media_link_name/media_link_size/media_link_attr`) · Track C(`etc_work/etc_days/etc_alt/iot_defect/iot_defect_detail/etc_link/etc_link_name/etc_link_size/etc_link_attr`) · `satisfaction/feedback` · `raw_json`(페이로드 원본 — 스키마 진화 대비) · `deal_amount`(계약 체결 딜 실제 계약 금액 — 2026-07 S9 추가, 선택 입력. 시트 끝 컬럼 — 신규 컬럼은 상수 끝에만 추가하는 규칙) · `impressive_modes`(인상 깊었던 솔루션 복수 선택, 콤마 구분 — 2026-07 추가)
 
 ### `performance_ledger` (성과 추적 대장, 15컬럼)
 `ledger_id`(`{response_id}-L{n}`) · `response_id` · `category`(홍보·광고 마케팅 / 신규 Task·기타) · `project_name/expected_scale` · `attribution_text/attribution_pct`(원문 괄호 `(N%)` 파싱) · `visit_date/respondent/dept` · `status`(**후보→확정/드롭** — 행 삭제 없음) · `confirmed_amount`(**만원 단위**)/`confirmed_date/confirmed_note` · `roi_included`(Y/'')
