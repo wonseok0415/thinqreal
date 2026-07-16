@@ -2244,8 +2244,12 @@ function buildMonthlyReportHtml(d) {
     : 'Google 검색 결과 기준의 최근 1개월 ThinQ Real 관련 보도';
   const descSurvey = '방문 후기 설문 기반 지표 — 월 확정 산입액은 성과 추적 대장에서 이번 달 확정 처리된 금액의 합계입니다.';
 
+  // 한글 가독성: Noto Sans KR 웹폰트 시도 (2026-07-15) — 브라우저 미리보기·Apple Mail 등
+  // 웹폰트 허용 환경에서만 적용되고, 차단 환경(PC Outlook·Gmail)은 맑은 고딕으로 폴백.
+  // "<style> 블록 금지" 규칙의 의도적 예외 — @import가 무시돼도 인라인 스타일이 그대로 살아있어 무해.
   return (
-    '<div style="background:#f5f5f7;padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,\'Helvetica Neue\',\'Apple SD Gothic Neo\',\'Malgun Gothic\',sans-serif;">' +
+    '<style>@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap");</style>' +
+    '<div style="background:#f5f5f7;padding:24px 12px;font-family:\'Noto Sans KR\',\'Malgun Gothic\',\'Apple SD Gothic Neo\',-apple-system,BlinkMacSystemFont,sans-serif;">' +
       '<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:collapse;max-width:760px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">' +
         '<tr><td style="background:#3a5035;color:#ffffff;padding:28px 28px 24px;">' +
           '<div style="font-size:13px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.75;">ThinQ Real</div>' +
