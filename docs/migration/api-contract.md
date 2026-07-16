@@ -65,6 +65,9 @@
 | `survey_update` | 관리자 토큰 | 설문 응답 내용 정정 (2026-07-14). 불변: `response_id/submitted_at/track/raw_json` + 파생 트리거 3종(`media_link/etc_link/iot_defect`) | — (행 삭제 없음 — 의도) |
 | `ledger_update` | 관리자 토큰 | 성과 대장 상태 전환·확정 필드 + 내용 정정(`category/project_name/expected_scale/attribution_pct/visit_date/respondent/dept` — 2026-07-14 확장). `attribution_text`(라디오 원문)는 불변 | — (행 삭제 없음 — 의도) |
 | `issue_update` | 관리자 토큰 | 이슈 속성 부여 (`device/symptom/severity/channel/q_ship/status`) + est_value 서버 계산 | — (행 삭제 없음 — 의도) |
+| `survey_delete` | 관리자 토큰 | 설문 응답 영구 삭제 (2026-07-16 — 테스트·실수 정리용). **파생 행(대장·이슈, response_id 연결) cascade 삭제** | — (알림 미발송) |
+| `ledger_delete` | 관리자 토큰 | 대장 행 영구 삭제 (테스트·실수 정리용 — 실제 성과 기록은 드롭 권장) | — (알림 미발송) |
+| `issue_delete` | 관리자 토큰 | 이슈 행 영구 삭제 (테스트·실수 정리용 — 실제 이슈는 기각 권장) | — (알림 미발송) |
 
 ⚠️ ROI 2종은 토큰 미적용 — ROI 툴이 별창으로도 열려 토큰 전달 경로가 없음 (저위험 판단, 현행 유지). **사내 이전 시 세션 기반 인증으로 보호 권장.**
 

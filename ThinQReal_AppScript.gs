@@ -329,8 +329,9 @@ function doPost(e) {
   if (data.type === 'update' || data.type === 'booking_delete' ||
       data.type === 'slot_block' || data.type === 'slot_unblock' ||
       data.type === 'admin_booking_create' || data.type === 'admin_booking_edit' ||
-      data.type === 'survey_update' ||
-      data.type === 'ledger_update' || data.type === 'issue_update') {
+      data.type === 'survey_update' || data.type === 'survey_delete' ||
+      data.type === 'ledger_update' || data.type === 'ledger_delete' ||
+      data.type === 'issue_update' || data.type === 'issue_delete') {
     var admin = verifyAdminToken(data.token);
     if (!admin.ok) {
       return jsonResponse({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
@@ -342,8 +343,11 @@ function doPost(e) {
     if (data.type === 'admin_booking_create') return handleAdminCreateBooking(data, admin.email);
     if (data.type === 'admin_booking_edit')   return handleAdminEditBooking(data, admin.email);
     if (data.type === 'survey_update')        return handleSurveyUpdate(data);
+    if (data.type === 'survey_delete')        return handleSurveyDelete(data);
     if (data.type === 'ledger_update')        return handleLedgerUpdate(data);
+    if (data.type === 'ledger_delete')        return handleLedgerDelete(data);
     if (data.type === 'issue_update')         return handleIssueUpdate(data);
+    if (data.type === 'issue_delete')         return handleIssueDelete(data);
   }
 
   return jsonResponse({ error: 'Unknown type' });
@@ -3346,6 +3350,39 @@ function handleLedgerUpdate(data) {
     }
   }
   return jsonResponse({ ok: false, error: 'not_found' });
+}
+
+// ── 설문·대장·이슈 영구 삭제 (관리자 토큰 게이트 — 테스트·실수 데이터 정리용) ──
+// 실제 성과 기록은 드롭/기각 상태 전환으로 보존하는 것이 원칙 — 삭제는 테스트 정리에만 사용.
+// survey_delete는 응답의 파생 행(대장·이슈, response_id 연결)도 함께 삭제해 고아 행을 막는다.
+// 예약 booking_delete와 동일하게 알림(메일·텔레그램)은 발송하지 않는다.
+function deleteRowsByValue(sheetName, headers, colName, value) {
+  const sheet = getNamedSheet(sheetName, headers);
+  const rows = sheet.getDataRange().getValues();
+  const idx = rows[0].indexOf(colName);
+  let deleted = 0;
+  for (let i = rows.length - 1; i >= 1; i--) {   // 아래→위 삭제 — 행 인덱스 어긋남 방지
+    if (String(rows[i][idx]) === String(value)) { sheet.deleteRow(i + 1); deleted++; }
+  }
+  return deleted;
+}
+
+function handleSurveyDelete(data) {
+  const n = deleteRowsByValue(SURVEY_SHEET_NAME, SURVEY_HEADERS, 'response_id', data.id);
+  if (!n) return jsonResponse({ ok: false, error: 'not_found' });
+  const ledgerN = deleteRowsByValue(LEDGER_SHEET_NAME, LEDGER_HEADERS, 'response_id', data.id);
+  const issueN  = deleteRowsByValue(ISSUE_SHEET_NAME, ISSUE_HEADERS, 'response_id', data.id);
+  return jsonResponse({ ok: true, deleted: { response: n, ledger: ledgerN, issues: issueN } });
+}
+
+function handleLedgerDelete(data) {
+  const n = deleteRowsByValue(LEDGER_SHEET_NAME, LEDGER_HEADERS, 'ledger_id', data.id);
+  return jsonResponse(n ? { ok: true } : { ok: false, error: 'not_found' });
+}
+
+function handleIssueDelete(data) {
+  const n = deleteRowsByValue(ISSUE_SHEET_NAME, ISSUE_HEADERS, 'issue_id', data.id);
+  return jsonResponse(n ? { ok: true } : { ok: false, error: 'not_found' });
 }
 
 // ── IoT 이슈 상태·속성 부여 (관리자 토큰 게이트) ─────────────
