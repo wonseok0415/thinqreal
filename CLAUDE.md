@@ -1313,3 +1313,14 @@ claude.ai ROI 세션에서 개편된 `ThinQ_ROI_Tool_v46.html`을 리포 `ThinQ_
 - **선택 입력** — 전 문항 필수 규칙의 텍스트 예외("(선택)" 표기)라 검증 미적용. payload `desired_solutions` + mailto 폴백 포함.
 - `SURVEY_HEADERS` 끝에 **`desired_solutions`(37번째)** — 기존 시트 자동 확장. 관리자 상세(`SV_FIELD_LABELS`)·수정 폼(`SV_EDIT_COMMON`, textarea) 반영.
 - **재배포 필요** (SURVEY_HEADERS 변경).
+
+## 작업 내역 (2026-07-16 후속 — 모드 선택 시 이유 입력 칸)
+
+- 인상 깊었던 솔루션(8번 카드)에서 **모드를 선택하면 해당 옵션 바로 아래에 이유 입력 칸이 펼쳐짐** — "이 솔루션이 인상 깊었던 이유를 간단히 적어주세요 (선택)". 체크 해제 시 칸 숨김 + 수집 제외.
+- 구조: 각 라벨 **밖**에 `.mode-reason` div(`#modeReason-{key}`) — 라벨 안에 넣으면 input 클릭이 체크박스를 토글해버림. 토글은 `updateLinkDetails()`에 통합(체크박스 `data-key` 기반, '특별히 없음'은 data-key 없어 제외).
+- 저장: `collectModeReasons()`가 표시 중 + 비어있지 않은 칸만 **"모드명 — 이유; ..."로 직렬화** → `impressive_reasons`(SURVEY_HEADERS 38번째). 선택 입력이라 필수 검증 미적용.
+- 관리자 상세(`인상 깊었던 이유`)·수정 폼(textarea) 반영. mailto 폴백 포함.
+- **재배포 필요** (SURVEY_HEADERS 변경).
+
+### 핵심 제약 (다음 세션에서도 유지)
+- 조건부 입력 칸은 **라벨 밖에 배치** — 라벨 안의 input은 클릭 시 체크박스가 토글되는 부작용 (이번 구조가 선례).
