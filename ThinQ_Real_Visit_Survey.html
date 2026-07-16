@@ -637,39 +637,105 @@ function buildPayload() {
   return p;
 }
 
-// ── Track A 필수 응답 검증 (Survey Spec §8-2-B) ──
-// 딜 단계는 항상 필수, 딜이 있으면(≠딜 없음) 규모·기여 수준도 필수.
-// dealAmount(실제 계약 금액)는 무응답이 정상 케이스 — 검증 대상 아님.
+// ── 필수 응답 검증 (2026-07-15 확장 — 전 문항 필수) ──
+// 규칙: ① 선택형 문항(라디오·체크)은 전부 필수 — 모든 문항에 '모름/해당 없음' 류 도피 선택지가 있음
+//      ② 텍스트 입력은 기본 정보 3종(방문일·소속·작성자)만 필수 — "(선택)"·"(해당 시)" 표기 칸은 자유
+//      ③ 조건부 문항(딜 규모·기여 수준·성과 연결 상세)은 트리거 선택 시에만 필수
+//      ④ dealAmount(실제 계약 금액)는 무응답이 정상 케이스 — 검증 대상 아님 (Spec §8-2-B)
 const REQUIRED_MSG = {
+  visitDate: '방문일을 입력해 주세요.',
+  dept: '소속 부서를 입력해 주세요.',
+  name: '작성자 성명을 입력해 주세요.',
+  visitCount: '방문 횟수를 선택해 주세요.',
   deal: '딜 단계를 선택해 주세요. 딜이 없는 방문이면 "딜 없음"을 선택하시면 됩니다.',
   dealSize: '딜 규모를 선택해 주세요. 알 수 없으면 "해당 없음 / 알 수 없음"을 선택하시면 됩니다.',
-  attr: '기여 수준을 선택해 주세요. 실제 있었던 일에 가장 가까운 항목이면 됩니다.'
+  dealArea: '제품·솔루션 영역을 선택해 주세요. 해당 없으면 "해당 없음"을 선택하시면 됩니다.',
+  reaction: '방문 후 고객 반응을 1개 이상 선택해 주세요. 없었다면 "특별한 변화 없음"을 선택하시면 됩니다.',
+  attr: '기여 수준을 선택해 주세요. 실제 있었던 일에 가장 가까운 항목이면 됩니다.',
+  mediaWork: '활용 내용을 1개 이상 선택해 주세요.',
+  mediaDays: '사용 기간을 선택해 주세요.',
+  mediaAlt: '대체 시나리오를 선택해 주세요.',
+  mediaLink: '성과 연결 여부를 선택해 주세요. 모르시면 "모름"을 선택하시면 됩니다.',
+  mediaLinkSize: '예상 매출 규모를 선택해 주세요. 모르시면 "모름"을 선택하시면 됩니다.',
+  mediaLinkAttr: '기여 수준을 선택해 주세요.',
+  etcWork: '활용 내용을 1개 이상 선택해 주세요.',
+  etcDays: '사용 기간을 선택해 주세요.',
+  etcAlt: '대체 시나리오를 선택해 주세요.',
+  iotDefect: 'IoT 품질 이슈 발견 여부를 선택해 주세요.',
+  etcLink: '성과 연결 여부를 선택해 주세요. 해당 없으면 "해당 없음"을 선택하시면 됩니다.',
+  etcLinkSize: '예상 규모를 선택해 주세요. 모르시면 "모름"을 선택하시면 됩니다.',
+  etcLinkAttrTask: '기여 수준을 선택해 주세요.',
+  satisfaction: '만족도를 선택해 주세요.'
 };
+// 카드 등장 순서대로 검사 — 첫 미작성 문항으로 스크롤되도록
 function firstMissingRequired() {
-  if (currentTrack !== 'sales') return null;
-  const deal = rawRadio('deal');
-  if (!deal) return 'deal';
-  if (deal !== '딜 없음 (견학/관계 유지 목적)') {
-    if (!rawRadio('dealSize')) return 'dealSize';
-    if (!rawRadio('attr')) return 'attr';
+  // 공통 — 기본 정보 (텍스트 3종 + 방문 횟수)
+  if (!rawText('visitDate')) return { kind: 'text', key: 'visitDate' };
+  if (!rawText('dept'))      return { kind: 'text', key: 'dept' };
+  if (!rawText('name'))      return { kind: 'text', key: 'name' };
+  if (!rawRadio('visitCount')) return { kind: 'group', key: 'visitCount' };
+
+  if (currentTrack === 'sales') {
+    const deal = rawRadio('deal');
+    const hasDeal = deal && deal !== '딜 없음 (견학/관계 유지 목적)';
+    if (!deal) return { kind: 'group', key: 'deal' };
+    if (hasDeal && !rawRadio('dealSize')) return { kind: 'group', key: 'dealSize' };
+    if (!rawRadio('dealArea')) return { kind: 'group', key: 'dealArea' };
+    if (!rawChecks('reaction')) return { kind: 'group', key: 'reaction' };
+    if (hasDeal && !rawRadio('attr')) return { kind: 'group', key: 'attr' };
+  } else if (currentTrack === 'media') {
+    if (!rawChecks('mediaWork')) return { kind: 'group', key: 'mediaWork' };
+    if (!rawRadio('mediaDays')) return { kind: 'group', key: 'mediaDays' };
+    if (!rawRadio('mediaAlt')) return { kind: 'group', key: 'mediaAlt' };
+    if (!rawRadio('mediaLink')) return { kind: 'group', key: 'mediaLink' };
+    if (rawRadio('mediaLink') === '특정 캠페인·프로모션과 연결됨') {
+      if (!rawRadio('mediaLinkSize')) return { kind: 'group', key: 'mediaLinkSize' };
+      if (!rawRadio('mediaLinkAttr')) return { kind: 'group', key: 'mediaLinkAttr' };
+    }
+  } else if (currentTrack === 'etc') {
+    if (!rawChecks('etcWork')) return { kind: 'group', key: 'etcWork' };
+    if (!rawRadio('etcDays')) return { kind: 'group', key: 'etcDays' };
+    if (!rawRadio('etcAlt')) return { kind: 'group', key: 'etcAlt' };
+    if (!rawRadio('iotDefect')) return { kind: 'group', key: 'iotDefect' };
+    if (!rawRadio('etcLink')) return { kind: 'group', key: 'etcLink' };
+    if (rawRadio('etcLink') === '신규 Task·과제') {
+      if (!rawRadio('etcLinkSize')) return { kind: 'group', key: 'etcLinkSize' };
+      if (!rawRadio('etcLinkAttrTask')) return { kind: 'group', key: 'etcLinkAttrTask' };
+    }
   }
+
+  if (!rawRadio('satisfaction')) return { kind: 'group', key: 'satisfaction' };
   return null;
 }
 function clearRequiredMarks() {
   document.querySelectorAll('.card.need-answer').forEach(c => c.classList.remove('need-answer'));
   document.querySelectorAll('.req-msg').forEach(m => m.remove());
 }
-function markRequired(name) {
-  const group = document.querySelector('.opt-group[data-name="' + name + '"]');
-  if (!group) return;
-  const card = group.closest('.card');
+function markRequired(t) {
+  const el = t.kind === 'text'
+    ? document.getElementById(t.key)
+    : document.querySelector('.opt-group[data-name="' + t.key + '"]');
+  if (!el) return;
+  const card = el.closest('.card');
   card.classList.add('need-answer');
   const msg = document.createElement('p');
   msg.className = 'req-msg';
-  msg.textContent = REQUIRED_MSG[name] || '이 항목을 선택해 주세요.';
+  msg.textContent = REQUIRED_MSG[t.key] || '이 항목을 작성해 주세요.';
   card.appendChild(msg);
   card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  if (t.kind === 'text') el.focus({ preventScroll: true });
 }
+// 필수 텍스트 입력은 타이핑 시작 시 하이라이트 해제 (옵션 클릭 해제와 동일 UX)
+['visitDate', 'dept', 'name'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    const card = document.getElementById(id).closest('.card');
+    if (card && card.classList.contains('need-answer')) {
+      card.classList.remove('need-answer');
+      const m = card.querySelector('.req-msg');
+      if (m) m.remove();
+    }
+  });
+});
 
 // ── 제출: fetch 자동 접수 (기본) → 실패 시 mailto 폴백 ──
 async function submitForm() {
