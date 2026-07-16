@@ -93,6 +93,9 @@
   .opt-img { width: 84px; height: 62px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
   .mode-opt .opt-sub { display: block; margin-left: 0; margin-top: 3px; line-height: 1.5; }
   .mode-opt .opt-sub::before, .mode-opt .opt-sub::after { content: ''; }
+  /* 모드 선택 시 바로 아래 펼쳐지는 이유 입력 칸 (선택 입력) */
+  .mode-reason { margin: -2px 0 6px 30px; }
+  .mode-reason input { font-size: 13px; padding: 9px 12px; }
   @media (max-width: 480px) { .opt-img { width: 60px; height: 45px; } }
 
   /* 선택 옵션 (라디오/체크 카드) */
@@ -458,13 +461,20 @@
     <h2><span class="q-num">8</span>인상 깊었던 솔루션</h2>
     <p class="q-desc">ThinQ Real에서 경험하신 AI홈 솔루션 중 인상 깊었던 것을 모두 선택해 주세요. (복수 선택 가능)</p>
     <div class="opt-group" data-name="impressiveModes">
-      <label class="opt checkbox mode-opt"><input type="checkbox" name="impressiveModes" value="웰컴 모드"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_welcome.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title">나를 반겨주는 집 [웰컴 모드]</span><span class="opt-sub">귀가하는 순간 집이 먼저 반기는 웰컴 루틴 — 가전·IoT 유기적 작동으로 최적화된 쾌적·안락 환경 자동 제공</span></span></label>
-      <label class="opt checkbox mode-opt"><input type="checkbox" name="impressiveModes" value="취침 모드"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_sleep.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title">하루의 끝 편안한 휴식 [취침 모드]</span><span class="opt-sub">하루를 정리하고 침실을 수면 환경으로 바꾸는 취침 루틴 — 따뜻한 조명·커튼 차광·잔잔한 음악과 저소음 가전으로 숙면 준비</span></span></label>
-      <label class="opt checkbox mode-opt"><input type="checkbox" name="impressiveModes" value="기상 모드"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_wakeup.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title">상쾌한 아침의 시작 [기상 모드]</span><span class="opt-sub">활기찬 아침을 여는 맞춤형 기상 케어 루틴 — 커튼·창문 자동 개방과 경쾌한 음악으로 기분 좋은 하루 시작</span></span></label>
-      <label class="opt checkbox mode-opt"><input type="checkbox" name="impressiveModes" value="시네마 모드"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_cinema.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title">거실이 영화관으로 [시네마 모드]</span><span class="opt-sub">거실을 몰입감 있는 홈 시네마로 바꾸는 시네마 모드 — 조명·커튼 자동 제어로 시청 환경을 최적화하고 가전·IoT 알림 동시 확인</span></span></label>
-      <label class="opt checkbox mode-opt"><input type="checkbox" name="impressiveModes" value="환기 모드"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_vent.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title">언제나 쾌적한 주방 [환기 모드]</span><span class="opt-sub">요리 중 공기 오염을 감지해 환기하는 에어 케어 루틴 — 음성·TV 알림 안내와 전동 창호·환기로 쾌적한 공기 유지</span></span></label>
-      <label class="opt checkbox mode-opt"><input type="checkbox" name="impressiveModes" value="프리젠테이션 모드"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_present.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title">단숨에 완성되는 회의실 공간 [프리젠테이션 모드]</span><span class="opt-sub">데모 공간을 발표·미팅 환경으로 바꾸는 프리젠테이션 모드 — TV를 PC 화면으로 전환하고 커튼·창 제어로 효과적인 발표 환경 구성</span></span></label>
-      <label class="opt checkbox mode-opt"><input type="checkbox" name="impressiveModes" value="외출 모드"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_away.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title">클릭 한번으로 편안한 안심 외출 [외출 모드]</span><span class="opt-sub">음성·앱 터치로 집안을 한 번에 제어하는 외출 루틴 — 불필요한 조명·가전 차단으로 에너지를 절약하고 깔끔한 환경 유지</span></span></label>
+      <label class="opt checkbox mode-opt"><input type="checkbox" name="impressiveModes" value="웰컴 모드" data-key="welcome"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_welcome.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title">나를 반겨주는 집 [웰컴 모드]</span><span class="opt-sub">귀가하는 순간 집이 먼저 반기는 웰컴 루틴 — 가전·IoT 유기적 작동으로 최적화된 쾌적·안락 환경 자동 제공</span></span></label>
+      <div class="mode-reason" id="modeReason-welcome" style="display:none;"><input type="text" data-mode="웰컴 모드" placeholder="이 솔루션이 인상 깊었던 이유를 간단히 적어주세요 (선택)"></div>
+      <label class="opt checkbox mode-opt"><input type="checkbox" name="impressiveModes" value="취침 모드" data-key="sleep"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_sleep.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title">하루의 끝 편안한 휴식 [취침 모드]</span><span class="opt-sub">하루를 정리하고 침실을 수면 환경으로 바꾸는 취침 루틴 — 따뜻한 조명·커튼 차광·잔잔한 음악과 저소음 가전으로 숙면 준비</span></span></label>
+      <div class="mode-reason" id="modeReason-sleep" style="display:none;"><input type="text" data-mode="취침 모드" placeholder="이 솔루션이 인상 깊었던 이유를 간단히 적어주세요 (선택)"></div>
+      <label class="opt checkbox mode-opt"><input type="checkbox" name="impressiveModes" value="기상 모드" data-key="wakeup"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_wakeup.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title">상쾌한 아침의 시작 [기상 모드]</span><span class="opt-sub">활기찬 아침을 여는 맞춤형 기상 케어 루틴 — 커튼·창문 자동 개방과 경쾌한 음악으로 기분 좋은 하루 시작</span></span></label>
+      <div class="mode-reason" id="modeReason-wakeup" style="display:none;"><input type="text" data-mode="기상 모드" placeholder="이 솔루션이 인상 깊었던 이유를 간단히 적어주세요 (선택)"></div>
+      <label class="opt checkbox mode-opt"><input type="checkbox" name="impressiveModes" value="시네마 모드" data-key="cinema"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_cinema.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title">거실이 영화관으로 [시네마 모드]</span><span class="opt-sub">거실을 몰입감 있는 홈 시네마로 바꾸는 시네마 모드 — 조명·커튼 자동 제어로 시청 환경을 최적화하고 가전·IoT 알림 동시 확인</span></span></label>
+      <div class="mode-reason" id="modeReason-cinema" style="display:none;"><input type="text" data-mode="시네마 모드" placeholder="이 솔루션이 인상 깊었던 이유를 간단히 적어주세요 (선택)"></div>
+      <label class="opt checkbox mode-opt"><input type="checkbox" name="impressiveModes" value="환기 모드" data-key="vent"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_vent.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title">언제나 쾌적한 주방 [환기 모드]</span><span class="opt-sub">요리 중 공기 오염을 감지해 환기하는 에어 케어 루틴 — 음성·TV 알림 안내와 전동 창호·환기로 쾌적한 공기 유지</span></span></label>
+      <div class="mode-reason" id="modeReason-vent" style="display:none;"><input type="text" data-mode="환기 모드" placeholder="이 솔루션이 인상 깊었던 이유를 간단히 적어주세요 (선택)"></div>
+      <label class="opt checkbox mode-opt"><input type="checkbox" name="impressiveModes" value="프리젠테이션 모드" data-key="present"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_present.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title">단숨에 완성되는 회의실 공간 [프리젠테이션 모드]</span><span class="opt-sub">데모 공간을 발표·미팅 환경으로 바꾸는 프리젠테이션 모드 — TV를 PC 화면으로 전환하고 커튼·창 제어로 효과적인 발표 환경 구성</span></span></label>
+      <div class="mode-reason" id="modeReason-present" style="display:none;"><input type="text" data-mode="프리젠테이션 모드" placeholder="이 솔루션이 인상 깊었던 이유를 간단히 적어주세요 (선택)"></div>
+      <label class="opt checkbox mode-opt"><input type="checkbox" name="impressiveModes" value="외출 모드" data-key="away"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_away.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title">클릭 한번으로 편안한 안심 외출 [외출 모드]</span><span class="opt-sub">음성·앱 터치로 집안을 한 번에 제어하는 외출 루틴 — 불필요한 조명·가전 차단으로 에너지를 절약하고 깔끔한 환경 유지</span></span></label>
+      <div class="mode-reason" id="modeReason-away" style="display:none;"><input type="text" data-mode="외출 모드" placeholder="이 솔루션이 인상 깊었던 이유를 간단히 적어주세요 (선택)"></div>
       <label class="opt checkbox mode-opt"><input type="checkbox" name="impressiveModes" value="특별히 없음"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">특별히 없음 / 기억나지 않음</span></span></label>
     </div>
     <div style="margin-left:28px; margin-top:16px;">
@@ -572,6 +582,11 @@ function updateLinkDetails() {
   // Track A: 계약 체결(확정) 선택 시에만 실제 계약 금액 입력 노출 (무응답 정상 — 필수 아님)
   document.getElementById('dealAmountWrap').style.display =
     (radioVal('deal') === '계약 체결 완료 (확정)') ? 'block' : 'none';
+  // 인상 깊었던 솔루션 — 선택한 모드 바로 아래 이유 입력 칸 노출 (선택 입력, '특별히 없음'은 data-key 없어 제외)
+  document.querySelectorAll('#modesCard input[name="impressiveModes"][data-key]').forEach(cb => {
+    const wrap = document.getElementById('modeReason-' + cb.dataset.key);
+    if (wrap) wrap.style.display = cb.checked ? 'block' : 'none';
+  });
 }
 // change 이벤트는 커스텀 클릭 핸들러가 checked를 먼저 설정해 발생하지 않을 수 있음
 // → 클릭 핸들러에서도 직접 호출 (아래 옵션 선택 스타일 참조)
@@ -627,6 +642,14 @@ function rawChecks(name) {
 }
 function rawText(id) { return document.getElementById(id).value.trim(); }
 
+// 선택된 모드의 이유만 수집 — "모드명 — 이유; ..." 직렬화 (체크 해제된 모드의 잔여 입력은 제외)
+function collectModeReasons() {
+  return [...document.querySelectorAll('#modesCard .mode-reason input')]
+    .filter(i => i.closest('.mode-reason').style.display !== 'none' && i.value.trim())
+    .map(i => i.dataset.mode + ' — ' + i.value.trim())
+    .join('; ');
+}
+
 function buildPayload() {
   const p = {
     type: 'survey_submit',
@@ -638,6 +661,7 @@ function buildPayload() {
     visit_count: rawRadio('visitCount'),
     purpose: rawRadio('purpose'),
     impressive_modes: rawChecks('impressiveModes'),
+    impressive_reasons: collectModeReasons(),
     desired_solutions: rawText('desiredSolutions'),
     satisfaction: rawRadio('satisfaction'),
     feedback: rawText('freeComment')
@@ -853,6 +877,7 @@ function submitViaMail() {
   lines.push('');
   lines.push('[만족도 및 의견]');
   lines.push('인상 깊었던 솔루션: ' + getChecks('impressiveModes'));
+  lines.push('인상 깊었던 이유: ' + (collectModeReasons() || '(미입력)'));
   lines.push('추가 희망 솔루션: ' + getText('desiredSolutions'));
   lines.push('만족도: ' + getRadio('satisfaction'));
   lines.push('자유 의견: ' + getText('freeComment'));
