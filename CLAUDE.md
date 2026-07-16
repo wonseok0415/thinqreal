@@ -1273,3 +1273,19 @@ claude.ai ROI 세션에서 개편된 `ThinQ_ROI_Tool_v46.html`을 리포 `ThinQ_
 ### 핵심 제약 (다음 세션에서도 유지)
 - 새 문항을 추가하면 `firstMissingRequired`(카드 순서 위치)와 `REQUIRED_MSG`에 함께 등록할 것 — 누락 시 그 문항만 필수에서 빠짐.
 - 도피 선택지가 없는 선택형 문항을 새로 만들지 말 것 — 전 문항 필수 규칙의 전제.
+
+## 작업 내역 (2026-07-16 — 설문 폼 「인상 깊었던 솔루션」 문항 신설)
+
+"ThinQ Real LG AI Home 주요 시나리오" 슬라이드 기반 공통 문항 추가 (담당자 요청 — 설명 문구는 슬라이드 원문 최대 유지).
+
+- **8번 공통 카드 `#modesCard`** (트랙 카드 7번과 만족도 사이, 만족도 카드는 8→9번): 7개 모드(웰컴/취침/기상/시네마/환기/프리젠테이션/외출) **복수 선택** + "특별히 없음 / 기억나지 않음" 도피 선택지 (전 문항 필수 규칙 준수).
+- **선택지 구성**: opt-title = 슬라이드 제목 원문("나를 반겨주는 집 [웰컴 모드]"), opt-sub = 슬라이드 불릿 2개를 " — "로 이은 원문, 좌측 썸네일 `images/thinqreal_survey_mode_*.png` 7종 (welcome/sleep/wakeup/cinema/vent/present/away).
+- **이미지는 담당자가 별도 업로드** (Gemini 생성 일러스트 — 공개 리포 게시 무해 확인됨). `onerror`로 미존재 시 자동 숨김 + `loading="lazy"` — 이미지 없이도 폼 정상 동작.
+- 시트 값은 짧은 모드명(콤마 구분: "웰컴 모드, 시네마 모드"). `SURVEY_HEADERS` 끝에 **`impressive_modes`(36번째)** — 기존 시트는 getNamedSheet가 자동 확장.
+- 반영 지점: buildPayload(공통)·mailto 폴백·필수 검증(`firstMissingRequired` 만족도 앞 + `REQUIRED_MSG`)·옵션 클릭 셀렉터(`#modesCard .opt`)·관리자 상세/수정 폼(`SV_FIELD_LABELS`/`SV_EDIT_COMMON`)·data-schema.md.
+- **mode-opt 전용 CSS**: opt-sub 괄호 스타일 해제 + 블록형, `.opt-img` 84×62(모바일 60×45).
+- **재배포 필요** (SURVEY_HEADERS 변경 — Apps Script).
+
+### 핵심 제약 (다음 세션에서도 유지)
+- 새 공통 카드를 track 밖에 추가할 땐 **옵션 클릭 셀렉터에 카드 id 추가 필수** (`.track .opt, #modesCard .opt, #commonCard .opt, ...`) — 누락 시 선택 자체가 안 됨.
+- 모드 이미지 파일명 7종은 위 목록 고정 — 변경 시 HTML `src` 7곳 동기화.
