@@ -329,8 +329,9 @@ function doPost(e) {
   if (data.type === 'update' || data.type === 'booking_delete' ||
       data.type === 'slot_block' || data.type === 'slot_unblock' ||
       data.type === 'admin_booking_create' || data.type === 'admin_booking_edit' ||
-      data.type === 'survey_update' ||
-      data.type === 'ledger_update' || data.type === 'issue_update') {
+      data.type === 'survey_update' || data.type === 'survey_delete' ||
+      data.type === 'ledger_update' || data.type === 'ledger_delete' ||
+      data.type === 'issue_update' || data.type === 'issue_delete') {
     var admin = verifyAdminToken(data.token);
     if (!admin.ok) {
       return jsonResponse({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
@@ -342,8 +343,11 @@ function doPost(e) {
     if (data.type === 'admin_booking_create') return handleAdminCreateBooking(data, admin.email);
     if (data.type === 'admin_booking_edit')   return handleAdminEditBooking(data, admin.email);
     if (data.type === 'survey_update')        return handleSurveyUpdate(data);
+    if (data.type === 'survey_delete')        return handleSurveyDelete(data);
     if (data.type === 'ledger_update')        return handleLedgerUpdate(data);
+    if (data.type === 'ledger_delete')        return handleLedgerDelete(data);
     if (data.type === 'issue_update')         return handleIssueUpdate(data);
+    if (data.type === 'issue_delete')         return handleIssueDelete(data);
   }
 
   return jsonResponse({ error: 'Unknown type' });
@@ -3112,7 +3116,8 @@ const ISSUE_SHEET_NAME  = 'iot_issue_log';
 //   중간 삽입 시 기존 시트 컬럼과 어긋난다. 기존 시트에는 getNamedSheet가 누락 헤더를 끝에 자동 append.
 // deal_amount: 계약 체결 딜의 실제 계약 금액 (2026-07 S9 — 선택 입력, 무응답 정상)
 // impressive_modes: 인상 깊었던 솔루션 복수 선택 (2026-07 신규 — 콤마 구분 문자열, 공통 문항)
-const SURVEY_HEADERS = ['response_id','submitted_at','visit_date','dept','name','client','visit_count','track','purpose','deal_stage','deal_size','deal_area','reaction','attr','media_work','media_days','media_alt','media_cost','media_link','media_link_name','media_link_size','media_link_attr','etc_work','etc_days','etc_alt','iot_defect','iot_defect_detail','etc_link','etc_link_name','etc_link_size','etc_link_attr','satisfaction','feedback','raw_json','deal_amount','impressive_modes'];
+// desired_solutions: 추가 필요·체험 희망 솔루션 주관식 (2026-07 신규 — 선택 입력)
+const SURVEY_HEADERS = ['response_id','submitted_at','visit_date','dept','name','client','visit_count','track','purpose','deal_stage','deal_size','deal_area','reaction','attr','media_work','media_days','media_alt','media_cost','media_link','media_link_name','media_link_size','media_link_attr','etc_work','etc_days','etc_alt','iot_defect','iot_defect_detail','etc_link','etc_link_name','etc_link_size','etc_link_attr','satisfaction','feedback','raw_json','deal_amount','impressive_modes','desired_solutions'];
 const LEDGER_HEADERS = ['ledger_id','response_id','category','project_name','expected_scale','attribution_text','attribution_pct','visit_date','respondent','dept','status','confirmed_amount','confirmed_date','confirmed_note','roi_included'];
 const ISSUE_HEADERS  = ['issue_id','response_id','device','symptom','severity','channel','q_ship','status','est_value'];
 
@@ -3346,6 +3351,39 @@ function handleLedgerUpdate(data) {
     }
   }
   return jsonResponse({ ok: false, error: 'not_found' });
+}
+
+// ── 설문·대장·이슈 영구 삭제 (관리자 토큰 게이트 — 테스트·실수 데이터 정리용) ──
+// 실제 성과 기록은 드롭/기각 상태 전환으로 보존하는 것이 원칙 — 삭제는 테스트 정리에만 사용.
+// survey_delete는 응답의 파생 행(대장·이슈, response_id 연결)도 함께 삭제해 고아 행을 막는다.
+// 예약 booking_delete와 동일하게 알림(메일·텔레그램)은 발송하지 않는다.
+function deleteRowsByValue(sheetName, headers, colName, value) {
+  const sheet = getNamedSheet(sheetName, headers);
+  const rows = sheet.getDataRange().getValues();
+  const idx = rows[0].indexOf(colName);
+  let deleted = 0;
+  for (let i = rows.length - 1; i >= 1; i--) {   // 아래→위 삭제 — 행 인덱스 어긋남 방지
+    if (String(rows[i][idx]) === String(value)) { sheet.deleteRow(i + 1); deleted++; }
+  }
+  return deleted;
+}
+
+function handleSurveyDelete(data) {
+  const n = deleteRowsByValue(SURVEY_SHEET_NAME, SURVEY_HEADERS, 'response_id', data.id);
+  if (!n) return jsonResponse({ ok: false, error: 'not_found' });
+  const ledgerN = deleteRowsByValue(LEDGER_SHEET_NAME, LEDGER_HEADERS, 'response_id', data.id);
+  const issueN  = deleteRowsByValue(ISSUE_SHEET_NAME, ISSUE_HEADERS, 'response_id', data.id);
+  return jsonResponse({ ok: true, deleted: { response: n, ledger: ledgerN, issues: issueN } });
+}
+
+function handleLedgerDelete(data) {
+  const n = deleteRowsByValue(LEDGER_SHEET_NAME, LEDGER_HEADERS, 'ledger_id', data.id);
+  return jsonResponse(n ? { ok: true } : { ok: false, error: 'not_found' });
+}
+
+function handleIssueDelete(data) {
+  const n = deleteRowsByValue(ISSUE_SHEET_NAME, ISSUE_HEADERS, 'issue_id', data.id);
+  return jsonResponse(n ? { ok: true } : { ok: false, error: 'not_found' });
 }
 
 // ── IoT 이슈 상태·속성 부여 (관리자 토큰 게이트) ─────────────

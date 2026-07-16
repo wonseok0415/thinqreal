@@ -467,6 +467,11 @@
       <label class="opt checkbox mode-opt"><input type="checkbox" name="impressiveModes" value="외출 모드"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_away.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title">클릭 한번으로 편안한 안심 외출 [외출 모드]</span><span class="opt-sub">음성·앱 터치로 집안을 한 번에 제어하는 외출 루틴 — 불필요한 조명·가전 차단으로 에너지를 절약하고 깔끔한 환경 유지</span></span></label>
       <label class="opt checkbox mode-opt"><input type="checkbox" name="impressiveModes" value="특별히 없음"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">특별히 없음 / 기억나지 않음</span></span></label>
     </div>
+    <div style="margin-left:28px; margin-top:16px;">
+      <label class="field-label">추가로 필요하거나 체험해 보고 싶은 솔루션 (선택)</label>
+      <p style="font-size:12.5px; color:var(--text-3); margin:0 0 8px; line-height:1.5;">오늘 체험하신 솔루션 외에, 비즈니스에 필요하다고 생각되거나 다음 방문에서 체험해 보고 싶은 솔루션이 있다면 자유롭게 적어주세요.</p>
+      <textarea id="desiredSolutions" placeholder="예: 고객사 시연에 맞춘 커스텀 시나리오, 특정 가전 연동 데모 등"></textarea>
+    </div>
   </div>
 
   <div class="card hidden" id="commonCard">
@@ -633,6 +638,7 @@ function buildPayload() {
     visit_count: rawRadio('visitCount'),
     purpose: rawRadio('purpose'),
     impressive_modes: rawChecks('impressiveModes'),
+    desired_solutions: rawText('desiredSolutions'),
     satisfaction: rawRadio('satisfaction'),
     feedback: rawText('freeComment')
   };
@@ -847,6 +853,7 @@ function submitViaMail() {
   lines.push('');
   lines.push('[만족도 및 의견]');
   lines.push('인상 깊었던 솔루션: ' + getChecks('impressiveModes'));
+  lines.push('추가 희망 솔루션: ' + getText('desiredSolutions'));
   lines.push('만족도: ' + getRadio('satisfaction'));
   lines.push('자유 의견: ' + getText('freeComment'));
   lines.push('');

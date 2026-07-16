@@ -2019,7 +2019,7 @@ body {
       <h2 class="sv-section-title">📒 성과 추적 대장</h2>
       <p class="sv-section-desc">설문의 성과 연결 응답에서 자동 생성됩니다. 후보 → 확정(실제 금액 입력) / 드롭 — 행 삭제 없이 상태로만 관리하며, 수정 버튼으로 과제명·기여도 등 내용을 정정할 수 있습니다.</p>
       <div class="table-card">
-        <table class="booking-table" style="min-width:920px;">
+        <table class="booking-table" style="min-width:960px;">
           <thead>
             <tr><th>상태</th><th>카테고리</th><th>과제명</th><th>예상 규모</th><th>기여도</th><th>확정 금액</th><th>ROI 반영</th><th>처리</th></tr>
           </thead>
@@ -2032,7 +2032,7 @@ body {
       <h2 class="sv-section-title">⚠ IoT 이슈 로그</h2>
       <p class="sv-section-desc">심각도·채널·목표 수량을 부여하면 예상 가치가 서버에서 계산됩니다 (참고용 — ROI 미산입). 단가는 Script Property로만 관리됩니다.</p>
       <div class="table-card">
-        <table class="booking-table" style="min-width:940px;">
+        <table class="booking-table" style="min-width:1000px;">
           <thead>
             <tr><th>ID</th><th>기기</th><th>증상</th><th>심각도</th><th>채널</th><th>목표 수량</th><th>상태</th><th>예상 가치</th><th></th></tr>
           </thead>
@@ -2188,8 +2188,29 @@ body {
     </div>
     <div class="detail-grid" id="surveyModalGrid"></div>
     <div class="modal-actions">
+      <button class="modal-btn-danger" onclick="openSvDelete('response', surveyModalTarget)">영구 삭제</button>
       <button class="modal-btn-edit" onclick="openSurveyEdit(surveyModalTarget)">수정</button>
       <button class="modal-btn-close" onclick="closeSurveyModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 설문·대장·이슈 영구 삭제 확인 모달 ("삭제" 타이핑 게이트 — 예약 삭제와 동일 패턴, 백드롭 미바인딩) -->
+<div class="modal-backdrop" id="svDelBg">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h2 class="modal-title">영구 삭제</h2>
+      <button class="modal-close" onclick="closeSvDelete()">✕</button>
+    </div>
+    <p class="modal-delete-warn" id="svDelWarn"></p>
+    <p class="modal-delete-summary" id="svDelSummary"></p>
+    <label class="modal-delete-label">확인을 위해 <strong>삭제</strong> 를 입력하세요</label>
+    <input type="text" class="modal-delete-input" id="svDelInput" placeholder="삭제" autocomplete="off"
+           oninput="document.getElementById('svDelBtn').disabled = this.value.trim() !== '삭제'"
+           onkeydown="if(event.key==='Enter')confirmSvDelete()">
+    <div class="modal-delete-actions">
+      <button class="modal-btn-close" onclick="closeSvDelete()">취소</button>
+      <button class="modal-btn-delete-confirm" id="svDelBtn" onclick="confirmSvDelete()" disabled>영구 삭제</button>
     </div>
   </div>
 </div>
@@ -3561,7 +3582,8 @@ function renderSurveyTab() {
       + '<td style="white-space:nowrap;">'
       + '<button class="sv-save-btn" onclick="openLedgerModal(\'' + escapeHtml(String(l.ledger_id)) + '\', \'수정\')">수정</button> '
       + '<button class="sv-save-btn" onclick="openLedgerModal(\'' + escapeHtml(String(l.ledger_id)) + '\', \'확정\')">확정</button> '
-      + '<button class="sv-save-btn" style="border-color:rgba(0,0,0,0.2); color:var(--c-label-3);" onclick="openLedgerModal(\'' + escapeHtml(String(l.ledger_id)) + '\', \'드롭\')">드롭</button>'
+      + '<button class="sv-save-btn" style="border-color:rgba(0,0,0,0.2); color:var(--c-label-3);" onclick="openLedgerModal(\'' + escapeHtml(String(l.ledger_id)) + '\', \'드롭\')">드롭</button> '
+      + '<button class="sv-save-btn" style="border-color:var(--c-red); color:var(--c-red);" onclick="openSvDelete(\'ledger\', \'' + escapeHtml(String(l.ledger_id)) + '\')">삭제</button>'
       + '</td></tr>';
   }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="empty-state-text">대장 항목이 없습니다. 설문의 성과 연결 응답에서 자동 생성됩니다.</div></div></td></tr>';
 
@@ -3585,7 +3607,8 @@ function renderSurveyTab() {
       + '<td><input class="sv-mini-input" data-f="q_ship" type="number" min="0" value="' + escapeHtml(String(x.q_ship || '')) + '"></td>'
       + '<td><select class="sv-mini-select" data-f="status">' + opt(stOpts, x.status || '등록') + '</select></td>'
       + '<td>' + est + '</td>'
-      + '<td><button class="sv-save-btn" onclick="saveIssueRow(\'' + id + '\')">저장</button></td></tr>';
+      + '<td style="white-space:nowrap;"><button class="sv-save-btn" onclick="saveIssueRow(\'' + id + '\')">저장</button> '
+      + '<button class="sv-save-btn" style="border-color:var(--c-red); color:var(--c-red);" onclick="openSvDelete(\'issue\', \'' + id + '\')">삭제</button></td></tr>';
   }).join('') : '<tr><td colspan="9"><div class="empty-state"><div class="empty-state-text">등록된 이슈가 없습니다. R&D 트랙 설문의 결함 리포트에서 자동 생성됩니다.</div></div></td></tr>';
 }
 
@@ -3616,7 +3639,7 @@ const SV_FIELD_LABELS = [
   ['iot_defect', 'IoT 품질 이슈'], ['iot_defect_detail', '이슈 상세'],
   ['etc_link', '성과 연결'], ['etc_link_name', '과제·기획명'], ['etc_link_size', '예상 규모'],
   ['etc_link_attr', '기여 수준(과제)'],
-  ['impressive_modes', '인상 깊었던 솔루션'],
+  ['impressive_modes', '인상 깊었던 솔루션'], ['desired_solutions', '추가 희망 솔루션'],
   ['satisfaction', '만족도'], ['feedback', '자유 의견']
 ];
 
@@ -3651,6 +3674,7 @@ const SV_EDIT_COMMON = [
   ['client', '고객사/대상', 'text'],
   ['purpose', '방문 목적', 'text'],
   ['impressive_modes', '인상 깊었던 솔루션', 'text'],
+  ['desired_solutions', '추가 희망 솔루션', 'textarea'],
   ['satisfaction', '만족도', 'text'],
   ['feedback', '자유 의견', 'textarea']
 ];
@@ -3809,6 +3833,65 @@ async function toggleRoiIncluded(id, checked) {
   if (l) l.roi_included = checked ? 'Y' : '';
   if (await svPost({ type: 'ledger_update', id, roi_included: checked ? 'Y' : '' })) {
     toast(checked ? 'ROI 반영 완료로 표시했습니다.' : 'ROI 반영 표시를 해제했습니다.');
+  }
+}
+
+// ── 설문·대장·이슈 영구 삭제 (테스트·실수 데이터 정리용) ──
+// "삭제" 타이핑 게이트 — 예약 삭제와 동일 패턴. 응답 삭제는 파생 행(대장·이슈)도 함께.
+// 실제 성과 기록은 드롭/기각 상태 전환으로 보존하는 것이 원칙.
+let svDeleteTarget = null;   // { kind: 'response' | 'ledger' | 'issue', id }
+function openSvDelete(kind, id) {
+  const d = surveyData || {};
+  let summary = '';
+  let warn = '⚠️ 이 항목을 영구 삭제합니다. 되돌릴 수 없습니다.';
+  if (kind === 'response') {
+    const r = (d.responses || []).find(x => String(x.response_id) === String(id));
+    if (!r) return;
+    summary = [r.visit_date, SV_TRACK_LABEL[r.track] || r.track, r.name].filter(Boolean).join('  ·  ');
+    const nL = (d.ledger || []).filter(l => String(l.response_id) === String(id)).length;
+    const nI = (d.issues || []).filter(x => String(x.response_id) === String(id)).length;
+    if (nL || nI) warn = '⚠️ 이 응답에서 파생된 행(성과 대장 ' + nL + '건 · 이슈 ' + nI + '건)도 함께 영구 삭제됩니다. 되돌릴 수 없습니다.';
+    closeSurveyModal();
+  } else if (kind === 'ledger') {
+    const l = (d.ledger || []).find(x => String(x.ledger_id) === String(id));
+    if (!l) return;
+    summary = ['[' + (l.category || '') + ']', l.project_name || '(무명)', l.status || '후보'].filter(Boolean).join('  ·  ');
+  } else {
+    const x = (d.issues || []).find(i => String(i.issue_id) === String(id));
+    if (!x) return;
+    summary = [x.device, String(x.symptom || '').slice(0, 30)].filter(Boolean).join('  ·  ') || String(id);
+  }
+  svDeleteTarget = { kind, id: String(id) };
+  document.getElementById('svDelWarn').textContent = warn;
+  document.getElementById('svDelSummary').textContent = summary;
+  const inp = document.getElementById('svDelInput');
+  inp.value = '';
+  document.getElementById('svDelBtn').disabled = true;
+  document.getElementById('svDelBg').classList.add('open');
+  inp.focus();
+}
+function closeSvDelete() { document.getElementById('svDelBg').classList.remove('open'); svDeleteTarget = null; }
+
+async function confirmSvDelete() {
+  if (!svDeleteTarget || document.getElementById('svDelInput').value.trim() !== '삭제') return;
+  const { kind, id } = svDeleteTarget;
+  closeSvDelete();
+  // 낙관적 로컬 제거 — 응답 삭제는 파생 행도 함께 (서버 cascade와 동일 규칙)
+  if (kind === 'response') {
+    surveyData.responses = (surveyData.responses || []).filter(x => String(x.response_id) !== id);
+    surveyData.ledger    = (surveyData.ledger || []).filter(x => String(x.response_id) !== id);
+    surveyData.issues    = (surveyData.issues || []).filter(x => String(x.response_id) !== id);
+  } else if (kind === 'ledger') {
+    surveyData.ledger = (surveyData.ledger || []).filter(x => String(x.ledger_id) !== id);
+  } else {
+    surveyData.issues = (surveyData.issues || []).filter(x => String(x.issue_id) !== id);
+  }
+  renderSurveyTab();
+  const type = kind === 'response' ? 'survey_delete' : (kind === 'ledger' ? 'ledger_delete' : 'issue_delete');
+  if (await svPost({ type, id })) {
+    toast('✓ 영구 삭제됐습니다');
+  } else {
+    loadSurveyData(true, true);   // 전송 실패 시 서버 상태로 재동기화 (롤백)
   }
 }
 
