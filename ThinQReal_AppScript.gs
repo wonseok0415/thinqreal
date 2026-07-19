@@ -3466,12 +3466,15 @@ function getSurveyInviteTargets() {
   const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
 
   const byEmail = {};                              // 이메일 → { latest: 최근 방문 건, rowIndexes: 해당 행들 }
+  const excluded = new Set();                      // 허용 도메인 외 이메일 (로그 확인용)
   rows.slice(1).forEach((row, i) => {
     const status = String(row[col('status')] || '').trim();
     const email  = String(row[col('email')]  || '').trim().toLowerCase();
     const date   = normalizeDate(row[col('date')]);
     const sent   = String(row[col('surveyInviteSentAt')] || '').trim();
     if (status !== '확정' || !email || email.indexOf('@') < 0) return;
+    // 발송 대상은 임직원(@lge.com)으로 한정 — 사이트 게이트와 동일한 허용 도메인 단일 소스
+    if (!AUTH_ALLOWED_DOMAINS.some(d => email.endsWith('@' + d))) { excluded.add(email); return; }
     if (!date || date > today) return;             // 방문 전 건 제외
     if (sent) return;                              // 이미 발송한 행 제외 (재실행 안전)
 
@@ -3493,6 +3496,9 @@ function getSurveyInviteTargets() {
     }
   });
 
+  if (excluded.size) {
+    Logger.log('제외 (@lge.com 외 주소 ' + excluded.size + '건): ' + [...excluded].join(', '));
+  }
   return Object.keys(byEmail).map(k => byEmail[k]);
 }
 
