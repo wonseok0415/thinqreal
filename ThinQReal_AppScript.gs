@@ -3508,9 +3508,12 @@ function previewSurveyInviteTargets() {
   return targets.length;
 }
 
-// ② 테스트 발송 — 실제 대상자 첫 건의 데이터로 스크립트 소유자에게만 1통 (시트 기록 없음)
+// ② 테스트 발송 — 실제 대상자 첫 건의 데이터로 운영자에게만 발송 (시트 기록 없음)
+//    소유자 gmail + 사내 메일(CC_EMAIL) 양쪽으로 보내 Gmail·Outlook 표시를 모두 확인한다.
+//    사내 수신은 LG 보안 게이트웨이 스캔 큐를 타므로 수분~수십분 지연될 수 있음.
 function sendSurveyInviteTest() {
   const me = Session.getEffectiveUser().getEmail();
+  const to = me + ',' + CC_EMAIL;
   const targets = getSurveyInviteTargets();
   const b = targets.length ? targets[0].latest : {
     email: me, date: '2026-07-10', name: '홍길동',
@@ -3518,12 +3521,12 @@ function sendSurveyInviteTest() {
     division: 'HS사업본부', department: 'AI홈솔루션엔지니어링팀',
   };
   MailApp.sendEmail({
-    to: me,
+    to: to,
     subject: '[테스트] ' + buildSurveyInviteSubject(),
     body: buildSurveyInviteText(b), htmlBody: buildSurveyInviteHtml(b),
     name: 'ThinQ Real',
   });
-  Logger.log('테스트 메일 발송 → ' + me +
+  Logger.log('테스트 메일 발송 → ' + to +
     (targets.length ? ' (실데이터 사용: ' + b.email + ' 건)' : ' (대상 없음 — 더미 데이터 사용)'));
 }
 
