@@ -1324,3 +1324,27 @@ claude.ai ROI 세션에서 개편된 `ThinQ_ROI_Tool_v46.html`을 리포 `ThinQ_
 
 ### 핵심 제약 (다음 세션에서도 유지)
 - 조건부 입력 칸은 **라벨 밖에 배치** — 라벨 안의 input은 클릭 시 체크박스가 토글되는 부작용 (이번 구조가 선례).
+
+## 작업 내역 (2026-07-19 — 방문 후기 설문 요청 메일 배치)
+
+지금까지 시스템으로 예약한 방문객(신청 시 입력한 이메일)에게 설문 폼 링크를 담은 요청 메일을 발송하는 기능. 확정 메일과 동일한 다크 올리브 카드형 + 발신명 'ThinQ Real'.
+
+### A. Apps Script — 에디터 직접 실행 배치 3종 (재배포 불필요)
+- **웹 엔드포인트가 아니라 에디터에서 실행하는 함수** — 코드 저장만 하면 되고 재배포는 필요 없음 (`migratePurposeCategories2026` 패턴).
+- 실행 순서: ① `previewSurveyInviteTargets()` (발송 없이 명단·할당량 로그) → ② `sendSurveyInviteTest()` (스크립트 소유자 본인에게만 1통, 시트 기록 없음 — 실제 대상자 첫 건 데이터 사용, 대상 없으면 더미) → ③ `sendSurveyInviteBatch()` (실제 발송 + 기록).
+- **대상 필터**: status=확정 + 방문일 경과(오늘 포함) + 이메일 보유 + `surveyInviteSentAt` 공란. 백필 행은 이메일이 공란이라 자동 제외됨.
+- **이메일 중복 제거**: 같은 이메일 다건이면 가장 최근 방문 1건 기준으로 1통만. 발송 성공 시 그 이메일의 **모든 해당 행**에 `surveyInviteSentAt`(ISO) 기록 → 재실행해도 중복 발송 없음. 발송 후 새 예약이 들어와 방문이 끝나면 그 건은 다시 대상이 됨(의도 — 방문별 후기).
+- bookings HEADERS 끝에 **`surveyInviteSentAt`(25번째)** 추가 — `getOrCreateHeaders`가 기존 시트에 자동 append. 백필 시 공란 허용.
+- 일일 메일 할당량 초과 시 발송 없이 중단 로그 (`MailApp.getRemainingDailyQuota()` 선검사).
+- 빌더: `buildSurveyInviteSubject/Text/Html/Link`. 민감 정보(Wi-Fi·도어락) 미포함. 사은품 문구는 설문 폼과 동일 톤.
+
+### B. 설문 폼 — 쿼리 파라미터 프리필 (ThinQ_Real_Visit_Survey.html)
+- 메일 링크가 `?visit_date=YYYY-MM-DD&name=…&dept=…`를 실어 보내면 폼이 방문일·작성자·소속을 미리 채움 (`prefillFromQuery` IIFE, 스크립트 끝).
+- **이미 입력된 값은 덮어쓰지 않음** — 프리필은 편의일 뿐 수정 자유. 쿼리 없으면 기존 동작 그대로.
+- dept 값은 예약의 `division + ' ' + department` 조합 (Apps Script `buildSurveyInviteLink`).
+
+### 핵심 제약 (다음 세션에서도 유지)
+- `sendSurveyInviteBatch` 재실행 안전장치는 `surveyInviteSentAt` 마커 — 임의로 지우면 그 행이 다시 발송 대상이 되므로 재발송 목적이 아니면 건드리지 말 것.
+- 시트 백필 컬럼은 이제 **25열**(`id`~`surveyInviteSentAt`).
+- 이 기능은 재배포 없이 동작하지만, **코드를 script.google.com에 반영(저장)해야** 에디터에서 함수가 보임. 다른 변경과 함께 재배포해도 무해.
+- 옵션 A(방문 익일 자동 설문 발송)를 살릴 때 `buildSurveyInvite*` 빌더와 대상 필터를 그대로 재사용할 것 — 트리거 함수만 추가하면 됨.
