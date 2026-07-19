@@ -932,6 +932,22 @@ function copyRecipient() {
   copyToClipboard(RECIPIENT);
   alert('메일 주소가 복사되었습니다: ' + RECIPIENT);
 }
+
+// ==================== 설문 링크 쿼리 파라미터 프리필 ====================
+// 설문 요청 메일의 링크(?visit_date=…&name=…&dept=…)로 열면 기본 정보를 미리 채운다.
+// 이미 입력된 값은 덮어쓰지 않는다 (프리필은 편의일 뿐, 수정 자유).
+(function prefillFromQuery() {
+  try {
+    const q = new URLSearchParams(location.search);
+    const fill = (id, v) => {
+      const el = document.getElementById(id);
+      if (el && v && !el.value) el.value = v;
+    };
+    fill('visitDate', q.get('visit_date'));
+    fill('dept', q.get('dept'));
+    fill('name', q.get('name'));
+  } catch (e) { /* 쿼리 없음·구형 브라우저 — 프리필 실패는 무해 */ }
+})();
 </script>
 </body>
 </html>

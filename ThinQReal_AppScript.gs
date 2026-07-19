@@ -2440,7 +2440,9 @@ function getOrCreateHeaders(sheet) {
     // 2026-06 Google 캘린더 연동 — 확정 예약의 캘린더 이벤트 id (갱신·삭제 추적용)
     'calendarEventId',
     // 2026-07 B2E 전환 — 신청자 소속 (본부 드롭다운 / 부서 직접 입력)
-    'division', 'department'
+    'division', 'department',
+    // 2026-07 방문 후기 설문 요청 메일 발송 기록 (배치 재실행 시 중복 발송 방지)
+    'surveyInviteSentAt'
   ];
   const lastCol  = Math.max(sheet.getLastColumn(), 1);
   const firstRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
@@ -3430,4 +3432,204 @@ function handleIssueUpdate(data) {
     }
   }
   return jsonResponse({ ok: false, error: 'not_found' });
+}
+
+// ============================================================
+//  방문 후기 설문 요청 메일 (배치 — 스크립트 에디터에서 직접 실행)
+//  - 대상: status=확정 + 방문일 경과 + 이메일 보유 + 미발송 행
+//  - 같은 이메일 다건은 가장 최근 방문 1건 기준으로 1통만 발송
+//  - 실행 순서: ① previewSurveyInviteTargets() — 명단만 로그 (발송 없음)
+//               ② sendSurveyInviteTest()       — 소유자 본인에게 1통 (시트 기록 없음)
+//               ③ sendSurveyInviteBatch()      — 실제 발송 + 발송 시각 기록
+//  - 발송한 행은 surveyInviteSentAt에 기록 → 재실행해도 중복 발송 없음
+//  - 웹 엔드포인트가 아니므로 재배포 불필요 (코드 저장 후 에디터에서 실행)
+// ============================================================
+
+const SURVEY_FORM_URL = 'https://thinqreal.com/ThinQ_Real_Visit_Survey.html';
+
+// 설문 링크에 방문일·작성자·소속을 쿼리로 실어 폼이 미리 채우게 한다 (수신자 입력 부담 완화)
+function buildSurveyInviteLink(b) {
+  const params = [];
+  if (b.date) params.push('visit_date=' + encodeURIComponent(b.date));
+  if (b.name) params.push('name=' + encodeURIComponent(b.name));
+  const dept = ((b.division || '') + ' ' + (b.department || '')).trim();
+  if (dept) params.push('dept=' + encodeURIComponent(dept));
+  return SURVEY_FORM_URL + (params.length ? '?' + params.join('&') : '');
+}
+
+function getSurveyInviteTargets() {
+  const sheet = getSheet();
+  getOrCreateHeaders(sheet);                       // surveyInviteSentAt 컬럼 보장
+  const rows = sheet.getDataRange().getValues();
+  const head = rows[0].map(v => String(v || ''));
+  const col = h => head.indexOf(h);
+  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+
+  const byEmail = {};                              // 이메일 → { latest: 최근 방문 건, rowIndexes: 해당 행들 }
+  rows.slice(1).forEach((row, i) => {
+    const status = String(row[col('status')] || '').trim();
+    const email  = String(row[col('email')]  || '').trim().toLowerCase();
+    const date   = normalizeDate(row[col('date')]);
+    const sent   = String(row[col('surveyInviteSentAt')] || '').trim();
+    if (status !== '확정' || !email || email.indexOf('@') < 0) return;
+    if (!date || date > today) return;             // 방문 전 건 제외
+    if (sent) return;                              // 이미 발송한 행 제외 (재실행 안전)
+
+    const rec = {
+      rowIndex: i + 2, email, date,
+      name:       String(row[col('name')] || ''),
+      slotLabel:  String(row[col('slotLabel')] || ''),
+      purpose:    String(row[col('purpose')] || ''),
+      subject:    String(row[col('subject')] || row[col('org')] || ''),
+      division:   String(row[col('division')] || ''),
+      department: String(row[col('department')] || ''),
+    };
+    const cur = byEmail[email];
+    if (!cur) {
+      byEmail[email] = { latest: rec, rowIndexes: [rec.rowIndex] };
+    } else {
+      cur.rowIndexes.push(rec.rowIndex);
+      if (rec.date > cur.latest.date) cur.latest = rec;
+    }
+  });
+
+  return Object.keys(byEmail).map(k => byEmail[k]);
+}
+
+// ① 발송 없이 대상자 명단만 로그로 확인 (드라이런)
+function previewSurveyInviteTargets() {
+  const targets = getSurveyInviteTargets();
+  Logger.log('설문 요청 대상: ' + targets.length + '명 (남은 일일 메일 할당량 ' + MailApp.getRemainingDailyQuota() + '통)');
+  targets.forEach(t => {
+    const b = t.latest;
+    Logger.log('- ' + b.email + ' | ' + b.date + ' ' + b.slotLabel + ' | ' + b.purpose + ' | ' + b.name +
+      (t.rowIndexes.length > 1 ? ' (확정 ' + t.rowIndexes.length + '건 → 1통)' : ''));
+  });
+  return targets.length;
+}
+
+// ② 테스트 발송 — 실제 대상자 첫 건의 데이터로 스크립트 소유자에게만 1통 (시트 기록 없음)
+function sendSurveyInviteTest() {
+  const me = Session.getEffectiveUser().getEmail();
+  const targets = getSurveyInviteTargets();
+  const b = targets.length ? targets[0].latest : {
+    email: me, date: '2026-07-10', name: '홍길동',
+    slotLabel: '2회차 13:00~14:30', purpose: 'R&D', subject: '테스트 방문',
+    division: 'HS사업본부', department: 'AI홈솔루션엔지니어링팀',
+  };
+  MailApp.sendEmail({
+    to: me,
+    subject: '[테스트] ' + buildSurveyInviteSubject(),
+    body: buildSurveyInviteText(b), htmlBody: buildSurveyInviteHtml(b),
+    name: 'ThinQ Real',
+  });
+  Logger.log('테스트 메일 발송 → ' + me +
+    (targets.length ? ' (실데이터 사용: ' + b.email + ' 건)' : ' (대상 없음 — 더미 데이터 사용)'));
+}
+
+// ③ 실제 발송 — 발송 성공한 이메일의 모든 해당 행에 surveyInviteSentAt 기록
+function sendSurveyInviteBatch() {
+  const sheet = getSheet();
+  const headers = getOrCreateHeaders(sheet);
+  const sentCol = headers.indexOf('surveyInviteSentAt') + 1;
+  const targets = getSurveyInviteTargets();
+  const quota = MailApp.getRemainingDailyQuota();
+  if (!targets.length) { Logger.log('발송 대상이 없습니다.'); return; }
+  if (targets.length > quota) {
+    Logger.log('중단: 대상 ' + targets.length + '명 > 남은 일일 할당량 ' + quota + '통. 다음 날 다시 실행하세요.');
+    return;
+  }
+
+  const now = new Date().toISOString();
+  let ok = 0, fail = 0;
+  targets.forEach(t => {
+    const b = t.latest;
+    try {
+      MailApp.sendEmail({
+        to: b.email, subject: buildSurveyInviteSubject(),
+        body: buildSurveyInviteText(b), htmlBody: buildSurveyInviteHtml(b),
+        name: 'ThinQ Real',
+      });
+      t.rowIndexes.forEach(r => sheet.getRange(r, sentCol).setValue(now));
+      ok++;
+    } catch (err) {
+      fail++;
+      Logger.log('발송 실패: ' + b.email + ' — ' + err.message);
+    }
+  });
+  Logger.log('설문 요청 발송 완료: 성공 ' + ok + '통 / 실패 ' + fail + '통');
+}
+
+function buildSurveyInviteSubject() {
+  return '[ThinQ Real] 방문 후기 설문 요청 — 소중한 의견을 들려주세요';
+}
+
+function buildSurveyInviteText(b) {
+  const link = buildSurveyInviteLink(b);
+  return [
+    '안녕하세요, ' + (b.name || '') + '님.',
+    '',
+    'ThinQ Real을 방문해 주셔서 감사합니다.',
+    '방문 경험에 대한 짧은 설문을 부탁드립니다. (약 3분 소요)',
+    '',
+    '📅 방문 정보',
+    '   ' + b.date + '  /  ' + (b.slotLabel || ''),
+    '   ' + (b.purpose || '') + (b.subject ? ' — ' + b.subject : ''),
+    '',
+    '📝 설문 작성',
+    '   ' + link,
+    '   (방문일 등 기본 정보가 미리 채워져 있습니다)',
+    '',
+    '응답해 주신 내용은 ThinQ Real 운영 개선과 성과 분석에',
+    '소중하게 활용됩니다.',
+    '',
+    '🎁 매월 베스트 리뷰어 세 분을 선정해 소정의 사은품을 드립니다.',
+    '',
+    '감사합니다.',
+    'HS플랫폼사업센터 AI홈솔루션엔지니어링팀',
+  ].join('\n');
+}
+
+function buildSurveyInviteHtml(b) {
+  const name = escapeHtml(b.name || '');
+  const date = escapeHtml(b.date || '');
+  const slot = escapeHtml(b.slotLabel || '');
+  const purpose = escapeHtml(b.purpose || '');
+  const subject = escapeHtml(b.subject || '');
+  const link = escapeHtml(buildSurveyInviteLink(b));  // & → &amp; (href 속성 안전)
+
+  return (
+    '<div style="background:#f5f5f7;padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,\'Helvetica Neue\',\'Apple SD Gothic Neo\',\'Malgun Gothic\',sans-serif;">' +
+      '<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:collapse;max-width:680px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">' +
+        '<tr><td style="background:#3a5035;color:#ffffff;padding:24px 28px;">' +
+          '<div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.7;">ThinQ Real</div>' +
+          '<div style="font-size:20px;font-weight:600;margin-top:4px;">방문 후기를 들려주세요</div>' +
+        '</td></tr>' +
+        '<tr><td style="padding:28px;">' +
+          '<div style="font-size:15px;color:#1d1d1f;line-height:1.7;margin-bottom:20px;">' +
+            '안녕하세요, <strong>' + name + '</strong>님.<br>' +
+            'ThinQ Real을 방문해 주셔서 감사합니다.<br>' +
+            '방문 경험에 대한 짧은 설문을 부탁드립니다. <span style="color:#6e6e73;">(약 3분 소요)</span>' +
+          '</div>' +
+          '<div style="padding:16px 18px;background:#f5f5f7;border-radius:8px;font-size:14px;line-height:1.7;">' +
+            '<div style="font-weight:600;color:#3a3a3c;margin-bottom:4px;">📅 방문 정보</div>' +
+            '<div style="font-size:15px;font-weight:600;color:#3a5035;">' + date + '</div>' +
+            '<div style="color:#6e6e73;font-size:13px;">' + slot + '</div>' +
+            (purpose ? '<div style="margin-top:4px;color:#1d1d1f;font-size:13px;">' + purpose + (subject ? ' — ' + subject : '') + '</div>' : '') +
+          '</div>' +
+          '<div style="text-align:center;margin:28px 0 8px;">' +
+            '<a href="' + link + '" style="display:inline-block;background:#3a5035;color:#ffffff;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;text-decoration:none;">설문 작성하기 (약 3분) ↗</a>' +
+            '<div style="color:#aeaeb2;font-size:12px;margin-top:8px;">방문일 등 기본 정보가 미리 채워져 있습니다.</div>' +
+          '</div>' +
+          '<div style="margin-top:20px;padding:14px 18px;background:#fdf7ec;border-radius:8px;font-size:13px;color:#6e5a2e;line-height:1.6;">' +
+            '🎁 매월 <strong>베스트 리뷰어 세 분</strong>을 선정해 소정의 사은품을 드립니다. 구체적인 후기일수록 선정 확률이 올라갑니다.' +
+          '</div>' +
+          '<div style="margin-top:28px;padding-top:20px;border-top:1px solid #eeeeee;font-size:13px;color:#6e6e73;line-height:1.6;">' +
+            '응답해 주신 내용은 ThinQ Real 운영 개선과 성과 분석에 소중하게 활용됩니다.<br>' +
+            '감사합니다.<br>HS플랫폼사업센터 AI홈솔루션엔지니어링팀' +
+          '</div>' +
+        '</td></tr>' +
+      '</table>' +
+    '</div>'
+  );
 }
