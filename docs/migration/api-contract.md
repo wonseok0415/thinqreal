@@ -96,3 +96,4 @@ division(본부), department(부서), privacyConsent('Y')
 | 작업 | 현재 구현 | 재구현 |
 |---|---|---|
 | 월간 리포트 자동 발송 | Apps Script 시간 트리거 (매일 08:30) → 마지막 금요일 판정 후 발송 | cron `30 8 * * *` (Asia/Seoul) + 동일 판정 로직 |
+| 방문 후기 설문 요청 자동 발송 | Apps Script 시간 트리거 (매일 08:30, `surveyInviteTrigger`) → 전날까지의 확정·미발송 방문 건에 설문 메일 (`surveyInviteSentAt` 마커로 중복 방지, @lge.com 한정, CC 담당자 3+운영자) | cron `30 8 * * *` (Asia/Seoul) + 동일 필터 로직 |
