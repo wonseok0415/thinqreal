@@ -3475,7 +3475,7 @@ function getSurveyInviteTargets() {
     if (status !== '확정' || !email || email.indexOf('@') < 0) return;
     // 발송 대상은 임직원(@lge.com)으로 한정 — 사이트 게이트와 동일한 허용 도메인 단일 소스
     if (!AUTH_ALLOWED_DOMAINS.some(d => email.endsWith('@' + d))) { excluded.add(email); return; }
-    if (!date || date > today) return;             // 방문 전 건 제외
+    if (!date || date >= today) return;            // 방문 다음날부터 발송 (아침 자동 발송이 방문 전에 나가는 것 방지)
     if (sent) return;                              // 이미 발송한 행 제외 (재실행 안전)
 
     const rec = {
@@ -3502,10 +3502,16 @@ function getSurveyInviteTargets() {
   return Object.keys(byEmail).map(k => byEmail[k]);
 }
 
+// 참조(CC) 수신자 — 관리자 6명 전원 참조는 통수 부담(각자 발송 통수만큼 수신)으로 미채택 (2026-07-19 결정)
+const SURVEY_INVITE_CC_BATCH = CC_EMAIL;                       // 1회성 수동 배치: 운영자(강원석)만
+const SURVEY_INVITE_CC_AUTO  = ADMIN_EMAILS + ', ' + CC_EMAIL; // 자동 발송: 담당자 3명(이철호·서문수·김현진) + 강원석
+
 // ① 발송 없이 대상자 명단만 로그로 확인 (드라이런)
 function previewSurveyInviteTargets() {
   const targets = getSurveyInviteTargets();
-  Logger.log('설문 요청 대상: ' + targets.length + '명 (남은 일일 메일 할당량 ' + MailApp.getRemainingDailyQuota() + '통)');
+  const perMail = 1 + SURVEY_INVITE_CC_BATCH.split(',').length;  // 할당량은 수신자 수 기준
+  Logger.log('설문 요청 대상: ' + targets.length + '명 | 수동 배치 통당 수신자 ' + perMail + '명' +
+    ' | 필요 할당량 ' + targets.length * perMail + ' / 남은 할당량 ' + MailApp.getRemainingDailyQuota());
   targets.forEach(t => {
     const b = t.latest;
     Logger.log('- ' + b.email + ' | ' + b.date + ' ' + b.slotLabel + ' | ' + b.purpose + ' | ' + b.name +
@@ -3536,17 +3542,20 @@ function sendSurveyInviteTest() {
     (targets.length ? ' (실데이터 사용: ' + b.email + ' 건)' : ' (대상 없음 — 더미 데이터 사용)'));
 }
 
-// ③ 실제 발송 — 발송 성공한 이메일의 모든 해당 행에 surveyInviteSentAt 기록
-function sendSurveyInviteBatch() {
+// 공용 발송 코어 — 발송 성공한 이메일의 모든 해당 행에 surveyInviteSentAt 기록
+// 메일 할당량은 수신자 수 기준이므로 통당 소모 = 1 + 참조 수.
+function sendSurveyInvitesCore(cc, label) {
   const sheet = getSheet();
   const headers = getOrCreateHeaders(sheet);
   const sentCol = headers.indexOf('surveyInviteSentAt') + 1;
   const targets = getSurveyInviteTargets();
+  const perMail = 1 + cc.split(',').length;
+  const need = targets.length * perMail;
   const quota = MailApp.getRemainingDailyQuota();
-  if (!targets.length) { Logger.log('발송 대상이 없습니다.'); return; }
-  if (targets.length > quota) {
-    Logger.log('중단: 대상 ' + targets.length + '명 > 남은 일일 할당량 ' + quota + '통. 다음 날 다시 실행하세요.');
-    return;
+  if (!targets.length) { Logger.log('[' + label + '] 발송 대상이 없습니다.'); return 0; }
+  if (need > quota) {
+    Logger.log('[' + label + '] 중단: 필요 할당량 ' + need + '(대상 ' + targets.length + '명 × 수신자 ' + perMail + '명) > 남은 할당량 ' + quota + '. 다음 날 다시 실행하세요.');
+    return 0;
   }
 
   const now = new Date().toISOString();
@@ -3555,7 +3564,7 @@ function sendSurveyInviteBatch() {
     const b = t.latest;
     try {
       MailApp.sendEmail({
-        to: b.email, subject: buildSurveyInviteSubject(),
+        to: b.email, cc: cc, subject: buildSurveyInviteSubject(),
         body: buildSurveyInviteText(b), htmlBody: buildSurveyInviteHtml(b),
         name: 'ThinQ Real',
       });
@@ -3563,10 +3572,36 @@ function sendSurveyInviteBatch() {
       ok++;
     } catch (err) {
       fail++;
-      Logger.log('발송 실패: ' + b.email + ' — ' + err.message);
+      Logger.log('[' + label + '] 발송 실패: ' + b.email + ' — ' + err.message);
     }
   });
-  Logger.log('설문 요청 발송 완료: 성공 ' + ok + '통 / 실패 ' + fail + '통');
+  Logger.log('[' + label + '] 설문 요청 발송 완료: 성공 ' + ok + '통 / 실패 ' + fail + '통');
+  return ok;
+}
+
+// ③ 실제 발송 (1회성 수동 배치) — 참조: 운영자만
+function sendSurveyInviteBatch() {
+  sendSurveyInvitesCore(SURVEY_INVITE_CC_BATCH, '수동 배치');
+}
+
+// ④ 자동 발송 (매일 08:30경 트리거) — 방문 다음날 아침에 전날까지의 미발송 방문 건 발송.
+//    참조: 담당자 3명 + 운영자. 대상이 없는 날은 로그만 남기고 종료.
+function surveyInviteTrigger() {
+  sendSurveyInvitesCore(SURVEY_INVITE_CC_AUTO, '자동');
+}
+
+// 자동 발송 트리거 설치 — 에디터에서 1회 직접 실행 (기존 등록이 있으면 교체)
+function installSurveyInviteTrigger() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'surveyInviteTrigger') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('surveyInviteTrigger')
+    .timeBased()
+    .everyDays(1)
+    .atHour(8)
+    .nearMinute(30)
+    .create();
+  return '설문 자동 발송 트리거 설치 완료 (매일 08:30경 — 스크립트 TZ 기준)';
 }
 
 function buildSurveyInviteSubject() {
