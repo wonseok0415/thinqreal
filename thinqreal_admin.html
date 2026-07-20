@@ -3551,12 +3551,12 @@ function renderSurveyTab() {
     const linked = (r.media_link === '특정 캠페인·프로모션과 연결됨' || r.etc_link === '신규 Task·과제') ? '📒' :
                    (r.iot_defect === '발견함' ? '⚠' : '');
     return '<tr class="sv-row-click" onclick="openSurveyModal(\'' + escapeHtml(String(r.response_id)) + '\')">'
-      + '<td>' + escapeHtml(r.visit_date || '-') + '</td>'
+      + '<td style="white-space:nowrap;">' + escapeHtml(r.visit_date || '-') + '</td>'
       + '<td><span class="sv-badge ' + (SV_TRACK_CLS[r.track] || '') + '">' + escapeHtml(SV_TRACK_LABEL[r.track] || r.track) + '</span></td>'
-      + '<td>' + escapeHtml(r.name || '-') + '</td>'
+      + '<td style="white-space:nowrap;">' + escapeHtml(r.name || '-') + '</td>'
       + '<td>' + escapeHtml(r.dept || '-') + '</td>'
       + '<td>' + escapeHtml(r.client || '-') + '</td>'
-      + '<td>' + escapeHtml(r.visit_count || '-') + '</td>'
+      + '<td style="white-space:nowrap;">' + escapeHtml(r.visit_count || '-') + '</td>'
       + '<td>' + escapeHtml(String(r.satisfaction || '-').split(' ')[0]) + '</td>'
       + '<td>' + linked + '</td></tr>';
   }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="empty-state-text">조건에 맞는 응답이 없습니다.</div></div></td></tr>';
