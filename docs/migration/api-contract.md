@@ -74,7 +74,8 @@
 ### `booking` 요청 body 주요 필드
 ```
 type, timestamp(ISO), date, slots(number[]), slot, slotLabel,
-name(책임자), org(=subject 미러), phone, email,
+name(신청자 "이름 직급" — 2026-07-20부터, 이전 행은 책임자/담당자 이름), org(=subject 미러),
+phone(2026-07-20부터 수집 중단 — 항상 ''), email(신청자 — 확정 메일·설문 요청 수신),
 purpose(한국어 라벨), count, note, status('대기중'),
 subject, clientCompany, visitors(JSON 문자열), usagePlan, expectedEffect,
 purposeKey(b2b|rd|pr|content|internal-comm|other),

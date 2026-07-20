@@ -1369,10 +1369,23 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
           </div>
         </div>
 
+        <!-- 신청자 이름·직급 — 방문 후기 설문이 신청자 이메일로 발송되므로,
+             설문 작성자와 올바르게 맵핑되도록 신청자 본인 정보를 받는다 (2026-07-20). -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">신청자 이름 *</label>
+            <input class="form-input" id="fName" type="text" placeholder="예: 김엘지">
+          </div>
+          <div class="form-group">
+            <label class="form-label">신청자 직급 *</label>
+            <input class="form-input" id="fRank" type="text" placeholder="예: 책임">
+          </div>
+        </div>
+
         <div class="form-group">
           <label class="form-label">신청자 이메일 *</label>
           <input class="form-input" id="fEmail" type="email" placeholder="name@lge.com">
-          <span class="form-hint-inline">예약 확정 메일이 이 주소로 발송됩니다.</span>
+          <span class="form-hint-inline">예약 확정 메일과 방문 후기 설문 요청이 이 주소로 발송됩니다.</span>
         </div>
 
         <!-- 방문 목적 — 트리거. 목적에 따라 아래 항목이 동적으로 바뀝니다. -->
@@ -1394,19 +1407,10 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
 
         <!-- 동적 영역 (방문 목적 선택 시 표시) -->
         <div id="dynamicForm" style="display:none;">
-          <div class="form-row-triple">
-            <div class="form-group">
-              <label class="form-label" id="lblSubject">제목 *</label>
-              <input class="form-input" id="fSubject" type="text">
-            </div>
-            <div class="form-group">
-              <label class="form-label" id="lblLeader">부서 리더/책임자 *</label>
-              <input class="form-input" id="fLeader" type="text">
-            </div>
-            <div class="form-group">
-              <label class="form-label">담당자 연락처 *</label>
-              <input class="form-input" id="fPhone" type="tel" placeholder="010-0000-0000" maxlength="15" inputmode="tel">
-            </div>
+          <!-- 담당자·연락처 칸은 신청자 정보(이름·직급·이메일)로 대체됨 (2026-07-20) -->
+          <div class="form-group">
+            <label class="form-label" id="lblSubject">제목 *</label>
+            <input class="form-input" id="fSubject" type="text">
           </div>
 
 
@@ -1437,7 +1441,7 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
             <input type="checkbox" id="fPrivacyCollect">
             <span class="form-agreement-text">
               <strong>[필수] 개인정보 수집·이용 동의</strong> —
-              예약 처리·방문 운영·운영 통계를 위해 책임자 이름·연락처·이메일·소속(본부·부서),
+              예약 처리·방문 운영·운영 통계를 위해 신청자 이름·직급·이메일·소속(본부·부서),
               방문자 소속·이름·직급을 수집·이용함에 동의합니다.
               (보유 기간: 방문일로부터 3년)
               <a href="privacy.html" target="_blank" rel="noopener">자세히 보기</a>
@@ -1503,7 +1507,7 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
           <div class="process-step"><span class="process-num">03</span><span class="process-label">확정 메일</span></div>
           <div class="process-step"><span class="process-num">04</span><span class="process-label">방문 이용</span></div>
         </div>
-        <p style="font-size:var(--t-subhead);color:var(--c-label-2);line-height:1.6;letter-spacing:-0.016em;">예약 신청 후 담당자 검토를 거쳐 확정 메일이 발송됩니다. 신청 시 방문 목적, 인원, 연락처를 정확히 입력해 주세요.</p>
+        <p style="font-size:var(--t-subhead);color:var(--c-label-2);line-height:1.6;letter-spacing:-0.016em;">예약 신청 후 담당자 검토를 거쳐 확정 메일이 발송됩니다. 신청 시 방문 목적, 인원, 신청자 정보를 정확히 입력해 주세요.</p>
       </div>
 
       <div class="guide-section">
@@ -2185,8 +2189,6 @@ const PURPOSE_CONFIG = {
     hint: 'LG전자 제품 검토·구매·시연을 위한 고객사 방문입니다.',
     subjectLabel: '고객사 *',
     subjectPlaceholder: '예: GS건설',
-    leaderLabel: '고객사 담당자 *',
-    leaderPlaceholder: '예: 김지에스',
     usagePlanLabel: '방문 목적 (구체적) *',
     usagePlanPlaceholder: '예: GS건설과 협업하는 용인 구례지구 재개발 2,342세대 옵션상품 판매를 위한 AI홈 시연',
     visitorCols: 2
@@ -2196,8 +2198,6 @@ const PURPOSE_CONFIG = {
     hint: 'LG전자 내부 R&D · 데이터 수집 · 기능 검증 목적의 방문입니다.',
     subjectLabel: '프로젝트명 *',
     subjectPlaceholder: '예: Vision Intelligence 향상',
-    leaderLabel: '부서 리더/책임자 *',
-    leaderPlaceholder: '예: 김엘지',
     usagePlanLabel: 'ThinQ Real 활용 방안 (구체적) *',
     usagePlanPlaceholder: '예: 댁내 환경과 유사한 환경에서 vision intelligence 데이터 확보',
     visitorCols: 2
@@ -2207,8 +2207,6 @@ const PURPOSE_CONFIG = {
     hint: '기자단·미디어·인플루언서 등 홍보·마케팅 목적의 방문입니다.',
     subjectLabel: '행사명 *',
     subjectPlaceholder: '예: 북미 미디어 프레스 투어',
-    leaderLabel: '부서 리더/책임자 *',
-    leaderPlaceholder: '예: 김엘지',
     usagePlanLabel: 'ThinQ Real 활용 방안 (구체적) *',
     usagePlanPlaceholder: '예: 미국 주요 일간지 기자들을 초청해 AI홈 시연 및 Q&A 진행',
     visitorCols: 3
@@ -2218,8 +2216,6 @@ const PURPOSE_CONFIG = {
     hint: '사진·영상·인쇄물 등 콘텐츠 제작을 위한 촬영·녹화 방문입니다.',
     subjectLabel: '촬영명 *',
     subjectPlaceholder: '예: CS 관련 간편 대응 영상 촬영',
-    leaderLabel: '부서 리더/책임자 *',
-    leaderPlaceholder: '예: 김엘지',
     usagePlanLabel: 'ThinQ Real 활용 방안 (구체적) *',
     usagePlanPlaceholder: '예: RAC 관련 고객 간편 대응 영상 11종 자가 대응 영상 촬영',
     visitorCols: 3
@@ -2229,8 +2225,6 @@ const PURPOSE_CONFIG = {
     hint: 'LG전자 임직원 대상 사내 행사·현장 경영·워크샵 등 내부 커뮤니케이션 방문입니다.',
     subjectLabel: '행사명 *',
     subjectPlaceholder: '예: ES본부 CEO 현장 경영',
-    leaderLabel: '부서 리더/책임자 *',
-    leaderPlaceholder: '예: 김엘지',
     usagePlanLabel: 'ThinQ Real 활용 방안 (구체적) *',
     usagePlanPlaceholder: '예: CEO 현장 경영 시 신제품 시연 및 피드백',
     visitorCols: 2
@@ -2240,8 +2234,6 @@ const PURPOSE_CONFIG = {
     hint: '위 카테고리에 해당하지 않는 방문입니다.',
     subjectLabel: '제목 *',
     subjectPlaceholder: '예: 리빙솔루션 상반기 워크샵',
-    leaderLabel: '부서 리더/책임자 *',
-    leaderPlaceholder: '예: 김엘지',
     usagePlanLabel: 'ThinQ Real 활용 방안 *',
     usagePlanPlaceholder: '예: 신입사원 오리엔테이션 및 워크샵 진행',
     visitorCols: 3
@@ -2286,8 +2278,6 @@ function renderFormByPurpose() {
 
   document.getElementById('lblSubject').textContent  = cfg.subjectLabel;
   document.getElementById('fSubject').placeholder    = cfg.subjectPlaceholder;
-  document.getElementById('lblLeader').textContent   = cfg.leaderLabel;
-  document.getElementById('fLeader').placeholder     = cfg.leaderPlaceholder;
   document.getElementById('lblUsagePlan').textContent = cfg.usagePlanLabel;
   document.getElementById('fUsagePlan').placeholder  = cfg.usagePlanPlaceholder;
 
@@ -2342,19 +2332,22 @@ async function submitBooking() {
 
   const get = id => document.getElementById(id).value.trim();
   const subject  = get('fSubject');
-  const leader   = get('fLeader');
-  const phone    = get('fPhone');
+  const applicantName = get('fName');
+  const applicantRank = get('fRank');
   const email    = get('fEmail');
   const division   = get('fDivision');
   const department = get('fDepartment');
   const usagePlan      = get('fUsagePlan');
   const expectedEffect = get('fExpectedEffect');
 
-  if (!subject || !leader || !phone || !email) {
-    toast('필수 항목을 모두 입력해 주세요.'); return;
-  }
   if (!division)   { toast('소속 본부를 선택해 주세요.'); return; }
   if (!department) { toast('소속 부서를 입력해 주세요.'); return; }
+  if (!applicantName || !applicantRank) {
+    toast('신청자 이름과 직급을 입력해 주세요.'); return;
+  }
+  if (!subject || !email) {
+    toast('필수 항목을 모두 입력해 주세요.'); return;
+  }
   if (!usagePlan || !expectedEffect) {
     toast('활용 방안과 기대 효과를 입력해 주세요.'); return;
   }
@@ -2411,9 +2404,10 @@ async function submitBooking() {
     type: 'booking', timestamp: new Date().toISOString(),
     date: dateStr, slots: sortedSlots, slot: sortedSlots[0], slotLabel,
     // 기존 호환 필드 — 관리자 페이지 표시용
-    name:    leader,            // 책임자/담당자 이름
+    name:    applicantName + ' ' + applicantRank,  // 신청자 이름+직급 (책임자 컬럼 겸용 — 설문 작성자 프리필과 맵핑)
     org:     subject,           // 1번째 줄 입력값 (대표 표시)
-    phone, email,
+    phone:   '',                // 연락처 수집 중단 (2026-07-20) — 시트 컬럼 호환 위해 빈 값 유지
+    email,
     purpose: cfg.label,
     count:   visitors.length,
     note:    '',
@@ -2444,7 +2438,7 @@ async function submitBooking() {
 
 function resetForm() {
   selectedDate = null; selectedSlots = new Set();
-  ['fSubject','fLeader','fPhone','fEmail','fDivision','fDepartment','fUsagePlan','fExpectedEffect'].forEach(id => {
+  ['fSubject','fName','fRank','fEmail','fDivision','fDepartment','fUsagePlan','fExpectedEffect'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   document.getElementById('fPurpose').value = '';
