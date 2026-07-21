@@ -88,6 +88,20 @@
 
 컬럼 단일 소스: `ThinQReal_AppScript.gs`의 `SURVEY_HEADERS`/`LEDGER_HEADERS`/`ISSUE_HEADERS` 상수. 세 탭 모두 첫 호출 시 자동 생성.
 
+## 4.6 `export_log` 탭 (CSV 내보내기 감사 로그 — 2026-07-20 추가)
+
+개인정보보호팀 요구로 CSV 다운로드 시 사유를 기록. 첫 호출 시 자동 생성.
+
+| 컬럼 | 설명 |
+|---|---|
+| `id` | `Date.now()` 문자열 |
+| `timestamp` | 다운로드 시각 (ISO) |
+| `email` | 다운로드한 관리자 — **검증된 토큰 payload에서 추출** (클라이언트 입력 불신) |
+| `reason` | 다운로드 사유 (최대 500자) |
+| `rowCount` | 내보낸 행 수 |
+
+파일 비밀번호는 기록하지 않는다. 감사 로그이므로 행 삭제 기능 없음.
+
 ## 5. 런타임 상태 (Script Properties — 이전 시 설정 저장소/환경변수로)
 
 | 키 | 용도 |
