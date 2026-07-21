@@ -331,7 +331,8 @@ function doPost(e) {
       data.type === 'admin_booking_create' || data.type === 'admin_booking_edit' ||
       data.type === 'survey_update' || data.type === 'survey_delete' ||
       data.type === 'ledger_update' || data.type === 'ledger_delete' ||
-      data.type === 'issue_update' || data.type === 'issue_delete') {
+      data.type === 'issue_update' || data.type === 'issue_delete' ||
+      data.type === 'export_log') {
     var admin = verifyAdminToken(data.token);
     if (!admin.ok) {
       return jsonResponse({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
@@ -348,6 +349,7 @@ function doPost(e) {
     if (data.type === 'ledger_delete')        return handleLedgerDelete(data);
     if (data.type === 'issue_update')         return handleIssueUpdate(data);
     if (data.type === 'issue_delete')         return handleIssueDelete(data);
+    if (data.type === 'export_log')           return handleExportLog(data, admin.email);
   }
 
   return jsonResponse({ error: 'Unknown type' });
@@ -3389,9 +3391,27 @@ function handleIssueDelete(data) {
   return jsonResponse(n ? { ok: true } : { ok: false, error: 'not_found' });
 }
 
+// ── CSV 내보내기 감사 로그 (개인정보보호팀 요구 — 다운로드 사유 기록) ──
+// 관리자 이메일은 클라이언트 입력이 아니라 검증된 토큰 payload에서 추출 (위조 방지).
+// 파일 비밀번호는 기록하지 않는다 — 사유·시각·행 수만 남긴다.
+const EXPORT_LOG_SHEET_NAME = 'export_log';
+const EXPORT_LOG_HEADERS = ['id', 'timestamp', 'email', 'reason', 'rowCount'];
+
+function handleExportLog(data, byEmail) {
+  const sheet = getNamedSheet(EXPORT_LOG_SHEET_NAME, EXPORT_LOG_HEADERS);
+  sheet.appendRow([
+    String(Date.now()),
+    new Date().toISOString(),
+    byEmail,
+    String(data.reason || '').slice(0, 500),
+    Number(data.rowCount) || 0,
+  ]);
+  return jsonResponse({ success: true });
+}
+
 // ── IoT 이슈 상태·속성 부여 (관리자 토큰 게이트) ─────────────
 // C_AS 채널 단가는 민감 정보 — 코드·리포에 두지 않고 Script Property
-// SURVEY_CAS_JSON 에만 둔다. 형식: {"원격":6220,...} (실제 값은 콘솔에서 입력).
+// SURVEY_CAS_JSON 에만 둔다. 형식: {"원격":1000,"내방":2000,"출장":3000} (예시 — 실제 값은 콘솔에서 입력).
 // 미설정 시 est_value 공란 유지 (참고용 표시일 뿐 ROI 미산입이라 무해).
 const SEVERITY_PCT = { '높음': 0.5, '가끔': 0.1, '드묾': 0.01 };
 
