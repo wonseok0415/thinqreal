@@ -3125,7 +3125,7 @@ const ISSUE_SHEET_NAME  = 'iot_issue_log';
 // impressive_modes: 인상 깊었던 솔루션 복수 선택 (2026-07 신규 — 콤마 구분 문자열, 공통 문항)
 // desired_solutions: 추가 필요·체험 희망 솔루션 주관식 (2026-07 신규 — 선택 입력)
 // impressive_reasons: 모드별 인상 깊었던 이유 ("모드명 — 이유; ..." 직렬화, 선택 입력)
-const SURVEY_HEADERS = ['response_id','submitted_at','visit_date','dept','name','client','visit_count','track','purpose','deal_stage','deal_size','deal_area','reaction','attr','media_work','media_days','media_alt','media_cost','media_link','media_link_name','media_link_size','media_link_attr','etc_work','etc_days','etc_alt','iot_defect','iot_defect_detail','etc_link','etc_link_name','etc_link_size','etc_link_attr','satisfaction','feedback','raw_json','deal_amount','impressive_modes','desired_solutions','impressive_reasons'];
+const SURVEY_HEADERS = ['response_id','submitted_at','visit_date','dept','name','client','visit_count','track','purpose','deal_stage','deal_size','deal_area','reaction','attr','media_work','media_days','media_alt','media_cost','media_link','media_link_name','media_link_size','media_link_attr','etc_work','etc_days','etc_alt','iot_defect','iot_defect_detail','etc_link','etc_link_name','etc_link_size','etc_link_attr','satisfaction','feedback','raw_json','deal_amount','impressive_modes','desired_solutions','impressive_reasons','adopt_pick','voice_space','iot_connect','ai_barrier'];
 const LEDGER_HEADERS = ['ledger_id','response_id','category','project_name','expected_scale','attribution_text','attribution_pct','visit_date','respondent','dept','status','confirmed_amount','confirmed_date','confirmed_note','roi_included'];
 const ISSUE_HEADERS  = ['issue_id','response_id','device','symptom','severity','channel','q_ship','status','est_value'];
 

@@ -66,6 +66,7 @@
     width: 20px; height: 20px; border-radius: 50%;
     display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
+  .card .q-num.sub { width: auto; min-width: 20px; padding: 0 7px; border-radius: 10px; }
   .card .q-desc { font-size: 12.5px; color: var(--text-3); margin-bottom: 16px; margin-left: 28px; }
 
   input[type="text"], input[type="date"], input[type="number"], textarea {
@@ -458,8 +459,8 @@
   <!-- 공통: 만족도 + 자유 의견 -->
   <!-- 인상 깊었던 솔루션 (공통 — "ThinQ Real LG AI Home 주요 시나리오" 슬라이드 기반, 설명은 원문 유지) -->
   <div class="card hidden" id="modesCard">
-    <h2><span class="q-num">8</span>인상 깊었던 솔루션</h2>
-    <p class="q-desc">ThinQ Real에서 경험하신 AI홈 솔루션 중 인상 깊었던 것을 모두 선택해 주세요. (복수 선택 가능)</p>
+    <h2><span class="q-num sub">8-1</span>인상 깊었던 솔루션</h2>
+    <p class="q-desc">ThinQ Real에서 경험하신 ThinQ ON 기반 가전+IoT 복합제어 시나리오 중 인상 깊었던 것을 모두 선택해 주세요. (복수 선택 가능)</p>
     <div class="opt-group" data-name="impressiveModes">
       <label class="opt checkbox mode-opt"><input type="checkbox" name="impressiveModes" value="웰컴 모드" data-key="welcome"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_welcome.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title">나를 반겨주는 집 [웰컴 모드]</span><span class="opt-sub">귀가하는 순간 집이 먼저 반기는 웰컴 루틴 — 가전·IoT 유기적 작동으로 최적화된 쾌적·안락 환경 자동 제공</span></span></label>
       <div class="mode-reason" id="modeReason-welcome" style="display:none;"><input type="text" data-mode="웰컴 모드" placeholder="이 솔루션이 인상 깊었던 이유를 간단히 적어주세요 (선택)"></div>
@@ -481,6 +482,65 @@
       <label class="field-label">추가로 필요하거나 체험해 보고 싶은 솔루션 (선택)</label>
       <p style="font-size:12.5px; color:var(--text-3); margin:0 0 8px; line-height:1.5;">오늘 체험하신 솔루션 외에, 비즈니스에 필요하다고 생각되거나 다음 방문에서 체험해 보고 싶은 솔루션이 있다면 자유롭게 적어주세요.</p>
       <textarea id="desiredSolutions" placeholder="예: 고객사 시연에 맞춘 커스텀 시나리오, 특정 가전 연동 데모 등"></textarea>
+    </div>
+  </div>
+
+  <!-- 8번 블록 확장 (2026-07-24 §8-4) — ThinQ ON 3축(음성/연결/복합제어) 커버.
+       ROI 미산입 확정: 대장·이슈 파생 없음, 용도는 상품기획·엔지니어링 인사이트.
+       응답자 = 업계 관계자(expert proxy) — 가정형 문항은 "본인 집에 도입한다면" 프레이밍 통일. -->
+  <div class="card hidden aihome-card" id="adoptPickCard">
+    <h2><span class="q-num sub">8-2</span>가장 도입하고 싶은 솔루션</h2>
+    <p class="q-desc">위 솔루션 중, 본인 집에 실제로 도입한다면 가장 쓰고 싶은 것 하나만 골라주세요.</p>
+    <div class="opt-group" data-name="adoptPick">
+      <label class="opt"><input type="radio" name="adoptPick" value="웰컴 모드"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">나를 반겨주는 집 [웰컴 모드]</span></span></label>
+      <label class="opt"><input type="radio" name="adoptPick" value="취침 모드"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">하루의 끝 편안한 휴식 [취침 모드]</span></span></label>
+      <label class="opt"><input type="radio" name="adoptPick" value="기상 모드"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">상쾌한 아침의 시작 [기상 모드]</span></span></label>
+      <label class="opt"><input type="radio" name="adoptPick" value="시네마 모드"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">거실이 영화관으로 [시네마 모드]</span></span></label>
+      <label class="opt"><input type="radio" name="adoptPick" value="환기 모드"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">언제나 쾌적한 주방 [환기 모드]</span></span></label>
+      <label class="opt"><input type="radio" name="adoptPick" value="프리젠테이션 모드"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">단숨에 완성되는 회의실 공간 [프리젠테이션 모드]</span></span></label>
+      <label class="opt"><input type="radio" name="adoptPick" value="외출 모드"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">클릭 한번으로 편안한 안심 외출 [외출 모드]</span></span></label>
+      <label class="opt"><input type="radio" name="adoptPick" value="도입하고 싶은 것 없음"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">도입하고 싶은 것 없음</span></span></label>
+    </div>
+  </div>
+
+  <div class="card hidden aihome-card" id="voiceSpaceCard">
+    <h2><span class="q-num sub">8-3</span>음성 제어 공간</h2>
+    <p class="q-desc">본인 집에 AI 음성비서(ThinQ ON)를 둔다면, 어느 공간에서 음성 제어를 가장 많이 쓸 것 같나요?</p>
+    <div class="opt-group" data-name="voiceSpace">
+      <label class="opt"><input type="radio" name="voiceSpace" value="거실"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">거실</span></span></label>
+      <label class="opt"><input type="radio" name="voiceSpace" value="주방"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">주방</span></span></label>
+      <label class="opt"><input type="radio" name="voiceSpace" value="침실"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">침실</span></span></label>
+      <label class="opt"><input type="radio" name="voiceSpace" value="현관·복도"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">현관·복도</span></span></label>
+      <label class="opt"><input type="radio" name="voiceSpace" value="욕실"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">욕실</span></span></label>
+      <label class="opt"><input type="radio" name="voiceSpace" value="서재·업무 공간"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">서재·업무 공간</span></span></label>
+      <label class="opt"><input type="radio" name="voiceSpace" value="음성보다 앱·자동화를 쓸 것 같음"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">음성보다 앱·자동화를 쓸 것 같음</span></span></label>
+    </div>
+  </div>
+
+  <div class="card hidden aihome-card" id="iotConnectCard">
+    <h2><span class="q-num sub">8-4</span>우선 연결하고 싶은 IoT 제품</h2>
+    <p class="q-desc">본인 집에 도입한다면, 우선 연결하고 싶은 IoT 제품을 골라주세요. (최대 3개)</p>
+    <div class="opt-group" data-name="iotConnect">
+      <label class="opt checkbox"><input type="checkbox" name="iotConnect" value="조명·스마트 스위치"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">조명·스마트 스위치</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="iotConnect" value="커튼·블라인드(전동 창호)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">커튼·블라인드 (전동 창호)</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="iotConnect" value="센서(문열림·움직임·온습도)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">센서 (문열림·움직임·온습도)</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="iotConnect" value="도어락"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">도어락</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="iotConnect" value="스마트 플러그"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">스마트 플러그</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="iotConnect" value="공기질 측정기"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">공기질 측정기</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="iotConnect" value="연결하고 싶은 것 없음"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">연결하고 싶은 것 없음</span></span></label>
+    </div>
+  </div>
+
+  <div class="card hidden aihome-card" id="aiBarrierCard">
+    <h2><span class="q-num sub">8-5</span>AI홈 도입 걸림돌</h2>
+    <p class="q-desc">AI홈을 본인 집에 들인다면, 가장 큰 걸림돌은 무엇일 것 같나요?</p>
+    <div class="opt-group" data-name="aiBarrier">
+      <label class="opt"><input type="radio" name="aiBarrier" value="초기 설치·설정의 복잡함"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">초기 설치·설정의 복잡함</span></span></label>
+      <label class="opt"><input type="radio" name="aiBarrier" value="기기 구매 비용"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">기기 구매 비용</span></span></label>
+      <label class="opt"><input type="radio" name="aiBarrier" value="기존 보유 기기와의 호환"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">기존 보유 기기와의 호환</span></span></label>
+      <label class="opt"><input type="radio" name="aiBarrier" value="프라이버시·보안 우려"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">프라이버시·보안 우려</span></span></label>
+      <label class="opt"><input type="radio" name="aiBarrier" value="실제 효용을 잘 모르겠음"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">실제 효용을 잘 모르겠음</span></span></label>
+      <label class="opt"><input type="radio" name="aiBarrier" value="걸림돌 없음"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">걸림돌 없음</span></span></label>
     </div>
   </div>
 
@@ -562,6 +622,7 @@ document.querySelectorAll('#purposeGroup .opt').forEach(opt => {
 
     // 공통 카드 & 제출 버튼 표시
     document.getElementById('modesCard').classList.remove('hidden');
+    document.querySelectorAll('.aihome-card').forEach(c => c.classList.remove('hidden'));   // 8-2~8-5 (track 무관 상시)
     document.getElementById('commonCard').classList.remove('hidden');
     document.getElementById('submitArea').classList.remove('hidden');
     // 공통 질문 번호 조정 — 세 트랙 모두 3~7 + 인상 깊었던 솔루션(8) + 만족도(9)
@@ -594,7 +655,7 @@ document.querySelectorAll('input[name="mediaLink"], input[name="etcLink"], input
   r.addEventListener('change', updateLinkDetails));
 
 // ==================== 옵션 선택 스타일 ====================
-document.querySelectorAll('.track .opt, #modesCard .opt, #commonCard .opt, .opt-group[data-name="visitCount"] .opt').forEach(opt => {
+document.querySelectorAll('.track .opt, #modesCard .opt, .aihome-card .opt, #commonCard .opt, .opt-group[data-name="visitCount"] .opt').forEach(opt => {
   opt.addEventListener('click', () => {
     const input = opt.querySelector('input');
     if (input.type === 'radio') {
@@ -606,6 +667,7 @@ document.querySelectorAll('.track .opt, #modesCard .opt, #commonCard .opt, .opt-
       // checkbox
       input.checked = !input.checked;
       opt.classList.toggle('selected', input.checked);
+      if (input.name === 'iotConnect') enforceIotConnectRules(input);
     }
     updateLinkDetails();
     // 필수 응답 하이라이트는 답을 고르는 즉시 해제
@@ -617,6 +679,25 @@ document.querySelectorAll('.track .opt, #modesCard .opt, #commonCard .opt, .opt-
     }
   });
 });
+
+// ==================== 8-4 연결 우선 제품 — 최대 3개 + "없음" 배타 ====================
+// "없음" 선택 시 다른 체크 전부 해제, 다른 항목 선택 시 "없음" 해제, 4번째 선택은 차단·안내.
+const IOT_CONNECT_NONE = '연결하고 싶은 것 없음';
+function enforceIotConnectRules(input) {
+  const boxes = [...document.querySelectorAll('input[name="iotConnect"]')];
+  const sync = b => b.closest('.opt').classList.toggle('selected', b.checked);
+  if (!input.checked) return;                    // 해제 동작은 제한 없음
+  if (input.value === IOT_CONNECT_NONE) {
+    boxes.forEach(b => { if (b !== input) { b.checked = false; sync(b); } });
+  } else {
+    const none = boxes.find(b => b.value === IOT_CONNECT_NONE);
+    if (none && none.checked) { none.checked = false; sync(none); }
+    if (boxes.filter(b => b.checked && b.value !== IOT_CONNECT_NONE).length > 3) {
+      input.checked = false; sync(input);
+      alert('우선 연결하고 싶은 IoT 제품은 최대 3개까지 선택할 수 있습니다.');
+    }
+  }
+}
 
 // ==================== 메일 본문 생성 및 제출 ====================
 function getRadio(name) {
@@ -663,6 +744,11 @@ function buildPayload() {
     impressive_modes: rawChecks('impressiveModes'),
     impressive_reasons: collectModeReasons(),
     desired_solutions: rawText('desiredSolutions'),
+    // 8-2~8-5 AI홈 솔루션 경험 (2026-07-24 — 파생·ROI 미산입, 인사이트 전용)
+    adopt_pick: rawRadio('adoptPick'),
+    voice_space: rawRadio('voiceSpace'),
+    iot_connect: rawChecks('iotConnect'),
+    ai_barrier: rawRadio('aiBarrier'),
     satisfaction: rawRadio('satisfaction'),
     feedback: rawText('freeComment')
   };
@@ -719,6 +805,10 @@ const REQUIRED_MSG = {
   etcLinkSize: '예상 규모를 선택해 주세요. 모르시면 "모름"을 선택하시면 됩니다.',
   etcLinkAttrTask: '기여 수준을 선택해 주세요.',
   impressiveModes: '인상 깊었던 솔루션을 1개 이상 선택해 주세요. 없었다면 "특별히 없음"을 선택하시면 됩니다.',
+  adoptPick: '가장 도입하고 싶은 솔루션을 선택해 주세요. 없다면 "도입하고 싶은 것 없음"을 선택하시면 됩니다.',
+  voiceSpace: '음성 제어를 가장 많이 쓸 공간을 선택해 주세요. 음성을 안 쓸 것 같으면 마지막 항목을 선택하시면 됩니다.',
+  iotConnect: '우선 연결하고 싶은 IoT 제품을 선택해 주세요 (최대 3개). 없다면 "연결하고 싶은 것 없음"을 선택하시면 됩니다.',
+  aiBarrier: '가장 큰 걸림돌을 선택해 주세요. 없다면 "걸림돌 없음"을 선택하시면 됩니다.',
   satisfaction: '만족도를 선택해 주세요.'
 };
 // 카드 등장 순서대로 검사 — 첫 미작성 문항으로 스크롤되도록
@@ -759,6 +849,11 @@ function firstMissingRequired() {
   }
 
   if (!rawChecks('impressiveModes')) return { kind: 'group', key: 'impressiveModes' };
+  // 8-2~8-5 AI홈 솔루션 경험 — 공통 필수 (카드 순서대로)
+  if (!rawRadio('adoptPick')) return { kind: 'group', key: 'adoptPick' };
+  if (!rawRadio('voiceSpace')) return { kind: 'group', key: 'voiceSpace' };
+  if (!rawChecks('iotConnect')) return { kind: 'group', key: 'iotConnect' };
+  if (!rawRadio('aiBarrier')) return { kind: 'group', key: 'aiBarrier' };
   if (!rawRadio('satisfaction')) return { kind: 'group', key: 'satisfaction' };
   return null;
 }
@@ -879,6 +974,10 @@ function submitViaMail() {
   lines.push('인상 깊었던 솔루션: ' + getChecks('impressiveModes'));
   lines.push('인상 깊었던 이유: ' + (collectModeReasons() || '(미입력)'));
   lines.push('추가 희망 솔루션: ' + getText('desiredSolutions'));
+  lines.push('가장 도입하고 싶은 솔루션: ' + getRadio('adoptPick'));
+  lines.push('음성 제어 공간: ' + getRadio('voiceSpace'));
+  lines.push('우선 연결 IoT 제품: ' + getChecks('iotConnect'));
+  lines.push('도입 걸림돌: ' + getRadio('aiBarrier'));
   lines.push('만족도: ' + getRadio('satisfaction'));
   lines.push('자유 의견: ' + getText('freeComment'));
   lines.push('');

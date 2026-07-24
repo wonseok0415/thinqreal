@@ -94,7 +94,7 @@
 - **반응형**: 사이드바 240↔64 토글(localStorage `thinqreal_admin_sidebar_collapsed`) / 모바일 오프캔버스 드로어. 표는 `.table-card` 가로 스크롤(booking 760px·survey 780px·ledger 960px·issue 1000px min-width).
 
 ## 설문 파이프라인
-- **폼**(`ThinQ_Real_Visit_Survey.html`, 공개): 트랙 3종(sales/media/etc) + 공통 문항(인상 깊은 솔루션 7모드+이유, 만족도 등). **전 문항 필수** (도피 선택지 전제) — 예외: "(선택)" 표기 텍스트·dealAmount. 쿼리 프리필(`?visit_date&name&dept`) 지원 — 기입력 값은 덮어쓰지 않음.
+- **폼**(`ThinQ_Real_Visit_Survey.html`, 공개): 트랙 3종(sales/media/etc) + 공통 문항(8번 블록 8-1~8-5: 인상 깊은 솔루션 7모드+이유 / 도입 의향 1픽 / 음성 제어 공간 / 연결 우선 IoT 최대 3개·"없음" 배타 / 도입 걸림돌 — 2026-07-24 확장, **8-2~8-5는 파생·ROI 미산입** 인사이트 전용, 만족도 등). **전 문항 필수** (도피 선택지 전제) — 예외: "(선택)" 표기 텍스트·dealAmount. 쿼리 프리필(`?visit_date&name&dept`) 지원 — 기입력 값은 덮어쓰지 않음.
 - **제출**: `survey_submit`(공개) → `survey_responses` 원본 + 파생 행 자동 생성 (Track B 캠페인 연결→대장 / Track C 신규 과제→대장, 이슈 발견→`iot_issue_log`) + 텔레그램.
 - **관리자 설문·대장 탭**: 조회·수정·상태 전환(후보→확정/드롭, 등록→검토→반영/기각)·영구 삭제(테스트 정리용). est_value는 `SURVEY_CAS_JSON` 있을 때만 서버 계산.
 - **설문 요청 메일**: 확정+방문 완료(익일부터)+@lge.com+미발송(`surveyInviteSentAt` 공란) 건에 자동 발송. 이메일 중복 제거(최근 방문 1건 기준 1통).
@@ -112,7 +112,7 @@
 - **컬럼 정의 단일 소스**: `docs/migration/data-schema.md` + Apps Script의 `HEADERS`/`SURVEY_HEADERS`/`LEDGER_HEADERS`/`ISSUE_HEADERS` 상수.
 - **bookings 25컬럼**: `id timestamp date slots slot slotLabel name org phone email purpose count note status subject clientCompany visitors usagePlan expectedEffect purposeKey privacyConsent calendarEventId division department surveyInviteSentAt`
 - **purposeKey 6종**: `b2b` / `rd` / `pr` / `content` / `internal-comm` / `other` — 분기 로직은 항상 purposeKey, 통계는 purpose(한국어 라벨) 기준.
-- **survey_responses 38컬럼** (raw_json 포함), performance_ledger 15, iot_issue_log 9, export_log 5.
+- **survey_responses 42컬럼** (raw_json 포함), performance_ledger 15, iot_issue_log 9, export_log 5.
 
 ### 시트 백필 규칙 (직접 입력 시)
 - 25컬럼 **순서 엄수** — 추측 금지, `HEADERS` 배열이 단일 소스. 헤더 한 칸이라도 틀리면 관리자에서 조용히 누락됨.

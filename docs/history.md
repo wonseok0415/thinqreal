@@ -1243,3 +1243,32 @@ claude.ai ROI 세션에서 개편된 `ThinQ_ROI_Tool_v46.html`을 리포 `ThinQ_
 ### 반영 경로 주의
 - 자동 발송(7/31 트리거)·에디터 실행: **코드 저장만으로 반영** (재배포 불필요).
 - `monthly_report_preview` URL: 웹 엔드포인트라 **재배포해야 새 키워드로 보임**.
+
+## 작업 내역 (2026-07-24 — 설문 8번 블록 개편 "AI홈 솔루션 경험" §8-4)
+
+### 구현 (ThinQ_Real_Visit_Survey.html + ThinQReal_AppScript.gs + thinqreal_admin.html)
+- **8-1** (기존 인상 깊었던 솔루션): 카드 번호 8 → 8-1, q-desc를 "ThinQ ON 기반 가전+IoT 복합제어 시나리오" 문구로 교체. 7모드 카드·이유 입력·"특별히 없음"·`impressive_modes` 전부 무변경.
+- **8-2 도입 의향 1픽** (`adoptPick`→`adopt_pick`, 라디오): 7모드 + "도입하고 싶은 것 없음". value는 8-1과 동일 어휘("웰컴 모드" 등) — 8-1(인상) vs 8-2(도입 의향) 격차 분석용. 이유 자유입력 없음(스펙 확정).
+- **8-3 음성 제어 공간** (`voiceSpace`→`voice_space`, 라디오): 6개 공간 + "음성보다 앱·자동화를 쓸 것 같음"(도피 겸 음성 UI 회의론 지표).
+- **8-4 연결 우선 제품** (`iotConnect`→`iot_connect`, 체크박스 최대 3): IoT 액세서리 7종(가전 미포함 — 축 분리). `enforceIotConnectRules()`: 4번째 클릭 차단+alert, "없음" 양방향 배타. 직렬화는 `rawChecks` 콤마 구분(impressiveModes 관례).
+- **8-5 도입 걸림돌** (`aiBarrier`→`ai_barrier`, 라디오): 5개 + "걸림돌 없음".
+- 검증: `firstMissingRequired`에 impressiveModes 뒤·satisfaction 앞 순서로 4건 등록 + `REQUIRED_MSG` 4건. 노출은 트랙 선택 시 `.aihome-card` 일괄 해제(8-1과 동일 지위, track 무관). 옵션 클릭 스타일 셀렉터에 `.aihome-card .opt` 추가.
+- 제출: `buildPayload` 공통부 4필드 + mailto 폴백 본문 4라인 추가.
+- .gs: `SURVEY_HEADERS` 끝에 4컬럼 append (38→42). `handleSurveySubmit`은 헤더명=페이로드 키 자동 매핑이라 추가 수정 없음. 파생(대장·이슈)·텔레그램 무변경. 서버는 최대 3개 관대 수용(클라이언트 검증, raw_json 보존).
+- 관리자: 상세 모달 `SV_FIELD_LABELS`가 하드코딩 목록이라 4필드 추가 (desired_solutions와 satisfaction 사이). 수정 폼(SV_EDIT_*)에는 미추가 — 스펙 범위 밖.
+
+### ⚠ 스펙 대비 변경
+1. **"기존 '특별히 없음' 패턴 재사용" 불가** — 8-1의 "특별히 없음"에는 실제로 배타 로직이 존재하지 않음(단순 체크박스). 8-4용 배타·최대 3개 로직을 신규 구현했고, 8-1은 스펙 범위 밖이라 현행(무배타) 유지.
+2. **q-num 뱃지 확장** — 기존 `.q-num`이 20px 고정 원형이라 "8-1" 표기가 안 들어감 → `.q-num.sub` pill 변형 클래스 추가(8-1~8-5에만 적용, 기존 카드 뱃지 무변경).
+3. 8-2 선택지 표기는 8-1 카드의 풀 타이틀("나를 반겨주는 집 [웰컴 모드]")을 사용하되 저장 value는 모드명("웰컴 모드")으로 통일 — "동일 라벨" 해석을 표시=타이틀/저장=값 어휘로 분리.
+
+### 검증 (AC 전부 통과)
+- AC1: 4문항 각각 미응답 제출 → 해당 카드 need-answer + req-msg + 스크롤 (Playwright)
+- AC2: 4번째 체크 차단(alert "최대 3개") / "없음" 배타 양방향 (실클릭)
+- AC3: 서버 스텁(handleSurveySubmit 추출 실행) — 42컬럼 행 적재, satisfaction·raw_json 위치 무밀림, 신규 4값 정위치
+- AC4: mailto 폴백 본문(#resultText)에 4문항 라인 포함
+- AC5: 중립 응답 제출 시 performance_ledger·iot_issue_log appendRow 0건
+- AC6: 민감 단가 grep 게이트 0건 (커밋 전 실행)
+
+### 재배포
+`survey_submit`은 doPost 웹 엔드포인트 → **재배포 필요** (기존 배포 "새 버전"). 재배포 전 제출분은 구 코드로 저장되어 신규 4컬럼이 비지만 raw_json에는 값이 남음.
