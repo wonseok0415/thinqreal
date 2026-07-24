@@ -1148,7 +1148,10 @@ function buildRejectHtml(data) {
 //  - 수동 발송    : GET ?type=monthly_report_send&month=YYYY-MM&confirm=YES
 // ============================================================
 
-const MONTHLY_REPORT_QUERY = 'LG전자 ThinQ Real';
+// 기사 자동 수집 키워드 — "ThinQ Real" 정확 문구는 보도가 드물어 사실상 LG전자 일반 기사로
+// 흘렀던 것을, AI홈 동향 수집 의도를 명확히 하는 키워드로 변경 (2026-07-20).
+// 변경 시 기사 섹션 설명문(descArticles·평문)이 이 상수를 참조하므로 자동 동기화됨.
+const MONTHLY_REPORT_QUERY = 'LG전자 AI홈';
 const PROP_LAST_SENT_KEY   = 'monthly_report_last_sent_month';
 
 // 방문 목적별 카테고리 색상 — 관리자 페이지 PURPOSE_COLORS와 동기화 (thinqreal_admin.html)
@@ -1858,7 +1861,7 @@ function buildMonthlyReportText(d) {
   L.push('📰 관련 기사');
   L.push(d.articles.source === 'manual'
     ? '   담당자가 큐레이션한 이번 달 ThinQ Real 관련 보도 ' + d.articles.items.length + '건'
-    : '   Google 검색 결과 기준의 최근 1개월 ThinQ Real 관련 보도');
+    : '   "' + MONTHLY_REPORT_QUERY + '" 키워드로 자동 수집한 최근 1개월 언론 보도 (AI홈 시장 동향 포함)');
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   if (!d.articles.items.length) {
     L.push('   (' + (d.articles.skipReason || '검색 결과 없음') + ')');
@@ -2247,7 +2250,7 @@ function buildMonthlyReportHtml(d) {
                   '본 수치는 작성 시점의 시나리오를 기준으로 한 추정치입니다.';
   const descArticles = d.articles.source === 'manual'
     ? '담당자가 큐레이션한 이번 달 ThinQ Real 관련 보도 ' + d.articles.items.length + '건'
-    : 'Google 검색 결과 기준의 최근 1개월 ThinQ Real 관련 보도';
+    : '"' + MONTHLY_REPORT_QUERY + '" 키워드로 자동 수집한 최근 1개월 언론 보도 — ThinQ Real 직접 보도 외에 AI홈 시장 동향 기사가 포함될 수 있습니다.';
   const descSurvey = '방문 후기 설문 기반 지표 — 월 확정 산입액은 성과 추적 대장에서 이번 달 확정 처리된 금액의 합계입니다.';
 
   // 한글 가독성: Noto Sans KR 웹폰트 시도 (2026-07-15) — 브라우저 미리보기·Apple Mail 등

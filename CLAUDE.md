@@ -106,7 +106,7 @@
 | 설문 요청 자동 발송 | `installSurveyInviteTrigger()` 설치됨(2026-07-20) — 매일 08:30, CC=담당자3+강원석(`SURVEY_INVITE_CC_AUTO`). 수동 배치 CC=강원석만(`SURVEY_INVITE_CC_BATCH`) |
 | 텔레그램 알림 | 신규 예약·확정/거절·설문 제출 → 그룹 발송. 메일과 독립(try/catch 격리) |
 | Google 캘린더 | 확정 예약 → 팀 캘린더(`thinq_real_calendar@gmail.com`) 회차별 개별 일정. 확정→생성/수정→갱신(delete+recreate)/거절·삭제→제거. `calendarEventId`에 id 배열 JSON |
-| 기사 검색 | Serper.dev 우선(`SERPER_API_KEY`) → CSE 폴백(계정 정책 403으로 차단 중) → 시트 수동 큐레이션이 있으면 그것이 최우선 |
+| 기사 검색 | Serper.dev 우선(`SERPER_API_KEY`, 키워드 `MONTHLY_REPORT_QUERY`='LG전자 AI홈' — 2026-07-20 변경) → CSE 폴백(계정 정책 403으로 차단 중) → 시트 수동 큐레이션이 있으면 그것이 최우선. 리포트 기사 섹션 설명문은 이 상수를 참조(자동 동기화) |
 
 ## 데이터 스키마
 - **컬럼 정의 단일 소스**: `docs/migration/data-schema.md` + Apps Script의 `HEADERS`/`SURVEY_HEADERS`/`LEDGER_HEADERS`/`ISSUE_HEADERS` 상수.
