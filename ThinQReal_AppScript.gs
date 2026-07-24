@@ -964,7 +964,7 @@ function buildConfirmText(data) {
     `   비밀번호 : real2026`,
     ``,
     `🔐 도어락 비밀번호`,
-    `   56720275`,
+    `   509067`,
     ``,
     `🅿 주차 안내`,
     `   지하주차 : SP Portal (portal.lgsp.co.kr) → Support → 주차`,
@@ -1038,7 +1038,7 @@ function buildConfirmHtml(data) {
         '<tr><td style="padding:2px 16px 2px 0;color:#6e6e73;font-size:13px;">비밀번호</td><td style="padding:2px 0;font-family:Consolas,Menlo,monospace;font-size:13px;color:#1d1d1f;">real2026</td></tr>' +
       '</table>') +
     infoRow('🔐', '도어락 비밀번호',
-      '<div style="font-family:Consolas,Menlo,monospace;font-size:15px;color:#1d1d1f;letter-spacing:0.04em;">56720275</div>') +
+      '<div style="font-family:Consolas,Menlo,monospace;font-size:15px;color:#1d1d1f;letter-spacing:0.04em;">509067</div>') +
     infoRow('🅿', '주차',
       '<div><strong style="font-size:13px;">지하주차</strong> · SP Portal(portal.lgsp.co.kr) → Support → 주차 → 전용건물 방문자 주차에서 사전 신청</div>' +
       '<div style="margin-top:4px;"><strong style="font-size:13px;">지상주차 (VIP·프레스투어 등)</strong> · 방문 목적·고객을 명시한 신청 양식을 마곡주차관리자 <a href="mailto:mgparking@lge.com" style="color:#3a5035;text-decoration:none;">mgparking@lge.com</a> 으로 메일 신청</div>' +

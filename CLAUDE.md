@@ -68,7 +68,7 @@
 
 ## 메일 발송 규칙
 - **모든 메일**: HTML + plain-text 동시, 다크 올리브(#3a5035) 카드형, **인라인 스타일만** (Gmail/Outlook 호환 — `<style>`·CSS 변수·외부 리소스 금지). 유일한 예외: 월간 리포트의 Noto Sans KR `@import` 1줄 (차단 환경에선 무시되어 무해).
-- **예약 확정 메일**(buildConfirm*): 📅일정/📍위치/📶Wi-Fi(2.4G·5G 분리)/🔐도어락/🅿주차/☎문의/📖안내. **민감 정보는 확정 메일에만** — SSID `ThinQ_REAL_2.4G`/`ThinQ_REAL`, PW `real2026`, 도어락 PIN `56720275`. 값 변경은 buildConfirm* 빌더에서만.
+- **예약 확정 메일**(buildConfirm*): 📅일정/📍위치/📶Wi-Fi(2.4G·5G 분리)/🔐도어락/🅿주차/☎문의/📖안내. **민감 정보는 확정 메일에만** — SSID `ThinQ_REAL_2.4G`/`ThinQ_REAL`, PW `real2026`, 도어락 PIN `509067` (2026-07-20 교체). 값 변경은 buildConfirm* 빌더에서만.
 - **조건부 첨부**: R&D 목적(`purpose.indexOf('R&D')`) → 구비 가전 45개 표 / B2B·홍보(`/(B2B|홍보)/`) → 웰컴 보드 안내. 라벨 변경 시 이 정규식들 점검.
 - **담당자 알림**(sendAdminAlert): 신규 예약 시 담당자 3 To + CC. 카테고리별 주제 라벨(`ADMIN_ALERT_SUBJ_LABELS`).
 - **월간 운영 리포트**: 매월 마지막 금요일 08:30 KST 자동 발송 (매일 트리거 + `isLastFridayOfMonth` + 월 중복 가드 — 가드는 자동만 차단, 수동 `monthly_report_send&confirm=YES`는 매번 발송). 구성: 요약 KPI 2카드·목적 도넛(QuickChart)·방문 이력(B2B·홍보만 상세, 카테고리 그룹)·설문 지표·ROI 누적 그래프·기사. 기사는 `monthly_articles` 시트 수동 큐레이션 우선 → Serper → CSE.
