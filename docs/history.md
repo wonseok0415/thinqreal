@@ -1229,3 +1229,17 @@ claude.ai ROI 세션에서 개편된 `ThinQ_ROI_Tool_v46.html`을 리포 `ThinQ_
 4. VPN (Cloudflare WARP 등) — 미들박스 우회 효과
 5. **새로고침을 정상 도구로 활용** — 세션은 서버에 보존되므로 진행 상황이 사라지지 않음. 응답이 오래 멈췄다 싶으면 새로고침하여 재접속
 6. 긴 작업은 **GitHub Actions** 트리거로 비동기 실행 (https://code.claude.com/docs/en/claude-code-on-the-web)
+
+## 작업 내역 (2026-07-20 후속 — 월간 리포트 기사 키워드 'LG전자 AI홈' 변경)
+
+### 배경
+7월 리포트 미리보기 확인 결과, 기사 섹션이 LG전자 일반 기사로 채워지고 ThinQ Real 직접 보도가 아님을 확인. 원인: `MONTHLY_REPORT_QUERY = 'LG전자 ThinQ Real'`이 따옴표 없는 느슨한 매칭이라, "ThinQ Real" 정확 문구 보도가 드문 달에는 Google이 LG전자·ThinQ 관련성 기사로 채움. 운영자 판단: AI홈 동향 기사도 리포트에 유용 → 우연히 걸리게 두지 말고 **의도를 명확히 하는 키워드로 변경** (옵션 2 채택; "ThinQ Real" 정확 문구 검색은 빈 섹션 위험으로 미채택).
+
+### 변경 (ThinQReal_AppScript.gs)
+- `MONTHLY_REPORT_QUERY`: `'LG전자 ThinQ Real'` → `'LG전자 AI홈'`.
+- 기사 섹션 설명문(HTML `descArticles` + 평문)이 이 상수를 참조하도록 변경 — 자동 수집 분기: `"LG전자 AI홈" 키워드로 자동 수집한 최근 1개월 언론 보도 — ThinQ Real 직접 보도 외에 AI홈 시장 동향 기사가 포함될 수 있습니다.` 수동 큐레이션 분기는 기존 문구 유지.
+- ThinQ Real이 실제 보도된 달에는 해당 기사가 자연히 상위 랭크되므로 직접 보도를 놓치지 않음.
+
+### 반영 경로 주의
+- 자동 발송(7/31 트리거)·에디터 실행: **코드 저장만으로 반영** (재배포 불필요).
+- `monthly_report_preview` URL: 웹 엔드포인트라 **재배포해야 새 키워드로 보임**.
