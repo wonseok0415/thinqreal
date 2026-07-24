@@ -175,6 +175,8 @@
 - 대장 `confirmed_amount`는 **만원 단위** (ROI 툴 파이프 입력은 백만원 — 환산 주의).
 - 새 문항 추가 시: `firstMissingRequired`(카드 순서 위치)+`REQUIRED_MSG` 등록, 도피 선택지 포함(전 문항 필수의 전제), track 밖 카드면 옵션 클릭 셀렉터에 카드 id 추가. 조건부 표시를 라디오 change 이벤트에만 의존하지 말 것(`updateLinkDetails()` 직접 호출). 조건부 입력 칸은 **라벨 밖에** 배치. dealAmount는 검증 제외(무응답 정상).
 - BEP 대표 수치는 **1.65년** — "2년 7개월"은 감응도 체크용이므로 대표로 쓰지 말 것.
+- **8번 블록 확장 4문항**(`adopt_pick`/`voice_space`/`iot_connect`/`ai_barrier`)은 **파생·ROI 미산입이 확정 설계** — handleSurveySubmit 파생 로직(대장·이슈)에 연결하지 말 것. 용도는 상품기획·엔지니어링 인사이트.
+- 8-2(도입 의향) 저장 value는 8-1 모드명 어휘("웰컴 모드" 등)와 **동일 유지** — 인상 vs 도입 의향 격차 분석의 전제이므로 한쪽만 라벨 변경 금지. `iot_connect` 최대 3개는 클라이언트 검증(서버는 관대 수용·raw_json 보존이 의도), "없음" 배타는 `enforceIotConnectRules()`.
 - 설문 초대: `surveyInviteSentAt` 마커 임의 삭제 금지(재발송 방지 장치). 발송 대상 @lge.com 한정. CC 변경은 `SURVEY_INVITE_CC_BATCH/AUTO` 상수만 — **관리자 6명 전원 참조로 회귀 금지**(통수 부담으로 폐기된 설계).
 
 ### 메인 페이지 구조
