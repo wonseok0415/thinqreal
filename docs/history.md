@@ -1304,3 +1304,21 @@ claude.ai ROI 세션에서 개편된 `ThinQ_ROI_Tool_v46.html`을 리포 `ThinQ_
 
 ### 재배포
 `visitor_submit`은 doPost 웹 엔드포인트 → **재배포 필요** (기존 배포 "새 버전"). 배포 URL: `https://thinqreal.com/ThinQ_Real_Visitor_Survey.html` (QR 생성은 이 URL로).
+
+## 작업 내역 (2026-07-27 후속 — sales 트랙 8번 블록 미노출)
+
+### 배경
+방문자 현장 설문(§8-5) 도입으로 B2B 영업 방문의 8번 블록(인상 솔루션·도입 의향·음성 공간·연결 우선·걸림돌)은 방문객에게 직접 수집됨 → 인솔자 운영 설문의 sales 트랙에서는 동일 문항의 대리 응답이 중복이라 미노출 결정 (운영자 확정).
+
+### 구현 (ThinQ_Real_Visit_Survey.html — 마크업 삭제 아닌 트랙 조건부 숨김)
+- 트랙 선택 핸들러: `showBlock8 = track !== 'sales'`로 modesCard + `.aihome-card` 4장 양방향 토글. 만족도 카드 번호 sales=8 / media·etc=9.
+- `firstMissingRequired`: 8번 블록 5개 검증을 `currentTrack !== 'sales'` 조건으로 래핑.
+- `buildPayload`: sales면 8번 블록 7필드(impressive_modes/reasons/desired_solutions/adopt_pick/voice_space/iot_connect/ai_barrier) **항상 빈 값** — 다른 트랙에서 선택 후 sales로 전환한 잔존 체크가 시트에 누출되는 것 방지.
+- mailto 폴백: sales면 8번 블록 7라인 생략.
+- 백엔드 무변경 (빈 값 적재는 기존 동작) — 재배포 불필요.
+
+### 검증 (Playwright)
+media 노출→sales 숨김→etc 복귀 양방향 토글, sales에서 8블록 검증 건너뜀(만족도가 첫 미작성), media에서 선택한 잔존 값이 sales 페이로드에서 전부 빈 값, mailto 라인 생략, 만족도 번호 8/9 전환 — 전부 통과.
+
+### 분석 유의
+sales 트랙 운영 설문의 8번 블록 컬럼은 2026-07-27 이후 구조적으로 공란 — 격차 분석 시 인솔자 응답은 media/etc 트랙만, B2B 방문객 응답은 visitor_responses 기준으로 볼 것.

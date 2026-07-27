@@ -621,12 +621,15 @@ document.querySelectorAll('#purposeGroup .opt').forEach(opt => {
     document.getElementById('track-' + track).classList.add('active');
 
     // 공통 카드 & 제출 버튼 표시
-    document.getElementById('modesCard').classList.remove('hidden');
-    document.querySelectorAll('.aihome-card').forEach(c => c.classList.remove('hidden'));   // 8-2~8-5 (track 무관 상시)
+    // B2B 영업(sales)은 8번 블록(8-1~8-5) 미노출 — 방문자 현장 설문이 방문객에게 직접 수집 (2026-07-27).
+    // media/etc 트랙은 인솔자 대리 응답 유지. 트랙 전환 시 양방향 토글.
+    const showBlock8 = track !== 'sales';
+    document.getElementById('modesCard').classList.toggle('hidden', !showBlock8);
+    document.querySelectorAll('.aihome-card').forEach(c => c.classList.toggle('hidden', !showBlock8));
     document.getElementById('commonCard').classList.remove('hidden');
     document.getElementById('submitArea').classList.remove('hidden');
-    // 공통 질문 번호 조정 — 세 트랙 모두 3~7 + 인상 깊었던 솔루션(8) + 만족도(9)
-    document.getElementById('commonQNum').textContent = '9';
+    // 공통 질문 번호 조정 — sales: 3~7 + 만족도(8) / media·etc: 3~7 + 8번 블록 + 만족도(9)
+    document.getElementById('commonQNum').textContent = showBlock8 ? '9' : '8';
   });
 });
 
@@ -732,6 +735,7 @@ function collectModeReasons() {
 }
 
 function buildPayload() {
+  const block8 = currentTrack !== 'sales';
   const p = {
     type: 'survey_submit',
     track: currentTrack,
@@ -741,14 +745,15 @@ function buildPayload() {
     client: rawText('client'),
     visit_count: rawRadio('visitCount'),
     purpose: rawRadio('purpose'),
-    impressive_modes: rawChecks('impressiveModes'),
-    impressive_reasons: collectModeReasons(),
-    desired_solutions: rawText('desiredSolutions'),
+    // 8번 블록 — sales 트랙은 미노출이라 항상 빈 값 (트랙 전환으로 남은 잔존 선택이 적재되는 것 방지)
+    impressive_modes: block8 ? rawChecks('impressiveModes') : '',
+    impressive_reasons: block8 ? collectModeReasons() : '',
+    desired_solutions: block8 ? rawText('desiredSolutions') : '',
     // 8-2~8-5 AI홈 솔루션 경험 (2026-07-24 — 파생·ROI 미산입, 인사이트 전용)
-    adopt_pick: rawRadio('adoptPick'),
-    voice_space: rawRadio('voiceSpace'),
-    iot_connect: rawChecks('iotConnect'),
-    ai_barrier: rawRadio('aiBarrier'),
+    adopt_pick: block8 ? rawRadio('adoptPick') : '',
+    voice_space: block8 ? rawRadio('voiceSpace') : '',
+    iot_connect: block8 ? rawChecks('iotConnect') : '',
+    ai_barrier: block8 ? rawRadio('aiBarrier') : '',
     satisfaction: rawRadio('satisfaction'),
     feedback: rawText('freeComment')
   };
@@ -848,12 +853,14 @@ function firstMissingRequired() {
     }
   }
 
-  if (!rawChecks('impressiveModes')) return { kind: 'group', key: 'impressiveModes' };
-  // 8-2~8-5 AI홈 솔루션 경험 — 공통 필수 (카드 순서대로)
-  if (!rawRadio('adoptPick')) return { kind: 'group', key: 'adoptPick' };
-  if (!rawRadio('voiceSpace')) return { kind: 'group', key: 'voiceSpace' };
-  if (!rawChecks('iotConnect')) return { kind: 'group', key: 'iotConnect' };
-  if (!rawRadio('aiBarrier')) return { kind: 'group', key: 'aiBarrier' };
+  // 8번 블록 (8-1~8-5) — sales 트랙은 미노출이므로 검증 제외 (방문자 현장 설문이 대체)
+  if (currentTrack !== 'sales') {
+    if (!rawChecks('impressiveModes')) return { kind: 'group', key: 'impressiveModes' };
+    if (!rawRadio('adoptPick')) return { kind: 'group', key: 'adoptPick' };
+    if (!rawRadio('voiceSpace')) return { kind: 'group', key: 'voiceSpace' };
+    if (!rawChecks('iotConnect')) return { kind: 'group', key: 'iotConnect' };
+    if (!rawRadio('aiBarrier')) return { kind: 'group', key: 'aiBarrier' };
+  }
   if (!rawRadio('satisfaction')) return { kind: 'group', key: 'satisfaction' };
   return null;
 }
@@ -971,13 +978,15 @@ function submitViaMail() {
 
   lines.push('');
   lines.push('[만족도 및 의견]');
-  lines.push('인상 깊었던 솔루션: ' + getChecks('impressiveModes'));
-  lines.push('인상 깊었던 이유: ' + (collectModeReasons() || '(미입력)'));
-  lines.push('추가 희망 솔루션: ' + getText('desiredSolutions'));
-  lines.push('가장 도입하고 싶은 솔루션: ' + getRadio('adoptPick'));
-  lines.push('음성 제어 공간: ' + getRadio('voiceSpace'));
-  lines.push('우선 연결 IoT 제품: ' + getChecks('iotConnect'));
-  lines.push('도입 걸림돌: ' + getRadio('aiBarrier'));
+  if (currentTrack !== 'sales') {   // 8번 블록 — sales는 미노출 (방문자 현장 설문이 대체)
+    lines.push('인상 깊었던 솔루션: ' + getChecks('impressiveModes'));
+    lines.push('인상 깊었던 이유: ' + (collectModeReasons() || '(미입력)'));
+    lines.push('추가 희망 솔루션: ' + getText('desiredSolutions'));
+    lines.push('가장 도입하고 싶은 솔루션: ' + getRadio('adoptPick'));
+    lines.push('음성 제어 공간: ' + getRadio('voiceSpace'));
+    lines.push('우선 연결 IoT 제품: ' + getChecks('iotConnect'));
+    lines.push('도입 걸림돌: ' + getRadio('aiBarrier'));
+  }
   lines.push('만족도: ' + getRadio('satisfaction'));
   lines.push('자유 의견: ' + getText('freeComment'));
   lines.push('');
