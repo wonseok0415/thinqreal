@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ThinQ Real 방문자 설문</title>
+<!-- 방문자 현장 설문 (§8-5, 2026-07-27) — 퇴장 직전 QR 스캔용 익명 폼.
+     · 완전 익명: 성명·소속 미수집, 언어 선택(lang)만 자동 기록
+     · 저장 value는 언어 무관 한국어 canonical (운영 설문 8번 블록과 격차 분석 — 문자열 완전 동일 유지)
+     · 파생·ROI 미산입 / mailto 폴백 없음 (외부 방문객 대상 부적합) -->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+  :root {
+    --bg: #FBFBFD; --card: #FFFFFF;
+    --text: #1D1D1F; --text-2: #515154; --text-3: #86868B;
+    --accent: #0071E3; --teal: #00A5B5; --teal-light: #E5F4F6;
+    --border: rgba(0,0,0,0.1); --radius: 14px;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
+    background: var(--bg); color: var(--text);
+    line-height: 1.55; letter-spacing: -0.01em;
+    padding: 20px 16px 56px;   /* 모바일 퍼스트 — QR 스캔 = 스마트폰 접근 전제 */
+  }
+  .container { max-width: 560px; margin: 0 auto; }
+
+  /* 언어 토글 */
+  .lang-toggle { display: flex; justify-content: center; gap: 0; margin-bottom: 20px; }
+  .lang-toggle button {
+    font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+    padding: 8px 20px; border: 1px solid var(--border); background: var(--card); color: var(--text-3);
+    min-height: 40px;
+  }
+  .lang-toggle button:first-child { border-radius: 980px 0 0 980px; }
+  .lang-toggle button:last-child { border-radius: 0 980px 980px 0; border-left: none; }
+  .lang-toggle button.active { background: var(--text); color: #fff; border-color: var(--text); }
+
+  header { text-align: center; margin-bottom: 28px; }
+  header h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+  header p { font-size: 14px; color: var(--text-3); }
+  .anon-badge {
+    display: inline-block; margin-top: 12px;
+    background: var(--teal-light); color: var(--teal);
+    font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 980px; line-height: 1.5;
+  }
+
+  .card {
+    background: var(--card); border-radius: var(--radius);
+    padding: 22px 20px; margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .card .q-num {
+    background: var(--text); color: white; font-size: 11px; font-weight: 700;
+    min-width: 20px; height: 20px; padding: 0 7px; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .card .q-desc { font-size: 13px; color: var(--text-3); margin-bottom: 14px; margin-left: 28px; }
+
+  textarea {
+    width: 100%; padding: 12px 14px;
+    border: 1px solid var(--border); border-radius: 10px;
+    font-size: 14px; font-family: inherit; color: var(--text);
+    background: var(--card); resize: vertical; min-height: 88px;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,113,227,0.12); }
+
+  .card.need-answer { box-shadow: 0 0 0 2px #d05a5a, 0 1px 3px rgba(0,0,0,0.05); }
+  .req-msg { margin: 12px 0 0 0; font-size: 13px; color: #c0392b; font-weight: 600; }
+
+  /* 선택 옵션 — 모바일 터치 타깃 우선 */
+  .opt-group { display: flex; flex-direction: column; gap: 8px; }
+  .opt {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 13px 14px; border: 1px solid var(--border); border-radius: 12px;
+    cursor: pointer; transition: all 0.15s; background: var(--card); min-height: 48px;
+  }
+  .opt.selected { border-color: var(--accent); background: rgba(0,113,227,0.06); box-shadow: 0 0 0 1px var(--accent); }
+  .opt input { display: none; }
+  .opt .radio-dot {
+    width: 18px; height: 18px; border: 2px solid var(--border); border-radius: 50%;
+    flex-shrink: 0; margin-top: 1px; transition: all 0.15s; position: relative;
+  }
+  .opt.selected .radio-dot { border-color: var(--accent); }
+  .opt.selected .radio-dot::after { content: ''; position: absolute; inset: 3px; background: var(--accent); border-radius: 50%; }
+  .opt.checkbox .radio-dot { border-radius: 5px; }
+  .opt.checkbox.selected .radio-dot::after { border-radius: 2px; }
+  .opt-text { flex: 1; }
+  .opt-title { font-size: 14px; font-weight: 500; color: var(--text); }
+  .opt-img { width: 64px; height: 47px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+  .opt-sub { display: block; font-size: 12px; color: var(--text-3); margin-top: 3px; line-height: 1.5; }
+
+  .submit-area { text-align: center; margin-top: 24px; }
+  .btn-submit {
+    background: var(--accent); color: white; border: none;
+    padding: 15px 44px; border-radius: 980px; width: 100%; max-width: 340px;
+    font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-submit:disabled { opacity: 0.55; cursor: default; }
+  .submit-note { font-size: 12px; color: var(--text-3); margin-top: 12px; }
+
+  /* 전송 실패 재시도 / 완료 패널 */
+  .panel { text-align: center; padding: 40px 20px; }
+  .panel .icon { font-size: 40px; margin-bottom: 12px; }
+  .panel h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .panel p { font-size: 14px; color: var(--text-2); }
+  .btn-retry {
+    margin-top: 18px; background: var(--text); color: #fff; border: none;
+    padding: 13px 36px; border-radius: 980px; font-size: 14px; font-weight: 600;
+    font-family: inherit; cursor: pointer;
+  }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="lang-toggle" role="group" aria-label="Language">
+    <button type="button" id="langKo" class="active" onclick="applyLang('ko')">한국어</button>
+    <button type="button" id="langEn" onclick="applyLang('en')">English</button>
+  </div>
+
+  <header>
+    <h1 data-en="ThinQ Real Visitor Survey">ThinQ Real 방문자 설문</h1>
+    <p data-en="Thank you for visiting ThinQ Real. This anonymous survey takes about 2 minutes.">방문해 주셔서 감사합니다. 약 2분이 소요되는 익명 설문입니다.</p>
+    <span class="anon-badge" data-en="This survey is anonymous. No personal information is collected.">이 설문은 익명으로 수집되며, 개인정보를 저장하지 않습니다.</span>
+  </header>
+
+  <div id="formArea">
+
+  <!-- V1. 방문 만족도 -->
+  <div class="card" id="cardV1">
+    <h2><span class="q-num">V1</span><span data-en="Visit Satisfaction">방문 만족도</span></h2>
+    <p class="q-desc" data-en="How satisfied were you with your visit today?">오늘 ThinQ Real 방문은 어떠셨나요?</p>
+    <div class="opt-group" data-name="satisfaction">
+      <label class="opt"><input type="radio" name="satisfaction" value="5 - 매우 만족"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Very satisfied">매우 만족</span></span></label>
+      <label class="opt"><input type="radio" name="satisfaction" value="4 - 만족"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Satisfied">만족</span></span></label>
+      <label class="opt"><input type="radio" name="satisfaction" value="3 - 보통"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Neutral">보통</span></span></label>
+      <label class="opt"><input type="radio" name="satisfaction" value="2 - 미흡"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Unsatisfactory">미흡</span></span></label>
+      <label class="opt"><input type="radio" name="satisfaction" value="1 - 매우 미흡"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Very unsatisfactory">매우 미흡</span></span></label>
+    </div>
+  </div>
+
+  <!-- V2. 인상 깊었던 솔루션 (운영 설문 8-1 미러 + "특별히 없음" 배타 개선) -->
+  <div class="card" id="cardV2">
+    <h2><span class="q-num">V2</span><span data-en="Impressive Solutions">인상 깊었던 솔루션</span></h2>
+    <p class="q-desc" data-en="Which ThinQ ON appliance + IoT scenarios impressed you today? (Select all that apply)">오늘 경험하신 ThinQ ON 기반 가전+IoT 복합제어 시나리오 중 인상 깊었던 것을 모두 선택해 주세요. (복수 선택 가능)</p>
+    <div class="opt-group" data-name="impressiveModes">
+      <label class="opt checkbox"><input type="checkbox" name="impressiveModes" value="웰컴 모드"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_welcome.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title" data-en="A home that welcomes you [Welcome Mode]">나를 반겨주는 집 [웰컴 모드]</span><span class="opt-sub" data-en="The moment you arrive, your home greets you first — appliances and IoT work together to create a comfortable environment automatically.">귀가하는 순간 집이 먼저 반기는 웰컴 루틴 — 가전·IoT 유기적 작동으로 최적화된 쾌적·안락 환경 자동 제공</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="impressiveModes" value="취침 모드"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_sleep.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title" data-en="A restful end to the day [Sleep Mode]">하루의 끝 편안한 휴식 [취침 모드]</span><span class="opt-sub" data-en="Warm lighting, blackout curtains, calm music, and low-noise appliances prepare your bedroom for sleep.">하루를 정리하고 침실을 수면 환경으로 바꾸는 취침 루틴 — 따뜻한 조명·커튼 차광·잔잔한 음악과 저소음 가전으로 숙면 준비</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="impressiveModes" value="기상 모드"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_wakeup.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title" data-en="A refreshing start to the morning [Wake-up Mode]">상쾌한 아침의 시작 [기상 모드]</span><span class="opt-sub" data-en="Curtains and windows open automatically with upbeat music for a pleasant start to your day.">활기찬 아침을 여는 맞춤형 기상 케어 루틴 — 커튼·창문 자동 개방과 경쾌한 음악으로 기분 좋은 하루 시작</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="impressiveModes" value="시네마 모드"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_cinema.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title" data-en="Your living room becomes a theater [Cinema Mode]">거실이 영화관으로 [시네마 모드]</span><span class="opt-sub" data-en="Lighting and curtains adjust automatically for an immersive viewing experience, with appliance and IoT alerts on screen.">거실을 몰입감 있는 홈 시네마로 바꾸는 시네마 모드 — 조명·커튼 자동 제어로 시청 환경을 최적화하고 가전·IoT 알림 동시 확인</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="impressiveModes" value="환기 모드"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_vent.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title" data-en="An always-fresh kitchen [Ventilation Mode]">언제나 쾌적한 주방 [환기 모드]</span><span class="opt-sub" data-en="Detects cooking air pollution and ventilates automatically — voice and TV alerts with motorized windows keep the air fresh.">요리 중 공기 오염을 감지해 환기하는 에어 케어 루틴 — 음성·TV 알림 안내와 전동 창호·환기로 쾌적한 공기 유지</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="impressiveModes" value="프리젠테이션 모드"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_present.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title" data-en="An instant meeting room [Presentation Mode]">단숨에 완성되는 회의실 공간 [프리젠테이션 모드]</span><span class="opt-sub" data-en="The TV switches to a PC display while curtains and windows adjust for an effective presentation environment.">데모 공간을 발표·미팅 환경으로 바꾸는 프리젠테이션 모드 — TV를 PC 화면으로 전환하고 커튼·창 제어로 효과적인 발표 환경 구성</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="impressiveModes" value="외출 모드"><span class="radio-dot"></span><img class="opt-img" src="images/thinqreal_survey_mode_away.png" alt="" loading="lazy" onerror="this.style.display='none'"><span class="opt-text"><span class="opt-title" data-en="Worry-free going out in one tap [Away Mode]">클릭 한번으로 편안한 안심 외출 [외출 모드]</span><span class="opt-sub" data-en="Control your whole home at once by voice or app — cutting unnecessary power to save energy.">음성·앱 터치로 집안을 한 번에 제어하는 외출 루틴 — 불필요한 조명·가전 차단으로 에너지를 절약하고 깔끔한 환경 유지</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="impressiveModes" value="특별히 없음"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Nothing in particular / I don't remember">특별히 없음 / 기억나지 않음</span></span></label>
+    </div>
+  </div>
+
+  <!-- V3. 도입 의향 1픽 (8-2 미러) -->
+  <div class="card" id="cardV3">
+    <h2><span class="q-num">V3</span><span data-en="Your Top Pick to Adopt">가장 도입하고 싶은 솔루션</span></h2>
+    <p class="q-desc" data-en="If you could bring one of these into your own home, which would you use the most?">위 솔루션 중, 본인 집에 실제로 도입한다면 가장 쓰고 싶은 것 하나만 골라주세요.</p>
+    <div class="opt-group" data-name="adoptPick">
+      <label class="opt"><input type="radio" name="adoptPick" value="웰컴 모드"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="A home that welcomes you [Welcome Mode]">나를 반겨주는 집 [웰컴 모드]</span></span></label>
+      <label class="opt"><input type="radio" name="adoptPick" value="취침 모드"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="A restful end to the day [Sleep Mode]">하루의 끝 편안한 휴식 [취침 모드]</span></span></label>
+      <label class="opt"><input type="radio" name="adoptPick" value="기상 모드"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="A refreshing start to the morning [Wake-up Mode]">상쾌한 아침의 시작 [기상 모드]</span></span></label>
+      <label class="opt"><input type="radio" name="adoptPick" value="시네마 모드"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Your living room becomes a theater [Cinema Mode]">거실이 영화관으로 [시네마 모드]</span></span></label>
+      <label class="opt"><input type="radio" name="adoptPick" value="환기 모드"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="An always-fresh kitchen [Ventilation Mode]">언제나 쾌적한 주방 [환기 모드]</span></span></label>
+      <label class="opt"><input type="radio" name="adoptPick" value="프리젠테이션 모드"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="An instant meeting room [Presentation Mode]">단숨에 완성되는 회의실 공간 [프리젠테이션 모드]</span></span></label>
+      <label class="opt"><input type="radio" name="adoptPick" value="외출 모드"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Worry-free going out in one tap [Away Mode]">클릭 한번으로 편안한 안심 외출 [외출 모드]</span></span></label>
+      <label class="opt"><input type="radio" name="adoptPick" value="도입하고 싶은 것 없음"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="None I'd want to adopt">도입하고 싶은 것 없음</span></span></label>
+    </div>
+  </div>
+
+  <!-- V4. 음성 제어 공간 (8-3 미러) -->
+  <div class="card" id="cardV4">
+    <h2><span class="q-num">V4</span><span data-en="Voice Control Space">음성 제어 공간</span></h2>
+    <p class="q-desc" data-en="If you had an AI voice assistant (ThinQ ON) at home, where would you use voice control the most?">본인 집에 AI 음성비서(ThinQ ON)를 둔다면, 어느 공간에서 음성 제어를 가장 많이 쓸 것 같나요?</p>
+    <div class="opt-group" data-name="voiceSpace">
+      <label class="opt"><input type="radio" name="voiceSpace" value="거실"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Living room">거실</span></span></label>
+      <label class="opt"><input type="radio" name="voiceSpace" value="주방"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Kitchen">주방</span></span></label>
+      <label class="opt"><input type="radio" name="voiceSpace" value="침실"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Bedroom">침실</span></span></label>
+      <label class="opt"><input type="radio" name="voiceSpace" value="현관·복도"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Entrance &amp; hallway">현관·복도</span></span></label>
+      <label class="opt"><input type="radio" name="voiceSpace" value="욕실"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Bathroom">욕실</span></span></label>
+      <label class="opt"><input type="radio" name="voiceSpace" value="서재·업무 공간"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Study &amp; workspace">서재·업무 공간</span></span></label>
+      <label class="opt"><input type="radio" name="voiceSpace" value="음성보다 앱·자동화를 쓸 것 같음"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="I'd rather use the app or automations than voice">음성보다 앱·자동화를 쓸 것 같음</span></span></label>
+    </div>
+  </div>
+
+  <!-- V5. 연결 우선 제품 (8-4 미러 — 최대 3개 + "없음" 배타) -->
+  <div class="card" id="cardV5">
+    <h2><span class="q-num">V5</span><span data-en="IoT Devices to Connect First">우선 연결하고 싶은 IoT 제품</span></h2>
+    <p class="q-desc" data-en="Which IoT devices would you connect first at home? (Up to 3)">본인 집에 도입한다면, 우선 연결하고 싶은 IoT 제품을 골라주세요. (최대 3개)</p>
+    <div class="opt-group" data-name="iotConnect">
+      <label class="opt checkbox"><input type="checkbox" name="iotConnect" value="조명·스마트 스위치"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Lighting &amp; smart switches">조명·스마트 스위치</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="iotConnect" value="커튼·블라인드(전동 창호)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Motorized curtains &amp; blinds">커튼·블라인드 (전동 창호)</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="iotConnect" value="센서(문열림·움직임·온습도)"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Sensors (door, motion, temp &amp; humidity)">센서 (문열림·움직임·온습도)</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="iotConnect" value="도어락"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Smart door lock">도어락</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="iotConnect" value="스마트 플러그"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Smart plugs">스마트 플러그</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="iotConnect" value="공기질 측정기"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Air quality monitor">공기질 측정기</span></span></label>
+      <label class="opt checkbox"><input type="checkbox" name="iotConnect" value="연결하고 싶은 것 없음"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Nothing I'd want to connect">연결하고 싶은 것 없음</span></span></label>
+    </div>
+  </div>
+
+  <!-- V6. 도입 걸림돌 (8-5 미러) -->
+  <div class="card" id="cardV6">
+    <h2><span class="q-num">V6</span><span data-en="Biggest Barrier">AI홈 도입 걸림돌</span></h2>
+    <p class="q-desc" data-en="What would be the biggest barrier to bringing an AI home into your house?">AI홈을 본인 집에 들인다면, 가장 큰 걸림돌은 무엇일 것 같나요?</p>
+    <div class="opt-group" data-name="aiBarrier">
+      <label class="opt"><input type="radio" name="aiBarrier" value="초기 설치·설정의 복잡함"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Complex initial setup">초기 설치·설정의 복잡함</span></span></label>
+      <label class="opt"><input type="radio" name="aiBarrier" value="기기 구매 비용"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Device cost">기기 구매 비용</span></span></label>
+      <label class="opt"><input type="radio" name="aiBarrier" value="기존 보유 기기와의 호환"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Compatibility with my existing devices">기존 보유 기기와의 호환</span></span></label>
+      <label class="opt"><input type="radio" name="aiBarrier" value="프라이버시·보안 우려"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Privacy &amp; security concerns">프라이버시·보안 우려</span></span></label>
+      <label class="opt"><input type="radio" name="aiBarrier" value="실제 효용을 잘 모르겠음"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="Unclear practical benefits">실제 효용을 잘 모르겠음</span></span></label>
+      <label class="opt"><input type="radio" name="aiBarrier" value="걸림돌 없음"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title" data-en="No barriers">걸림돌 없음</span></span></label>
+    </div>
+  </div>
+
+  <!-- V7. 자유 의견 (선택) -->
+  <div class="card" id="cardV7">
+    <h2><span class="q-num">V7</span><span data-en="Comments">자유 의견</span></h2>
+    <p class="q-desc" data-en="Any other comments? (Optional)">그 밖에 느끼신 점이 있다면 자유롭게 남겨주세요. (선택)</p>
+    <textarea id="feedback"></textarea>
+  </div>
+
+  <div class="submit-area">
+    <button type="button" class="btn-submit" id="submitBtn" onclick="submitForm()" data-en="Submit">제출하기</button>
+    <p class="submit-note" data-en="Your response is recorded anonymously.">응답은 익명으로 기록됩니다.</p>
+  </div>
+
+  </div><!-- /formArea -->
+
+  <!-- 전송 실패 — 재시도 (mailto 폴백 없음: 외부 방문객 대상 부적합) -->
+  <div class="card panel hidden" id="errorPanel">
+    <div class="icon">📶</div>
+    <h3 data-en="Submission failed">제출에 실패했습니다</h3>
+    <p data-en="Please try again or let our staff know.">다시 시도하시거나 안내 직원에게 말씀해 주세요.</p>
+    <button type="button" class="btn-retry" onclick="submitForm()" data-en="Try again">다시 시도</button>
+  </div>
+
+  <!-- 완료 -->
+  <div class="card panel hidden" id="donePanel">
+    <div class="icon">🙏</div>
+    <h3 data-en="Thank you!">감사합니다!</h3>
+    <p data-en="Your response has been recorded.">응답이 기록되었습니다.</p>
+  </div>
+
+</div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec';
+
+// ==================== 언어 토글 ====================
+// data-en 속성 방식: 최초 로드 시 각 요소의 한국어 원문을 data-ko로 보관,
+// 토글 시 textContent만 교체. input value는 건드리지 않으므로 저장 값은 항상 한국어 canonical.
+let currentLang = 'ko';
+document.querySelectorAll('[data-en]').forEach(el => { el.dataset.ko = el.textContent; });
+
+function applyLang(lang) {
+  currentLang = lang;
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-en]').forEach(el => {
+    el.textContent = lang === 'en' ? el.dataset.en : el.dataset.ko;
+  });
+  document.getElementById('langKo').classList.toggle('active', lang === 'ko');
+  document.getElementById('langEn').classList.toggle('active', lang === 'en');
+  // 언어 전환 시 검증 안내 문구도 현재 언어로 재표시
+  const marked = document.querySelector('.card.need-answer');
+  clearRequiredMarks();
+  if (marked) { const missing = firstMissingRequired(); if (missing) markRequired(missing); }
+}
+
+// 검증·안내 등 동적 문구 사전 (저장 값 아님 — 표시 전용)
+const MSG = {
+  ko: {
+    satisfaction: '방문 만족도를 선택해 주세요.',
+    impressiveModes: '인상 깊었던 솔루션을 1개 이상 선택해 주세요. 없었다면 "특별히 없음"을 선택하시면 됩니다.',
+    adoptPick: '가장 도입하고 싶은 솔루션을 선택해 주세요. 없다면 "도입하고 싶은 것 없음"을 선택하시면 됩니다.',
+    voiceSpace: '음성 제어를 가장 많이 쓸 공간을 선택해 주세요.',
+    iotConnect: '우선 연결하고 싶은 IoT 제품을 선택해 주세요 (최대 3개). 없다면 "연결하고 싶은 것 없음"을 선택하시면 됩니다.',
+    aiBarrier: '가장 큰 걸림돌을 선택해 주세요. 없다면 "걸림돌 없음"을 선택하시면 됩니다.',
+    iotMax: '우선 연결하고 싶은 IoT 제품은 최대 3개까지 선택할 수 있습니다.',
+    submitting: '제출 중…',
+    submit: '제출하기'
+  },
+  en: {
+    satisfaction: 'Please select your satisfaction level.',
+    impressiveModes: 'Please select at least one solution. If none, choose "Nothing in particular".',
+    adoptPick: 'Please pick one solution to adopt. If none, choose "None I\'d want to adopt".',
+    voiceSpace: 'Please select where you would use voice control the most.',
+    iotConnect: 'Please select IoT devices to connect (up to 3). If none, choose "Nothing I\'d want to connect".',
+    aiBarrier: 'Please select the biggest barrier. If none, choose "No barriers".',
+    iotMax: 'You can select up to 3 IoT devices.',
+    submitting: 'Submitting…',
+    submit: 'Submit'
+  }
+};
+
+// ==================== 옵션 선택 + 배타 규칙 ====================
+// V2 "특별히 없음"은 배타 (운영 설문 8-1의 무배타 구멍을 신규 폼에는 물려받지 않음 — §8-5 확정)
+// V5 "없음" 배타 + 최대 3개 — 운영 설문 enforceIotConnectRules 패턴 재사용
+const EXCLUSIVE = {
+  impressiveModes: { none: '특별히 없음', max: Infinity },
+  iotConnect:      { none: '연결하고 싶은 것 없음', max: 3 }
+};
+
+function enforceGroupRules(input) {
+  const rule = EXCLUSIVE[input.name];
+  if (!rule || !input.checked) return;
+  const boxes = [...document.querySelectorAll('input[name="' + input.name + '"]')];
+  const sync = b => b.closest('.opt').classList.toggle('selected', b.checked);
+  if (input.value === rule.none) {
+    boxes.forEach(b => { if (b !== input) { b.checked = false; sync(b); } });
+  } else {
+    const none = boxes.find(b => b.value === rule.none);
+    if (none && none.checked) { none.checked = false; sync(none); }
+    if (boxes.filter(b => b.checked && b.value !== rule.none).length > rule.max) {
+      input.checked = false; sync(input);
+      alert(MSG[currentLang].iotMax);
+    }
+  }
+}
+
+document.querySelectorAll('.opt').forEach(opt => {
+  opt.addEventListener('click', () => {
+    const input = opt.querySelector('input');
+    if (input.type === 'radio') {
+      const group = opt.closest('.opt-group');
+      group.querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+      input.checked = true;
+    } else {
+      input.checked = !input.checked;
+      opt.classList.toggle('selected', input.checked);
+      enforceGroupRules(input);
+    }
+    const card = opt.closest('.card');
+    if (card && card.classList.contains('need-answer')) {
+      card.classList.remove('need-answer');
+      const m = card.querySelector('.req-msg');
+      if (m) m.remove();
+    }
+  });
+});
+
+// ==================== 검증 (V1~V6 필수, V7 선택) ====================
+function rawRadio(name) {
+  const el = document.querySelector('input[name="' + name + '"]:checked');
+  return el ? el.value : '';
+}
+function rawChecks(name) {
+  return [...document.querySelectorAll('input[name="' + name + '"]:checked')].map(e => e.value).join(', ');
+}
+
+function firstMissingRequired() {
+  if (!rawRadio('satisfaction'))    return 'satisfaction';
+  if (!rawChecks('impressiveModes')) return 'impressiveModes';
+  if (!rawRadio('adoptPick'))       return 'adoptPick';
+  if (!rawRadio('voiceSpace'))      return 'voiceSpace';
+  if (!rawChecks('iotConnect'))     return 'iotConnect';
+  if (!rawRadio('aiBarrier'))       return 'aiBarrier';
+  return null;
+}
+function clearRequiredMarks() {
+  document.querySelectorAll('.card.need-answer').forEach(c => c.classList.remove('need-answer'));
+  document.querySelectorAll('.req-msg').forEach(m => m.remove());
+}
+function markRequired(key) {
+  const el = document.querySelector('.opt-group[data-name="' + key + '"]');
+  if (!el) return;
+  const card = el.closest('.card');
+  card.classList.add('need-answer');
+  const msg = document.createElement('p');
+  msg.className = 'req-msg';
+  msg.textContent = MSG[currentLang][key] || '';
+  card.appendChild(msg);
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ==================== 제출 (fetch only — mailto 폴백 없음) ====================
+function buildPayload() {
+  return {
+    type: 'visitor_submit',
+    lang: currentLang,
+    satisfaction: rawRadio('satisfaction'),
+    impressive_modes: rawChecks('impressiveModes'),
+    adopt_pick: rawRadio('adoptPick'),
+    voice_space: rawRadio('voiceSpace'),
+    iot_connect: rawChecks('iotConnect'),
+    ai_barrier: rawRadio('aiBarrier'),
+    feedback: document.getElementById('feedback').value.trim()
+  };
+}
+
+async function submitForm() {
+  clearRequiredMarks();
+  const missing = firstMissingRequired();
+  if (missing) {
+    document.getElementById('errorPanel').classList.add('hidden');
+    markRequired(missing);
+    return;
+  }
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = MSG[currentLang].submitting;
+  document.getElementById('errorPanel').classList.add('hidden');
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildPayload())
+    });
+    document.getElementById('formArea').classList.add('hidden');
+    document.getElementById('donePanel').classList.remove('hidden');
+    document.getElementById('donePanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch (e) {
+    // 네트워크 단절 등 전송 실패 — 재시도 UI (no-cors 특성상 서버 오류는 감지 불가, 기존 폼과 동일 한계)
+    btn.disabled = false;
+    btn.textContent = MSG[currentLang].submit;
+    document.getElementById('errorPanel').classList.remove('hidden');
+    document.getElementById('errorPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+</script>
+</body>
+</html>

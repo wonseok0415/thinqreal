@@ -320,6 +320,7 @@ function doPost(e) {
 
   if (data.type === 'booking') return handleNewBooking(data);
   if (data.type === 'survey_submit') return handleSurveySubmit(data);
+  if (data.type === 'visitor_submit') return handleVisitorSubmit(data);   // 방문자 현장 설문 (익명·공개, §8-5)
   if (data.type === 'roi_snapshot') return handleNewRoiSnapshot(data);
   // roi_delete는 ROI 툴(별창 포함)에서 호출돼 토큰 경로가 없어 게이트하지 않음 (저위험, §향후 검토)
   if (data.type === 'roi_delete')   return handleDeleteRoiSnapshot(data);
@@ -3227,6 +3228,33 @@ function handleSurveySubmit(data) {
   return jsonResponse({ ok: true, response_id: responseId });
 }
 
+// ── 방문자 현장 설문 (§8-5, 2026-07-27) — 퇴장 직전 QR 익명 응답 ─────
+// · 완전 익명: 성명·소속 미수집, 언어 선택(lang)만 기록. 공개 제출 경로 (survey_submit과 동일 지위).
+// · 파생 없음 (성과 대장·이슈 로그 미생성) · ROI 미산입 — 용도는 경험 품질 지표 + 운영 설문 8번 블록과의 격차 분석.
+// · 저장 value는 언어 무관 한국어 canonical (운영 설문과 컬럼·값 단위 직접 비교 전제).
+const VISITOR_SHEET_NAME = 'visitor_responses';
+const VISITOR_HEADERS = ['response_id','submitted_at','lang','satisfaction','impressive_modes','adopt_pick','voice_space','iot_connect','ai_barrier','feedback','raw_json'];
+
+function handleVisitorSubmit(data) {
+  const responseId = String(Date.now());
+  const lang = data.lang === 'en' ? 'EN' : 'KO';
+  const sheet = getNamedSheet(VISITOR_SHEET_NAME, VISITOR_HEADERS);
+  sheet.appendRow(VISITOR_HEADERS.map(h => {
+    if (h === 'response_id')  return responseId;
+    if (h === 'submitted_at') return new Date().toISOString();
+    if (h === 'lang')         return lang;
+    if (h === 'raw_json')     return JSON.stringify(data);
+    return data[h] == null ? '' : String(data[h]);
+  }));
+
+  // 텔레그램 알림 — 실패해도 제출은 성공 처리 (기존 격리 원칙)
+  try {
+    sendTelegramMessage('🙋 방문자 설문 접수 [' + lang + '] — 만족도 ' + String(data.satisfaction || '').replace(/[<>&]/g, ''));
+  } catch (err) { Logger.log('[visitor] telegram fail: ' + err); }
+
+  return jsonResponse({ ok: true, response_id: responseId });
+}
+
 function sendTelegramSurvey(data, track, ledgerCount, issueCount) {
   var e = escapeTelegramHtml;
   var trackLabel = { sales: 'B2B 영업', media: '콘텐츠·홍보', etc: 'R&D·내부·기타' }[track] || track;
@@ -3250,7 +3278,8 @@ function handleGetSurveyData(token) {
   return jsonResponse({
     responses: readSheetRecords(SURVEY_SHEET_NAME, SURVEY_HEADERS),
     ledger:    readSheetRecords(LEDGER_SHEET_NAME, LEDGER_HEADERS),
-    issues:    readSheetRecords(ISSUE_SHEET_NAME, ISSUE_HEADERS)
+    issues:    readSheetRecords(ISSUE_SHEET_NAME, ISSUE_HEADERS),
+    visitors:  readSheetRecords(VISITOR_SHEET_NAME, VISITOR_HEADERS)   // 방문자 현장 설문 (§8-5, 조회 전용)
   });
 }
 
