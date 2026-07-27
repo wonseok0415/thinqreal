@@ -43,7 +43,7 @@
 | `slot_blocks` | `date=` (선택) | — | 차단 슬롯 현황 (비민감) |
 | `telegram_test` | — | — | `{ok:true}` 또는 `{ok:false, reason:'not_configured'}` |
 | `calendar_test` | — | — | 캘린더 연동 점검 (테스트 일정 생성 후 즉시 삭제) |
-| `survey_data` | `token` | 관리자 | `{responses:[], ledger:[], issues:[]}` — 설문·대장·이슈 통합 조회 (2026-07-09 추가) |
+| `survey_data` | `token` | 관리자 | `{responses:[], ledger:[], issues:[], visitors:[]}` — 설문·대장·이슈·방문자 응답 통합 조회 (visitors는 2026-07-27 추가) |
 
 ### 인증 관련 오류 응답
 `{ok:false, error:...}` — `not_allowed_domain` / `not_admin` / `cooldown` / `mail_failed` / `invalid_code` / `expired_code` / `too_many_attempts`
@@ -62,6 +62,7 @@
 | `roi_snapshot` | — ⚠️ | ROI 시나리오 저장 `{label, author, inputs, outputs}` | — |
 | `roi_delete` | — ⚠️ | ROI 스냅샷 삭제 `{id}` | — |
 | `survey_submit` | — | 설문 응답 append + 파생 행(대장 `후보`·이슈 `등록`) 자동 생성 (2026-07-09) | 텔레그램 발송 (관리자 그룹) |
+| `visitor_submit` | — | 방문자 현장 설문 append (`visitor_responses`, 익명 — 2026-07-27 §8-5). **파생 없음**, 저장 value는 언어 무관 한국어 canonical | 텔레그램 발송 ("방문자 설문 접수 [KO\|EN]") |
 | `survey_update` | 관리자 토큰 | 설문 응답 내용 정정 (2026-07-14). 불변: `response_id/submitted_at/track/raw_json` + 파생 트리거 3종(`media_link/etc_link/iot_defect`) | — (행 삭제 없음 — 의도) |
 | `ledger_update` | 관리자 토큰 | 성과 대장 상태 전환·확정 필드 + 내용 정정(`category/project_name/expected_scale/attribution_pct/visit_date/respondent/dept` — 2026-07-14 확장). `attribution_text`(라디오 원문)는 불변 | — (행 삭제 없음 — 의도) |
 | `issue_update` | 관리자 토큰 | 이슈 속성 부여 (`device/symptom/severity/channel/q_ship/status`) + est_value 서버 계산 | — (행 삭제 없음 — 의도) |

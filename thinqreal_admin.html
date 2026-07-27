@@ -1989,6 +1989,14 @@ body {
           <div class="kpi-num red" id="kpiSvIssues">0</div>
           <div class="kpi-card-sub">품질 이슈 리포트 누적</div>
         </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">방문자 설문</span>
+            <div class="kpi-icon" style="background:var(--c-accent-light);">🙋</div>
+          </div>
+          <div class="kpi-num accent" id="kpiSvVisitor">0</div>
+          <div class="kpi-card-sub" id="kpiSvVisitorDist">평균 만족도 — · KO 0 · EN 0</div>
+        </div>
       </div>
 
       <div class="toolbar">
@@ -2038,6 +2046,28 @@ body {
           </thead>
           <tbody id="svIssueBody">
             <tr><td colspan="9"><div class="empty-state"><div class="empty-state-text">—</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="sv-section-title">🙋 방문자 설문 (익명)</h2>
+      <p class="sv-section-desc">퇴장 전 현장 QR로 수집되는 방문객 익명 응답입니다 (조회 전용 — 파생·ROI 미산입). 상단 월 필터가 함께 적용되며, 행을 클릭하면 상세를 확인합니다.</p>
+      <div class="toolbar">
+        <select class="toolbar-select" id="svVisitorLangFilter" onchange="renderSurveyTab()">
+          <option value="">전체 언어</option>
+          <option value="KO">한국어</option>
+          <option value="EN">English</option>
+        </select>
+        <span class="toolbar-spacer"></span>
+        <a class="toolbar-btn" style="text-decoration:none;" href="ThinQ_Real_Visitor_Survey.html" target="_blank" rel="noopener">방문자 폼 새 창에서 열기 ↗</a>
+      </div>
+      <div class="table-card">
+        <table class="booking-table" style="min-width:880px;">
+          <thead>
+            <tr><th>제출 시각</th><th>언어</th><th>만족도</th><th>인상 깊었던 솔루션</th><th>도입 1픽</th><th>걸림돌</th><th>의견</th></tr>
+          </thead>
+          <tbody id="svVisitorBody">
+            <tr><td colspan="7"><div class="empty-state"><div class="empty-state-text">—</div></div></td></tr>
           </tbody>
         </table>
       </div>
@@ -2239,6 +2269,20 @@ body {
     <div class="modal-delete-actions">
       <button class="modal-btn-close" onclick="closeExportModal()">취소</button>
       <button class="modal-btn-confirm" onclick="doExportCSV()">내보내기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 방문자 설문 상세 모달 (조회용 — 백드롭 클릭 닫기 허용) -->
+<div class="modal-backdrop" id="visitorModalBg">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">방문자 설문 상세</h2>
+      <button class="modal-close" onclick="closeVisitorModal()">✕</button>
+    </div>
+    <div class="detail-grid" id="visitorModalGrid"></div>
+    <div class="modal-actions">
+      <button class="modal-btn-close" onclick="closeVisitorModal()">닫기</button>
     </div>
   </div>
 </div>
@@ -3755,7 +3799,59 @@ function renderSurveyTab() {
       + '<td style="white-space:nowrap;"><button class="sv-save-btn" onclick="saveIssueRow(\'' + id + '\')">저장</button> '
       + '<button class="sv-save-btn" style="border-color:var(--c-red); color:var(--c-red);" onclick="openSvDelete(\'issue\', \'' + id + '\')">삭제</button></td></tr>';
   }).join('') : '<tr><td colspan="9"><div class="empty-state"><div class="empty-state-text">등록된 이슈가 없습니다. R&D 트랙 설문의 결함 리포트에서 자동 생성됩니다.</div></div></td></tr>';
+
+  renderVisitorSection(month);
 }
+
+// ── 방문자 현장 설문 (§8-5) — 조회 전용 (수정·상태 전환·삭제 없음) ──
+const VISITOR_FIELD_LABELS = [
+  ['submitted_at', '제출 시각'], ['lang', '언어'], ['satisfaction', '만족도'],
+  ['impressive_modes', '인상 깊었던 솔루션'], ['adopt_pick', '가장 도입하고 싶은 솔루션'],
+  ['voice_space', '음성 제어 공간'], ['iot_connect', '우선 연결 IoT 제품'],
+  ['ai_barrier', 'AI홈 도입 걸림돌'], ['feedback', '자유 의견']
+];
+
+function renderVisitorSection(month) {
+  const all = surveyData.visitors || [];
+  // KPI — 기존 관례대로 필터 무관 전체 기준 (응답 수·평균 만족도·언어 분포)
+  const scores = all.map(v => parseInt(String(v.satisfaction).charAt(0), 10)).filter(n => n >= 1 && n <= 5);
+  const avg = scores.length ? (scores.reduce((a, c) => a + c, 0) / scores.length).toFixed(1) : '—';
+  const ko = all.filter(v => v.lang === 'KO').length;
+  const en = all.filter(v => v.lang === 'EN').length;
+  document.getElementById('kpiSvVisitor').textContent = all.length;
+  document.getElementById('kpiSvVisitorDist').textContent = '평균 만족도 ' + avg + ' · KO ' + ko + ' · EN ' + en;
+
+  const langF = document.getElementById('svVisitorLangFilter').value;
+  const vs = all.filter(v => (!langF || v.lang === langF) && svMonthMatch(v, month))
+    .sort((a, b) => String(b.response_id).localeCompare(String(a.response_id)));
+  document.getElementById('svVisitorBody').innerHTML = vs.length ? vs.map(v => {
+    const t = String(v.submitted_at || '').slice(0, 16).replace('T', ' ');
+    return '<tr class="sv-row-click" onclick="openVisitorModal(\'' + escapeHtml(String(v.response_id)) + '\')">'
+      + '<td style="white-space:nowrap;">' + escapeHtml(t) + '</td>'
+      + '<td>' + escapeHtml(v.lang || '-') + '</td>'
+      + '<td style="white-space:nowrap;">' + escapeHtml(String(v.satisfaction || '-').split(' ')[0]) + '</td>'
+      + '<td>' + escapeHtml(v.impressive_modes || '-') + '</td>'
+      + '<td style="white-space:nowrap;">' + escapeHtml(v.adopt_pick || '-') + '</td>'
+      + '<td style="white-space:nowrap;">' + escapeHtml(v.ai_barrier || '-') + '</td>'
+      + '<td>' + (v.feedback ? '💬' : '') + '</td></tr>';
+  }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="empty-state-text">조건에 맞는 방문자 응답이 없습니다.</div></div></td></tr>';
+}
+
+function openVisitorModal(id) {
+  const v = (surveyData?.visitors || []).find(x => String(x.response_id) === String(id));
+  if (!v) return;
+  let html = '';
+  VISITOR_FIELD_LABELS.forEach(([k, label]) => {
+    const val = v[k];
+    if (val == null || val === '') return;
+    const shown = k === 'submitted_at' ? String(val).slice(0, 16).replace('T', ' ') : String(val);
+    html += '<span class="detail-label">' + escapeHtml(label) + '</span><span class="detail-value">' + fmtMultiline(shown) + '</span>';
+  });
+  document.getElementById('visitorModalGrid').innerHTML = html;
+  document.getElementById('visitorModalBg').classList.add('open');
+}
+function closeVisitorModal() { document.getElementById('visitorModalBg').classList.remove('open'); }
+bindBackdropClose('visitorModalBg', closeVisitorModal);
 
 // ── 관리자 쓰기 공통 (no-cors POST — 백엔드 verifyAdminToken이 게이트) ──
 async function svPost(payload) {

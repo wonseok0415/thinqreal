@@ -36,7 +36,7 @@
 | 항목 | 내용 | 이전 시 |
 |---|---|---|
 | 호스팅 | GitHub Pages (리포 루트 = 사이트 루트, CNAME `thinqreal.com`, Cloudflare DNS) | 사내 웹서버로 정적 파일 복사. `thinqreal.lge.com` DNS + 사내 CA 인증서 |
-| `SCRIPT_URL` 상수 | index.html · thinqreal_admin.html · ThinQ_Real_ROI_Tool.html 각 1곳 | 사내 API 서버 URL로 교체 (3곳) |
+| `SCRIPT_URL` 상수 | index.html · thinqreal_admin.html · ThinQ_Real_ROI_Tool.html · ThinQ_Real_Visit_Survey.html · ThinQ_Real_Visitor_Survey.html 각 1곳 | 사내 API 서버 URL로 교체 (5곳 — 기존 문서의 "3곳"은 설문 폼 누락이었음, 2026-07-27 보정) |
 | `mode:'no-cors'` POST | Apps Script CORS 제약 우회용 | 사내 API가 CORS 허용하면 정상 fetch로 개선 가능 (응답 확인 가능해짐) |
 | 빌드 도구 | 없음 (순수 정적) | 그대로 이동 |
 | 외부 리소스 | 없음 (폰트 Inter도 시스템 폴백, 이미지 전부 상대경로) | 그대로 이동 |

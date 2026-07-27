@@ -22,8 +22,9 @@
 ├── index.html                    # 메인 사이트 (홈/공간소개/예약/이용안내) — 이메일 게이트 적용
 ├── thinqreal_admin.html          # 관리자 대시보드 (9개 탭)
 ├── ThinQ_Real_Visit_Survey.html  # 방문 후기 설문 폼 (공개 — 게이트 미적용 의도)
+├── ThinQ_Real_Visitor_Survey.html # 방문자 현장 설문 (QR·익명·한/영 — 공개, 2026-07-27)
 ├── ThinQ_Real_ROI_Tool.html      # ROI 분석 툴 (관리자 iframe 임베드 + 별창 열기)
-├── privacy.html                  # 개인정보처리방침 (게이트 밖 열람 가능 의도, 현재 v1.1)
+├── privacy.html                  # 개인정보처리방침 (게이트 밖 열람 가능 의도, 현재 v1.2)
 ├── ThinQReal_AppScript.gs        # Apps Script 소스 (실배포는 script.google.com에서 관리)
 ├── CNAME / .nojekyll / README.md
 ├── CLAUDE.md                     # 이 파일 (현재 상태·규칙)
@@ -51,7 +52,7 @@
 | 항목 | 값 |
 |------|-----|
 | Sheets ID | `1-Z158TV46MtSEArir9bW4h4KQ438NCuhb3qaGyOooA0` |
-| 시트 탭 | `bookings`(예약) · `roi_snapshots` · `slot_blocks` · `monthly_articles` · `survey_responses` · `performance_ledger` · `iot_issue_log` · `export_log` — bookings 외에는 첫 호출 시 자동 생성 |
+| 시트 탭 | `bookings`(예약) · `roi_snapshots` · `slot_blocks` · `monthly_articles` · `survey_responses` · `performance_ledger` · `iot_issue_log` · `export_log` · `visitor_responses`(방문자 현장 설문) — bookings 외에는 첫 호출 시 자동 생성 |
 | Apps Script URL | `https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec` |
 | 스크립트 소유자(발신 계정) | `kangwonseok0415@gmail.com` — 발신 표시명은 모든 메일 `ThinQ Real` 통일 |
 | 관리자 인증 | 이메일 코드 (명단 한정) — `AUTH_ADMIN_EMAILS` 6명: kang.wonseok / jhs.kim / ch275.lee / moonsu.seo / hj8462.kim / kwangsoo.park. 토큰 90일 |
@@ -59,7 +60,7 @@
 | CC(CC_EMAIL) | kang.wonseok@lge.com |
 
 - **엔드포인트 전체 스펙은 `docs/migration/api-contract.md`가 단일 소스** (GET 16종 + POST 17종, 인증 모델·메일 규칙·스케줄 포함). 여기엔 요약만 둔다:
-  - 공개: `booking`(예약 접수→알림 메일+텔레그램), `survey_submit`(설문→파생 행+텔레그램), `availability`, `appliances`, `auth_*`/`admin_auth_*`(코드 인증)
+  - 공개: `booking`(예약 접수→알림 메일+텔레그램), `survey_submit`(설문→파생 행+텔레그램), `visitor_submit`(방문자 현장 설문→텔레그램, 파생 없음), `availability`, `appliances`, `auth_*`/`admin_auth_*`(코드 인증)
   - 관리자 토큰 필수: `bookings` 조회, `update`(확정/거절→예약자 메일+캘린더), `booking_delete`, `admin_booking_create/edit`(알림 미발송 — 백필용), `slot_block/unblock`, `survey/ledger/issue`의 update·delete, `export_log`, `survey_data`
   - ROI `roi_snapshot`/`roi_delete`는 토큰 미적용 (별창 열림 → 토큰 전달 경로 없음, 저위험 수용)
 
@@ -98,6 +99,7 @@
 - **제출**: `survey_submit`(공개) → `survey_responses` 원본 + 파생 행 자동 생성 (Track B 캠페인 연결→대장 / Track C 신규 과제→대장, 이슈 발견→`iot_issue_log`) + 텔레그램.
 - **관리자 설문·대장 탭**: 조회·수정·상태 전환(후보→확정/드롭, 등록→검토→반영/기각)·영구 삭제(테스트 정리용). est_value는 `SURVEY_CAS_JSON` 있을 때만 서버 계산.
 - **설문 요청 메일**: 확정+방문 완료(익일부터)+@lge.com+미발송(`surveyInviteSentAt` 공란) 건에 자동 발송. 이메일 중복 제거(최근 방문 1건 기준 1통).
+- **방문자 현장 설문**(`ThinQ_Real_Visitor_Survey.html`, 공개 — 2026-07-27 §8-5): 퇴장 직전 QR 스캔용 **완전 익명** 폼(성명·소속 미수집, `lang`만 기록), 한/영 토글(표시만 전환 — **저장 value는 항상 한국어 canonical**, 운영 설문 8번 블록과 격차 분석 전제). V1 만족도(5단계)~V6 필수+도피, V7 자유의견 선택. `visitor_submit` → `visitor_responses` 11컬럼 + 텔레그램. **파생·ROI 미산입, mailto 폴백 없음**(전송 실패 시 재시도 UI). 관리자 설문·대장 탭에서 조회 전용(KPI 카드+언어 필터+상세 모달).
 
 ## 자동화·연동 현황 (활성)
 | 항목 | 상태 |
@@ -112,7 +114,7 @@
 - **컬럼 정의 단일 소스**: `docs/migration/data-schema.md` + Apps Script의 `HEADERS`/`SURVEY_HEADERS`/`LEDGER_HEADERS`/`ISSUE_HEADERS` 상수.
 - **bookings 25컬럼**: `id timestamp date slots slot slotLabel name org phone email purpose count note status subject clientCompany visitors usagePlan expectedEffect purposeKey privacyConsent calendarEventId division department surveyInviteSentAt`
 - **purposeKey 6종**: `b2b` / `rd` / `pr` / `content` / `internal-comm` / `other` — 분기 로직은 항상 purposeKey, 통계는 purpose(한국어 라벨) 기준.
-- **survey_responses 42컬럼** (raw_json 포함), performance_ledger 15, iot_issue_log 9, export_log 5.
+- **survey_responses 42컬럼** (raw_json 포함), performance_ledger 15, iot_issue_log 9, export_log 5, visitor_responses 11.
 
 ### 시트 백필 규칙 (직접 입력 시)
 - 25컬럼 **순서 엄수** — 추측 금지, `HEADERS` 배열이 단일 소스. 헤더 한 칸이라도 틀리면 관리자에서 조용히 누락됨.
@@ -177,6 +179,7 @@
 - BEP 대표 수치는 **1.65년** — "2년 7개월"은 감응도 체크용이므로 대표로 쓰지 말 것.
 - **8번 블록 확장 4문항**(`adopt_pick`/`voice_space`/`iot_connect`/`ai_barrier`)은 **파생·ROI 미산입이 확정 설계** — handleSurveySubmit 파생 로직(대장·이슈)에 연결하지 말 것. 용도는 상품기획·엔지니어링 인사이트.
 - 8-2(도입 의향) 저장 value는 8-1 모드명 어휘("웰컴 모드" 등)와 **동일 유지** — 인상 vs 도입 의향 격차 분석의 전제이므로 한쪽만 라벨 변경 금지. `iot_connect` 최대 3개는 클라이언트 검증(서버는 관대 수용·raw_json 보존이 의도), "없음" 배타는 `enforceIotConnectRules()`.
+- **방문자 현장 설문**: 완전 익명 유지 — 성명·소속 등 개인정보 필드 추가 금지(추가 시 privacy.html 개정 필수). 딜·수주·기여도 등 **내부 정보 문항 추가 금지**(고객이 직접 보는 폼). 저장 value는 운영 설문과 **문자열 완전 동일** 유지(EN 화면도 한국어 canonical 저장 — 한쪽만 변경 금지). `visitor_submit` 공개 경로·파생 미연결·mailto 폴백 없음 유지. 만족도는 방문자 폼만 5단계(운영 폼은 4단계 — 공유 4개 value는 동일).
 - 설문 초대: `surveyInviteSentAt` 마커 임의 삭제 금지(재발송 방지 장치). 발송 대상 @lge.com 한정. CC 변경은 `SURVEY_INVITE_CC_BATCH/AUTO` 상수만 — **관리자 6명 전원 참조로 회귀 금지**(통수 부담으로 폐기된 설계).
 
 ### 메인 페이지 구조

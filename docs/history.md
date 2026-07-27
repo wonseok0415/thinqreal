@@ -1272,3 +1272,35 @@ claude.ai ROI 세션에서 개편된 `ThinQ_ROI_Tool_v46.html`을 리포 `ThinQ_
 
 ### 재배포
 `survey_submit`은 doPost 웹 엔드포인트 → **재배포 필요** (기존 배포 "새 버전"). 재배포 전 제출분은 구 코드로 저장되어 신규 4컬럼이 비지만 raw_json에는 값이 남음.
+
+## 작업 내역 (2026-07-27 — 방문자 현장 설문 신설 "Visitor Survey" §8-5)
+
+### 구현
+- **신규 `ThinQ_Real_Visitor_Survey.html`** (모바일 퍼스트, 운영 설문 팔레트 계승): 상단 한국어|English 토글, 익명 수집 고지 배지, V1 만족도(5단계) / V2 인상 솔루션(7모드+특별히 없음, 썸네일 재사용) / V3 도입 1픽 / V4 음성 공간 / V5 연결 우선(최대 3) / V6 걸림돌 / V7 자유의견(선택).
+- **i18n**: `data-en` 속성 방식 — 로드 시 한국어 원문을 `data-ko`로 보관, 토글 시 textContent만 교체. input value 무접촉 → **저장 값은 언어 무관 한국어 canonical** (운영 설문 8번 블록과 컬럼·값 단위 격차 분석 전제). 검증 문구·alert는 `MSG[lang]` 사전.
+- **배타 규칙 일반화**: `EXCLUSIVE` 맵 + `enforceGroupRules()` — V2 "특별히 없음" 배타(운영 8-1의 무배타 구멍을 신규 폼에는 미상속, 스펙 확정), V5 "없음" 배타+최대 3(4번째 차단 alert).
+- **검증**: V1~V6 필수(도피 선택지 전제), firstMissingRequired/REQUIRED_MSG 패턴 재사용 — 카드 하이라이트+스크롤, 언어 전환 시 표시 중인 안내 문구도 재표시.
+- **제출**: `fetch POST {type:'visitor_submit', lang, ...}` no-cors. **mailto 폴백 없음** — 실패 시 재시도 패널(한/영). 완료 패널 전환.
+- **.gs**: doPost 라우팅 + `handleVisitorSubmit` — `visitor_responses` 11컬럼(`VISITOR_HEADERS`) append, lang은 KO/EN 정규화, **파생 없음**, 텔레그램 "🙋 방문자 설문 접수 [KO|EN] — 만족도 …" (`sendTelegramMessage` 재사용, 격리 try/catch). `handleGetSurveyData` 응답에 `visitors` 추가.
+- **관리자 설문·대장 탭**: KPI 5번째 카드(응답 수·평균 만족도·KO/EN 분포, 전체 기준), 🙋 방문자 설문 섹션(조회 전용 — 언어 필터 + 상단 월 필터 공용(svMonthMatch가 submitted_at 폴백), 행 클릭 상세 모달 `visitorModalBg` — 조회용이라 백드롭 닫기 바인딩). 수정·삭제·상태 전환 없음.
+- **privacy.html v1.2**: §1에 방문자 현장 설문 행(익명 응답·언어 선택값, 개인정보 미수집 명시) + 개정 이력.
+- **문서**: api-contract(POST visitor_submit + survey_data visitors), data-schema(§visitor_responses 11컬럼), dependency-inventory(SCRIPT_URL 5곳 보정 — 기존 "3곳"은 운영 설문 폼 누락이었음).
+
+### ⚠ 스펙 대비 변경
+1. **만족도 5단계**: 스펙은 "기존 운영 설문과 동일 5단계('5 - 매우 만족'~'1 - 매우 미흡')"라 했으나 **실제 운영 폼은 4단계**(1 없음). 방문자 폼은 스펙 명시대로 5단계로 구현 — 공유되는 4개 value 문자열은 동일, `1 - 매우 미흡`은 기존 네이밍 규칙의 자연 확장. 운영 폼은 미변경.
+2. V5 최대 3개 안내는 브라우저 `alert` 사용 (운영 설문 8-4와 동일 관례 — 스펙의 "안내" 구현 방식 해석).
+
+### 검증 (AC 전부 통과)
+- AC1 언어 토글: KO↔EN 전 텍스트·html lang 전환, EN 화면 제출 payload 전 값 한국어 canonical + lang:'en'
+- AC2 V1~V6 각각 차단+하이라이트, EN 상태에서 영어 안내 문구
+- AC3 V2 배타 양방향 / V5 4번째 차단 alert + "없음" 배타
+- AC4 서버 스텁: 11컬럼 적재·lang 정규화·raw_json 보존·**visitor_responses 외 시트 무접촉**(대장·이슈 0건)·텔레그램 1건
+- AC5 fetch reject → 재시도 패널 → 재시도 성공 → 완료 패널 (mailto 미발동 — 코드 자체 부재)
+- AC6 390px 모바일: 가로 스크롤 없음, KO/EN 스크린샷 확인
+- AC7 민감 단가 grep 게이트 0건
+
+### 이관 자산 신규 3종 (사내 이관 등재)
+① `ThinQ_Real_Visitor_Survey.html` (정적 페이지 — Pages 서빙) ② `visitor_submit` POST 엔드포인트 (공개·익명) ③ `visitor_responses` 시트 탭 (11컬럼). — api-contract·data-schema·dependency-inventory에 반영 완료.
+
+### 재배포
+`visitor_submit`은 doPost 웹 엔드포인트 → **재배포 필요** (기존 배포 "새 버전"). 배포 URL: `https://thinqreal.com/ThinQ_Real_Visitor_Survey.html` (QR 생성은 이 URL로).
