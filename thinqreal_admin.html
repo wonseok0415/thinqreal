@@ -2051,7 +2051,7 @@ body {
       </div>
 
       <h2 class="sv-section-title">🙋 방문자 설문 (익명)</h2>
-      <p class="sv-section-desc">퇴장 전 현장 QR로 수집되는 방문객 익명 응답입니다 (조회 전용 — 파생·ROI 미산입). 상단 월 필터가 함께 적용되며, 행을 클릭하면 상세를 확인합니다.</p>
+      <p class="sv-section-desc">퇴장 전 현장 QR로 수집되는 방문객 익명 응답입니다 (파생·ROI 미산입). 상단 월 필터가 함께 적용되며, 행을 클릭하면 상세 확인·영구 삭제(테스트 정리용)가 가능합니다. 익명 응답 원문 보존을 위해 수정 기능은 없습니다.</p>
       <div class="toolbar">
         <select class="toolbar-select" id="svVisitorLangFilter" onchange="renderSurveyTab()">
           <option value="">전체 언어</option>
@@ -2282,6 +2282,7 @@ body {
     </div>
     <div class="detail-grid" id="visitorModalGrid"></div>
     <div class="modal-actions">
+      <button class="modal-btn-danger" onclick="openSvDelete('visitor', visitorModalTarget)">영구 삭제</button>
       <button class="modal-btn-close" onclick="closeVisitorModal()">닫기</button>
     </div>
   </div>
@@ -3837,9 +3838,12 @@ function renderVisitorSection(month) {
   }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="empty-state-text">조건에 맞는 방문자 응답이 없습니다.</div></div></td></tr>';
 }
 
+let visitorModalTarget = null;   // 상세 모달에서 '영구 삭제'로 넘어갈 때 사용
+
 function openVisitorModal(id) {
   const v = (surveyData?.visitors || []).find(x => String(x.response_id) === String(id));
   if (!v) return;
+  visitorModalTarget = String(id);
   let html = '';
   VISITOR_FIELD_LABELS.forEach(([k, label]) => {
     const val = v[k];
@@ -4083,7 +4087,7 @@ async function toggleRoiIncluded(id, checked) {
 // ── 설문·대장·이슈 영구 삭제 (테스트·실수 데이터 정리용) ──
 // "삭제" 타이핑 게이트 — 예약 삭제와 동일 패턴. 응답 삭제는 파생 행(대장·이슈)도 함께.
 // 실제 성과 기록은 드롭/기각 상태 전환으로 보존하는 것이 원칙.
-let svDeleteTarget = null;   // { kind: 'response' | 'ledger' | 'issue', id }
+let svDeleteTarget = null;   // { kind: 'response' | 'ledger' | 'issue' | 'visitor', id }
 function openSvDelete(kind, id) {
   const d = surveyData || {};
   let summary = '';
@@ -4100,6 +4104,12 @@ function openSvDelete(kind, id) {
     const l = (d.ledger || []).find(x => String(x.ledger_id) === String(id));
     if (!l) return;
     summary = ['[' + (l.category || '') + ']', l.project_name || '(무명)', l.status || '후보'].filter(Boolean).join('  ·  ');
+  } else if (kind === 'visitor') {
+    const v = (d.visitors || []).find(x => String(x.response_id) === String(id));
+    if (!v) return;
+    summary = [String(v.submitted_at || '').slice(0, 16).replace('T', ' '), v.lang,
+               '만족도 ' + String(v.satisfaction || '-').split(' ')[0]].filter(Boolean).join('  ·  ');
+    closeVisitorModal();
   } else {
     const x = (d.issues || []).find(i => String(i.issue_id) === String(id));
     if (!x) return;
@@ -4127,11 +4137,13 @@ async function confirmSvDelete() {
     surveyData.issues    = (surveyData.issues || []).filter(x => String(x.response_id) !== id);
   } else if (kind === 'ledger') {
     surveyData.ledger = (surveyData.ledger || []).filter(x => String(x.ledger_id) !== id);
+  } else if (kind === 'visitor') {
+    surveyData.visitors = (surveyData.visitors || []).filter(x => String(x.response_id) !== id);
   } else {
     surveyData.issues = (surveyData.issues || []).filter(x => String(x.issue_id) !== id);
   }
   renderSurveyTab();
-  const type = kind === 'response' ? 'survey_delete' : (kind === 'ledger' ? 'ledger_delete' : 'issue_delete');
+  const type = { response: 'survey_delete', ledger: 'ledger_delete', issue: 'issue_delete', visitor: 'visitor_delete' }[kind];
   if (await svPost({ type, id })) {
     toast('✓ 영구 삭제됐습니다');
   } else {

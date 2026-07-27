@@ -63,6 +63,7 @@
 | `roi_delete` | — ⚠️ | ROI 스냅샷 삭제 `{id}` | — |
 | `survey_submit` | — | 설문 응답 append + 파생 행(대장 `후보`·이슈 `등록`) 자동 생성 (2026-07-09) | 텔레그램 발송 (관리자 그룹) |
 | `visitor_submit` | — | 방문자 현장 설문 append (`visitor_responses`, 익명 — 2026-07-27 §8-5). **파생 없음**, 저장 value는 언어 무관 한국어 canonical | 텔레그램 발송 ("방문자 설문 접수 [KO\|EN]") |
+| `visitor_delete` | 관리자 토큰 | 방문자 응답 영구 삭제 (테스트·실수 정리용 — 2026-07-27). cascade 없음(파생 무). **수정 엔드포인트는 의도적으로 없음** — 익명 응답 원문 보존 | — (알림 미발송) |
 | `survey_update` | 관리자 토큰 | 설문 응답 내용 정정 (2026-07-14). 불변: `response_id/submitted_at/track/raw_json` + 파생 트리거 3종(`media_link/etc_link/iot_defect`) | — (행 삭제 없음 — 의도) |
 | `ledger_update` | 관리자 토큰 | 성과 대장 상태 전환·확정 필드 + 내용 정정(`category/project_name/expected_scale/attribution_pct/visit_date/respondent/dept` — 2026-07-14 확장). `attribution_text`(라디오 원문)는 불변 | — (행 삭제 없음 — 의도) |
 | `issue_update` | 관리자 토큰 | 이슈 속성 부여 (`device/symptom/severity/channel/q_ship/status`) + est_value 서버 계산 | — (행 삭제 없음 — 의도) |
