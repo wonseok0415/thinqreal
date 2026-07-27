@@ -333,7 +333,7 @@ function doPost(e) {
       data.type === 'survey_update' || data.type === 'survey_delete' ||
       data.type === 'ledger_update' || data.type === 'ledger_delete' ||
       data.type === 'issue_update' || data.type === 'issue_delete' ||
-      data.type === 'export_log') {
+      data.type === 'visitor_delete' || data.type === 'export_log') {
     var admin = verifyAdminToken(data.token);
     if (!admin.ok) {
       return jsonResponse({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
@@ -350,6 +350,7 @@ function doPost(e) {
     if (data.type === 'ledger_delete')        return handleLedgerDelete(data);
     if (data.type === 'issue_update')         return handleIssueUpdate(data);
     if (data.type === 'issue_delete')         return handleIssueDelete(data);
+    if (data.type === 'visitor_delete')       return handleVisitorDelete(data);
     if (data.type === 'export_log')           return handleExportLog(data, admin.email);
   }
 
@@ -3253,6 +3254,13 @@ function handleVisitorSubmit(data) {
   } catch (err) { Logger.log('[visitor] telegram fail: ' + err); }
 
   return jsonResponse({ ok: true, response_id: responseId });
+}
+
+// 방문자 응답 영구 삭제 (관리자 토큰 게이트) — 테스트·실수 정리용.
+// 파생 행이 없으므로 cascade 불필요. 수정(edit) 기능은 의도적으로 없음 — 익명 응답 원문 보존 원칙.
+function handleVisitorDelete(data) {
+  const n = deleteRowsByValue(VISITOR_SHEET_NAME, VISITOR_HEADERS, 'response_id', data.id);
+  return jsonResponse(n ? { ok: true } : { ok: false, error: 'not_found' });
 }
 
 function sendTelegramSurvey(data, track, ledgerCount, issueCount) {

@@ -91,7 +91,7 @@
 ### `visitor_responses` (방문자 현장 설문, 11컬럼 — 2026-07-27 §8-5 추가)
 `response_id`(=`Date.now()` 문자열) · `submitted_at`(ISO) · `lang`(`KO`/`EN` — 응답 언어) · `satisfaction`(운영 설문과 동일 value + `1 - 매우 미흡` 확장) · `impressive_modes` · `adopt_pick` · `voice_space` · `iot_connect` · `ai_barrier`(전부 운영 설문 8번 블록과 **value 문자열 동일** — 격차 분석 전제) · `feedback`(선택) · `raw_json`
 
-완전 익명(성명·소속 미수집) · 파생 없음 · ROI 미산입. 컬럼 단일 소스: `VISITOR_HEADERS` 상수. 첫 호출 시 자동 생성.
+완전 익명(성명·소속 미수집) · 파생 없음 · ROI 미산입. 컬럼 단일 소스: `VISITOR_HEADERS` 상수. 첫 호출 시 자동 생성. 관리자 영구 삭제 가능(`visitor_delete` — 테스트 정리용), **수정은 불가** (익명 응답 원문 보존 원칙).
 
 ## 4.6 `export_log` 탭 (CSV 내보내기 감사 로그 — 2026-07-20 추가)
 
