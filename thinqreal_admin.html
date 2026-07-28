@@ -3701,9 +3701,20 @@ async function loadSurveyData(force, quiet) {
   }
 }
 
+// submitted_at은 toISOString() 저장이라 UTC — 표시·월 매칭 시 브라우저 로컬 시각으로 변환
+// (날짜 규칙: toISOString 역방향 사용 금지, 로컬 getter 조합)
+function fmtLocalDateTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return String(iso);
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
 function svMonthMatch(r, m) {
   if (!m) return true;
-  return String(r.visit_date || '').slice(0, 7) === m || String(r.submitted_at || '').slice(0, 7) === m;
+  if (String(r.visit_date || '').slice(0, 7) === m) return true;
+  return r.submitted_at ? fmtLocalDateTime(r.submitted_at).slice(0, 7) === m : false;
 }
 
 function renderSurveyTab() {
@@ -3826,7 +3837,7 @@ function renderVisitorSection(month) {
   const vs = all.filter(v => (!langF || v.lang === langF) && svMonthMatch(v, month))
     .sort((a, b) => String(b.response_id).localeCompare(String(a.response_id)));
   document.getElementById('svVisitorBody').innerHTML = vs.length ? vs.map(v => {
-    const t = String(v.submitted_at || '').slice(0, 16).replace('T', ' ');
+    const t = fmtLocalDateTime(v.submitted_at);
     return '<tr class="sv-row-click" onclick="openVisitorModal(\'' + escapeHtml(String(v.response_id)) + '\')">'
       + '<td style="white-space:nowrap;">' + escapeHtml(t) + '</td>'
       + '<td>' + escapeHtml(v.lang || '-') + '</td>'
@@ -3848,7 +3859,7 @@ function openVisitorModal(id) {
   VISITOR_FIELD_LABELS.forEach(([k, label]) => {
     const val = v[k];
     if (val == null || val === '') return;
-    const shown = k === 'submitted_at' ? String(val).slice(0, 16).replace('T', ' ') : String(val);
+    const shown = k === 'submitted_at' ? fmtLocalDateTime(val) : String(val);
     html += '<span class="detail-label">' + escapeHtml(label) + '</span><span class="detail-value">' + fmtMultiline(shown) + '</span>';
   });
   document.getElementById('visitorModalGrid').innerHTML = html;
@@ -3900,7 +3911,7 @@ function openSurveyModal(id) {
   SV_FIELD_LABELS.forEach(([k, label]) => {
     const v = r[k];
     if (v == null || v === '') return;
-    const shown = k === 'submitted_at' ? String(v).slice(0, 16).replace('T', ' ') : String(v);
+    const shown = k === 'submitted_at' ? fmtLocalDateTime(v) : String(v);
     html += '<span class="detail-label">' + escapeHtml(label) + '</span><span class="detail-value">' + fmtMultiline(shown) + '</span>';
   });
   document.getElementById('surveyModalGrid').innerHTML = html;
@@ -4107,7 +4118,7 @@ function openSvDelete(kind, id) {
   } else if (kind === 'visitor') {
     const v = (d.visitors || []).find(x => String(x.response_id) === String(id));
     if (!v) return;
-    summary = [String(v.submitted_at || '').slice(0, 16).replace('T', ' '), v.lang,
+    summary = [fmtLocalDateTime(v.submitted_at), v.lang,
                '만족도 ' + String(v.satisfaction || '-').split(' ')[0]].filter(Boolean).join('  ·  ');
     closeVisitorModal();
   } else {
