@@ -72,7 +72,7 @@
 - **예약 확정 메일**(buildConfirm*): 📅일정/📍위치/📶Wi-Fi(2.4G·5G 분리)/🔐도어락/🅿주차/☎문의/📖안내. **민감 정보는 확정 메일에만** — SSID `ThinQ_REAL_2.4G`/`ThinQ_REAL`, PW `real2026`, 도어락 PIN `509067` (2026-07-20 교체). 값 변경은 buildConfirm* 빌더에서만.
 - **조건부 첨부**: R&D 목적(`purpose.indexOf('R&D')`) → 구비 가전 45개 표 / B2B·홍보(`/(B2B|홍보)/`) → 웰컴 보드 안내. 라벨 변경 시 이 정규식들 점검.
 - **담당자 알림**(sendAdminAlert): 신규 예약 시 담당자 3 To + CC. 카테고리별 주제 라벨(`ADMIN_ALERT_SUBJ_LABELS`).
-- **월간 운영 리포트**: 매월 마지막 금요일 08:30 KST 자동 발송 (매일 트리거 + `isLastFridayOfMonth` + 월 중복 가드 — 가드는 자동만 차단, 수동 `monthly_report_send&confirm=YES`는 매번 발송). 구성: 요약 KPI 2카드·목적 도넛(QuickChart)·방문 이력(B2B·홍보만 상세, 카테고리 그룹)·설문 지표·ROI 누적 그래프·기사. 기사는 `monthly_articles` 시트 수동 큐레이션 우선 → Serper → CSE.
+- **월간 운영 리포트**: 매월 **첫째 수요일** 08:30 KST에 **전월 리포트** 자동 발송 (2026-07-29 변경 — 매일 트리거 + `isFirstWednesdayOfMonth` + 월 중복 가드. 가드는 자동만 차단, 수동 `monthly_report_send&confirm=YES`는 매번 발송). 구성: 요약 KPI 2카드·목적 도넛(QuickChart)·방문 이력(B2B·홍보만 상세, 카테고리 그룹)·설문 지표·ROI 누적 그래프·기사. 기사는 `monthly_articles` 시트 수동 큐레이션 우선 → Serper → CSE.
 - **설문 요청 메일**: §자동화 참조.
 
 ## 예약 슬롯 (확정, 변경 금지)
@@ -104,7 +104,7 @@
 ## 자동화·연동 현황 (활성)
 | 항목 | 상태 |
 |---|---|
-| 월간 리포트 트리거 | `installMonthlyReportTrigger()` 설치됨 — 매일 08:30, 마지막 금요일만 발송 |
+| 월간 리포트 트리거 | `installMonthlyReportTrigger()` 설치됨 — 매일 08:30, **매월 첫째 수요일에 전월 리포트 발송** (2026-07-29 변경, 트리거 재설치 불필요 — 판정은 코드 내부) |
 | 설문 요청 자동 발송 | `installSurveyInviteTrigger()` 설치됨(2026-07-20) — 매일 08:30, CC=담당자3+강원석(`SURVEY_INVITE_CC_AUTO`). 수동 배치 CC=강원석만(`SURVEY_INVITE_CC_BATCH`) |
 | 텔레그램 알림 | 신규 예약·확정/거절·설문 제출·방문자 설문 제출 → 그룹 발송. 메일과 독립(try/catch 격리) |
 | Google 캘린더 | 확정 예약 → 팀 캘린더(`thinq_real_calendar@gmail.com`) 회차별 개별 일정. 확정→생성/수정→갱신(delete+recreate)/거절·삭제→제거. `calendarEventId`에 id 배열 JSON |
@@ -196,7 +196,8 @@
 - 브랜치 운영: 지정 브랜치가 머지되면 `git checkout -B <branch> origin/main`으로 재시작.
 
 ## 운영 리마인드
-- [ ] **7/31(금) 7월 월간 리포트 발송 전**: `MONTHLY_REPORT_TO` 20명 복원 확인 (첫 회차 때 센터장·담당·실장 3명 임시 제외 → 6월부터 복원 예정이었음).
+- [ ] **⚡ 7/31(금) 08:30 전에 Apps Script 에디터에 최신 .gs 저장 필수** — 저장해야 구 로직(마지막 금요일)의 7월 자동 발송이 차단됨. 트리거는 저장 코드를 실행하므로 재배포는 불필요.
+- [ ] **8/5(수) 7월 리포트 첫 자동 발송 전**: 팀장 논의 수정 사항 반영 + `MONTHLY_REPORT_TO` 20명 복원 확인 (첫 회차 때 센터장·담당·실장 3명 임시 제외). 수정 반영이 8/5를 넘길 것 같으면 트리거를 임시 삭제해 발송 보류.
 - [ ] **방문자 설문 QR 포스터 부착** (거실 협탁): QR 2종(흑백/올리브, 1960px·오류정정 H) 전달됨. **QR 스캔·동작 확인 완료(2026-07-27)** — 포스터 인쇄·부착만 남음. 테스트 응답은 재배포 후 관리자 설문·대장 탭 → 방문자 상세 모달 → 영구 삭제로 정리.
 - 기사 섹션은 Serper 자동 검색(2026-05-30~)이 채움 — `monthly_articles` 행 추가는 **선택**(자동 결과가 마음에 안 들 때만 큐레이션, 행이 있으면 그 달은 자동 검색 미호출). 발송 전 품질 확인은 `monthly_report_preview&month=YYYY-MM`으로.
 - [ ] **Option B — 리포트 전월 대비 증감 표시**: 합의된 후속 작업, 미착수.
