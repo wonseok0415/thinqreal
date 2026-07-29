@@ -1138,9 +1138,9 @@ function buildRejectHtml(data) {
 }
 
 // ============================================================
-//  월간 운영 리포트 (매월 마지막 금요일 08:30 KST 자동 발송)
+//  월간 운영 리포트 (매월 첫째 주 수요일 08:30 KST에 전월 리포트 자동 발송 — 2026-07-29 변경)
 //  - 트리거 설치는 1회: 스크립트 에디터에서 installMonthlyReportTrigger() 실행
-//  - 매일 08:30 시간 트리거가 동작 → 함수 내부에서 "오늘이 이번 달 마지막 금요일인가" 체크
+//  - 매일 08:30 시간 트리거가 동작 → 함수 내부에서 "오늘이 이번 달 첫째 수요일인가" 체크 후 전월 리포트 발송
 //  - 수신자/검색 키는 Script Properties에서 관리 (코드에 키 미노출)
 //      MONTHLY_REPORT_TO   : 콤마 구분 수신자 (없으면 발송 스킵)
 //      SERPER_API_KEY      : Serper.dev API Key (Google 결과 우회) [1순위]
@@ -1218,10 +1218,14 @@ function installMonthlyReportTrigger() {
 
 function monthlyReportTrigger() {
   const now = new Date();
-  if (!isLastFridayOfMonth(now)) return;
-  const monthKey = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM');
+  if (!isFirstWednesdayOfMonth(now)) return;
+  const tz = Session.getScriptTimeZone();
+  // 전월 리포트 발송 — 문자열 산술로 TZ 안전하게 전월 yyyy-MM 계산
+  const y = Number(Utilities.formatDate(now, tz, 'yyyy'));
+  const m = Number(Utilities.formatDate(now, tz, 'M'));
+  const monthKey = (m === 1 ? (y - 1) : y) + '-' + ('0' + (m === 1 ? 12 : m - 1)).slice(-2);
   const props = PropertiesService.getScriptProperties();
-  if (props.getProperty(PROP_LAST_SENT_KEY) === monthKey) return; // 이번 달 중복 발송 방지
+  if (props.getProperty(PROP_LAST_SENT_KEY) === monthKey) return; // 해당 월 중복 발송 방지
   try {
     const result = sendMonthlyReport({ month: monthKey });
     if (result.sentTo) props.setProperty(PROP_LAST_SENT_KEY, monthKey);
@@ -1230,15 +1234,13 @@ function monthlyReportTrigger() {
   }
 }
 
-// 스크립트 TZ 기준 오늘이 이번 달의 마지막 금요일인지 판정
-function isLastFridayOfMonth(d) {
+// 스크립트 TZ 기준 오늘이 이번 달의 첫째 수요일인지 판정 (2026-07-29 — 기존 마지막 금요일에서 변경.
+// 전월 데이터가 확정된 뒤 발송하는 구조라 리포트 대상은 전월)
+function isFirstWednesdayOfMonth(d) {
   const tz = Session.getScriptTimeZone();
   const dow = Number(Utilities.formatDate(d, tz, 'u')); // 1=Mon ... 7=Sun
-  if (dow !== 5) return false;
-  const next = new Date(d.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const thisMonth = Utilities.formatDate(d,    tz, 'MM');
-  const nextMonth = Utilities.formatDate(next, tz, 'MM');
-  return nextMonth !== thisMonth;
+  if (dow !== 3) return false;                          // 수요일
+  return Number(Utilities.formatDate(d, tz, 'd')) <= 7; // 1~7일 사이의 수요일 = 첫째 수요일
 }
 
 // options: { month?: 'YYYY-MM', dryRun?: bool, to?: 'override@a, override@b' }
