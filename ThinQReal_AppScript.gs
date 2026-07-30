@@ -20,6 +20,10 @@ const SLOT_BLOCKS_SHEET_NAME = 'slot_blocks';   // 시트 탭 이름 (관리자 
 const HEALTH_SHEET_NAME = 'health_checks';      // 시트 탭 이름 (FieldCheck 자동 점검 이력)
 // FieldCheck 점검 리그 인증 키 — 리그(fieldcheck/rig)의 config.json api_key와 같아야 함
 const FC_API_KEY = 'fieldcheck2026';
+// FieldCheck 알림 정책
+const FC_TEST_MODE = true;        // 테스트 단계: 메일은 CC_EMAIL(강원석)에게만, 텔레그램 발송 안 함. 정식 운영 전환 시 false
+const FC_IMMEDIATE_ALERT = false; // 건별 실패 즉시 알림 — 테스트 단계에선 끔 (일일 요약만). 정식 운영 시 true 검토
+const FC_SUMMARY_HOUR = 8;        // 일일 요약 메일 발송 시각 (아침 8시대) — setupFieldCheckDailyTrigger() 참조
 // 신규 예약 알림을 받는 담당자들 (콤마로 구분, MailApp이 다중 수신 처리)
 const ADMIN_EMAILS = 'ch275.lee@lge.com, moonsu.seo@lge.com, hj8462.kim@lge.com';
 const CC_EMAIL     = 'kang.wonseok@lge.com';  // 참조 수신자 (시스템 동작 모니터링)
@@ -3795,9 +3799,10 @@ function handleNewHealthCheck(data) {
   });
   sheet.appendRow(row);
 
-  // 리그가 alert=true로 표시한 실패(연속 실패 기준 도달)에만 알림 발송
+  // 건별 즉시 알림은 FC_IMMEDIATE_ALERT가 켜진 경우에만
+  // (테스트 단계에선 끔 — 일일 요약 메일이 기본 알림 수단)
   let mailed = false;
-  if (data.result === 'fail' && data.alert) {
+  if (FC_IMMEDIATE_ALERT && data.result === 'fail' && data.alert) {
     sendHealthAlert(data);
     mailed = true;
   }
@@ -3836,7 +3841,7 @@ function handleGetHealthChecks(days) {
   return jsonResponse({ records });
 }
 
-// ── 점검 실패 알림 (메일 + 텔레그램) ────────────────────────
+// ── 점검 실패 즉시 알림 (FC_IMMEDIATE_ALERT가 켜진 경우에만 사용) ──
 function sendHealthAlert(data) {
   const label = data.scenario_label || data.scenario_id || '';
   const subject = `[ThinQ Real] ⚠ 자동 점검 실패 — ${label}`;
@@ -3856,18 +3861,122 @@ ThinQ ON이 점검 발화에 음성으로 응답하지 않았습니다.
   `.trim();
 
   try {
-    MailApp.sendEmail({ to: ADMIN_EMAILS, cc: CC_EMAIL, subject, body });
-    Logger.log('Health alert mail sent → ' + ADMIN_EMAILS);
+    if (FC_TEST_MODE) {
+      MailApp.sendEmail({ to: CC_EMAIL, subject, body });
+      Logger.log('Health alert mail sent (test mode) → ' + CC_EMAIL);
+    } else {
+      MailApp.sendEmail({ to: ADMIN_EMAILS, cc: CC_EMAIL, subject, body });
+      Logger.log('Health alert mail sent → ' + ADMIN_EMAILS);
+    }
   } catch(err) {
     Logger.log('Health alert mail error: ' + err.message);
   }
 
-  // 텔레그램 알림 (토큰 미설정 시 자동 skip)
-  const e = escapeTelegramHtml;
-  sendTelegramMessage(
-    '⚠ <b>ThinQ ON 자동 점검 실패</b>\n' +
-    '시나리오: ' + e(label) + '\n' +
-    '시각: ' + e(String(data.timestamp || '')) + '\n' +
-    '음성 무응답 — 현장 재현 확인 필요'
-  );
+  // 텔레그램은 담당자 전원이 있는 그룹이므로 테스트 단계에선 발송하지 않음
+  if (!FC_TEST_MODE) {
+    const e = escapeTelegramHtml;
+    sendTelegramMessage(
+      '⚠ <b>ThinQ ON 자동 점검 실패</b>\n' +
+      '시나리오: ' + e(label) + '\n' +
+      '시각: ' + e(String(data.timestamp || '')) + '\n' +
+      '음성 무응답 — 현장 재현 확인 필요'
+    );
+  }
+}
+
+// ── 일일 요약 메일 (매일 아침 1회 — 시간 기반 트리거로 실행) ──
+// 최초 1회 setupFieldCheckDailyTrigger()를 에디터에서 직접 실행하면
+// 매일 FC_SUMMARY_HOUR시대에 sendFieldCheckDailySummary가 자동 호출된다.
+function setupFieldCheckDailyTrigger() {
+  // 중복 트리거 방지 — 같은 핸들러의 기존 트리거 제거 후 재생성
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'sendFieldCheckDailySummary') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+  ScriptApp.newTrigger('sendFieldCheckDailySummary')
+    .timeBased().everyDays(1).atHour(FC_SUMMARY_HOUR).create();
+  Logger.log('FieldCheck 일일 요약 트리거 생성 완료 (매일 ' + FC_SUMMARY_HOUR + '시대)');
+}
+
+function sendFieldCheckDailySummary() {
+  const sheet = getHealthSheet();
+  getOrCreateHealthHeaders(sheet);
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+  const idx = {};
+  headers.forEach((h, j) => { idx[h] = j; });
+
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const recent = rows.slice(1).filter(r => {
+    const t = new Date(r[idx.timestamp]);
+    return r[idx.id] && !isNaN(t) && t >= cutoff;
+  });
+
+  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  let subject, body;
+
+  if (recent.length === 0) {
+    // 기록 없음 = 리그가 안 돌았다는 뜻 — 이것 자체가 이상 신호
+    subject = `[ThinQ Real] 자동 점검 일일 요약 (${today}) — ⚠ 점검 기록 없음`;
+    body = [
+      '최근 24시간 동안 FieldCheck 점검 기록이 없습니다.',
+      '',
+      '점검 리그(노트북)가 꺼져 있거나, 네트워크 문제로 전송이 실패했을 수 있습니다.',
+      '리그 상태를 확인해 주세요. (전송 실패분은 리그의 results.jsonl에 남아 있습니다)',
+    ].join('\n');
+  } else {
+    const fails = recent.filter(r => r[idx.result] === 'fail');
+    const byScenario = {};
+    recent.forEach(r => {
+      const key = r[idx.scenario_label] || r[idx.scenario_id] || '(미상)';
+      if (!byScenario[key]) byScenario[key] = { total: 0, fail: 0, latSum: 0, latN: 0 };
+      const s = byScenario[key];
+      s.total++;
+      if (r[idx.result] === 'fail') s.fail++;
+      const lat = Number(r[idx.latency_ms]);
+      if (lat > 0) { s.latSum += lat; s.latN++; }
+    });
+
+    const statusMark = fails.length === 0 ? '✅ 전체 정상' : `⚠ 실패 ${fails.length}건`;
+    subject = `[ThinQ Real] 자동 점검 일일 요약 (${today}) — ${statusMark}`;
+
+    const lines = [
+      `최근 24시간 ThinQ ON 자동 점검 결과입니다.`,
+      '',
+      `총 점검 : ${recent.length}건  (성공 ${recent.length - fails.length} / 실패 ${fails.length})`,
+      '',
+      '── 시나리오별 ──',
+    ];
+    Object.keys(byScenario).forEach(key => {
+      const s = byScenario[key];
+      const rate = Math.round((s.total - s.fail) / s.total * 100);
+      const avgLat = s.latN > 0 ? Math.round(s.latSum / s.latN) + 'ms' : '-';
+      lines.push(`  ${key} : 성공률 ${rate}% (${s.total - s.fail}/${s.total}), 평균 응답 ${avgLat}`);
+    });
+
+    if (fails.length > 0) {
+      lines.push('');
+      lines.push('── 실패 상세 (최근순, 최대 10건) ──');
+      fails.slice(-10).reverse().forEach(r => {
+        const ts = String(r[idx.timestamp]).replace('T', ' ').slice(0, 16);
+        lines.push(`  ${ts}  ${r[idx.scenario_label] || r[idx.scenario_id]}  (녹음: ${r[idx.media_ref] || '-'})`);
+      });
+      lines.push('');
+      lines.push('실패 녹음 파일은 점검 리그 노트북의 recordings 폴더에서 확인할 수 있습니다.');
+    }
+    body = lines.join('\n');
+  }
+
+  const to = FC_TEST_MODE ? CC_EMAIL : ADMIN_EMAILS;
+  try {
+    if (FC_TEST_MODE) {
+      MailApp.sendEmail({ to: to, subject, body });
+    } else {
+      MailApp.sendEmail({ to: to, cc: CC_EMAIL, subject, body });
+    }
+    Logger.log('FieldCheck daily summary sent → ' + to);
+  } catch(err) {
+    Logger.log('FieldCheck daily summary error: ' + err.message);
+  }
 }
