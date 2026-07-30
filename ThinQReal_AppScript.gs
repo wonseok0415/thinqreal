@@ -3959,7 +3959,11 @@ function sendFieldCheckDailySummary() {
       lines.push('');
       lines.push('── 실패 상세 (최근순, 최대 10건) ──');
       fails.slice(-10).reverse().forEach(r => {
-        const ts = String(r[idx.timestamp]).replace('T', ' ').slice(0, 16);
+        // Sheets가 timestamp를 Date 객체로 자동 변환하는 경우가 있어 양쪽 모두 처리
+        const tsv = r[idx.timestamp];
+        const ts = (Object.prototype.toString.call(tsv) === '[object Date]')
+          ? Utilities.formatDate(tsv, Session.getScriptTimeZone(), 'MM-dd HH:mm')
+          : String(tsv).replace('T', ' ').slice(5, 16);
         lines.push(`  ${ts}  ${r[idx.scenario_label] || r[idx.scenario_id]}  (녹음: ${r[idx.media_ref] || '-'})`);
       });
       lines.push('');
