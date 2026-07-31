@@ -24,6 +24,12 @@ const FC_API_KEY = 'fieldcheck2026';
 const FC_TEST_MODE = true;        // 테스트 단계: 메일은 CC_EMAIL(강원석)에게만, 텔레그램 발송 안 함. 정식 운영 전환 시 false
 const FC_IMMEDIATE_ALERT = false; // 건별 실패 즉시 알림 — 테스트 단계에선 끔 (일일 요약만). 정식 운영 시 true 검토
 const FC_SUMMARY_HOUR = 8;        // 일일 요약 메일 발송 시각 (아침 8시대) — setupFieldCheckDailyTrigger() 참조
+// 판정 단계 표기 (요약 메일에서 단계별로 나눠 집계할 때 사용)
+const FC_LEVEL_LABELS = {
+  L1: 'L1 응답 감지 (말을 했는가 / 얼마나 걸렸는가)',
+  L2: 'L2 내용 판정 (응답한 건 중 내용이 맞았는가)',
+  L3: 'L3 가전 동작 (실제로 제어되었는가)',
+};
 // 신규 예약 알림을 받는 담당자들 (콤마로 구분, MailApp이 다중 수신 처리)
 const ADMIN_EMAILS = 'ch275.lee@lge.com, moonsu.seo@lge.com, hj8462.kim@lge.com';
 const CC_EMAIL     = 'kang.wonseok@lge.com';  // 참조 수신자 (시스템 동작 모니터링)
@@ -3927,11 +3933,16 @@ function sendFieldCheckDailySummary() {
     ].join('\n');
   } else {
     const fails = recent.filter(r => r[idx.result] === 'fail');
-    const byScenario = {};
+
+    // 판정 단계(L1/L2/L3)별로 나눠 집계한다. 한 시나리오가 L1(응답 유무)과
+    // L2(내용 정확도) 두 건을 남기므로, 섞어 세면 성공률이 왜곡된다.
+    const byLevel = {};
     recent.forEach(r => {
+      const lv = String(r[idx.level] || 'L1').toUpperCase();
       const key = r[idx.scenario_label] || r[idx.scenario_id] || '(미상)';
-      if (!byScenario[key]) byScenario[key] = { total: 0, fail: 0, latSum: 0, latN: 0 };
-      const s = byScenario[key];
+      if (!byLevel[lv]) byLevel[lv] = {};
+      if (!byLevel[lv][key]) byLevel[lv][key] = { total: 0, fail: 0, latSum: 0, latN: 0 };
+      const s = byLevel[lv][key];
       s.total++;
       if (r[idx.result] === 'fail') s.fail++;
       const lat = Number(r[idx.latency_ms]);
@@ -3944,15 +3955,19 @@ function sendFieldCheckDailySummary() {
     const lines = [
       `최근 24시간 ThinQ ON 자동 점검 결과입니다.`,
       '',
-      `총 점검 : ${recent.length}건  (성공 ${recent.length - fails.length} / 실패 ${fails.length})`,
-      '',
-      '── 시나리오별 ──',
+      `총 판정 : ${recent.length}건  (성공 ${recent.length - fails.length} / 실패 ${fails.length})`,
     ];
-    Object.keys(byScenario).forEach(key => {
-      const s = byScenario[key];
-      const rate = Math.round((s.total - s.fail) / s.total * 100);
-      const avgLat = s.latN > 0 ? Math.round(s.latSum / s.latN) + 'ms' : '-';
-      lines.push(`  ${key} : 성공률 ${rate}% (${s.total - s.fail}/${s.total}), 평균 응답 ${avgLat}`);
+
+    Object.keys(byLevel).sort().forEach(lv => {
+      lines.push('');
+      lines.push(`── ${FC_LEVEL_LABELS[lv] || lv} ──`);
+      const group = byLevel[lv];
+      Object.keys(group).forEach(key => {
+        const s = group[key];
+        const rate = Math.round((s.total - s.fail) / s.total * 100);
+        const latPart = s.latN > 0 ? `, 평균 응답 ${Math.round(s.latSum / s.latN)}ms` : '';
+        lines.push(`  ${key} : 성공률 ${rate}% (${s.total - s.fail}/${s.total})${latPart}`);
+      });
     });
 
     if (fails.length > 0) {
@@ -3964,7 +3979,11 @@ function sendFieldCheckDailySummary() {
         const ts = (Object.prototype.toString.call(tsv) === '[object Date]')
           ? Utilities.formatDate(tsv, Session.getScriptTimeZone(), 'MM-dd HH:mm')
           : String(tsv).replace('T', ' ').slice(5, 16);
-        lines.push(`  ${ts}  ${r[idx.scenario_label] || r[idx.scenario_id]}  (녹음: ${r[idx.media_ref] || '-'})`);
+        const lv = String(r[idx.level] || 'L1').toUpperCase();
+        lines.push(`  ${ts}  [${lv}] ${r[idx.scenario_label] || r[idx.scenario_id]}  (녹음: ${r[idx.media_ref] || '-'})`);
+        // L2 실패는 "무엇을 어떻게 잘못 답했는지"가 원인 파악의 핵심이므로 함께 싣는다
+        const said = String(r[idx.stt_text] || '').trim();
+        if (said) lines.push(`        인식: "${said.length > 120 ? said.slice(0, 120) + '…' : said}"`);
       });
       lines.push('');
       lines.push('실패 녹음 파일은 점검 리그 노트북의 recordings 폴더에서 확인할 수 있습니다.');
