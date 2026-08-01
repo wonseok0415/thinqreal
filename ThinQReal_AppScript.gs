@@ -3921,6 +3921,8 @@ function sendFieldCheckDailySummary() {
 
   const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
   let subject, body;
+  // HTML 메일 구성용 데이터 (예약 확정 메일과 동일하게 평문 + HTML 동시 발송)
+  const view = { today: today, total: recent.length, failCount: 0, levels: [], failures: [] };
 
   if (recent.length === 0) {
     // 기록 없음 = 리그가 안 돌았다는 뜻 — 이것 자체가 이상 신호
@@ -3958,16 +3960,21 @@ function sendFieldCheckDailySummary() {
       `총 판정 : ${recent.length}건  (성공 ${recent.length - fails.length} / 실패 ${fails.length})`,
     ];
 
+    view.failCount = fails.length;
     Object.keys(byLevel).sort().forEach(lv => {
       lines.push('');
       lines.push(`── ${FC_LEVEL_LABELS[lv] || lv} ──`);
       const group = byLevel[lv];
+      const items = [];
       Object.keys(group).forEach(key => {
         const s = group[key];
         const rate = Math.round((s.total - s.fail) / s.total * 100);
-        const latPart = s.latN > 0 ? `, 평균 응답 ${Math.round(s.latSum / s.latN)}ms` : '';
+        const avgLat = s.latN > 0 ? Math.round(s.latSum / s.latN) : null;
+        const latPart = avgLat !== null ? `, 평균 응답 ${avgLat}ms` : '';
         lines.push(`  ${key} : 성공률 ${rate}% (${s.total - s.fail}/${s.total})${latPart}`);
+        items.push({ label: key, rate: rate, pass: s.total - s.fail, total: s.total, avgLat: avgLat });
       });
+      view.levels.push({ code: lv, title: FC_LEVEL_LABELS[lv] || lv, items: items });
     });
 
     if (fails.length > 0) {
@@ -3988,6 +3995,13 @@ function sendFieldCheckDailySummary() {
         // 이것이 없으면 리그 설정 문제를 ThinQ ON 장애로 오인하게 된다.
         const note = String(r[idx.note] || '').trim();
         if (note) lines.push(`        ⚠ ${note}`);
+        view.failures.push({
+          ts: ts, level: lv,
+          label: String(r[idx.scenario_label] || r[idx.scenario_id] || ''),
+          media: String(r[idx.media_ref] || ''),
+          said: said.length > 120 ? said.slice(0, 120) + '…' : said,
+          note: note,
+        });
       });
       lines.push('');
       lines.push('실패 녹음 파일은 점검 리그 노트북의 recordings 폴더에서 확인할 수 있습니다.');
@@ -4001,14 +4015,131 @@ function sendFieldCheckDailySummary() {
   }
 
   const to = FC_TEST_MODE ? CC_EMAIL : ADMIN_EMAILS;
+  // 예약 확정 메일과 동일하게 HTML + 평문 동시 발송
+  // (HTML 미지원 클라이언트는 평문을 받으므로 정보 손실이 없다)
+  const htmlBody = buildHealthSummaryHtml(view);
   try {
     if (FC_TEST_MODE) {
-      MailApp.sendEmail({ to: to, subject, body });
+      MailApp.sendEmail({ to: to, subject, body, htmlBody });
     } else {
-      MailApp.sendEmail({ to: to, cc: CC_EMAIL, subject, body });
+      MailApp.sendEmail({ to: to, cc: CC_EMAIL, subject, body, htmlBody });
     }
     Logger.log('FieldCheck daily summary sent → ' + to);
   } catch(err) {
     Logger.log('FieldCheck daily summary error: ' + err.message);
   }
+}
+
+// ── 일일 요약 HTML (예약 확정 메일과 동일한 디자인 언어) ────
+// 인라인 스타일만 사용한다 — Gmail/Outlook은 <style> 블록과 외부 리소스를
+// 제거하므로 (기존 sendGuestMail과 같은 제약)
+function buildHealthSummaryHtml(v) {
+  const OLIVE = '#3a5035', RED = '#b3261e', GRAY = '#6e6e73', LIGHT = '#aeaeb2';
+  const ok = v.failCount === 0 && v.total > 0;
+  const noData = v.total === 0;
+
+  const statusColor = ok ? OLIVE : RED;
+  const statusText = noData ? '점검 기록 없음' : (ok ? '전체 정상' : '실패 ' + v.failCount + '건');
+  const statusIcon = ok ? '✅' : '⚠';
+
+  // 성공률 막대 — div 중첩 대신 표 셀 폭으로 그린다 (메일 클라이언트 호환)
+  const bar = (rate) =>
+    '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:88px;background:#e8e8ed;border-radius:3px;">' +
+      '<tr>' +
+        (rate > 0 ? '<td height="6" style="width:' + rate + '%;background:' + (rate === 100 ? OLIVE : RED) + ';border-radius:3px;font-size:0;line-height:0;">&nbsp;</td>' : '') +
+        (rate < 100 ? '<td height="6" style="font-size:0;line-height:0;">&nbsp;</td>' : '') +
+      '</tr>' +
+    '</table>';
+
+  const kpi = (label, value, color) =>
+    '<td align="center" style="padding:14px 8px;background:#f5f5f7;border-radius:10px;">' +
+      '<div style="font-size:24px;font-weight:600;color:' + color + ';line-height:1.2;">' + value + '</div>' +
+      '<div style="font-size:12px;color:' + GRAY + ';margin-top:2px;">' + label + '</div>' +
+    '</td>';
+
+  let inner = '';
+
+  if (noData) {
+    inner =
+      '<div style="padding:18px 20px;background:#fdf3f2;border-left:3px solid ' + RED + ';border-radius:6px;font-size:14px;color:#1d1d1f;line-height:1.7;">' +
+        '<strong>최근 24시간 동안 점검 기록이 없습니다.</strong><br>' +
+        '점검 리그(노트북)가 꺼져 있거나, 네트워크 문제로 전송이 실패했을 수 있습니다.' +
+        '<div style="color:' + GRAY + ';font-size:13px;margin-top:6px;">전송 실패분은 리그의 results.jsonl에 남아 있습니다.</div>' +
+      '</div>';
+  } else {
+    inner =
+      '<table role="presentation" cellspacing="8" cellpadding="0" border="0" style="border-collapse:separate;width:100%;margin-bottom:8px;"><tr>' +
+        kpi('총 판정', v.total, '#1d1d1f') +
+        kpi('성공', v.total - v.failCount, OLIVE) +
+        kpi('실패', v.failCount, v.failCount ? RED : LIGHT) +
+      '</tr></table>';
+
+    v.levels.forEach(function (lv) {
+      const rows = lv.items.map(function (it) {
+        return '<tr>' +
+          '<td style="padding:9px 0;font-size:13px;color:#1d1d1f;">' + escapeHtml(it.label) + '</td>' +
+          '<td align="right" style="padding:9px 10px;width:92px;">' + bar(it.rate) + '</td>' +
+          '<td align="right" style="padding:9px 0;width:96px;font-size:13px;color:' + (it.rate === 100 ? OLIVE : RED) + ';font-weight:600;white-space:nowrap;">' +
+            it.rate + '%' +
+            '<span style="color:' + LIGHT + ';font-weight:400;font-size:12px;">&nbsp;' + it.pass + '/' + it.total + '</span>' +
+          '</td>' +
+          '<td align="right" style="padding:9px 0;width:78px;font-size:12px;color:' + GRAY + ';white-space:nowrap;">' +
+            (it.avgLat !== null ? it.avgLat + 'ms' : '–') + '</td>' +
+        '</tr>';
+      }).join('');
+
+      inner +=
+        '<div style="margin-top:22px;font-size:13px;font-weight:600;color:' + OLIVE + ';">' + escapeHtml(lv.title) + '</div>' +
+        '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;margin-top:6px;border-top:1px solid #eeeeee;">' +
+          rows +
+        '</table>';
+    });
+
+    if (v.failures.length) {
+      const cards = v.failures.map(function (f) {
+        return '<div style="margin-top:8px;padding:12px 14px;background:#fdf3f2;border-left:3px solid ' + RED + ';border-radius:6px;">' +
+          '<div style="font-size:13px;color:#1d1d1f;">' +
+            '<span style="color:' + GRAY + ';">' + escapeHtml(f.ts) + '</span>&nbsp;&nbsp;' +
+            '<span style="display:inline-block;padding:1px 6px;background:' + RED + ';color:#ffffff;border-radius:3px;font-size:11px;font-weight:600;">' + escapeHtml(f.level) + '</span>&nbsp;' +
+            '<strong>' + escapeHtml(f.label) + '</strong>' +
+          '</div>' +
+          (f.said ? '<div style="font-size:13px;color:#1d1d1f;margin-top:5px;">인식: “' + escapeHtml(f.said) + '”</div>' : '') +
+          (f.note ? '<div style="font-size:12px;color:' + RED + ';margin-top:5px;">⚠ ' + escapeHtml(f.note) + '</div>' : '') +
+          (f.media ? '<div style="font-size:11px;color:' + LIGHT + ';margin-top:5px;font-family:Consolas,Menlo,monospace;">' + escapeHtml(f.media) + '</div>' : '') +
+        '</div>';
+      }).join('');
+
+      inner +=
+        '<div style="margin-top:24px;font-size:13px;font-weight:600;color:' + RED + ';">실패 상세 (최근순, 최대 10건)</div>' +
+        cards +
+        '<div style="margin-top:10px;font-size:12px;color:' + GRAY + ';">실패 녹음 파일은 점검 리그 노트북의 recordings 폴더에서 확인할 수 있습니다.</div>';
+
+      if (v.failures.some(function (f) { return f.note.indexOf('마이크') >= 0; })) {
+        inner +=
+          '<div style="margin-top:12px;padding:12px 14px;background:#f5f5f7;border-radius:6px;font-size:12px;color:' + GRAY + ';line-height:1.6;">' +
+            '※ <strong style="color:#1d1d1f;">“마이크 무입력”</strong>으로 표시된 건은 점검 리그 쪽 문제이며, ThinQ ON 장애가 아닙니다.<br>' +
+            '리그 노트북에서 <span style="font-family:Consolas,Menlo,monospace;color:#1d1d1f;">python fieldcheck.py --mic-test</span> 로 확인해 주세요.' +
+          '</div>';
+      }
+    }
+  }
+
+  return (
+    '<div style="background:#f5f5f7;padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,\'Helvetica Neue\',\'Apple SD Gothic Neo\',\'Malgun Gothic\',sans-serif;">' +
+      '<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:collapse;max-width:680px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">' +
+        '<tr><td style="background:' + statusColor + ';color:#ffffff;padding:24px 28px;">' +
+          '<div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.7;">ThinQ Real · FieldCheck</div>' +
+          '<div style="font-size:20px;font-weight:600;margin-top:4px;">' + statusIcon + ' ' + escapeHtml(statusText) + '</div>' +
+          '<div style="font-size:13px;opacity:0.8;margin-top:2px;">' + escapeHtml(v.today) + ' · 최근 24시간 ThinQ ON 자동 점검 결과</div>' +
+        '</td></tr>' +
+        '<tr><td style="padding:24px 28px 28px;">' +
+          inner +
+          '<div style="margin-top:28px;padding-top:18px;border-top:1px solid #eeeeee;font-size:12px;color:' + GRAY + ';line-height:1.6;">' +
+            'ThinQ ON Field 자동 점검 시스템이 매일 아침 자동 발송하는 메일입니다.<br>' +
+            'HS플랫폼사업센터 AI홈솔루션엔지니어링팀' +
+          '</div>' +
+        '</td></tr>' +
+      '</table>' +
+    '</div>'
+  );
 }
