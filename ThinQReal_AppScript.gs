@@ -3984,9 +3984,18 @@ function sendFieldCheckDailySummary() {
         // L2 실패는 "무엇을 어떻게 잘못 답했는지"가 원인 파악의 핵심이므로 함께 싣는다
         const said = String(r[idx.stt_text] || '').trim();
         if (said) lines.push(`        인식: "${said.length > 120 ? said.slice(0, 120) + '…' : said}"`);
+        // 리그가 원인을 특정한 실패(마이크 무입력 등)는 사유를 그대로 노출한다.
+        // 이것이 없으면 리그 설정 문제를 ThinQ ON 장애로 오인하게 된다.
+        const note = String(r[idx.note] || '').trim();
+        if (note) lines.push(`        ⚠ ${note}`);
       });
       lines.push('');
       lines.push('실패 녹음 파일은 점검 리그 노트북의 recordings 폴더에서 확인할 수 있습니다.');
+      if (fails.some(r => String(r[idx.note] || '').indexOf('마이크') >= 0)) {
+        lines.push('');
+        lines.push('※ "마이크 무입력"으로 표시된 건은 점검 리그 쪽 문제이며, ThinQ ON 장애가 아닙니다.');
+        lines.push('   리그 노트북에서  python fieldcheck.py --mic-test  로 확인해 주세요.');
+      }
     }
     body = lines.join('\n');
   }
