@@ -342,6 +342,16 @@ body {
 .kpi-card-sub { font-size:var(--t-caption); color:var(--c-label-3); margin-top:var(--sp-4); letter-spacing:-0.008em; }
 
 /* ── 자동 점검 (FieldCheck) ── */
+/* 전역 --c-red(#ff3b30)는 예약 상태 배지 등에서 쓰이는 강한 경고색이라
+   매일 보는 운영 지표에 그대로 쓰면 피로하다. 브랜드 올리브와 어울리는
+   차분한 색으로 이 탭에서만 별도 정의한다. */
+.hc-scope {
+  --hc-ok:      #3a5035;
+  --hc-warn:    #a8803a;
+  --hc-bad:     #9c4a40;
+  --hc-bad-bg:  #faf3f2;
+  --hc-none:    #d8d8dd;
+}
 .hc-chips { display:flex; gap:var(--sp-8); flex-wrap:wrap; }
 .hc-chip { padding:6px 14px; border-radius:980px; border:1px solid var(--c-separator);
   background:var(--c-bg); font-size:var(--t-footnote); font-weight:500; color:var(--c-label-2);
@@ -359,19 +369,20 @@ body {
 .hc-rate { text-align:right; font-size:var(--t-subhead); font-weight:600; white-space:nowrap; }
 .hc-rate span { font-weight:400; font-size:var(--t-caption); color:var(--c-label-3); }
 .hc-lat { text-align:right; font-size:var(--t-footnote); color:var(--c-label-2); }
-.hc-fail { border-left:3px solid var(--c-red); background:var(--c-red-light);
+.hc-fail { border-left:3px solid var(--hc-bad); background:var(--hc-bad-bg);
   border-radius:var(--radius-sm); padding:var(--sp-12) var(--sp-16); margin-bottom:var(--sp-8); }
 .hc-fail-head { font-size:var(--t-footnote); color:var(--c-label); }
 .hc-fail-said { font-size:var(--t-footnote); color:var(--c-label); margin-top:5px; }
-.hc-fail-note { font-size:var(--t-caption); color:var(--c-red); margin-top:5px; }
+.hc-fail-note { font-size:var(--t-caption); color:var(--hc-bad); margin-top:5px; }
 .hc-fail-media { font-size:11px; color:var(--c-label-3); margin-top:5px;
   font-family:Consolas,Menlo,monospace; word-break:break-all; }
 .hc-lv-badge { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px;
-  font-weight:600; color:#fff; background:var(--c-red); }
-.hc-spark { display:flex; gap:4px; align-items:flex-end; height:56px; margin-top:var(--sp-12); }
+  font-weight:600; color:#fff; background:var(--hc-bad); opacity:0.9; }
+.hc-spark { display:flex; gap:4px; align-items:flex-end; height:96px; margin-top:var(--sp-16); }
 .hc-spark-col { flex:1; display:flex; flex-direction:column; justify-content:flex-end;
   align-items:center; gap:5px; min-width:0; }
 .hc-spark-bar { width:100%; border-radius:3px 3px 0 0; min-height:3px; }
+.hc-spark-val { font-size:11px; font-weight:600; white-space:nowrap; letter-spacing:-0.01em; }
 .hc-spark-label { font-size:10px; color:var(--c-label-3); white-space:nowrap; }
 .hc-note { font-size:var(--t-caption); color:var(--c-label-3); line-height:1.7; margin-top:var(--sp-12);
   padding:var(--sp-12) var(--sp-16); background:var(--c-fill); border-radius:var(--radius-sm); }
@@ -2116,7 +2127,7 @@ body {
     </div>
 
     <!-- 자동 점검 (FieldCheck) -->
-    <div class="tab-panel" id="tab-health">
+    <div class="tab-panel hc-scope" id="tab-health">
       <div class="page-header">
         <h1>자동 점검</h1>
         <p>점검 장비가 ThinQ ON에게 주기적으로 말을 걸어 응답을 자동 판정한 결과입니다.</p>
@@ -2668,9 +2679,9 @@ function setHealthRange(days) {
 // 완전 정상 / 주의 / 이상 세 단계로 구분한다.
 function hcColor(v) {
   if (v === null) return 'var(--c-label-3)';
-  if (v === 100)  return 'var(--c-accent)';
-  if (v >= 80)    return 'var(--c-orange)';
-  return 'var(--c-red)';
+  if (v === 100)  return 'var(--hc-ok)';
+  if (v >= 80)    return 'var(--hc-warn)';
+  return 'var(--hc-bad)';
 }
 
 // 초기 버전이 '리그'로 기록한 사유를 현재 용어로 표시 (요약 메일과 동일한 처리)
@@ -2708,21 +2719,21 @@ function renderHealth(records) {
   const subEl    = document.getElementById('hcStatusSub');
   if (!todays.length) {
     statusEl.textContent = '기록 없음';
-    statusEl.style.color = 'var(--c-orange)';
-    iconEl.style.background = 'var(--c-orange-light)'; iconEl.textContent = '⚠';
+    statusEl.style.color = 'var(--hc-warn)';
+    iconEl.style.background = 'var(--c-fill)'; iconEl.textContent = '⚠';
     const last = records[0];
     subEl.textContent = last
       ? '마지막 점검 ' + String(last.timestamp).replace('T', ' ').slice(5, 16) + ' — 점검 장비 확인 필요'
       : '점검 이력이 없습니다';
   } else if (tFail === 0) {
     statusEl.textContent = '전체 정상';
-    statusEl.style.color = 'var(--c-accent)';
-    iconEl.style.background = 'var(--c-accent-light)'; iconEl.textContent = '✅';
+    statusEl.style.color = 'var(--hc-ok)';
+    iconEl.style.background = 'var(--c-accent-light)'; iconEl.textContent = '✓';
     subEl.textContent = '오늘 ' + todays.length + '건 판정 · 실패 0건';
   } else {
     statusEl.textContent = '실패 ' + tFail + '건';
-    statusEl.style.color = 'var(--c-red)';
-    iconEl.style.background = 'var(--c-red-light)'; iconEl.textContent = '⚠';
+    statusEl.style.color = 'var(--hc-bad)';
+    iconEl.style.background = 'var(--hc-bad-bg)'; iconEl.textContent = '⚠';
     subEl.textContent = '오늘 ' + todays.length + '건 판정';
   }
 
@@ -2754,13 +2765,16 @@ function renderHealth(records) {
   document.getElementById('hcSpark').innerHTML = days.map(d => {
     const rs = records.filter(r => dayKey(r.timestamp) === d);
     const v  = rate(rs);
-    const h  = v === null ? 0 : Math.max(4, Math.round(v * 0.42));
-    const bg = v === null ? 'var(--c-fill-2)' : hcColor(v);
-    const bar = v === null
-      ? '<div class="hc-spark-bar" style="height:3px;background:var(--c-fill-2);"></div>'
-      : '<div class="hc-spark-bar" style="height:' + h + 'px;background:' + bg + ';"></div>';
+    // 0%도 막대가 보이도록 최소 높이를 두되, 수치는 라벨로 정확히 읽히게 한다
+    const h  = v === null ? 3 : Math.max(4, Math.round(v * 0.55));
+    const bg = v === null ? 'var(--hc-none)' : hcColor(v);
+    const val = v === null
+      ? '<span class="hc-spark-val" style="color:var(--c-label-3);">–</span>'
+      : '<span class="hc-spark-val" style="color:' + bg + ';">' + v + '%</span>';
     return '<div class="hc-spark-col" title="' + d + (v === null ? ' · 점검 없음' : ' · ' + v + '% (' + rs.length + '건)') + '">'
-         + bar + '<span class="hc-spark-label">' + d.slice(5).replace('-', '/') + '</span></div>';
+         + val
+         + '<div class="hc-spark-bar" style="height:' + h + 'px;background:' + bg + ';"></div>'
+         + '<span class="hc-spark-label">' + d.slice(5).replace('-', '/') + '</span></div>';
   }).join('');
 
   // ── 단계 · 시나리오별 표 ──
