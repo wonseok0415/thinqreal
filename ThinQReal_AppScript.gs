@@ -4005,7 +4005,7 @@ function sendFieldCheckDailySummary() {
         if (said) lines.push(`        인식: "${said.length > 120 ? said.slice(0, 120) + '…' : said}"`);
         // 점검 장비가 원인을 특정한 실패(마이크 무입력 등)는 사유를 그대로 노출한다.
         // 이것이 없으면 점검 장비 설정 문제를 ThinQ ON 장애로 오인하게 된다.
-        const note = String(r[idx.note] || '').trim();
+        const note = fcNormalizeNote(r[idx.note]);
         if (note) lines.push(`        ⚠ ${note}`);
         view.failures.push({
           ts: ts, level: lv,
@@ -4017,7 +4017,7 @@ function sendFieldCheckDailySummary() {
       });
       lines.push('');
       lines.push('실패 녹음 파일은 점검 장비의 recordings 폴더에서 확인할 수 있습니다.');
-      if (fails.some(r => String(r[idx.note] || '').indexOf('마이크') >= 0)) {
+      if (fails.some(r => fcNormalizeNote(r[idx.note]).indexOf('마이크') >= 0)) {
         lines.push('');
         lines.push('※ "마이크 무입력"으로 표시된 건은 점검 장비 쪽 문제이며, ThinQ ON 장애가 아닙니다.');
         lines.push('   점검 장비에서  python fieldcheck.py --mic-test  로 확인해 주세요.');
@@ -4046,6 +4046,13 @@ function sendFieldCheckDailySummary() {
 // 점검 한 회차의 진행 순서를 보여주고, 그중 어느 구간을 잰 값인지 표시한다.
 // (숫자만 보면 '답을 마치기까지의 시간'으로 오해하기 쉬움)
 // 메일 클라이언트 호환: flex/grid 없이 표 셀 6칸으로 배치
+// 과거 기록 호환 — 초기 버전이 '리그'라는 용어로 기록한 사유가 시트에 남아
+// 있다. 저장된 값을 고치는 대신 표시 시점에 현재 용어로 바꾼다
+// (이미 발생한 기록을 수정하지 않는 편이 이력 추적에 안전하다).
+function fcNormalizeNote(v) {
+  return String(v || '').trim().replace(/리그/g, '점검 장비');
+}
+
 function buildLatencyDiagramHtml() {
   const OLIVE = '#3a5035', GRAY = '#6e6e73', LIGHT = '#aeaeb2';
 

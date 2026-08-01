@@ -341,6 +341,45 @@ body {
 .kpi-num.red    { color:var(--c-red); }
 .kpi-card-sub { font-size:var(--t-caption); color:var(--c-label-3); margin-top:var(--sp-4); letter-spacing:-0.008em; }
 
+/* ── 자동 점검 (FieldCheck) ── */
+.hc-chips { display:flex; gap:var(--sp-8); flex-wrap:wrap; }
+.hc-chip { padding:6px 14px; border-radius:980px; border:1px solid var(--c-separator);
+  background:var(--c-bg); font-size:var(--t-footnote); font-weight:500; color:var(--c-label-2);
+  cursor:pointer; transition:all 0.2s var(--ease); }
+.hc-chip:hover { border-color:var(--c-accent-mid); }
+.hc-chip.active { background:var(--c-accent); color:#fff; border-color:var(--c-accent); }
+.hc-section { margin-bottom:var(--sp-32); }
+.hc-row { display:grid; grid-template-columns:minmax(0,1fr) 110px 92px 76px; gap:var(--sp-12);
+  align-items:center; padding:var(--sp-12) 0; border-bottom:1px solid var(--c-separator); }
+.hc-row-head { padding-bottom:var(--sp-8); border-bottom:1px solid var(--c-separator);
+  font-size:var(--t-caption); color:var(--c-label-3); }
+.hc-name { font-size:var(--t-subhead); color:var(--c-label); overflow:hidden; text-overflow:ellipsis; }
+.hc-bar { height:6px; border-radius:3px; background:var(--c-fill-2); overflow:hidden; }
+.hc-bar-fill { height:100%; border-radius:3px; transition:width 0.4s var(--ease); }
+.hc-rate { text-align:right; font-size:var(--t-subhead); font-weight:600; white-space:nowrap; }
+.hc-rate span { font-weight:400; font-size:var(--t-caption); color:var(--c-label-3); }
+.hc-lat { text-align:right; font-size:var(--t-footnote); color:var(--c-label-2); }
+.hc-fail { border-left:3px solid var(--c-red); background:var(--c-red-light);
+  border-radius:var(--radius-sm); padding:var(--sp-12) var(--sp-16); margin-bottom:var(--sp-8); }
+.hc-fail-head { font-size:var(--t-footnote); color:var(--c-label); }
+.hc-fail-said { font-size:var(--t-footnote); color:var(--c-label); margin-top:5px; }
+.hc-fail-note { font-size:var(--t-caption); color:var(--c-red); margin-top:5px; }
+.hc-fail-media { font-size:11px; color:var(--c-label-3); margin-top:5px;
+  font-family:Consolas,Menlo,monospace; word-break:break-all; }
+.hc-lv-badge { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px;
+  font-weight:600; color:#fff; background:var(--c-red); }
+.hc-spark { display:flex; gap:4px; align-items:flex-end; height:56px; margin-top:var(--sp-12); }
+.hc-spark-col { flex:1; display:flex; flex-direction:column; justify-content:flex-end;
+  align-items:center; gap:5px; min-width:0; }
+.hc-spark-bar { width:100%; border-radius:3px 3px 0 0; min-height:3px; }
+.hc-spark-label { font-size:10px; color:var(--c-label-3); white-space:nowrap; }
+.hc-note { font-size:var(--t-caption); color:var(--c-label-3); line-height:1.7; margin-top:var(--sp-12);
+  padding:var(--sp-12) var(--sp-16); background:var(--c-fill); border-radius:var(--radius-sm); }
+@media (max-width:640px) {
+  .hc-row { grid-template-columns:minmax(0,1fr) 76px 64px; }
+  .hc-lat { display:none; }
+}
+
 /* ── Toolbar ── */
 .toolbar { display:flex; gap:var(--sp-12); align-items:center; margin-bottom:var(--sp-16); flex-wrap:wrap; }
 .toolbar-select,.toolbar-input {
@@ -992,6 +1031,9 @@ body {
     </div>
     <div class="nav-item" id="nav-survey" onclick="switchTab('survey')">
       <span class="nav-item-icon">📝</span>설문·대장
+    </div>
+    <div class="nav-item" id="nav-health" onclick="switchTab('health')">
+      <span class="nav-item-icon">🩺</span>자동 점검
     </div>
     <span class="nav-section-label" style="margin-top:var(--sp-8);">도구</span>
     <div class="nav-item" onclick="loadData()">
@@ -2073,6 +2115,80 @@ body {
       </div>
     </div>
 
+    <!-- 자동 점검 (FieldCheck) -->
+    <div class="tab-panel" id="tab-health">
+      <div class="page-header">
+        <h1>자동 점검</h1>
+        <p>점검 장비가 ThinQ ON에게 주기적으로 말을 걸어 응답을 자동 판정한 결과입니다.</p>
+      </div>
+
+      <div class="toolbar">
+        <div class="hc-chips">
+          <button class="hc-chip active" data-days="7"  onclick="setHealthRange(7)">최근 7일</button>
+          <button class="hc-chip" data-days="14" onclick="setHealthRange(14)">14일</button>
+          <button class="hc-chip" data-days="30" onclick="setHealthRange(30)">30일</button>
+        </div>
+        <button class="toolbar-btn" onclick="loadHealthChecks(true)">↺ 새로고침</button>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">오늘 상태</span>
+            <div class="kpi-icon" id="hcStatusIcon" style="background:var(--c-fill);">🩺</div>
+          </div>
+          <div class="kpi-num" id="hcStatus" style="font-size:26px;">—</div>
+          <div class="kpi-card-sub" id="hcStatusSub">불러오는 중…</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">L1 응답 감지</span>
+            <div class="kpi-icon" style="background:var(--c-accent-light);">🔊</div>
+          </div>
+          <div class="kpi-num accent" id="hcL1">—</div>
+          <div class="kpi-card-sub" id="hcL1Sub">말을 했는가</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">L2 내용 판정</span>
+            <div class="kpi-icon" style="background:var(--c-accent-light);">💬</div>
+          </div>
+          <div class="kpi-num accent" id="hcL2">—</div>
+          <div class="kpi-card-sub" id="hcL2Sub">응답한 건 중 내용이 맞았는가</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">평균 응답 시작</span>
+            <div class="kpi-icon" style="background:var(--c-fill);">⏱</div>
+          </div>
+          <div class="kpi-num" id="hcLatency">—</div>
+          <div class="kpi-card-sub">질문 후 답을 시작하기까지</div>
+        </div>
+      </div>
+
+      <div class="hc-section">
+        <h2 class="sv-section-title">일자별 성공률</h2>
+        <p class="sv-section-desc">막대가 없는 날은 점검이 실행되지 않은 날입니다 (점검 장비 꺼짐 또는 전송 실패).</p>
+        <div class="hc-spark" id="hcSpark"></div>
+      </div>
+
+      <div class="hc-section" id="hcLevels"></div>
+
+      <div class="hc-section">
+        <h2 class="sv-section-title">최근 실패</h2>
+        <p class="sv-section-desc">최대 20건까지 표시합니다. 녹음 파일은 점검 장비의 recordings 폴더에 있습니다.</p>
+        <div id="hcFails"></div>
+      </div>
+
+      <div class="hc-note" id="hcFootnote">
+        <strong>응답 시작</strong> = 점검 질문을 다 말한 순간부터 ThinQ ON이 답을 시작하기까지 걸린 시간입니다.
+        답변을 끝내기까지의 길이는 포함하지 않으며, 기동어 &ldquo;띵&rdquo; 시점 기준도 아닙니다.<br>
+        <strong>L2는 L1을 통과한 건에 대해서만</strong> 판정합니다 — 응답 자체가 없으면 판정할 말이 없기 때문입니다.
+        따라서 L2 성공률은 &ldquo;응답한 것 중 내용까지 맞은 비율&rdquo;로 읽으면 됩니다.<br>
+        <strong>&ldquo;마이크 무입력&rdquo;</strong>으로 표시된 실패는 점검 장비 쪽 문제이며 ThinQ ON 장애가 아닙니다.
+      </div>
+    </div>
+
    </div>
   </main>
 </div>
@@ -2520,12 +2636,187 @@ function switchTab(id) {
   if (id === 'slots') initSlotTab();
   if (id === 'appliances') renderAppliances();
   if (id === 'survey') loadSurveyData();
+  if (id === 'health') loadHealthChecks();
   if (id === 'roi') {
     const f = document.getElementById('roiFrame');
     // 캐시 무력화: 빌드 토큰을 쿼리로 부착해 GitHub Pages/iframe 캐시 우회
     if (!f.getAttribute('src')) f.setAttribute('src', 'ThinQ_Real_ROI_Tool.html?v=' + ROI_BUILD);
   }
   if (isMobileLayout()) closeSidebar();
+}
+
+// ── 자동 점검 (FieldCheck) ─────────────────────────────────
+// Apps Script의 ?type=health_checks&days=N 을 그대로 사용한다.
+// 개인정보가 없는 운영 지표라 관리자 토큰 없이 조회한다(엔드포인트 설계와 동일).
+const HC_LEVELS = {
+  L1: { title: 'L1 응답 감지 — 말을 했는가', lat: true },
+  L2: { title: 'L2 내용 판정 — 질문에 맞는 답을 했는가 (응답한 건 중)', lat: false },
+  L3: { title: 'L3 가전 동작 — 실제로 제어되었는가', lat: false },
+};
+let hcDays = 7;
+let hcCache = {};   // days → records (탭을 오갈 때 재조회하지 않도록)
+
+function setHealthRange(days) {
+  hcDays = days;
+  document.querySelectorAll('.hc-chip').forEach(c => {
+    c.classList.toggle('active', Number(c.dataset.days) === days);
+  });
+  loadHealthChecks();
+}
+
+// 성공률 색상 — 100%가 아니면 전부 빨강으로 칠하면 경고가 무뎌진다.
+// 완전 정상 / 주의 / 이상 세 단계로 구분한다.
+function hcColor(v) {
+  if (v === null) return 'var(--c-label-3)';
+  if (v === 100)  return 'var(--c-accent)';
+  if (v >= 80)    return 'var(--c-orange)';
+  return 'var(--c-red)';
+}
+
+// 초기 버전이 '리그'로 기록한 사유를 현재 용어로 표시 (요약 메일과 동일한 처리)
+function hcNote(v) { return String(v || '').trim().replace(/리그/g, '점검 장비'); }
+
+async function loadHealthChecks(force) {
+  const fails = document.getElementById('hcFails');
+  if (!force && hcCache[hcDays]) { renderHealth(hcCache[hcDays]); return; }
+
+  document.getElementById('hcStatusSub').textContent = '불러오는 중…';
+  fails.innerHTML = '<div class="empty-state"><div class="empty-state-text">불러오는 중…</div></div>';
+  try {
+    const res  = await fetch(SCRIPT_URL + '?type=health_checks&days=' + hcDays);
+    const json = await res.json();
+    if (!json.records) throw new Error(json.error || '응답 형식 오류');
+    hcCache[hcDays] = json.records;
+    renderHealth(json.records);
+  } catch (e) {
+    document.getElementById('hcStatus').textContent = '조회 실패';
+    document.getElementById('hcStatusSub').textContent = String(e.message || e);
+    fails.innerHTML = '<div class="empty-state"><div class="empty-state-text">점검 이력을 불러오지 못했습니다.</div></div>';
+  }
+}
+
+function renderHealth(records) {
+  const pass = r => r.result === 'pass';
+  const dayKey = ts => String(ts).slice(0, 10);
+  const today  = new Date().toISOString().slice(0, 10);
+
+  // ── 오늘 상태 (점검 장비 생존 확인이 첫 번째 목적) ──
+  const todays  = records.filter(r => dayKey(r.timestamp) === today);
+  const tFail   = todays.filter(r => !pass(r)).length;
+  const statusEl = document.getElementById('hcStatus');
+  const iconEl   = document.getElementById('hcStatusIcon');
+  const subEl    = document.getElementById('hcStatusSub');
+  if (!todays.length) {
+    statusEl.textContent = '기록 없음';
+    statusEl.style.color = 'var(--c-orange)';
+    iconEl.style.background = 'var(--c-orange-light)'; iconEl.textContent = '⚠';
+    const last = records[0];
+    subEl.textContent = last
+      ? '마지막 점검 ' + String(last.timestamp).replace('T', ' ').slice(5, 16) + ' — 점검 장비 확인 필요'
+      : '점검 이력이 없습니다';
+  } else if (tFail === 0) {
+    statusEl.textContent = '전체 정상';
+    statusEl.style.color = 'var(--c-accent)';
+    iconEl.style.background = 'var(--c-accent-light)'; iconEl.textContent = '✅';
+    subEl.textContent = '오늘 ' + todays.length + '건 판정 · 실패 0건';
+  } else {
+    statusEl.textContent = '실패 ' + tFail + '건';
+    statusEl.style.color = 'var(--c-red)';
+    iconEl.style.background = 'var(--c-red-light)'; iconEl.textContent = '⚠';
+    subEl.textContent = '오늘 ' + todays.length + '건 판정';
+  }
+
+  // ── 단계별 KPI ──
+  const rate = arr => arr.length ? Math.round(arr.filter(pass).length / arr.length * 100) : null;
+  const byLv = lv => records.filter(r => String(r.level).toUpperCase() === lv);
+  const l1 = byLv('L1'), l2 = byLv('L2');
+  const put = (id, sub, arr) => {
+    const v = rate(arr);
+    const el = document.getElementById(id);
+    el.textContent = v === null ? '—' : v + '%';
+    el.style.color = hcColor(v);
+    if (arr.length) document.getElementById(sub).textContent =
+      arr.filter(pass).length + '/' + arr.length + '건 · 최근 ' + hcDays + '일';
+  };
+  put('hcL1', 'hcL1Sub', l1);
+  put('hcL2', 'hcL2Sub', l2);
+
+  const lats = l1.map(r => Number(r.latency_ms)).filter(n => n > 0);
+  document.getElementById('hcLatency').textContent =
+    lats.length ? Math.round(lats.reduce((a, b) => a + b, 0) / lats.length) + 'ms' : '—';
+
+  // ── 일자별 성공률 (점검이 없는 날은 빈 칸으로 남겨 '안 돌았음'을 드러낸다) ──
+  const days = [];
+  for (let i = hcDays - 1; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+  document.getElementById('hcSpark').innerHTML = days.map(d => {
+    const rs = records.filter(r => dayKey(r.timestamp) === d);
+    const v  = rate(rs);
+    const h  = v === null ? 0 : Math.max(4, Math.round(v * 0.42));
+    const bg = v === null ? 'var(--c-fill-2)' : hcColor(v);
+    const bar = v === null
+      ? '<div class="hc-spark-bar" style="height:3px;background:var(--c-fill-2);"></div>'
+      : '<div class="hc-spark-bar" style="height:' + h + 'px;background:' + bg + ';"></div>';
+    return '<div class="hc-spark-col" title="' + d + (v === null ? ' · 점검 없음' : ' · ' + v + '% (' + rs.length + '건)') + '">'
+         + bar + '<span class="hc-spark-label">' + d.slice(5).replace('-', '/') + '</span></div>';
+  }).join('');
+
+  // ── 단계 · 시나리오별 표 ──
+  document.getElementById('hcLevels').innerHTML = Object.keys(HC_LEVELS).map(lv => {
+    const rs = byLv(lv);
+    if (!rs.length) return '';
+    const meta = HC_LEVELS[lv];
+    // 최신순 데이터라 등장 순서대로 두면 시나리오가 역순으로 보인다.
+    // 점검 실행 순서와 맞도록 scenario_id로 정렬한다.
+    const names = [];
+    rs.slice().sort((a, b) => String(a.scenario_id).localeCompare(String(b.scenario_id)))
+      .forEach(r => { const k = r.scenario_label || r.scenario_id; if (names.indexOf(k) < 0) names.push(k); });
+    const rows = names.map(name => {
+      const g = rs.filter(r => (r.scenario_label || r.scenario_id) === name);
+      const v = rate(g);
+      const gl = g.map(r => Number(r.latency_ms)).filter(n => n > 0);
+      const avg = gl.length ? Math.round(gl.reduce((a, b) => a + b, 0) / gl.length) + 'ms' : '';
+      const col = hcColor(v);
+      return '<div class="hc-row">'
+        + '<div class="hc-name">' + escapeHtmlAdmin(name) + '</div>'
+        + '<div class="hc-bar"><div class="hc-bar-fill" style="width:' + v + '%;background:' + col + ';"></div></div>'
+        + '<div class="hc-rate" style="color:' + col + ';">' + v + '%<span> ' + g.filter(pass).length + '/' + g.length + '</span></div>'
+        + '<div class="hc-lat">' + (meta.lat ? avg : '') + '</div>'
+      + '</div>';
+    }).join('');
+    return '<div style="margin-bottom:var(--sp-32);">'
+      + '<h2 class="sv-section-title">' + meta.title + '</h2>'
+      + '<div class="hc-row hc-row-head"><div>시나리오</div><div></div>'
+      + '<div style="text-align:right;">성공률</div><div style="text-align:right;">'
+      + (meta.lat ? '응답 시작' : '') + '</div></div>'
+      + rows + '</div>';
+  }).join('');
+
+  // ── 최근 실패 ──
+  const failed = records.filter(r => !pass(r)).slice(0, 20);
+  document.getElementById('hcFails').innerHTML = failed.length
+    ? failed.map(r => {
+        const ts = String(r.timestamp).replace('T', ' ').slice(5, 16);
+        const said = String(r.stt_text || '').trim();
+        const note = hcNote(r.note);
+        return '<div class="hc-fail">'
+          + '<div class="hc-fail-head"><span style="color:var(--c-label-2);">' + ts + '</span>&nbsp;&nbsp;'
+          + '<span class="hc-lv-badge">' + escapeHtmlAdmin(String(r.level || 'L1').toUpperCase()) + '</span>&nbsp;'
+          + '<strong>' + escapeHtmlAdmin(r.scenario_label || r.scenario_id || '') + '</strong></div>'
+          + (said ? '<div class="hc-fail-said">인식: &ldquo;' + escapeHtmlAdmin(said) + '&rdquo;</div>' : '')
+          + (note ? '<div class="hc-fail-note">⚠ ' + escapeHtmlAdmin(note) + '</div>' : '')
+          + (r.media_ref ? '<div class="hc-fail-media">' + escapeHtmlAdmin(r.media_ref) + '</div>' : '')
+        + '</div>';
+      }).join('')
+    : '<div class="empty-state"><div class="empty-state-text">최근 ' + hcDays + '일간 실패가 없습니다 ✅</div></div>';
+}
+
+function escapeHtmlAdmin(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 // 구비 가전 — Apps Script의 APPLIANCES 상수를 단일 소스로 사용한다.
