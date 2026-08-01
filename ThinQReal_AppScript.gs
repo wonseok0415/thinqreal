@@ -3978,7 +3978,15 @@ function sendFieldCheckDailySummary() {
         items.push({ label: key, rate: rate, pass: s.total - s.fail, total: s.total, avgLat: avgLat });
       });
       view.levels.push({ code: lv, title: FC_LEVEL_LABELS[lv] || lv, items: items });
-      if (items.some(it => it.avgLat !== null)) lines.push(`  ※ ${FC_LATENCY_NOTE}`);
+      if (items.some(it => it.avgLat !== null)) {
+        // 평문 클라이언트에도 같은 도식을 싣는다 (HTML판과 정보량을 맞춤)
+        lines.push('');
+        lines.push('  ※ 응답 시작 측정 구간');
+        lines.push('     ① "하이 엘지" 재생 → ② ThinQ ON "띵" → ③ 1.5초 대기 → ④ 점검 질문 재생');
+        lines.push('                                                      ↓ 재생 끝 = 0ms');
+        lines.push('                                                ⑤ 녹음 시작 ─── ⑥ 말 시작');
+        lines.push(`     ${FC_LATENCY_NOTE}`);
+      }
     });
 
     if (fails.length > 0) {
@@ -4034,6 +4042,58 @@ function sendFieldCheckDailySummary() {
   }
 }
 
+// ── '응답 시작' 측정 구간 도식 ──────────────────────────────
+// 점검 한 회차의 진행 순서를 보여주고, 그중 어느 구간을 잰 값인지 표시한다.
+// (숫자만 보면 '답을 마치기까지의 시간'으로 오해하기 쉬움)
+// 메일 클라이언트 호환: flex/grid 없이 표 셀 6칸으로 배치
+function buildLatencyDiagramHtml() {
+  const OLIVE = '#3a5035', GRAY = '#6e6e73', LIGHT = '#aeaeb2';
+
+  const step = function (n, line1, line2, active) {
+    return '<td width="16%" align="center" valign="top" style="padding:0 3px;">' +
+      '<div style="width:20px;height:20px;line-height:20px;border-radius:10px;' +
+        'background:' + (active ? OLIVE : '#e0e0e5') + ';color:' + (active ? '#ffffff' : GRAY) + ';' +
+        'font-size:11px;font-weight:700;margin:0 auto;">' + n + '</div>' +
+      '<div style="font-size:10.5px;color:' + (active ? '#1d1d1f' : GRAY) + ';margin-top:6px;line-height:1.5;">' +
+        line1 + (line2 ? '<br>' + line2 : '') +
+      '</div>' +
+    '</td>';
+  };
+
+  return (
+    '<div style="margin-top:12px;padding:15px 16px 14px;background:#fafafa;border:1px solid #ededed;border-radius:8px;">' +
+      '<div style="font-size:11.5px;font-weight:600;color:#1d1d1f;margin-bottom:13px;">' +
+        '응답 시작은 이렇게 측정합니다' +
+      '</div>' +
+      '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' +
+        '<tr>' +
+          step('1', '“하이 엘지”', '재생', false) +
+          step('2', 'ThinQ ON', '“띵”', false) +
+          step('3', '1.5초', '대기', false) +
+          step('4', '점검 질문', '재생', false) +
+          step('5', '녹음 시작', '', true) +
+          step('6', 'ThinQ ON이', '말을 시작', true) +
+        '</tr>' +
+        '<tr>' +
+          '<td colspan="4" align="right" style="padding:12px 6px 0 0;font-size:10px;color:' + LIGHT + ';line-height:1.4;">' +
+            '질문 재생 끝 = 0ms ▸' +
+          '</td>' +
+          '<td colspan="2" style="padding:12px 3px 0;">' +
+            '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' +
+              '<tr><td height="4" style="background:' + OLIVE + ';border-radius:2px;font-size:0;line-height:0;">&nbsp;</td></tr>' +
+            '</table>' +
+            '<div style="text-align:center;font-size:10.5px;font-weight:600;color:' + OLIVE + ';margin-top:5px;">이 구간</div>' +
+          '</td>' +
+        '</tr>' +
+      '</table>' +
+      '<div style="margin-top:12px;padding-top:11px;border-top:1px solid #ededed;font-size:10.5px;color:' + GRAY + ';line-height:1.65;">' +
+        '질문을 다 말한 순간부터 <strong style="color:#1d1d1f;">답을 시작하기까지</strong> 걸린 시간입니다.<br>' +
+        '답변을 끝내기까지의 길이는 포함하지 않으며, 기동어 “띵” 시점 기준도 아닙니다.' +
+      '</div>' +
+    '</div>'
+  );
+}
+
 // ── 일일 요약 HTML (예약 확정 메일과 동일한 디자인 언어) ────
 // 인라인 스타일만 사용한다 — Gmail/Outlook은 <style> 블록과 외부 리소스를
 // 제거하므로 (기존 sendGuestMail과 같은 제약)
@@ -4048,7 +4108,7 @@ function buildHealthSummaryHtml(v) {
 
   // 성공률 막대 — div 중첩 대신 표 셀 폭으로 그린다 (메일 클라이언트 호환)
   const bar = (rate) =>
-    '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:88px;background:#e8e8ed;border-radius:3px;">' +
+    '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;max-width:76px;background:#e8e8ed;border-radius:3px;">' +
       '<tr>' +
         (rate > 0 ? '<td height="6" style="width:' + rate + '%;background:' + (rate === 100 ? OLIVE : RED) + ';border-radius:3px;font-size:0;line-height:0;">&nbsp;</td>' : '') +
         (rate < 100 ? '<td height="6" style="font-size:0;line-height:0;">&nbsp;</td>' : '') +
@@ -4092,12 +4152,12 @@ function buildHealthSummaryHtml(v) {
       const rows = lv.items.map(function (it) {
         return '<tr>' +
           '<td style="padding:9px 0;font-size:13px;color:#1d1d1f;">' + escapeHtml(it.label) + '</td>' +
-          '<td align="right" style="padding:9px 10px;width:92px;">' + bar(it.rate) + '</td>' +
-          '<td align="right" style="padding:9px 0;width:96px;font-size:13px;color:' + (it.rate === 100 ? OLIVE : RED) + ';font-weight:600;white-space:nowrap;">' +
+          '<td align="right" style="padding:9px 8px;width:76px;">' + bar(it.rate) + '</td>' +
+          '<td align="right" style="padding:9px 0;width:82px;font-size:13px;color:' + (it.rate === 100 ? OLIVE : RED) + ';font-weight:600;white-space:nowrap;">' +
             it.rate + '%' +
             '<span style="color:' + LIGHT + ';font-weight:400;font-size:12px;">&nbsp;' + it.pass + '/' + it.total + '</span>' +
           '</td>' +
-          '<td align="right" style="padding:9px 0;width:78px;font-size:12px;color:' + GRAY + ';white-space:nowrap;">' +
+          '<td align="right" style="padding:9px 0;width:60px;font-size:12px;color:' + GRAY + ';">' +
             (it.avgLat !== null ? it.avgLat + 'ms' : '') + '</td>' +
         '</tr>';
       }).join('');
@@ -4110,8 +4170,8 @@ function buildHealthSummaryHtml(v) {
         '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;border-top:1px solid #eeeeee;">' +
           rows +
         '</table>' +
-        // 숫자만 있으면 무엇을 잰 값인지 알 수 없으므로 정의를 바로 아래에 둔다
-        (hasLat ? '<div style="margin-top:7px;font-size:11px;color:' + LIGHT + ';line-height:1.6;">※ ' + escapeHtml(FC_LATENCY_NOTE) + '</div>' : '');
+        // 숫자만 있으면 무엇을 잰 값인지 알 수 없으므로 측정 구간을 도식으로 함께 싣는다
+        (hasLat ? buildLatencyDiagramHtml() : '');
     });
 
     if (v.failures.length) {
@@ -4124,7 +4184,7 @@ function buildHealthSummaryHtml(v) {
           '</div>' +
           (f.said ? '<div style="font-size:13px;color:#1d1d1f;margin-top:5px;">인식: “' + escapeHtml(f.said) + '”</div>' : '') +
           (f.note ? '<div style="font-size:12px;color:' + RED + ';margin-top:5px;">⚠ ' + escapeHtml(f.note) + '</div>' : '') +
-          (f.media ? '<div style="font-size:11px;color:' + LIGHT + ';margin-top:5px;font-family:Consolas,Menlo,monospace;">' + escapeHtml(f.media) + '</div>' : '') +
+          (f.media ? '<div style="font-size:11px;color:' + LIGHT + ';margin-top:5px;font-family:Consolas,Menlo,monospace;word-break:break-all;">' + escapeHtml(f.media) + '</div>' : '') +
         '</div>';
       }).join('');
 
