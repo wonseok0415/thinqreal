@@ -18,7 +18,7 @@ const ROI_SHEET_NAME = 'roi_snapshots';      // 시트 탭 이름 (ROI 시나리
 const ARTICLES_SHEET_NAME = 'monthly_articles'; // 시트 탭 이름 (월간 리포트 수동 큐레이션 기사)
 const SLOT_BLOCKS_SHEET_NAME = 'slot_blocks';   // 시트 탭 이름 (관리자 슬롯 차단)
 const HEALTH_SHEET_NAME = 'health_checks';      // 시트 탭 이름 (FieldCheck 자동 점검 이력)
-// FieldCheck 점검 리그 인증 키 — 리그(fieldcheck/rig)의 config.json api_key와 같아야 함
+// FieldCheck 점검 장비 인증 키 — 점검 장비(fieldcheck/rig)의 config.json api_key와 같아야 함
 const FC_API_KEY = 'fieldcheck2026';
 // FieldCheck 알림 정책
 const FC_TEST_MODE = true;        // 테스트 단계: 메일은 CC_EMAIL(강원석)에게만, 텔레그램 발송 안 함. 정식 운영 전환 시 false
@@ -26,10 +26,13 @@ const FC_IMMEDIATE_ALERT = false; // 건별 실패 즉시 알림 — 테스트 �
 const FC_SUMMARY_HOUR = 8;        // 일일 요약 메일 발송 시각 (아침 8시대) — setupFieldCheckDailyTrigger() 참조
 // 판정 단계 표기 (요약 메일에서 단계별로 나눠 집계할 때 사용)
 const FC_LEVEL_LABELS = {
-  L1: 'L1 응답 감지 (말을 했는가 / 얼마나 걸렸는가)',
-  L2: 'L2 내용 판정 (응답한 건 중 내용이 맞았는가)',
-  L3: 'L3 가전 동작 (실제로 제어되었는가)',
+  L1: 'L1 응답 감지 — 말을 했는가',
+  L2: 'L2 내용 판정 — 질문에 맞는 답을 했는가 (응답한 건 중)',
+  L3: 'L3 가전 동작 — 실제로 제어되었는가',
 };
+// '응답 시작' 지표의 정의. 무엇을 재는 값인지 메일에 함께 싣지 않으면
+// 숫자만 보고는 의미를 알 수 없다 (총 답변 길이로 오해하기 쉬움).
+const FC_LATENCY_NOTE = '응답 시작 = 점검 질문을 다 말한 순간부터 ThinQ ON이 답을 시작하기까지 걸린 시간입니다. 답변을 끝내기까지의 길이는 포함하지 않습니다.';
 // 신규 예약 알림을 받는 담당자들 (콤마로 구분, MailApp이 다중 수신 처리)
 const ADMIN_EMAILS = 'ch275.lee@lge.com, moonsu.seo@lge.com, hj8462.kim@lge.com';
 const CC_EMAIL     = 'kang.wonseok@lge.com';  // 참조 수신자 (시스템 동작 모니터링)
@@ -340,7 +343,7 @@ function doPost(e) {
   if (data.type === 'roi_snapshot') return handleNewRoiSnapshot(data);
   // roi_delete는 ROI 툴(별창 포함)에서 호출돼 토큰 경로가 없어 게이트하지 않음 (저위험, §향후 검토)
   if (data.type === 'roi_delete')   return handleDeleteRoiSnapshot(data);
-  // health_check는 점검 리그(무인 기기)가 호출 — 관리자 토큰 대신 FC_API_KEY로 인증
+  // health_check는 점검 장비(무인 기기)가 호출 — 관리자 토큰 대신 FC_API_KEY로 인증
   if (data.type === 'health_check') return handleNewHealthCheck(data);
 
   // ── 관리자 토큰이 필요한 파괴적/운영 작업 ──
@@ -3762,9 +3765,9 @@ function buildSurveyInviteHtml(b) {
 // ============================================================
 //  FieldCheck 자동 점검 (ThinQ ON Field 자동 점검 시스템)
 //  - 시트 탭: health_checks
-//  - 점검 리그(무인 노트북, wonseok-lab/thinqreal/fieldcheck/rig)가
+//  - 점검 장비(무인 노트북, wonseok-lab/thinqreal/fieldcheck/rig)가
 //    결과를 POST, 관리자 페이지가 GET
-//  - 인증: 관리자 토큰 경로가 아닌 FC_API_KEY (리그는 무인 기기)
+//  - 인증: 관리자 토큰 경로가 아닌 FC_API_KEY (점검 장비는 무인 기기)
 //  - 실패 알림: 담당자 메일 + 텔레그램 (기존 파이프라인 재사용)
 // ============================================================
 
@@ -3859,7 +3862,7 @@ FieldCheck 자동 점검에서 실패가 감지되었습니다.
   점검 단계 : ${data.level || 'L1'}
   시나리오  : ${label}
   결과      : 실패 (음성 응답 없음 또는 판정 기준 미달)
-  녹음 파일 : ${data.media_ref || '-'} (점검 리그 노트북의 recordings 폴더)
+  녹음 파일 : ${data.media_ref || '-'} (점검 장비의 recordings 폴더)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ThinQ ON이 점검 발화에 음성으로 응답하지 않았습니다.
@@ -3925,13 +3928,13 @@ function sendFieldCheckDailySummary() {
   const view = { today: today, total: recent.length, failCount: 0, levels: [], failures: [] };
 
   if (recent.length === 0) {
-    // 기록 없음 = 리그가 안 돌았다는 뜻 — 이것 자체가 이상 신호
+    // 기록 없음 = 점검 장비가 안 돌았다는 뜻 — 이것 자체가 이상 신호
     subject = `[ThinQ Real] 자동 점검 일일 요약 (${today}) — ⚠ 점검 기록 없음`;
     body = [
       '최근 24시간 동안 FieldCheck 점검 기록이 없습니다.',
       '',
-      '점검 리그(노트북)가 꺼져 있거나, 네트워크 문제로 전송이 실패했을 수 있습니다.',
-      '리그 상태를 확인해 주세요. (전송 실패분은 리그의 results.jsonl에 남아 있습니다)',
+      '점검 장비(노트북)가 꺼져 있거나, 네트워크 문제로 전송이 실패했을 수 있습니다.',
+      '점검 장비 상태를 확인해 주세요. (전송 실패분은 점검 장비의 results.jsonl에 남아 있습니다)',
     ].join('\n');
   } else {
     const fails = recent.filter(r => r[idx.result] === 'fail');
@@ -3970,11 +3973,12 @@ function sendFieldCheckDailySummary() {
         const s = group[key];
         const rate = Math.round((s.total - s.fail) / s.total * 100);
         const avgLat = s.latN > 0 ? Math.round(s.latSum / s.latN) : null;
-        const latPart = avgLat !== null ? `, 평균 응답 ${avgLat}ms` : '';
+        const latPart = avgLat !== null ? `, 평균 응답 시작 ${avgLat}ms` : '';
         lines.push(`  ${key} : 성공률 ${rate}% (${s.total - s.fail}/${s.total})${latPart}`);
         items.push({ label: key, rate: rate, pass: s.total - s.fail, total: s.total, avgLat: avgLat });
       });
       view.levels.push({ code: lv, title: FC_LEVEL_LABELS[lv] || lv, items: items });
+      if (items.some(it => it.avgLat !== null)) lines.push(`  ※ ${FC_LATENCY_NOTE}`);
     });
 
     if (fails.length > 0) {
@@ -3991,8 +3995,8 @@ function sendFieldCheckDailySummary() {
         // L2 실패는 "무엇을 어떻게 잘못 답했는지"가 원인 파악의 핵심이므로 함께 싣는다
         const said = String(r[idx.stt_text] || '').trim();
         if (said) lines.push(`        인식: "${said.length > 120 ? said.slice(0, 120) + '…' : said}"`);
-        // 리그가 원인을 특정한 실패(마이크 무입력 등)는 사유를 그대로 노출한다.
-        // 이것이 없으면 리그 설정 문제를 ThinQ ON 장애로 오인하게 된다.
+        // 점검 장비가 원인을 특정한 실패(마이크 무입력 등)는 사유를 그대로 노출한다.
+        // 이것이 없으면 점검 장비 설정 문제를 ThinQ ON 장애로 오인하게 된다.
         const note = String(r[idx.note] || '').trim();
         if (note) lines.push(`        ⚠ ${note}`);
         view.failures.push({
@@ -4004,11 +4008,11 @@ function sendFieldCheckDailySummary() {
         });
       });
       lines.push('');
-      lines.push('실패 녹음 파일은 점검 리그 노트북의 recordings 폴더에서 확인할 수 있습니다.');
+      lines.push('실패 녹음 파일은 점검 장비의 recordings 폴더에서 확인할 수 있습니다.');
       if (fails.some(r => String(r[idx.note] || '').indexOf('마이크') >= 0)) {
         lines.push('');
-        lines.push('※ "마이크 무입력"으로 표시된 건은 점검 리그 쪽 문제이며, ThinQ ON 장애가 아닙니다.');
-        lines.push('   리그 노트북에서  python fieldcheck.py --mic-test  로 확인해 주세요.');
+        lines.push('※ "마이크 무입력"으로 표시된 건은 점검 장비 쪽 문제이며, ThinQ ON 장애가 아닙니다.');
+        lines.push('   점검 장비에서  python fieldcheck.py --mic-test  로 확인해 주세요.');
       }
     }
     body = lines.join('\n');
@@ -4063,8 +4067,8 @@ function buildHealthSummaryHtml(v) {
     inner =
       '<div style="padding:18px 20px;background:#fdf3f2;border-left:3px solid ' + RED + ';border-radius:6px;font-size:14px;color:#1d1d1f;line-height:1.7;">' +
         '<strong>최근 24시간 동안 점검 기록이 없습니다.</strong><br>' +
-        '점검 리그(노트북)가 꺼져 있거나, 네트워크 문제로 전송이 실패했을 수 있습니다.' +
-        '<div style="color:' + GRAY + ';font-size:13px;margin-top:6px;">전송 실패분은 리그의 results.jsonl에 남아 있습니다.</div>' +
+        '점검 장비(노트북)가 꺼져 있거나, 네트워크 문제로 전송이 실패했을 수 있습니다.' +
+        '<div style="color:' + GRAY + ';font-size:13px;margin-top:6px;">전송 실패분은 점검 장비의 results.jsonl에 남아 있습니다.</div>' +
       '</div>';
   } else {
     inner =
@@ -4075,6 +4079,16 @@ function buildHealthSummaryHtml(v) {
       '</tr></table>';
 
     v.levels.forEach(function (lv) {
+      const hasLat = lv.items.some(function (it) { return it.avgLat !== null; });
+      const th = 'font-size:11px;color:' + LIGHT + ';font-weight:400;padding:0 0 6px;';
+      const head =
+        '<tr>' +
+          '<td style="' + th + '">시나리오</td>' +
+          '<td style="' + th + '"></td>' +
+          '<td align="right" style="' + th + '">성공률</td>' +
+          '<td align="right" style="' + th + '">' + (hasLat ? '응답 시작' : '') + '</td>' +
+        '</tr>';
+
       const rows = lv.items.map(function (it) {
         return '<tr>' +
           '<td style="padding:9px 0;font-size:13px;color:#1d1d1f;">' + escapeHtml(it.label) + '</td>' +
@@ -4084,15 +4098,20 @@ function buildHealthSummaryHtml(v) {
             '<span style="color:' + LIGHT + ';font-weight:400;font-size:12px;">&nbsp;' + it.pass + '/' + it.total + '</span>' +
           '</td>' +
           '<td align="right" style="padding:9px 0;width:78px;font-size:12px;color:' + GRAY + ';white-space:nowrap;">' +
-            (it.avgLat !== null ? it.avgLat + 'ms' : '–') + '</td>' +
+            (it.avgLat !== null ? it.avgLat + 'ms' : '') + '</td>' +
         '</tr>';
       }).join('');
 
       inner +=
         '<div style="margin-top:22px;font-size:13px;font-weight:600;color:' + OLIVE + ';">' + escapeHtml(lv.title) + '</div>' +
-        '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;margin-top:6px;border-top:1px solid #eeeeee;">' +
+        '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;margin-top:8px;">' +
+          head +
+        '</table>' +
+        '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;border-top:1px solid #eeeeee;">' +
           rows +
-        '</table>';
+        '</table>' +
+        // 숫자만 있으면 무엇을 잰 값인지 알 수 없으므로 정의를 바로 아래에 둔다
+        (hasLat ? '<div style="margin-top:7px;font-size:11px;color:' + LIGHT + ';line-height:1.6;">※ ' + escapeHtml(FC_LATENCY_NOTE) + '</div>' : '');
     });
 
     if (v.failures.length) {
@@ -4112,13 +4131,13 @@ function buildHealthSummaryHtml(v) {
       inner +=
         '<div style="margin-top:24px;font-size:13px;font-weight:600;color:' + RED + ';">실패 상세 (최근순, 최대 10건)</div>' +
         cards +
-        '<div style="margin-top:10px;font-size:12px;color:' + GRAY + ';">실패 녹음 파일은 점검 리그 노트북의 recordings 폴더에서 확인할 수 있습니다.</div>';
+        '<div style="margin-top:10px;font-size:12px;color:' + GRAY + ';">실패 녹음 파일은 점검 장비의 recordings 폴더에서 확인할 수 있습니다.</div>';
 
       if (v.failures.some(function (f) { return f.note.indexOf('마이크') >= 0; })) {
         inner +=
           '<div style="margin-top:12px;padding:12px 14px;background:#f5f5f7;border-radius:6px;font-size:12px;color:' + GRAY + ';line-height:1.6;">' +
-            '※ <strong style="color:#1d1d1f;">“마이크 무입력”</strong>으로 표시된 건은 점검 리그 쪽 문제이며, ThinQ ON 장애가 아닙니다.<br>' +
-            '리그 노트북에서 <span style="font-family:Consolas,Menlo,monospace;color:#1d1d1f;">python fieldcheck.py --mic-test</span> 로 확인해 주세요.' +
+            '※ <strong style="color:#1d1d1f;">“마이크 무입력”</strong>으로 표시된 건은 점검 장비 쪽 문제이며, ThinQ ON 장애가 아닙니다.<br>' +
+            '점검 장비에서 <span style="font-family:Consolas,Menlo,monospace;color:#1d1d1f;">python fieldcheck.py --mic-test</span> 로 확인해 주세요.' +
           '</div>';
       }
     }
