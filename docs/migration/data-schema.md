@@ -107,6 +107,9 @@
 
 파일 비밀번호는 기록하지 않는다. 감사 로그이므로 행 삭제 기능 없음.
 
+## 4.7 `health_checks` 탭 (FieldCheck 자동 점검 이력 — ⚠ 전용 세션 소관, 존재만 등재)
+`id` · `timestamp` · `level` · `scenario_id` · `scenario_label` · `result` · `latency_ms` · `detail` · `stt_text` · `expected` · `media_ref` · `note` (12컬럼). 스키마 상세·이관 설계는 FieldCheck 전용 세션이 관리.
+
 ## 5. 런타임 상태 (Script Properties — 이전 시 설정 저장소/환경변수로)
 
 | 키 | 용도 |

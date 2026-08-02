@@ -1363,3 +1363,16 @@ sales 트랙 운영 설문의 8번 블록 컬럼은 2026-07-27 이후 구조적�
 ### 운영 주의
 - **7/31(금) 08:30 전에 에디터에 코드 저장 필수** — 저장 전이면 구 로직이 7월 리포트를 발송함. 재배포는 불필요 (웹 엔드포인트 무변경 — preview/send 수동 경로는 month 파라미터 기반이라 영향 없음).
 - 다음 자동 발송: **8/5(수) 08:30, 7월 리포트** — 그 전에 팀장 수정 사항 반영 필요. 늦어지면 트리거 임시 삭제로 보류 (Property를 '2026-07'로 채우는 방법은 7월 발송 자체를 영구 차단하므로 부적합).
+
+## 작업 내역 (2026-07-30 — FieldCheck API 키 Script Property 이전 + 세션 간 동기화 안내)
+
+### 배경
+운영 세션에서 리포 상태 점검 중, 별도 클로드코드 세션이 개발 중인 FieldCheck 자동 점검 시스템(6커밋, +797줄)이 main에 유입된 것을 확인. 두 가지 문제 발견: ① `FC_API_KEY = 'fieldcheck2026'` 평문이 퍼블릭 리포에 커밋됨 (보안 규칙 위반 — 키만 있으면 가짜 점검 데이터 주입 가능) ② CLAUDE.md·history.md·이관 문서에 전부 미기록 (기록 규칙 미준수 — 세션 간 단절). 리포를 private으로 전환하는 방안도 검토했으나 무료 계정에선 Pages가 내려가고(유료 필요), 이미 노출된 키 교체는 어차피 필요하며, 사내 이관이 확정돼 있어 미채택.
+
+### 조치 (운영 세션 — FieldCheck 기능 자체는 무변경)
+- `FC_API_KEY` 하드코딩 제거 → `getFcApiKey()`가 **Script Property `FC_API_KEY`** 조회. 미설정 시 fail-closed (전부 거부). 스텁 검증: 미설정 거부 / 구 키 거부 / 새 키 통과.
+- CLAUDE.md에 **「FieldCheck 자동 점검 (전용 세션 작업 중)」 섹션 신설** — 세션 간 동기화 채널 (채팅 히스토리는 세션 간 공유 안 되므로 CLAUDE.md가 유일한 안내 경로): 소유권 경계, 운영 세션의 변경 사항 필독 목록, 리베이스 요청, 기록 규칙 준수 요청, 관찰 사항(GET health_checks 무인증 — 판단 위임).
+- 이관 문서: api-contract에 health_check(POST)/health_checks(GET) 존재·인증만 등재, data-schema에 12컬럼 등재 — 상세는 전용 세션 소관 명시.
+
+### 사용자 후속 작업 (필수)
+① Script Property `FC_API_KEY`에 **새 값** 등록 (기존 fieldcheck2026은 노출 폐기) ② 점검 장비 rig `config.json`의 api_key를 같은 값으로 교체 ③ **재배포** (health_check는 doPost 웹 엔드포인트) — 재배포 전까지는 rig 접수가 Unauthorized로 거부됨 (fail-closed 의도).
