@@ -23,7 +23,8 @@ const FC_API_KEY = 'fieldcheck2026';
 // FieldCheck 알림 정책
 const FC_TEST_MODE = true;        // 테스트 단계: 메일은 CC_EMAIL(강원석)에게만, 텔레그램 발송 안 함. 정식 운영 전환 시 false
 const FC_IMMEDIATE_ALERT = false; // 건별 실패 즉시 알림 — 테스트 단계에선 끔 (일일 요약만). 정식 운영 시 true 검토
-const FC_SUMMARY_HOUR = 8;        // 일일 요약 메일 발송 시각 (아침 8시대) — setupFieldCheckDailyTrigger() 참조
+const FC_SUMMARY_HOUR = 7;        // 일일 요약 메일 발송 시각(시) — setupFieldCheckDailyTrigger() 참조
+const FC_SUMMARY_MINUTE = 40;     // 발송 목표 분 — nearMinute은 ±15분 오차(07:25~07:55). 07:00 점검 종료 후·사내 게이트웨이 지연 감안해도 09:00 시연 전 수신
 // 판정 단계 표기 (요약 메일에서 단계별로 나눠 집계할 때 사용)
 const FC_LEVEL_LABELS = {
   L1: 'L1 응답 감지 — 말을 했는가',
@@ -3895,7 +3896,8 @@ ThinQ ON이 점검 발화에 음성으로 응답하지 않았습니다.
 
 // ── 일일 요약 메일 (매일 아침 1회 — 시간 기반 트리거로 실행) ──
 // 최초 1회 setupFieldCheckDailyTrigger()를 에디터에서 직접 실행하면
-// 매일 FC_SUMMARY_HOUR시대에 sendFieldCheckDailySummary가 자동 호출된다.
+// 매일 FC_SUMMARY_HOUR:FC_SUMMARY_MINUTE 무렵(±15분) sendFieldCheckDailySummary가 자동 호출된다.
+// 시각을 바꾼 뒤에는 이 함수를 에디터에서 한 번 다시 실행해야 기존 트리거가 교체된다.
 function setupFieldCheckDailyTrigger() {
   // 중복 트리거 방지 — 같은 핸들러의 기존 트리거 제거 후 재생성
   ScriptApp.getProjectTriggers().forEach(t => {
@@ -3904,8 +3906,8 @@ function setupFieldCheckDailyTrigger() {
     }
   });
   ScriptApp.newTrigger('sendFieldCheckDailySummary')
-    .timeBased().everyDays(1).atHour(FC_SUMMARY_HOUR).create();
-  Logger.log('FieldCheck 일일 요약 트리거 생성 완료 (매일 ' + FC_SUMMARY_HOUR + '시대)');
+    .timeBased().everyDays(1).atHour(FC_SUMMARY_HOUR).nearMinute(FC_SUMMARY_MINUTE).create();
+  Logger.log('FieldCheck 일일 요약 트리거 생성 완료 (매일 ' + FC_SUMMARY_HOUR + ':' + FC_SUMMARY_MINUTE + ' 무렵, ±15분)');
 }
 
 function sendFieldCheckDailySummary() {
