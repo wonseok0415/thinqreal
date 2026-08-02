@@ -52,7 +52,7 @@
 | 항목 | 값 |
 |------|-----|
 | Sheets ID | `1-Z158TV46MtSEArir9bW4h4KQ438NCuhb3qaGyOooA0` |
-| 시트 탭 | `bookings`(예약) · `roi_snapshots` · `slot_blocks` · `monthly_articles` · `survey_responses` · `performance_ledger` · `iot_issue_log` · `export_log` · `visitor_responses`(방문자 현장 설문) — bookings 외에는 첫 호출 시 자동 생성 |
+| 시트 탭 | `bookings`(예약) · `roi_snapshots` · `slot_blocks` · `monthly_articles` · `survey_responses` · `performance_ledger` · `iot_issue_log` · `export_log` · `visitor_responses`(방문자 현장 설문) · `health_checks`(FieldCheck 자동 점검 — 전용 세션 소관) — bookings 외에는 첫 호출 시 자동 생성 |
 | Apps Script URL | `https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec` |
 | 스크립트 소유자(발신 계정) | `kangwonseok0415@gmail.com` — 발신 표시명은 모든 메일 `ThinQ Real` 통일 |
 | 관리자 인증 | 이메일 코드 (명단 한정) — `AUTH_ADMIN_EMAILS` 6명: kang.wonseok / jhs.kim / ch275.lee / moonsu.seo / hj8462.kim / kwangsoo.park. 토큰 90일 |
@@ -65,7 +65,7 @@
   - ROI `roi_snapshot`/`roi_delete`는 토큰 미적용 (별창 열림 → 토큰 전달 경로 없음, 저위험 수용)
 
 ### Script Properties (코드·리포에 두지 않는 값)
-`AUTH_SECRET` / `MONTHLY_REPORT_TO`(리포트 수신자) / `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID` / `CALENDAR_ID` / `SERPER_API_KEY` / `GOOGLE_CSE_ID`·`GOOGLE_CSE_KEY`(현재 403 차단) / `SURVEY_CAS_JSON`(채널 단가 — **유일한 위치**) / `monthly_report_last_sent_month`(중복 가드)
+`AUTH_SECRET` / `MONTHLY_REPORT_TO`(리포트 수신자) / `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID` / `CALENDAR_ID` / `SERPER_API_KEY` / `GOOGLE_CSE_ID`·`GOOGLE_CSE_KEY`(현재 403 차단) / `SURVEY_CAS_JSON`(채널 단가 — **유일한 위치**) / `FC_API_KEY`(FieldCheck 장비 키 — 2026-07-30 이전, rig config.json과 동일 값) / `monthly_report_last_sent_month`(중복 가드)
 
 ## 메일 발송 규칙
 - **모든 메일**: HTML + plain-text 동시, 다크 올리브(#3a5035) 카드형, **인라인 스타일만** (Gmail/Outlook 호환 — `<style>`·CSS 변수·외부 리소스 금지). 유일한 예외: 월간 리포트의 Noto Sans KR `@import` 1줄 (차단 환경에선 무시되어 무해).
@@ -100,6 +100,15 @@
 - **관리자 설문·대장 탭**: 조회·수정·상태 전환(후보→확정/드롭, 등록→검토→반영/기각)·영구 삭제(테스트 정리용). est_value는 `SURVEY_CAS_JSON` 있을 때만 서버 계산.
 - **설문 요청 메일**: 확정+방문 완료(익일부터)+@lge.com+미발송(`surveyInviteSentAt` 공란) 건에 자동 발송. 이메일 중복 제거(최근 방문 1건 기준 1통).
 - **방문자 현장 설문**(`ThinQ_Real_Visitor_Survey.html`, 공개 — 2026-07-27 §8-5): 퇴장 직전 QR 스캔용 **완전 익명** 폼(성명·소속 미수집, `lang`만 기록), 한/영 토글(표시만 전환 — **저장 value는 항상 한국어 canonical**, 운영 설문 8번 블록과 격차 분석 전제). V1 만족도(5단계)~V6 필수+도피, V7 자유의견 선택. `visitor_submit` → `visitor_responses` 11컬럼 + 텔레그램. **파생·ROI 미산입, mailto 폴백 없음**(전송 실패 시 재시도 UI). 관리자 설문·대장 탭: KPI 카드+언어 필터+상세 모달+**영구 삭제**(`visitor_delete`, "삭제" 타이핑 게이트 — 테스트 정리용, 2026-07-27). **수정 기능은 의도적으로 없음** — 익명 응답 원문 보존 (정정 주체가 없는 데이터라 편집 자체가 무결성 훼손).
+
+## FieldCheck 자동 점검 (⚠ 전용 세션에서 작업 진행 중 — 이 섹션은 세션 간 동기화용)
+- **소유권**: FieldCheck(ThinQ ON Field 자동 점검 — 점검 장비 rig → `health_check` POST → `health_checks` 시트 → 관리자 🩺 탭 + 일일 요약 메일)는 **별도 클로드코드 세션에서 개발 중**. 본 운영 세션은 기능을 건드리지 않는다 (역방향도 동일 — FieldCheck 세션은 운영 기능 영역을 건드리지 않기).
+- **⚠ 운영 세션이 2026-07-30에 변경한 사항 (FieldCheck 세션 필독)**:
+  1. `FC_API_KEY` 하드코딩(`fieldcheck2026`)을 제거하고 **Script Property `FC_API_KEY` 조회로 교체** (`getFcApiKey()`, 미설정 시 fail-closed) — 퍼블릭 리포에 평문 키 커밋은 보안 규칙 위반. **코드에 키를 되돌리지 말 것.** 기존 값은 노출로 간주해 폐기 — Property에 새 값 등록 + rig `config.json` `api_key` 동시 교체 + 재배포 필요.
+  2. 작업 재개 전 **main 최신 리베이스 필수** (`ThinQReal_AppScript.gs` 상수 블록·`handleNewHealthCheck`가 바뀜).
+  3. **기록 규칙 준수 요청**: FieldCheck 작업 내역이 CLAUDE.md·history.md·api-contract·data-schema에 미기록 상태였음 — 이후 작업은 기록 규칙(하단 §기록 규칙)대로 남길 것.
+- 관찰 사항 (FieldCheck 세션 판단 위임): `?type=health_checks` GET 조회가 현재 무인증 — 점검 이력(시나리오·STT 텍스트)이 URL만 알면 조회됨. 관리자 토큰 게이트 적용 검토 권장.
+- 현황: `FC_TEST_MODE = true` (메일 CC_EMAIL만·텔레그램 미발송), 일일 요약 07:40 목표(트리거 ±15분), 건별 즉시 알림 꺼짐.
 
 ## 자동화·연동 현황 (활성)
 | 항목 | 상태 |
@@ -155,7 +164,7 @@
 - **Wi-Fi SSID/PW·도어락 PIN은 메인 페이지 절대 노출 금지** — 확정 메일(buildConfirm*)에서만.
 - 모든 파괴적/쓰기 작업과 `bookings`·`survey_data` 조회는 **백엔드 `verifyAdminToken` 게이트** — 우회·약화 금지. 클라이언트 게이트는 편의일 뿐.
 - 관리자 명단 단일 소스 = `AUTH_ADMIN_EMAILS`(6명). **임시 권한은 `AUTH_TEMP_ADMINS`로만** (만료일 `'YYYY-MM-DDT23:59:59+09:00'` KST 파싱 유지) — 영구 배열에 직접 추가 금지. 이탈자는 배열 제거+재배포로 즉시 회수(토큰 TTL 90일이지만 매 요청 명단 검사).
-- `TELEGRAM_*`·`CALENDAR_ID`·`SURVEY_CAS_JSON` 등 비밀값은 **Script Property에만** — 코드·리포 커밋 금지.
+- `TELEGRAM_*`·`CALENDAR_ID`·`SURVEY_CAS_JSON`·`FC_API_KEY`(FieldCheck 장비 키 — 2026-07-30 이전) 등 비밀값은 **Script Property에만** — 코드·리포 커밋 금지. FC_API_KEY 교체 시 점검 장비 rig `config.json`과 동시 교체.
 - 캘린더 일정에 방문자 명단·연락처 미표기 원칙.
 - CSV 내보내기: 파일 비밀번호는 **로그·시트·코드 어디에도 기록 금지**. 사유 기록(`export_log`)이 먼저 — 실패 시 다운로드도 차단. `export_log` 행 삭제 기능 금지.
 - **커밋 전 민감 단가 grep 필수**: `grep -rnE "6,220|34,220|114,220|108,000|659원|16,126|Hi-Teleservice|헤이홈"` → 0건. **콤마 없는 변형(6220 등)도 의심할 것.** 커밋 금지: CS 채널 실단가, 판매량·CS 원단위, 딜·수주 실데이터, 대장 실제 과제명·금액, 보고 PPT·사내 메일. ROI 툴 보호는 파일 제외가 아니라 **내용 수준**(민감 수치 미포함)으로.
@@ -196,8 +205,8 @@
 - 브랜치 운영: 지정 브랜치가 머지되면 `git checkout -B <branch> origin/main`으로 재시작.
 
 ## 운영 리마인드
-- [ ] **⚡ 7/31(금) 08:30 전에 Apps Script 에디터에 최신 .gs 저장 필수** — 저장해야 구 로직(마지막 금요일)의 7월 자동 발송이 차단됨. 트리거는 저장 코드를 실행하므로 재배포는 불필요.
-- [ ] **8/5(수) 7월 리포트 첫 자동 발송 전**: 팀장 논의 수정 사항 반영 + `MONTHLY_REPORT_TO` 20명 복원 확인 (첫 회차 때 센터장·담당·실장 3명 임시 제외). 수정 반영이 8/5를 넘길 것 같으면 트리거를 임시 삭제해 발송 보류.
+- [x] ~~7/31(금) 08:30 전 에디터 저장~~ — **완료(2026-07-29)**: `isFirstWednesdayOfMonth` 저장 확인, 7월 마지막 금요일 자동 발송 차단됨.
+- [ ] **8/5(수) 7월 리포트 첫 자동 발송 전**: 팀장 논의 수정 사항 반영 (방안 모색 중) + `MONTHLY_REPORT_TO` 20명 복원 확인 (첫 회차 때 센터장·담당·실장 3명 임시 제외). 수정 반영이 8/5를 넘길 것 같으면 트리거를 임시 삭제해 발송 보류.
 - [ ] **방문자 설문 QR 포스터 부착** (거실 협탁): QR 2종(흑백/올리브, 1960px·오류정정 H) 전달됨. **QR 스캔·동작 확인 완료(2026-07-27)** — 포스터 인쇄·부착만 남음. 테스트 응답은 재배포 후 관리자 설문·대장 탭 → 방문자 상세 모달 → 영구 삭제로 정리.
 - 기사 섹션은 Serper 자동 검색(2026-05-30~)이 채움 — `monthly_articles` 행 추가는 **선택**(자동 결과가 마음에 안 들 때만 큐레이션, 행이 있으면 그 달은 자동 검색 미호출). 발송 전 품질 확인은 `monthly_report_preview&month=YYYY-MM`으로.
 - [ ] **Option B — 리포트 전월 대비 증감 표시**: 합의된 후속 작업, 미착수.

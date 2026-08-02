@@ -18,8 +18,12 @@ const ROI_SHEET_NAME = 'roi_snapshots';      // 시트 탭 이름 (ROI 시나리
 const ARTICLES_SHEET_NAME = 'monthly_articles'; // 시트 탭 이름 (월간 리포트 수동 큐레이션 기사)
 const SLOT_BLOCKS_SHEET_NAME = 'slot_blocks';   // 시트 탭 이름 (관리자 슬롯 차단)
 const HEALTH_SHEET_NAME = 'health_checks';      // 시트 탭 이름 (FieldCheck 자동 점검 이력)
-// FieldCheck 점검 장비 인증 키 — 점검 장비(fieldcheck/rig)의 config.json api_key와 같아야 함
-const FC_API_KEY = 'fieldcheck2026';
+// FieldCheck 점검 장비 인증 키 — **Script Property 'FC_API_KEY'에만 둔다** (퍼블릭 리포라 코드 커밋 금지, 2026-07-30 이전).
+// 기존 하드코딩 값은 노출된 것으로 간주해 폐기 — Property에는 새 값을 등록하고 점검 장비(fieldcheck/rig config.json
+// api_key)와 동시 교체할 것. Property 미설정 시 health_check 접수는 전부 거부된다 (fail-closed).
+function getFcApiKey() {
+  return PropertiesService.getScriptProperties().getProperty('FC_API_KEY') || '';
+}
 // FieldCheck 알림 정책
 const FC_TEST_MODE = true;        // 테스트 단계: 메일은 CC_EMAIL(강원석)에게만, 텔레그램 발송 안 함. 정식 운영 전환 시 false
 const FC_IMMEDIATE_ALERT = false; // 건별 실패 즉시 알림 — 테스트 단계에선 끔 (일일 요약만). 정식 운영 시 true 검토
@@ -3795,7 +3799,8 @@ function getOrCreateHealthHeaders(sheet) {
 
 // ── 점검 결과 저장 (+ 실패 시 담당자 알림) ──────────────────
 function handleNewHealthCheck(data) {
-  if (String(data.apiKey || '') !== FC_API_KEY) {
+  const fcKey = getFcApiKey();
+  if (!fcKey || String(data.apiKey || '') !== fcKey) {
     return jsonResponse({ error: 'Unauthorized' });
   }
 

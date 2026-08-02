@@ -44,6 +44,7 @@
 | `telegram_test` | — | — | `{ok:true}` 또는 `{ok:false, reason:'not_configured'}` |
 | `calendar_test` | — | — | 캘린더 연동 점검 (테스트 일정 생성 후 즉시 삭제) |
 | `survey_data` | `token` | 관리자 | `{responses:[], ledger:[], issues:[], visitors:[]}` — 설문·대장·이슈·방문자 응답 통합 조회 (visitors는 2026-07-27 추가) |
+| `health_checks` | `days=` (선택) | — ⚠ 무인증 | FieldCheck 점검 이력 조회 (관리자 🩺 탭용). ⚠ 토큰 게이트 적용 검토는 FieldCheck 전용 세션에 위임 (2026-07-30 관찰) |
 
 ### 인증 관련 오류 응답
 `{ok:false, error:...}` — `not_allowed_domain` / `not_admin` / `cooldown` / `mail_failed` / `invalid_code` / `expired_code` / `too_many_attempts`
@@ -64,6 +65,7 @@
 | `survey_submit` | — | 설문 응답 append + 파생 행(대장 `후보`·이슈 `등록`) 자동 생성 (2026-07-09) | 텔레그램 발송 (관리자 그룹) |
 | `visitor_submit` | — | 방문자 현장 설문 append (`visitor_responses`, 익명 — 2026-07-27 §8-5). **파생 없음**, 저장 value는 언어 무관 한국어 canonical | 텔레그램 발송 ("방문자 설문 접수 [KO\|EN]") |
 | `visitor_delete` | 관리자 토큰 | 방문자 응답 영구 삭제 (테스트·실수 정리용 — 2026-07-27). cascade 없음(파생 무). **수정 엔드포인트는 의도적으로 없음** — 익명 응답 원문 보존 | — (알림 미발송) |
+| `health_check` | **FC_API_KEY** (Script Property — 점검 장비 전용, 2026-07-30 Property 이전) | FieldCheck 점검 결과 append (`health_checks` 12컬럼). ⚠ 기능 상세는 FieldCheck 전용 세션 소관 — 이 표에는 존재·인증 방식만 등재 | FC_IMMEDIATE_ALERT 시 실패 알림 (현재 꺼짐) |
 | `survey_update` | 관리자 토큰 | 설문 응답 내용 정정 (2026-07-14). 불변: `response_id/submitted_at/track/raw_json` + 파생 트리거 3종(`media_link/etc_link/iot_defect`) | — (행 삭제 없음 — 의도) |
 | `ledger_update` | 관리자 토큰 | 성과 대장 상태 전환·확정 필드 + 내용 정정(`category/project_name/expected_scale/attribution_pct/visit_date/respondent/dept` — 2026-07-14 확장). `attribution_text`(라디오 원문)는 불변 | — (행 삭제 없음 — 의도) |
 | `issue_update` | 관리자 토큰 | 이슈 속성 부여 (`device/symptom/severity/channel/q_ship/status`) + est_value 서버 계산 | — (행 삭제 없음 — 의도) |
