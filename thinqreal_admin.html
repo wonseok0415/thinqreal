@@ -2124,6 +2124,25 @@ body {
           </tbody>
         </table>
       </div>
+
+      <h2 class="sv-section-title">🗂 월간 리포트 큐레이션</h2>
+      <p class="sv-section-desc">월간 리포트의 「핵심 인사이트」(직접 입력, 월 3~5줄 권장)와 「인상 깊은 한마디」(당월 자유 의견 20자 이상 후보 중 체크 선택)를 준비합니다. 행이 없는 블록은 리포트에서 자동 생략됩니다.</p>
+      <div class="toolbar">
+        <input type="month" class="toolbar-input" id="svInsightMonth" onchange="renderSurveyTab()">
+        <span class="toolbar-spacer"></span>
+      </div>
+      <div class="table-card" style="padding:16px 18px;">
+        <div style="font-size:var(--t-subhead); font-weight:600; margin-bottom:10px;">💡 핵심 인사이트</div>
+        <div id="insightList"></div>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <input class="finput" id="insightNewText" placeholder="예: ○○사 30명 벤치마킹 — AI홈 연동 시나리오 도입 검토 의사 표명" style="flex:1; min-width:0;" onkeydown="if(event.key==='Enter')insightAdd()">
+          <button class="sv-save-btn" onclick="insightAdd()">추가</button>
+        </div>
+      </div>
+      <div class="table-card" style="padding:16px 18px; margin-top:12px;">
+        <div style="font-size:var(--t-subhead); font-weight:600; margin-bottom:10px;">💬 인상 깊은 한마디 후보 <span style="font-weight:400; color:var(--c-label-3); font-size:var(--t-caption);">— 체크한 항목만 리포트에 노출</span></div>
+        <div id="quoteCandidates"></div>
+      </div>
     </div>
 
     <!-- 자동 점검 (FieldCheck) -->
@@ -4118,6 +4137,91 @@ function renderSurveyTab() {
   }).join('') : '<tr><td colspan="9"><div class="empty-state"><div class="empty-state-text">등록된 이슈가 없습니다. R&D 트랙 설문의 결함 리포트에서 자동 생성됩니다.</div></div></td></tr>';
 
   renderVisitorSection(month);
+  renderCurationSection();
+}
+
+// ── 월간 리포트 큐레이션 (§8-7 5·6 — monthly_insights 탭) ──
+let quoteCandidateList = [];   // 렌더 시점의 후보 배열 (인덱스로 토글 — 텍스트 이스케이프 문제 회피)
+
+function svPrevMonthKey() {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');   // 로컬 getter (toISOString 금지 규칙)
+}
+
+function renderCurationSection() {
+  const mEl = document.getElementById('svInsightMonth');
+  if (!mEl.value) mEl.value = svPrevMonthKey();   // 기본값 = 전월 (리포트 대상 월)
+  const month = mEl.value;
+  const rows = (surveyData.insights || []).filter(r => String(r.month) === month);
+
+  // 핵심 인사이트 (직접 입력 목록)
+  const ins = rows.filter(r => String(r.type || 'insight') !== 'quote')
+    .sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0));
+  document.getElementById('insightList').innerHTML = ins.length ? ins.map(r =>
+    '<div style="display:flex; align-items:flex-start; gap:8px; padding:8px 0; border-bottom:1px solid var(--c-separator);">' +
+      '<span style="flex:1; font-size:var(--t-footnote); line-height:1.6;">' + escapeHtml(r.text) + '</span>' +
+      '<button class="sv-save-btn" style="border-color:var(--c-red); color:var(--c-red);" onclick="insightDelete(\'' + escapeHtml(String(r.id)) + '\')">삭제</button>' +
+    '</div>').join('')
+    : '<div style="font-size:var(--t-footnote); color:var(--c-label-3);">아직 입력된 인사이트가 없습니다 — 이 달 리포트에서 블록이 생략됩니다.</div>';
+
+  // 인상 깊은 한마디 후보 (당월 인솔자·방문자 자유 의견 20자 이상)
+  const respMonth = r => String(r.visit_date || r.submitted_at || '').slice(0, 7);
+  quoteCandidateList = [];
+  (surveyData.responses || []).forEach(r => {
+    const t = String(r.feedback || '').trim();
+    if (t.length >= 20 && respMonth(r) === month) quoteCandidateList.push({ text: t, source: '인솔자' });
+  });
+  (surveyData.visitors || []).forEach(v => {
+    const t = String(v.feedback || '').trim();
+    if (t.length >= 20 && String(v.submitted_at || '').slice(0, 7) === month) quoteCandidateList.push({ text: t, source: '방문자' });
+  });
+  const quotes = rows.filter(r => String(r.type) === 'quote');
+  document.getElementById('quoteCandidates').innerHTML = quoteCandidateList.length ? quoteCandidateList.map((c, i) => {
+    const sel = quotes.some(q => String(q.text) === c.text && String(q.source) === c.source);
+    return '<label style="display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid var(--c-separator); cursor:pointer;">' +
+      '<input type="checkbox" ' + (sel ? 'checked' : '') + ' onchange="quoteToggle(' + i + ', this)" style="margin-top:3px;">' +
+      '<span style="flex:1; font-size:var(--t-footnote); line-height:1.6;">' + escapeHtml(c.text) +
+        ' <span style="color:var(--c-label-3);">— ' + (c.source === '방문자' ? '방문자 (익명)' : '인솔자 후기') + '</span></span>' +
+    '</label>';
+  }).join('')
+    : '<div style="font-size:var(--t-footnote); color:var(--c-label-3);">후보가 없습니다 — 당월 설문 자유 의견(20자 이상)이 후보로 올라옵니다.</div>';
+}
+
+async function insightAdd() {
+  const input = document.getElementById('insightNewText');
+  const text = input.value.trim();
+  const month = document.getElementById('svInsightMonth').value;
+  if (!text) { toast('인사이트 내용을 입력해 주세요.'); return; }
+  input.value = '';
+  // 낙관적 로컬 반영 (id는 서버 생성 — 백그라운드 재동기화로 정합)
+  surveyData.insights = (surveyData.insights || []).concat([{ id: 'tmp' + Date.now(), month, seq: 999, type: 'insight', text, source: '' }]);
+  renderSurveyTab();
+  if (await svPost({ type: 'insight_add', month, text, rowType: 'insight' })) loadSurveyData(true, true);
+}
+
+async function insightDelete(id) {
+  surveyData.insights = (surveyData.insights || []).filter(r => String(r.id) !== String(id));
+  renderSurveyTab();
+  if (String(id).indexOf('tmp') === 0) { loadSurveyData(true, true); return; }
+  if (await svPost({ type: 'insight_delete', id })) toast('삭제했습니다.');
+  else loadSurveyData(true, true);
+}
+
+async function quoteToggle(i, cb) {
+  const month = document.getElementById('svInsightMonth').value;
+  const c = quoteCandidateList[i];
+  if (!c) return;
+  if (cb.checked) {
+    surveyData.insights = (surveyData.insights || []).concat([{ id: 'tmp' + Date.now(), month, seq: 999, type: 'quote', text: c.text, source: c.source }]);
+    if (await svPost({ type: 'insight_add', month, text: c.text, source: c.source, rowType: 'quote' })) loadSurveyData(true, true);
+  } else {
+    const row = (surveyData.insights || []).find(r =>
+      String(r.month) === month && String(r.type) === 'quote' && String(r.text) === c.text && String(r.source) === c.source);
+    surveyData.insights = (surveyData.insights || []).filter(r => r !== row);
+    if (row && String(row.id).indexOf('tmp') !== 0) await svPost({ type: 'insight_delete', id: row.id });
+    else loadSurveyData(true, true);
+  }
 }
 
 // ── 방문자 현장 설문 (§8-5) — 조회 전용 (수정·상태 전환·삭제 없음) ──
@@ -4130,13 +4234,22 @@ const VISITOR_FIELD_LABELS = [
 
 function renderVisitorSection(month) {
   const all = surveyData.visitors || [];
-  // KPI — 기존 관례대로 필터 무관 전체 기준 (응답 수·평균 만족도·언어 분포)
-  const scores = all.map(v => parseInt(String(v.satisfaction).charAt(0), 10)).filter(n => n >= 1 && n <= 5);
-  const avg = scores.length ? (scores.reduce((a, c) => a + c, 0) / scores.length).toFixed(1) : '—';
+  // KPI — 기존 관례대로 필터 무관 전체 기준 (응답 수·만족도·언어 분포)
+  // 척도 혼재 대응 (2026-08-03 NPS 전환): 신 0~10 정수와 구 5단계("N - 라벨")를 절대 섞어 평균하지 않음
+  const neu = [], oldS = [];
+  all.forEach(v => {
+    const s = String(v.satisfaction || '').trim();
+    if (/^(10|[0-9])$/.test(s)) neu.push(Number(s));
+    else { const m = s.match(/^([1-5])\s*-/); if (m) oldS.push(Number(m[1])); }
+  });
+  const avgOf = a => (a.reduce((x, y) => x + y, 0) / a.length).toFixed(1);
+  const satTxt = neu.length
+    ? '평균 ' + avgOf(neu) + '/10' + (oldS.length ? ' · 구 ' + avgOf(oldS) + '/5' : '')
+    : (oldS.length ? '평균 ' + avgOf(oldS) + '/5 (구 척도)' : '평균 —');
   const ko = all.filter(v => v.lang === 'KO').length;
   const en = all.filter(v => v.lang === 'EN').length;
   document.getElementById('kpiSvVisitor').textContent = all.length;
-  document.getElementById('kpiSvVisitorDist').textContent = '평균 만족도 ' + avg + ' · KO ' + ko + ' · EN ' + en;
+  document.getElementById('kpiSvVisitorDist').textContent = satTxt + ' · KO ' + ko + ' · EN ' + en;
 
   const langF = document.getElementById('svVisitorLangFilter').value;
   const vs = all.filter(v => (!langF || v.lang === langF) && svMonthMatch(v, month))

@@ -359,7 +359,8 @@ function doPost(e) {
       data.type === 'survey_update' || data.type === 'survey_delete' ||
       data.type === 'ledger_update' || data.type === 'ledger_delete' ||
       data.type === 'issue_update' || data.type === 'issue_delete' ||
-      data.type === 'visitor_delete' || data.type === 'export_log') {
+      data.type === 'visitor_delete' || data.type === 'export_log' ||
+      data.type === 'insight_add' || data.type === 'insight_delete') {
     var admin = verifyAdminToken(data.token);
     if (!admin.ok) {
       return jsonResponse({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
@@ -378,6 +379,8 @@ function doPost(e) {
     if (data.type === 'issue_delete')         return handleIssueDelete(data);
     if (data.type === 'visitor_delete')       return handleVisitorDelete(data);
     if (data.type === 'export_log')           return handleExportLog(data, admin.email);
+    if (data.type === 'insight_add')          return handleInsightAdd(data);
+    if (data.type === 'insight_delete')       return handleInsightDelete(data);
   }
 
   return jsonResponse({ error: 'Unknown type' });
@@ -1287,24 +1290,95 @@ function sendMonthlyReport(options) {
     Logger.log('Monthly report skipped: MONTHLY_REPORT_TO 미설정');
     return { subject, sentTo: '', skipped: 'no recipients' };
   }
-  MailApp.sendEmail({
-    to: to, cc: CC_EMAIL, subject: subject,
+  // subjectPrefix('[테스트] ')·noCc는 §8-6 수동/테스트 발송 전용 옵션 — 자동 트리거 경로는 옵션 미전달로 기존 동작 그대로
+  const finalSubject = (options.subjectPrefix || '') + subject;
+  const mail = {
+    to: to, subject: finalSubject,
     body: text, htmlBody: html,
     name: 'ThinQ Real',
-  });
+  };
+  if (!options.noCc) mail.cc = CC_EMAIL;
+  MailApp.sendEmail(mail);
   Logger.log('Monthly report sent → ' + to + ' (' + month + ')');
   return { subject, sentTo: to };
+}
+
+// ============================================================
+//  §8-7 리포트 개편 (2026-08-03) — 상수·집계 헬퍼
+// ============================================================
+
+// 사업부(본부) 고정 목록 — 예약 폼 #fDivision 드롭다운과 동기화 (건수 있는 본부만 표시, 목록 외/공란은 '기타')
+const REPORT_DIVISIONS = ['HS사업본부', 'MS사업본부', 'VS사업본부', 'ES사업본부', '한국영업본부', '해외영업본부'];
+
+// 리포트 기사 상한 — 스크랩 결과 중 상위 N건만 썸네일과 함께 배치 (2026-08-03 렌더 리뷰)
+const REPORT_ARTICLE_LIMIT = 5;
+
+// ROI 확정 기준 수치 (2026-08 확정 — 저장 시나리오 의존 폐기, 고정 표기)
+// ※ 총액 요약·지표만 커밋 가능 — 항목별 실집행 단가는 커밋 금지 (§6.5 확장 grep 대상)
+const ROI_FIXED = {
+  annualValue: '2.14억원',
+  capex: '2.794억원', opexYr: '0.092억원/년', totalCost: '2.886억원',
+  bep: '1.31년 (약 1년 4개월)', roi3: '+122.4%', roi5: '+270.7%',
+  baseVisits: 30, baseRdDays: 39,   // 25년 연간 베이스라인 (실측 누적 대비용)
+};
+
+// 월간 인사이트·한마디 큐레이션 탭 (§8-7 5·6)
+// type: 'insight'(핵심 인사이트) | 'quote'(인상 깊은 한마디 — source: '인솔자'|'방문자')
+const INSIGHTS_SHEET_NAME = 'monthly_insights';
+const INSIGHTS_HEADERS = ['id', 'month', 'seq', 'type', 'text', 'source', 'created_at'];
+
+// 만족도 척도 판별·집계 (§8-7 3-3) — 구 5단계("N - 라벨")와 신 0~10 정수를 **절대 섞어 평균하지 않는다**
+function classifySatisfaction(values) {
+  const neu = [], old = [];
+  (values || []).forEach(v => {
+    const s = String(v == null ? '' : v).trim();
+    if (!s) return;
+    if (/^(10|[0-9])$/.test(s)) neu.push(Number(s));
+    else {
+      const m = s.match(/^([1-5])\s*-/);
+      if (m) old.push(Number(m[1]));
+    }
+  });
+  const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+  let nps = null;
+  if (neu.length) {
+    const promoters = neu.filter(n => n >= 9).length;
+    const detractors = neu.filter(n => n <= 6).length;
+    nps = Math.round((promoters - detractors) / neu.length * 100);
+  }
+  return { newCount: neu.length, newAvg: avg(neu), nps, oldCount: old.length, oldAvg: avg(old) };
+}
+
+// 만족도/NPS 표기 문자열 — 혼재 월은 두 줄 병기, 소표본(10건 미만)은 참고치 표기
+function satDisplay(sat) {
+  if (!sat || (!sat.newCount && !sat.oldCount)) return '—';
+  const parts = [];
+  if (sat.newCount) {
+    const npsTxt = 'NPS ' + (sat.nps >= 0 ? '+' : '') + sat.nps + ' · 평균 ' + sat.newAvg.toFixed(1) + '/10';
+    parts.push(sat.newCount < 10 ? npsTxt + ' (응답 ' + sat.newCount + '건 · 참고치)' : npsTxt + ' · 응답 ' + sat.newCount + '건');
+  }
+  if (sat.oldCount) parts.push('평균 만족도 ' + sat.oldAvg.toFixed(1) + '/5 (구 척도 · ' + sat.oldCount + '건)');
+  return parts.join(' / ');
+}
+
+// MoM 증감 표기 — 전월 데이터 없으면 빈 문자열 (증감 생략은 오류 아님)
+function momDisplay(cur, prev) {
+  if (prev == null) return '';
+  const diff = cur - prev;
+  if (diff === 0) return '전월과 동일';
+  const pct = prev > 0 ? Math.round(diff / prev * 100) : null;
+  return (diff > 0 ? '▲ ' : '▼ ') + Math.abs(diff) + (pct != null ? ' (' + (diff > 0 ? '+' : '-') + Math.abs(pct) + '%)' : '');
 }
 
 function collectMonthlyData(month) {
   const [yStr, mStr] = month.split('-');
   const year = Number(yStr), monthNum = Number(mStr);
 
-  // 1) 예약 (date 컬럼이 해당 월에 속하는 모든 건)
+  // 1) 예약 — 전 행을 객체화한 뒤 당월/전월/YTD로 나눠 쓴다 (§8-7 Executive·사업부 집계)
   const bookingsSheet = getSheet();
   const brows = bookingsSheet.getDataRange().getValues();
   const bheaders = brows[0];
-  const bookings = brows.slice(1).map((row, i) => {
+  const allBookings = brows.slice(1).map((row, i) => {
     const obj = { _row: i + 2 };
     bheaders.forEach((h, j) => {
       let v = row[j];
@@ -1314,7 +1388,8 @@ function collectMonthlyData(month) {
       obj[h] = v == null ? '' : v;
     });
     return obj;
-  }).filter(b => b.date && String(b.date).slice(0, 7) === month);
+  }).filter(b => b.date);
+  const bookings = allBookings.filter(b => String(b.date).slice(0, 7) === month);
 
   const confirmed = bookings.filter(b => b.status === '확정');
   const rejected  = bookings.filter(b => b.status === '거절');
@@ -1370,12 +1445,70 @@ function collectMonthlyData(month) {
     articles = fetchThinqRealArticles();
     articles.source = articles.provider || 'auto';
   }
+  articles.items = (articles.items || []).slice(0, REPORT_ARTICLE_LIMIT);
 
-  // 4) 설문·성과 지표 (Phase 5 — 설문 파이프라인 월간 집계)
+  // 4) 설문·성과 지표 (Phase 5 — 설문 파이프라인 월간 집계 + §8-7 만족도/NPS·방문자 지표)
   //    집계 실패가 리포트 발송 자체를 막지 않도록 격리 (텔레그램·캘린더와 동일 원칙)
   let survey = null;
   try { survey = collectMonthlySurvey(month); }
   catch (err) { Logger.log('[monthly] survey metrics fail: ' + err); }
+
+  // 5) 전월 대비(MoM) — 전월 확정 건수·인원 (§8-7 2). 전월 데이터 없으면 null (증감 생략)
+  let prev = null;
+  try {
+    const pm = monthNum === 1 ? (year - 1) + '-12' : year + '-' + ('0' + (monthNum - 1)).slice(-2);
+    const prevConfirmed = allBookings.filter(b => String(b.date).slice(0, 7) === pm && b.status === '확정');
+    if (prevConfirmed.length || allBookings.some(b => String(b.date).slice(0, 7) === pm)) {
+      prev = {
+        confirmed: prevConfirmed.length,
+        visitors: prevConfirmed.reduce((s, b) => s + (Number(b.count) || 0), 0),
+      };
+    }
+  } catch (err) { Logger.log('[monthly] prev metrics fail: ' + err); }
+
+  // 6) 26년 누적(YTD) — 1월~보고월 확정 기준 건수·인원 + R&D 사용일수 (§8-7 2·8)
+  let ytd = null;
+  try {
+    const ytdConfirmed = allBookings.filter(b => {
+      const d7 = String(b.date).slice(0, 7);
+      return d7.slice(0, 4) === yStr && d7 <= month && b.status === '확정';
+    });
+    const rdDates = {};
+    ytdConfirmed.filter(b => b.purposeKey === 'rd').forEach(b => { rdDates[String(b.date)] = true; });
+    ytd = {
+      confirmed: ytdConfirmed.length,
+      visitors: ytdConfirmed.reduce((s, b) => s + (Number(b.count) || 0), 0),
+      rdDays: Object.keys(rdDates).length,
+    };
+  } catch (err) { Logger.log('[monthly] ytd metrics fail: ' + err); }
+
+  // 7) 사업부별 활용 현황 — 확정 기준 건수/인원, 건수 있는 본부만 + 목록 외/공란은 '기타'
+  //    (§8-7 4는 0건 포함 6본부였으나 2026-08-03 렌더 리뷰로 0건 본부 미표시 전환)
+  let divisions = null;
+  try {
+    const map = {};
+    REPORT_DIVISIONS.forEach(name => { map[name] = { name, count: 0, people: 0 }; });
+    const etc = { name: '기타', count: 0, people: 0 };
+    confirmed.forEach(b => {
+      const dv = String(b.division || '').trim();
+      const slot = map[dv] || etc;
+      slot.count += 1;
+      slot.people += Number(b.count) || 0;
+    });
+    divisions = REPORT_DIVISIONS.map(name => map[name]).filter(dv => dv.count > 0);
+    if (etc.count > 0) divisions.push(etc);
+  } catch (err) { Logger.log('[monthly] division metrics fail: ' + err); }
+
+  // 8) 핵심 인사이트·인상 깊은 한마디 (monthly_insights 큐레이션 — §8-7 5·6). 행 없으면 블록 생략
+  let insights = [], quotes = [];
+  try {
+    const rowsIns = readSheetRecords(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS)
+      .filter(r => String(r.month) === month)
+      .sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0));
+    insights = rowsIns.filter(r => String(r.type || 'insight') !== 'quote').map(r => String(r.text || '')).filter(Boolean);
+    quotes = rowsIns.filter(r => String(r.type) === 'quote')
+      .map(r => ({ text: String(r.text || ''), source: String(r.source || '') })).filter(q => q.text);
+  } catch (err) { Logger.log('[monthly] insights fail: ' + err); }
 
   return {
     month, year, monthNum,
@@ -1392,6 +1525,8 @@ function collectMonthlyData(month) {
     roiLatest,
     articles,
     survey,
+    prev, ytd, divisions, insights, quotes,
+    roiFixed: ROI_FIXED,
   };
 }
 
@@ -1751,45 +1886,7 @@ function prettyRoiLabel(label) {
 
 // ── 임원 요약 한 줄 빌더 (HTML/Text 공용) ──
 // asHtml: true → <strong> 강조 포함, false → 평문
-function buildExecSummary(d, asHtml) {
-  const m = d.monthNum + '월';
-  const strong = (s) => asHtml ? '<strong>' + s + '</strong>' : s;
-  const esc = (s) => asHtml ? escapeHtml(s) : s;
-
-  // 방문 부분
-  let visitPart;
-  if (d.kpi.confirmed > 0) {
-    visitPart = m + '에는 ' + strong(d.kpi.confirmed + '건의 방문') +
-                '(총 ' + strong(d.kpi.visitors + '명') + ')이 진행되었습니다.';
-  } else {
-    visitPart = m + '에는 확정된 방문이 없었습니다.';
-  }
-
-  // ROI 부분 (시나리오 있을 때만)
-  let roiPart = '';
-  if (d.roiLatest) {
-    const o = d.roiLatest.outputs || {};
-    const roi5 = Number(o.roi5);
-    const bep = o.bepText;
-    if (isFinite(roi5)) {
-      const sign = roi5 >= 0 ? '+' : '';
-      const roi5Txt = sign + roi5.toFixed(1) + '%';
-      if (bep) {
-        roiPart = ' 최신 시나리오 기준 5년 누적 ROI는 ' + strong(roi5Txt) +
-                  ', 회수 기간은 ' + strong(esc(bep)) + '입니다.';
-      } else {
-        roiPart = ' 최신 시나리오 기준 5년 누적 ROI는 ' + strong(roi5Txt) + '입니다.';
-      }
-    }
-  }
-
-  // 둘 다 없을 때만 전용 안내
-  if (d.kpi.confirmed === 0 && !roiPart) {
-    return m + '에는 ThinQ Real 운영 활동이 기록되지 않았습니다.';
-  }
-  return visitPart + roiPart;
-}
-
+// Executive 3줄 요약 (§8-7 2) — ① 당월 핵심 수치(+MoM) ② 특기 사항(인사이트 첫 줄 재사용) ③ ROI 진척(확정 기준 고정)
 // ── 텍스트 빌더 ────────────────────────────
 function buildMonthlyReportText(d) {
   const L = [];
@@ -1798,17 +1895,49 @@ function buildMonthlyReportText(d) {
   L.push('이번 달 ThinQ Real의 운영 현황과 누적 성과를 안내드립니다.');
   L.push('');
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push('▶ 요약');
+  L.push('📊 Executive 요약');
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push('   ' + buildExecSummary(d, false));
+  const momC = d.prev ? momDisplay(d.kpi.confirmed, d.prev.confirmed) : '';
+  const momV = d.prev ? momDisplay(d.kpi.visitors, d.prev.visitors) : '';
+  L.push(`   당월 방문 건수   ${d.kpi.confirmed}건` + (momC ? `  (전월 대비 ${momC})` : ''));
+  L.push(`   당월 방문 인원   ${d.kpi.visitors}명` + (momV ? `  (전월 대비 ${momV})` : ''));
+  L.push(`   만족도(NPS)      ${d.survey ? satDisplay(d.survey.satAll) : '—'}`);
   L.push('');
-  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push('📊 핵심 지표');
-  L.push('   이번 달 운영 성과의 핵심 지표');
-  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push(`   확정 방문        ${d.kpi.confirmed}건`);
-  L.push(`   총 방문 인원     ${d.kpi.visitors}명`);
-  L.push('');
+
+  // 사업부별 활용 현황 — 확정 기준, 건수 있는 본부만 (2026-08-03 렌더 리뷰)
+  if (d.divisions && d.divisions.length) {
+    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    L.push('🏢 사업부별 활용 현황');
+    L.push('   확정 방문 기준 본부별 건수·인원');
+    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    const top = d.divisions.reduce((a, c) => (c.count > (a ? a.count : 0) ? c : a), null);
+    d.divisions.forEach(dv => {
+      const mark = (top && top.count > 0 && dv.name === top.name) ? ' ★' : '';
+      L.push(`   ${dv.name}  —  ${dv.count}건 · ${dv.people}명${mark}`);
+    });
+    L.push('');
+  }
+
+  // 핵심 인사이트 — 큐레이션 행 없으면 블록 생략
+  if (d.insights && d.insights.length) {
+    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    L.push('💡 핵심 인사이트');
+    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    d.insights.forEach(t => L.push('   • ' + t));
+    L.push('');
+  }
+
+  // 인상 깊은 한마디 — 선택 건 없으면 블록 생략
+  if (d.quotes && d.quotes.length) {
+    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    L.push('💬 인상 깊은 한마디');
+    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    d.quotes.forEach(q => {
+      L.push('   "' + q.text + '"');
+      L.push('     — ' + (q.source === '방문자' ? '방문자 (익명)' : '인솔자 후기'));
+      L.push('');
+    });
+  }
 
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   L.push('🎯 방문 목적별 분포');
@@ -1823,69 +1952,6 @@ function buildMonthlyReportText(d) {
     L.push(`   ${k}  —  ${v}건 (${pct}%)`);
   });
   L.push('');
-
-  // 임원 가독성: 핵심 이력(B2B 영업·홍보)만 상세 표시, 나머지는 건수로만 요약 (2026-07-05 결정)
-  const keyVisitsT = d.confirmed.filter(b => /(B2B|홍보)/.test(String(b.purpose || '')));
-  const otherCountT = d.confirmed.length - keyVisitsT.length;
-  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push('📅 방문 이력');
-  L.push(`   이번 달 확정 방문 중 핵심 이력(B2B 영업 · 홍보) ${keyVisitsT.length}건`);
-  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  if (!keyVisitsT.length) {
-    L.push('   (이번 달 B2B 영업·홍보 방문 없음' + (otherCountT ? ` — 그 외 목적 ${otherCountT}건` : '') + ')');
-  } else {
-    // 카테고리별 그룹 표시 (고정 순서: B2B 영업 → 홍보)
-    [['B2B 영업', /B2B/], ['홍보 (프레스투어/마케팅)', /홍보/]].forEach(pair => {
-      const rows = keyVisitsT.filter(b => pair[1].test(String(b.purpose || '')));
-      if (!rows.length) return;
-      L.push(`   ■ ${pair[0]}  —  ${rows.length}건`);
-      rows.forEach(b => {
-        // b2b는 subject=clientCompany로 저장되므로 중복 제거 후 표시
-        const subj = [...new Set([b.subject, b.clientCompany].filter(Boolean))].join(' · ');
-        L.push(`     ${b.date}  ·  ${subj || '-'}`);
-      });
-      L.push('');
-    });
-    if (otherCountT) {
-      L.push(`   ※ 그 외 목적(R&D·콘텐츠 제작·내부 커뮤니케이션 등) ${otherCountT}건은 생략`);
-      L.push('     (전체 내역은 관리자 페이지에서 확인 가능)');
-    }
-  }
-
-  // 설문·성과 지표 (Phase 5)
-  if (d.survey) {
-    const s = d.survey;
-    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    L.push('📋 설문·성과 지표');
-    L.push('   방문 후기 설문 기반 지표 (확정 산입액 = 이번 달 대장 확정 합계)');
-    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    L.push(`   설문 응답        ${s.count}건 (영업 ${s.tracks.sales} · 콘텐츠 ${s.tracks.media} · 기타 ${s.tracks.etc})`);
-    L.push(`   재방문 응답률    ${s.revisitPct == null ? '—' : s.revisitPct + '%'}`);
-    L.push(`   성과 추적 대장   신규 ${s.ledgerNew}건 · 확정 ${s.ledgerConfirmed}건 · 드롭 ${s.ledgerDropped}건`);
-    L.push(`   월 확정 산입액   ${Number(s.confirmedSum).toLocaleString()}만원`);
-    L.push(`   IoT 이슈 등록    ${s.issueCount}건`);
-    L.push('');
-  }
-
-  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push(`💰 ${d.monthNum}월 ROI 누적 분석 결과`);
-  L.push('   저장된 시나리오 기반의 실시간 산출 결과');
-  L.push('   (영업 지원·기여 영업 이익은 실제 영업 진행에 따라 매월 갱신됨)');
-  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  if (!d.roiLatest) {
-    L.push('   (저장된 ROI 시나리오가 없습니다)');
-  } else {
-    const o = d.roiLatest.outputs || {};
-    const annualValue = Number(o.annualValue) || 0;
-    if (annualValue) L.push(`   연간 창출 가치    ${fmtKRWReport(annualValue)}`);
-    if (o.bepText)   L.push(`   회수 기간 (BEP)   ${o.bepText}`);
-    else if (isFinite(o.bepYears)) L.push(`   회수 기간 (BEP)   ${Number(o.bepYears).toFixed(2)}년`);
-    if (isFinite(o.roi3)) L.push(`   3년 누적 ROI      ${(o.roi3 >= 0 ? '+' : '') + Number(o.roi3).toFixed(1)}%  (${fmtKRWReport(o.profit3 || 0)})`);
-    if (isFinite(o.roi5)) L.push(`   5년 누적 ROI      ${(o.roi5 >= 0 ? '+' : '') + Number(o.roi5).toFixed(1)}%  (${fmtKRWReport(o.profit5 || 0)})`);
-    L.push('');
-    L.push(`   기준 시나리오: ${prettyRoiLabel(d.roiLatest.label)}` +
-           (d.roiLatest.author ? ` · 작성자 ${d.roiLatest.author}` : ''));
-  }
 
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   L.push('📰 관련 기사');
@@ -1908,6 +1974,17 @@ function buildMonthlyReportText(d) {
     });
   }
 
+  // ROI 스냅샷 — 최하단, 확정 기준 고정 수치 (§8-7 8. 그래프·저장 시나리오 의존 폐기)
+  const rf = d.roiFixed || ROI_FIXED;
+  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  L.push('💰 투자 대비 성과 (ROI) — 확정 기준');
+  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  L.push(`   연간 확정 가치 ${rf.annualValue} · 총 투자 ${rf.totalCost} (구축 ${rf.capex} + 운영 ${rf.opexYr})`);
+  L.push(`   BEP ${rf.bep} · 3년 ROI ${rf.roi3} · 5년 ROI ${rf.roi5}`);
+  if (d.ytd) {
+    L.push(`   실측 누적(26년): 방문 ${d.ytd.confirmed}건 · R&D 사용 ${d.ytd.rdDays}일 — 베이스라인 ${rf.baseVisits}건/${rf.baseRdDays}일 대비 진척`);
+  }
+  L.push('');
   L.push('');
   L.push('감사합니다.');
   L.push('HS플랫폼사업센터 AI홈솔루션엔지니어링팀');
@@ -1925,16 +2002,6 @@ function buildMonthlyReportHtml(d) {
       '</div>' +
     '</td></tr>';
 
-  // ── 임원 요약 한 줄 (헤더 직후, 30초 안에 운영 상황 파악) ──
-  const execSummaryText = buildExecSummary(d, true);
-  const execSummaryRow =
-    '<tr><td style="padding:18px 28px 0;">' +
-      '<div style="background:#f5f7f4;border-left:4px solid #3a5035;padding:18px 22px;border-radius:0 6px 6px 0;">' +
-        '<div style="font-size:11px;font-weight:600;color:#3a5035;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">요약</div>' +
-        '<div style="font-size:15px;color:#1d1d1f;line-height:1.75;">' + execSummaryText + '</div>' +
-      '</div>' +
-    '</td></tr>';
-
   // ── 섹션 헤더 (큰 제목 + 한 줄 설명) ──
   const sectionHeader = (icon, title, description) =>
     '<tr><td style="padding:32px 28px 6px;">' +
@@ -1942,27 +2009,95 @@ function buildMonthlyReportHtml(d) {
       (description ? '<div style="font-size:13.5px;color:#6e6e73;margin-top:8px;line-height:1.55;">' + escapeHtml(description) + '</div>' : '') +
     '</td></tr>';
 
-  // ── 1) 핵심 지표 (확정 건수 + 방문 인원만, 폰트는 ROI KPI 카드와 통일) ──
-  const kpiCell = (label, value, unit, accent) =>
-    '<td valign="top" align="center" style="padding:18px 10px;background:#f5f5f7;border-radius:10px;">' +
+  // ── 1) Executive 요약 — KPI 3카드 (당월 건수·인원 + MoM / NPS)
+  //    (§8-7 2의 26년 누적 카드·요약 3줄은 2026-08-03 렌더 리뷰로 삭제 — 누적 진척은 ROI 스냅샷이 단일 위치)
+  // MoM·보조 설명이 있는 Executive 카드 셀
+  const execCell = (label, value, unit, sub) =>
+    '<td valign="top" align="center" style="padding:16px 8px;background:#f5f5f7;border-radius:10px;">' +
       '<div style="line-height:1.1;">' +
-        '<span style="font-size:22px;font-weight:700;color:' + (accent || '#1d1d1f') + ';">' + escapeHtml(String(value)) + '</span>' +
-        '<span style="font-size:13px;font-weight:500;color:' + (accent || '#1d1d1f') + ';margin-left:4px;">' + escapeHtml(unit) + '</span>' +
+        '<span style="font-size:21px;font-weight:700;color:#3a5035;">' + escapeHtml(String(value)) + '</span>' +
+        (unit ? '<span style="font-size:12px;font-weight:500;color:#3a5035;margin-left:3px;">' + escapeHtml(unit) + '</span>' : '') +
       '</div>' +
-      '<div style="font-size:12px;color:#6e6e73;margin-top:8px;font-weight:500;">' + escapeHtml(label) + '</div>' +
+      (sub ? '<div style="font-size:11px;color:#6e6e73;margin-top:5px;line-height:1.4;">' + escapeHtml(sub) + '</div>' : '') +
+      '<div style="font-size:12px;color:#6e6e73;margin-top:7px;font-weight:500;">' + escapeHtml(label) + '</div>' +
     '</td>';
 
+  const momC = d.prev ? momDisplay(d.kpi.confirmed, d.prev.confirmed) : '';
+  const momV = d.prev ? momDisplay(d.kpi.visitors, d.prev.visitors) : '';
+  // 만족도 카드 — NPS(-100~+100)는 부호 병기가 관례라 양수도 '+' 표기. 구 척도만 있는 월은 라벨 자체를 전환
+  const satAll = d.survey ? d.survey.satAll : null;
+  let satCardValue = '—', satCardUnit = '', satCardSub = '', satCardLabel = 'NPS (추천 지수)';
+  if (satAll && satAll.newCount) {
+    satCardValue = (satAll.nps >= 0 ? '+' : '') + satAll.nps;
+    satCardSub = '평균 ' + satAll.newAvg.toFixed(1) + '/10 · ' + satAll.newCount + '건' + (satAll.newCount < 10 ? ' (참고치)' : '');
+  } else if (satAll && satAll.oldCount) {
+    satCardValue = satAll.oldAvg.toFixed(1);
+    satCardUnit = '/5';
+    satCardLabel = '만족도 (구 척도)';
+    satCardSub = '응답 ' + satAll.oldCount + '건';
+  }
+  const rfx = d.roiFixed || ROI_FIXED;
   const kpiTable =
     '<tr><td style="padding:0 28px 16px;">' +
-      '<table role="presentation" cellspacing="14" cellpadding="0" border="0" style="border-collapse:separate;width:100%;">' +
+      '<table role="presentation" cellspacing="10" cellpadding="0" border="0" style="border-collapse:separate;width:100%;">' +
         '<tr>' +
-          kpiCell('확정 방문', d.kpi.confirmed, '건', '#3a5035') +
-          kpiCell('총 방문 인원', d.kpi.visitors, '명', '#3a5035') +
+          execCell('당월 방문 건수', d.kpi.confirmed, '건', momC ? '전월 대비 ' + momC : '') +
+          execCell('당월 방문 인원', d.kpi.visitors, '명', momV ? '전월 대비 ' + momV : '') +
+          execCell(satCardLabel, satCardValue, satCardUnit, satCardSub) +
         '</tr>' +
       '</table>' +
     '</td></tr>';
 
-  // ── 2) 방문 목적별 분포 (도넛 차트) ──
+  // ── 2) 사업부별 활용 현황 — 확정 기준, 건수 있는 본부만 표시, 상위 본부 강조 ──
+  let divisionsRow = '';
+  if (d.divisions && d.divisions.length) {
+    const top = d.divisions.reduce((a, c) => (c.count > (a ? a.count : 0) ? c : a), null);
+    const divRows = d.divisions.map(dv => {
+      const isTop = top && top.count > 0 && dv.name === top.name;
+      return '<tr>' +
+        '<td style="padding:9px 12px;font-size:13.5px;color:#1d1d1f;border-bottom:1px solid #f2f2f2;' + (isTop ? 'font-weight:700;' : '') + '">' +
+          (isTop ? '★ ' : '') + escapeHtml(dv.name) + '</td>' +
+        '<td align="right" style="padding:9px 12px;font-size:13.5px;color:' + (dv.count ? '#1d1d1f' : '#aeaeb2') + ';border-bottom:1px solid #f2f2f2;' + (isTop ? 'font-weight:700;' : '') + '">' +
+          dv.count + '건</td>' +
+        '<td align="right" style="padding:9px 12px;font-size:13.5px;color:' + (dv.people ? '#1d1d1f' : '#aeaeb2') + ';border-bottom:1px solid #f2f2f2;' + (isTop ? 'font-weight:700;' : '') + '">' +
+          dv.people + '명</td>' +
+      '</tr>';
+    }).join('');
+    divisionsRow =
+      '<tr><td style="padding:0 28px 16px;">' +
+        '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' +
+          '<thead><tr>' +
+            '<th align="left" style="font-size:12px;color:#6e6e73;font-weight:600;padding:8px 12px;border-bottom:1px solid #e0e0e0;background:#fafafa;">본부</th>' +
+            '<th align="right" style="font-size:12px;color:#6e6e73;font-weight:600;padding:8px 12px;border-bottom:1px solid #e0e0e0;background:#fafafa;">건수</th>' +
+            '<th align="right" style="font-size:12px;color:#6e6e73;font-weight:600;padding:8px 12px;border-bottom:1px solid #e0e0e0;background:#fafafa;">인원</th>' +
+          '</tr></thead><tbody>' + divRows + '</tbody>' +
+        '</table>' +
+      '</td></tr>';
+  }
+
+  // ── 3) 핵심 인사이트 · 인상 깊은 한마디 (§8-7 5·6) — 큐레이션 없으면 블록 전체 생략 ──
+  let insightsRow = '';
+  if (d.insights && d.insights.length) {
+    insightsRow =
+      '<tr><td style="padding:0 28px 16px;">' +
+        d.insights.map(t =>
+          '<div style="padding:10px 14px;margin-bottom:8px;background:#f5f7f4;border-left:3px solid #3a5035;border-radius:0 6px 6px 0;font-size:14px;color:#1d1d1f;line-height:1.6;">' +
+            escapeHtml(t) + '</div>').join('') +
+      '</td></tr>';
+  }
+  let quotesRow = '';
+  if (d.quotes && d.quotes.length) {
+    quotesRow =
+      '<tr><td style="padding:0 28px 16px;">' +
+        d.quotes.map(q =>
+          '<div style="padding:14px 18px;margin-bottom:10px;background:#fdf9f2;border-radius:8px;">' +
+            '<div style="font-size:14.5px;color:#1d1d1f;line-height:1.65;">&ldquo;' + escapeHtml(q.text) + '&rdquo;</div>' +
+            '<div style="font-size:12px;color:#8e8e93;margin-top:6px;">— ' + (q.source === '방문자' ? '방문자 (익명)' : '인솔자 후기') + '</div>' +
+          '</div>').join('') +
+      '</td></tr>';
+  }
+
+  // ── 4) 방문 목적별 분포 (도넛 차트) ──
   // 6개 카테고리를 항상 모두 레전드에 표시 — 0건 카테고리도 존재함을 임원진이 즉시 인지할 수 있도록.
   // 0건 카테고리는 슬라이스 영역이 0이라 자동으로 안 그려지지만 범례 엔트리는 유지됨.
   let purposeBody;
@@ -2008,228 +2143,29 @@ function buildMonthlyReportHtml(d) {
       '<div style="font-size:13px;color:#6e6e73;text-align:center;margin-top:6px;">총 ' + purposeTotal + '건 (확정 기준)</div>';
   }
 
-  // ── 3) 방문 이력 (일자 / 목적 / 주제·소속) ──
-  // 임원 가독성: 핵심 이력(B2B 영업·홍보)만 상세 표시, 나머지는 건수로만 요약 (2026-07-05 결정)
-  const keyVisits = d.confirmed.filter(b => /(B2B|홍보)/.test(String(b.purpose || '')));
-  const otherCount = d.confirmed.length - keyVisits.length;
-  let visitsBody;
-  if (!keyVisits.length) {
-    visitsBody = '<div style="font-size:14px;color:#aeaeb2;padding:8px 0;">이번 달 B2B 영업·홍보 방문 없음' +
-      (otherCount ? ' <span style="font-size:12px;">(그 외 목적 ' + otherCount + '건)</span>' : '') + '</div>';
-  } else {
-    const th = (txt) => '<th align="left" style="font-size:12px;color:#6e6e73;font-weight:600;letter-spacing:0.04em;padding:10px 12px;border-bottom:1px solid #e0e0e0;background:#fafafa;">' + escapeHtml(txt) + '</th>';
-    const td = (html, opts) => '<td style="padding:12px;font-size:14px;color:#1d1d1f;border-bottom:1px solid #f2f2f2;vertical-align:top;line-height:1.5;' + ((opts && opts.nowrap) ? 'white-space:nowrap;' : '') + '">' + html + '</td>';
-    // 카테고리별 그룹 표시 (고정 순서: B2B 영업 → 홍보) — 그룹 헤더 색상은 PURPOSE_COLORS와 동기화
-    // col: 카테고리별 주제 컬럼명 (예약 폼 subjectLabel과 동일 매핑 — b2b=고객사, pr=행사명)
-    const visitGroups = [
-      { label: 'B2B 영업', re: /B2B/, col: '고객사' },
-      { label: '홍보 (프레스투어/마케팅)', re: /홍보/, col: '행사명' },
-    ];
-    visitsBody = visitGroups.map((g, gi) => {
-      const rows = keyVisits.filter(b => g.re.test(String(b.purpose || '')));
-      if (!rows.length) return '';
-      const color = PURPOSE_COLORS[g.label] || '#8fa889';
-      return (
-        '<div style="margin:' + (gi === 0 ? '2px' : '18px') + ' 0 6px;font-size:14px;font-weight:600;color:#1d1d1f;">' +
-          '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + color + ';margin-right:7px;"></span>' +
-          escapeHtml(g.label) +
-          ' <span style="color:#8e8e93;font-weight:500;font-size:13px;">· ' + rows.length + '건</span>' +
-        '</div>' +
-        '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' +
-          '<thead><tr>' + th('일자') + th(g.col) + '</tr></thead>' +
-          '<tbody>' +
-            rows.map(b => {
-              // b2b는 subject=clientCompany로 저장되므로 중복 제거 후 표시
-              const subj = [...new Set([b.subject, b.clientCompany].filter(Boolean))].map(escapeHtml).join(' · ');
-              return '<tr>' +
-                td(escapeHtml(b.date), { nowrap: true }) +
-                td(subj || '<span style="color:#aeaeb2;">-</span>') +
-              '</tr>';
-            }).join('') +
-          '</tbody>' +
-        '</table>'
-      );
-    }).join('') +
-    (otherCount
-      ? '<div style="font-size:12px;color:#aeaeb2;margin-top:10px;">그 외 목적(R&amp;D · 콘텐츠 제작 · 내부 커뮤니케이션 등) ' + otherCount + '건은 생략 — 전체 내역은 관리자 페이지에서 확인할 수 있습니다.</div>'
-      : '');
-  }
+  // ── 6) ROI 스냅샷 (§8-7 8 — 최하단·확정 기준 고정 수치. 그래프·저장 시나리오 의존 폐기) ──
+  const roiBody =
+    '<div style="background:#f5f7f4;border-radius:10px;padding:18px 22px;font-size:14px;color:#1d1d1f;line-height:1.9;">' +
+      '<div>연간 확정 가치 <strong>' + rfx.annualValue + '</strong> · 총 투자 <strong>' + rfx.totalCost + '</strong> (구축 ' + rfx.capex + ' + 운영 ' + rfx.opexYr + ')</div>' +
+      '<div>BEP <strong>' + rfx.bep + '</strong> · 3년 ROI <strong>' + rfx.roi3 + '</strong> · 5년 ROI <strong>' + rfx.roi5 + '</strong></div>' +
+      (d.ytd
+        ? '<div style="font-size:13px;color:#6e6e73;">실측 누적(26년): 방문 ' + d.ytd.confirmed + '건 · R&D 사용 ' + d.ytd.rdDays + '일 — 베이스라인 ' + rfx.baseVisits + '건/' + rfx.baseRdDays + '일 대비 진척</div>'
+        : '') +
+    '</div>';
 
-  // ── 4) ROI 누적 분석 결과 (최근 시나리오 기준) ──
-  let roiBody;
-  if (!d.roiLatest) {
-    roiBody = '<div style="font-size:14px;color:#aeaeb2;padding:8px 0;">저장된 ROI 시나리오가 없습니다. ROI 분석 툴에서 시나리오를 저장하면 다음 리포트부터 본 섹션에 분석 결과가 표시됩니다.</div>';
-  } else {
-    const o = d.roiLatest.outputs || {};
-    const annualValue = Number(o.annualValue) || 0;
-    const totalCost = Number(o.totalCost) || (annualValue * 3 - (Number(o.profit3) || 0));
-    const roi3 = Number(o.roi3);
-    const profit3 = Number(o.profit3);
-
-    // ROI KPI 카드 (4개)
-    const roiKpi = (label, value, sub, color) =>
-      '<td valign="top" align="center" style="padding:18px 10px;background:#f5f5f7;border-radius:10px;">' +
-        '<div style="font-size:22px;font-weight:700;color:' + (color || '#3a5035') + ';line-height:1.1;">' + escapeHtml(value) + '</div>' +
-        (sub ? '<div style="font-size:11px;color:#6e6e73;margin-top:4px;">' + escapeHtml(sub) + '</div>' : '') +
-        '<div style="font-size:12px;color:#6e6e73;margin-top:8px;font-weight:500;">' + escapeHtml(label) + '</div>' +
-      '</td>';
-    const bepDisplay = o.bepText || (isFinite(o.bepYears) ? Number(o.bepYears).toFixed(2) + '년' : '—');
-    const roi3Display = isFinite(roi3) ? ((roi3 >= 0 ? '+' : '') + roi3.toFixed(1) + '%') : '—';
-    const roi5Display = isFinite(o.roi5) ? ((Number(o.roi5) >= 0 ? '+' : '') + Number(o.roi5).toFixed(1) + '%') : '—';
-    const roiKpiTable =
-      '<table role="presentation" cellspacing="10" cellpadding="0" border="0" style="border-collapse:separate;width:100%;">' +
-        '<tr>' +
-          roiKpi('연간 창출 가치', fmtKRWReport(annualValue), null, '#3a5035') +
-          roiKpi('회수 기간 (BEP)', bepDisplay, null, '#3a5035') +
-          roiKpi('3년 누적 ROI', roi3Display, isFinite(profit3) ? fmtKRWReport(profit3) : null, '#3a5035') +
-          roiKpi('5년 누적 ROI', roi5Display, isFinite(o.profit5) ? fmtKRWReport(Number(o.profit5)) : null, '#3a5035') +
-        '</tr>' +
-      '</table>';
-
-    // 가치 항목별 비중 도넛 — 4개 항목 모두 항상 표시 (0원인 항목도 레전드 노출)
-    // 색상·라벨은 ROI 툴 breakdownChart(ThinQ_Real_ROI_Tool.html line 1720+)와 동기화
-    const valItems = Object.keys(ROI_VALUE_LABELS).map(k => ({
-      key: k, value: Number(o[k]) || 0,
-      label: ROI_VALUE_LABELS[k].label, color: ROI_VALUE_LABELS[k].color
-    }));
-    const valTotal = valItems.reduce((s, it) => s + it.value, 0);
-    let valueCompChart = '';
-    if (valTotal > 0) {
-      const vUrl = quickChartUrl({
-        type: 'doughnut',
-        data: {
-          labels: valItems.map(it => it.label),
-          datasets: [{ data: valItems.map(it => it.value), backgroundColor: valItems.map(it => it.color), borderWidth: 3, borderColor: '#ffffff' }]
-        },
-        options: {
-          cutoutPercentage: 65,
-          legend: {
-            position: 'bottom',
-            labels: { fontSize: 11, padding: 10, boxWidth: 10, usePointStyle: true }
-          },
-          plugins: {
-            datalabels: {
-              color: '#ffffff',
-              font: { size: 12, weight: 'bold' },
-              anchor: 'center',
-              align: 'center',
-              formatter: function(value) {
-                if (!value || value <= 0) return '';
-                var a = Math.abs(value);
-                if (a >= 1e8) return (a/1e8).toFixed(1).replace(/\.0$/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '억';
-                if (a >= 1e4) return Math.round(a/1e4).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '만';
-                return a.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-              }
-            }
-          }
-        }
-      }, { w: 480, h: 240 });
-      valueCompChart = '<img src="' + escapeHtml(vUrl) + '" alt="가치 항목별 비중" style="max-width:100%;width:480px;height:auto;display:block;margin:0 auto;" />';
-    }
-
-    // 연도별 누적 손익 라인 차트 — ROI 툴 cumulativeChart(line 1641+) 스타일 그대로
-    // 두 시리즈: 누적 손익(채움 영역) + 손익분기선(점선)
-    const cumValues = [
-      -totalCost,
-      -totalCost + annualValue * 1,
-      -totalCost + annualValue * 2,
-      -totalCost + annualValue * 3,
-      -totalCost + annualValue * 4,
-      -totalCost + annualValue * 5,
-    ];
-    const cumUrl = quickChartUrl({
-      type: 'line',
-      data: {
-        labels: ['0년', '1년', '2년', '3년', '4년', '5년'],
-        datasets: [
-          {
-            label: '누적 손익',
-            data: cumValues,
-            borderColor: '#3a5035',
-            backgroundColor: 'rgba(58, 80, 53, 0.08)',
-            borderWidth: 2.5,
-            fill: true,
-            lineTension: 0.3,
-            pointRadius: 5,
-            pointBackgroundColor: '#3a5035',
-            pointBorderColor: 'white',
-            pointBorderWidth: 2.5,
-          },
-          {
-            label: '손익분기선',
-            data: [0, 0, 0, 0, 0, 0],
-            borderColor: '#ff9500',
-            borderWidth: 1.5,
-            borderDash: [6, 4],
-            fill: false,
-            pointRadius: 0,
-          },
-        ],
-      },
-      options: {
-        legend: {
-          position: 'bottom',
-          labels: { fontSize: 11, boxWidth: 12, padding: 16, usePointStyle: true }
-        },
-        plugins: {
-          datalabels: { display: false }      // 라인 차트엔 데이터 라벨 없음 (Y축으로 충분)
-        },
-        scales: {
-          yAxes: [{
-            ticks: {
-              fontSize: 10,
-              callback: function(v) {
-                if (v === 0) return '0';
-                var a = Math.abs(v);
-                var sign = v < 0 ? '-' : '';
-                if (a >= 1e8) return sign + (a/1e8).toFixed(1).replace(/\.0$/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '억';
-                if (a >= 1e4) return sign + Math.round(a/1e4).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '만';
-                return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-              }
-            },
-            gridLines: { color: 'rgba(0,0,0,0.04)' }
-          }],
-          xAxes: [{
-            ticks: { fontSize: 11 },
-            gridLines: { display: false }
-          }]
-        }
-      }
-    }, { w: 620, h: 280 });
-    const cumChart = '<img src="' + escapeHtml(cumUrl) + '" alt="연도별 누적 손익" style="max-width:100%;width:620px;height:auto;display:block;margin:0 auto;" />';
-
-    const scenarioLabel = prettyRoiLabel(d.roiLatest.label) +
-      (d.roiLatest.author ? ' · 작성자 ' + escapeHtml(String(d.roiLatest.author)) : '');
-
-    roiBody =
-      roiKpiTable +
-      '<div style="margin-top:24px;">' +
-        '<div style="font-size:14px;font-weight:600;color:#1d1d1f;">가치 항목별 비중</div>' +
-        '<div style="font-size:12.5px;color:#6e6e73;margin-top:4px;">연간 창출 가치가 어떤 항목에서 얼마만큼 나오는지를 보여줍니다.</div>' +
-      '</div>' +
-      '<div style="margin-top:10px;">' + valueCompChart + '</div>' +
-      '<div style="margin-top:24px;">' +
-        '<div style="font-size:14px;font-weight:600;color:#1d1d1f;">연도별 누적 손익</div>' +
-        '<div style="font-size:12.5px;color:#6e6e73;margin-top:4px;">투자 시점부터 5년간 누적 손익 추이입니다. 점선과 만나는 시점이 손익분기점(BEP)입니다.</div>' +
-      '</div>' +
-      '<div style="margin-top:10px;">' + cumChart + '</div>' +
-      '<div style="margin-top:16px;font-size:12px;color:#aeaeb2;text-align:right;">기준 시나리오: ' + scenarioLabel + '</div>';
-  }
-
-  // 기사
+  // ── 5) 관련 기사 — REPORT_ARTICLE_LIMIT(5)건, 썸네일 있는 건은 카드형 배치 ──
   let articlesBody;
   if (!d.articles.items.length) {
     articlesBody = '<div style="font-size:13px;color:#aeaeb2;">' + escapeHtml(d.articles.skipReason || '검색 결과 없음') + '</div>';
   } else {
-    const THUMB_LIMIT = 5; // 상위 N건만 썸네일 카드, 나머지는 텍스트만 (보도자료 사진 중복 방지·시선 집중)
-    articlesBody = d.articles.items.map((it, idx) => {
+    articlesBody = d.articles.items.map(it => {
       const meta = [it.source, it.publishedAt].filter(Boolean).map(escapeHtml).join(' · ');
       const snippetDisplay = truncate(it.snippet, 120); // 표시 시점에서도 한 번 더 컷
       const textCell =
         '<a href="' + escapeHtml(it.link) + '" target="_blank" rel="noopener" style="font-size:14px;color:#3a5035;text-decoration:underline;font-weight:600;">' + escapeHtml(it.title) + '</a>' +
         (meta ? '<div style="font-size:11px;color:#aeaeb2;margin-top:2px;">' + meta + '</div>' : '') +
         (snippetDisplay ? '<div style="font-size:13px;color:#3a3a3c;margin-top:4px;line-height:1.5;">' + escapeHtml(snippetDisplay) + '</div>' : '');
-      if (it.thumbnail && idx < THUMB_LIMIT) {
+      if (it.thumbnail) {
         // 썸네일 있는 경우 — 좌측 이미지 + 우측 텍스트 카드 레이아웃
         return (
           '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;padding:12px 0;border-bottom:1px solid #f2f2f2;">' +
@@ -2249,39 +2185,16 @@ function buildMonthlyReportHtml(d) {
     }).join('');
   }
 
-  // ── 3.5) 설문·성과 지표 (Phase 5 — 방문 후기 설문 파이프라인 월간 집계) ──
-  let surveyKpiRow = '', surveyChipsRow = '';
-  if (d.survey) {
-    const s = d.survey;
-    surveyKpiRow =
-      '<tr><td style="padding:0 28px 8px;">' +
-        '<table role="presentation" cellspacing="14" cellpadding="0" border="0" style="border-collapse:separate;width:100%;">' +
-          '<tr>' +
-            kpiCell('설문 응답', s.count, '건', '#3a5035') +
-            kpiCell('재방문 응답률', s.revisitPct == null ? '—' : s.revisitPct, s.revisitPct == null ? '' : '%', '#3a5035') +
-            kpiCell('월 확정 산입액', Number(s.confirmedSum).toLocaleString(), '만원', '#3a5035') +
-            kpiCell('IoT 이슈 등록', s.issueCount, '건', '#3a5035') +
-          '</tr>' +
-        '</table>' +
-      '</td></tr>';
-    surveyChipsRow =
-      '<tr><td style="padding:0 28px 16px;">' +
-        roiChip('트랙 분포', '영업 ' + s.tracks.sales + ' · 콘텐츠 ' + s.tracks.media + ' · 기타 ' + s.tracks.etc) +
-        roiChip('성과 대장', '신규 ' + s.ledgerNew + ' · 확정 ' + s.ledgerConfirmed + ' · 드롭 ' + s.ledgerDropped) +
-      '</td></tr>';
-  }
-
   // 섹션별 한 줄 설명 (임원진 가독성 우선 — 무엇을 보여주는지 즉시 이해)
-  const descKpi = '이번 달 운영 성과의 핵심 지표';
+  const descKpi = '이번 달 핵심 성과와 전월 대비 증감';
+  const descDivisions = '확정 방문 기준 본부별 활용 현황 (★ 최다 활용)';
+  const descInsights = '이번 달 운영에서 주목할 핵심 사항';
+  const descQuotes = '이번 달 설문에서 수집된 방문 경험의 목소리';
   const descPurpose = '확정된 방문이 어떤 목적으로 진행되었는지의 비중';
-  const descVisits = '이번 달 확정 방문 중 핵심 이력(B2B 영업 · 홍보) ' + keyVisits.length + '건의 일자별 상세';
-  const descRoi = '저장된 시나리오 기반의 실시간 산출 결과입니다. ' +
-                  '특히 영업 지원 · 기여 영업 이익은 실제 영업 진행 상황에 따라 매월 갱신되므로, ' +
-                  '본 수치는 작성 시점의 시나리오를 기준으로 한 추정치입니다.';
+  const descRoi = '구축·운영 총투자와 회수 지표 (확정 기준) · 26년 실측 누적 진척';
   const descArticles = d.articles.source === 'manual'
     ? '담당자가 큐레이션한 이번 달 ThinQ Real 관련 보도 ' + d.articles.items.length + '건'
     : '"' + MONTHLY_REPORT_QUERY + '" 키워드로 자동 수집한 최근 1개월 언론 보도 — ThinQ Real 직접 보도 외에 AI홈 시장 동향 기사가 포함될 수 있습니다.';
-  const descSurvey = '방문 후기 설문 기반 지표 — 월 확정 산입액은 성과 추적 대장에서 이번 달 확정 처리된 금액의 합계입니다.';
 
   // 한글 가독성: Noto Sans KR 웹폰트 시도 (2026-07-15) — 브라우저 미리보기·Apple Mail 등
   // 웹폰트 허용 환경에서만 적용되고, 차단 환경(PC Outlook·Gmail)은 맑은 고딕으로 폴백.
@@ -2296,18 +2209,17 @@ function buildMonthlyReportHtml(d) {
           '<div style="font-size:14px;opacity:0.88;margin-top:8px;line-height:1.55;">이번 달 ThinQ Real의 운영 현황과 누적 성과를 안내드립니다.</div>' +
         '</td></tr>' +
         outlookHintRow +
-        execSummaryRow +
-        sectionHeader('📊', '핵심 지표', descKpi) +
+        sectionHeader('📊', 'Executive 요약', descKpi) +
         kpiTable +
+        (divisionsRow ? sectionHeader('🏢', '사업부별 활용 현황', descDivisions) + divisionsRow : '') +
+        (insightsRow ? sectionHeader('💡', '핵심 인사이트', descInsights) + insightsRow : '') +
+        (quotesRow ? sectionHeader('💬', '인상 깊은 한마디', descQuotes) + quotesRow : '') +
         sectionHeader('🎯', '방문 목적별 분포', descPurpose) +
         '<tr><td style="padding:0 28px 16px;">' + purposeBody + '</td></tr>' +
-        sectionHeader('📅', '방문 이력', descVisits) +
-        '<tr><td style="padding:0 28px 16px;">' + visitsBody + '</td></tr>' +
-        (d.survey ? sectionHeader('📋', '설문·성과 지표', descSurvey) + surveyKpiRow + surveyChipsRow : '') +
-        sectionHeader('💰', d.monthNum + '월 ROI 누적 분석 결과', descRoi) +
-        '<tr><td style="padding:0 28px 16px;">' + roiBody + '</td></tr>' +
         sectionHeader('📰', '관련 기사', descArticles) +
         '<tr><td style="padding:0 28px 24px;">' + articlesBody + '</td></tr>' +
+        sectionHeader('💰', '투자 대비 성과 (ROI)', descRoi) +
+        '<tr><td style="padding:0 28px 24px;">' + roiBody + '</td></tr>' +
         '<tr><td style="padding:28px;border-top:1px solid #eeeeee;font-size:15px;color:#3a3a3c;line-height:1.65;">' +
           '<div style="font-weight:600;color:#1d1d1f;margin-bottom:4px;">감사합니다.</div>' +
           '<div style="color:#6e6e73;">HS플랫폼사업센터 AI홈솔루션엔지니어링팀</div>' +
@@ -2317,30 +2229,160 @@ function buildMonthlyReportHtml(d) {
   );
 }
 
-function roiChip(label, value) {
-  return '<span style="display:inline-block;margin:0 8px 6px 0;padding:5px 10px;background:#f5f5f7;border-radius:999px;font-size:12px;color:#1d1d1f;">' +
-    '<span style="color:#6e6e73;">' + escapeHtml(label) + '</span>&nbsp;<strong>' + escapeHtml(String(value)) + '</strong>' +
-  '</span>';
+// ============================================================
+//  §8-6 발송 안전장치 (2026-08-03) — 수동 발송 2단계화 + 자동 발송 건너뛰기
+//  - URL 한 번으로 실발송되던 confirm=YES 설계 폐기 (2026-07-27 오클릭 사고 재발 방지)
+//  - 자동 발송(첫째 수요일·전월분)은 수동 이력과 무관하게 항상 진행 —
+//    monthlyReportTrigger는 변경 금지, 스킵 유도는 PROP_LAST_SENT_KEY 기록으로만 (§2-3 체크박스)
+// ============================================================
+
+// 전월 yyyy-MM (수동 발송 확인 화면의 기본 대상 월 — 새 발송 체제의 기본 대상과 일치)
+function prevMonthKey() {
+  const tz = Session.getScriptTimeZone();
+  const now = new Date();
+  const y = Number(Utilities.formatDate(now, tz, 'yyyy'));
+  const m = Number(Utilities.formatDate(now, tz, 'M'));
+  return (m === 1 ? (y - 1) : y) + '-' + ('0' + (m === 1 ? 12 : m - 1)).slice(-2);
 }
 
-// 미리보기 / 수동 발송 엔드포인트
+// 미리보기 — 상단 고정 배너 부착 (발송 아님을 명시)
 function handleMonthlyReportPreview(params) {
   const result = sendMonthlyReport({ month: params.month, dryRun: true });
-  return HtmlService.createHtmlOutput(result.html).setTitle(result.subject);
+  const banner =
+    '<div style="position:sticky;top:0;z-index:9;background:#fff3cd;border-bottom:2px solid #e0a800;' +
+    'padding:12px 20px;font-family:sans-serif;text-align:center;">' +
+      '<div style="font-size:15px;font-weight:700;color:#7a5a00;">📄 미리보기 — 이 화면은 발송되지 않습니다</div>' +
+      '<div style="font-size:12.5px;color:#7a5a00;margin-top:4px;">대상: ' + escapeHtml(result.data.year + '년 ' + result.data.monthNum + '월분') +
+      ' · 실제 발송은 매월 첫째 수요일 08:30 자동 진행 (전월분)</div>' +
+    '</div>';
+  return HtmlService.createHtmlOutput(banner + result.html).setTitle(result.subject);
+}
+
+// 발송 토큰 (일회용, 10분) — Script Properties에 "token|생성ms" 저장
+const SEND_TOKEN_TTL_MS = 10 * 60 * 1000;
+function issueSendToken(kind, month) {
+  const token = Utilities.getUuid().replace(/-/g, '');
+  PropertiesService.getScriptProperties().setProperty(kind + '_token_' + month, token + '|' + Date.now());
+  return token;
+}
+function consumeSendToken(kind, month, given) {
+  const props = PropertiesService.getScriptProperties();
+  const key = kind + '_token_' + month;
+  const stored = props.getProperty(key);
+  if (!stored) return false;
+  const [token, ts] = stored.split('|');
+  if (token !== String(given || '')) return false;
+  if (Date.now() - Number(ts) > SEND_TOKEN_TTL_MS) { props.deleteProperty(key); return false; }
+  props.deleteProperty(key);   // 성공 시 즉시 폐기 — 재사용 불가
+  return true;
+}
+
+function sendSafetyPage(title, bodyHtml) {
+  return HtmlService.createHtmlOutput(
+    '<div style="font-family:\'Malgun Gothic\',\'Apple SD Gothic Neo\',sans-serif;max-width:640px;margin:40px auto;padding:0 16px;">' +
+      '<div style="background:#ffffff;border:1px solid #e0e0e0;border-radius:12px;padding:28px;">' +
+        '<div style="font-size:19px;font-weight:700;color:#1d1d1f;margin-bottom:14px;">' + title + '</div>' +
+        bodyHtml +
+      '</div>' +
+      '<div style="font-size:11.5px;color:#aeaeb2;margin-top:12px;text-align:center;">ThinQ Real 월간 리포트 발송 안전장치</div>' +
+    '</div>'
+  ).setTitle('ThinQ Real 리포트 발송');
 }
 
 function handleMonthlyReportSend(params) {
-  if (params.confirm !== 'YES') {
-    // 확인 가드 — 실수 발송 방지
-    const result = sendMonthlyReport({ month: params.month, dryRun: true });
-    return jsonResponse({
-      success: false,
-      hint: '실제 발송하려면 동일 URL에 &confirm=YES 를 추가하세요.',
-      previewSubject: result.subject,
-    });
+  const props = PropertiesService.getScriptProperties();
+  const month = params.month || prevMonthKey();
+  const to = props.getProperty('MONTHLY_REPORT_TO') || '';
+  const selfUrl = ScriptApp.getService().getUrl() + '?type=monthly_report_send&month=' + month;
+
+  // ── 레거시 confirm=YES 폐기 — 발송하지 않고 안내 (구 북마크·공유 URL 전부 무해화) ──
+  if (params.confirm === 'YES') {
+    return sendSafetyPage('발송 방식이 변경되었습니다',
+      '<p style="font-size:14px;color:#3a3a3c;line-height:1.7;">confirm=YES 방식은 오클릭 사고 방지를 위해 폐기되었습니다.<br>' +
+      '아래 링크로 접속해 <strong>확인 화면</strong>을 거쳐 발송해 주세요.</p>' +
+      '<p><a href="' + selfUrl + '" style="color:#3a5035;font-weight:600;">발송 확인 화면 열기 →</a></p>');
   }
-  const result = sendMonthlyReport({ month: params.month, to: params.to });
-  return jsonResponse({ success: true, subject: result.subject, sentTo: result.sentTo || '(skipped)' });
+
+  // ── Step 2: 전체 발송 실행 (일회용 토큰) ──
+  if (params.confirm) {
+    if (!consumeSendToken('send', month, params.confirm)) {
+      return sendSafetyPage('토큰이 유효하지 않습니다',
+        '<p style="font-size:14px;color:#3a3a3c;line-height:1.7;">발송 토큰이 만료(10분)됐거나 이미 사용되었습니다.<br>' +
+        '<a href="' + selfUrl + '" style="color:#3a5035;font-weight:600;">확인 화면에서 다시 시도 →</a></p>');
+    }
+    const result = sendMonthlyReport({ month: month });
+    if (!result.sentTo) {
+      return sendSafetyPage('❌ 발송 실패', '<p style="font-size:14px;color:#c0392b;">' +
+        escapeHtml(result.skipped || '원인 미상') + ' — Script Properties의 MONTHLY_REPORT_TO를 확인하세요.</p>');
+    }
+    // 수동 발송 이력 (확인 화면 경고용) — PROP_LAST_SENT_KEY에는 기록하지 않음 (자동 정식본 발송 보장)
+    const mkey = 'manual_sent_' + month;
+    const prevLog = props.getProperty(mkey);
+    props.setProperty(mkey, (prevLog ? prevLog + ';' : '') + new Date().toISOString());
+    // §2-3 「이번 달 자동 발송 건너뛰기」 — 체크한 경우에만 예외적으로 가드 키 기록 → 자동 트리거가 해당 월 스킵
+    let skipNote;
+    if (params.skipauto === '1') {
+      props.setProperty(PROP_LAST_SENT_KEY, month);
+      skipNote = '이번 달(' + month + '분) <strong>자동 발송은 생략됩니다</strong> — 이 수동 발송본이 정식본이 됩니다.';
+    } else {
+      skipNote = '다음 달 첫째 수요일의 자동 발송은 정상 진행됩니다.';
+    }
+    return sendSafetyPage('✅ 발송 완료',
+      '<p style="font-size:14px;color:#3a3a3c;line-height:1.7;"><strong>' + escapeHtml(month) + '분</strong> 리포트를 발송했습니다.<br>' +
+      '수신: ' + escapeHtml(result.sentTo) + ' (+CC ' + escapeHtml(CC_EMAIL) + ')</p>' +
+      '<p style="font-size:13px;color:#6e6e73;line-height:1.7;">' + skipNote + '</p>');
+  }
+
+  // ── Step 2': 테스트 발송 실행 ("나만 보는 샘플" — 이력·가드 키 무기록) ──
+  if (params.test) {
+    if (!consumeSendToken('test', month, params.test)) {
+      return sendSafetyPage('토큰이 유효하지 않습니다',
+        '<p style="font-size:14px;color:#3a3a3c;line-height:1.7;">테스트 토큰이 만료(10분)됐거나 이미 사용되었습니다.<br>' +
+        '<a href="' + selfUrl + '" style="color:#3a5035;font-weight:600;">확인 화면에서 다시 시도 →</a></p>');
+    }
+    const testTo = props.getProperty('MONTHLY_REPORT_TEST_TO') || '';
+    if (!testTo) {
+      return sendSafetyPage('테스트 수신자 미설정',
+        '<p style="font-size:14px;color:#3a3a3c;line-height:1.7;">Script Properties에 <strong>MONTHLY_REPORT_TEST_TO</strong>' +
+        '(테스트 수신 메일 주소)를 등록한 뒤 다시 시도해 주세요.</p>');
+    }
+    const result = sendMonthlyReport({ month: month, to: testTo, subjectPrefix: '[테스트] ', noCc: true });
+    return sendSafetyPage('✅ 테스트 발송 완료',
+      '<p style="font-size:14px;color:#3a3a3c;line-height:1.7;"><strong>' + escapeHtml(testTo) + '</strong>에게만 발송되었습니다 (CC 없음, 제목 [테스트]).<br>' +
+      '발송 이력에 기록되지 않으며 자동 발송에도 영향이 없습니다.</p>');
+  }
+
+  // ── Step 1: 발송 확인 화면 (여기까지는 발송 0건) ──
+  const sendToken = issueSendToken('send', month);
+  const testToken = issueSendToken('test', month);
+  const autoSent = props.getProperty(PROP_LAST_SENT_KEY) === month;
+  const manualLog = props.getProperty('manual_sent_' + month) || '';
+  let warn = '';
+  if (autoSent || manualLog) {
+    const times = [autoSent ? '자동 발송 완료' : '', manualLog ? '수동 ' + manualLog.split(';').map(t => t.slice(0, 16).replace('T', ' ')).join(', ') : '']
+      .filter(Boolean).join(' · ');
+    warn = '<div style="background:#fdecea;border:1px solid #e57373;border-radius:8px;padding:12px 14px;margin:14px 0;font-size:13.5px;color:#b71c1c;line-height:1.6;">' +
+      '⚠ <strong>이번 달 이미 발송됨</strong> (' + escapeHtml(times) + ') — 재발송 시 수신자에게 중복 수신됩니다.</div>';
+  }
+  const recipients = (to ? to : '(MONTHLY_REPORT_TO 미설정)') + ' · CC ' + CC_EMAIL;
+  const sendUrl = selfUrl + '&confirm=' + sendToken;
+  const testUrl = selfUrl + '&test=' + testToken;
+  return sendSafetyPage('📮 ' + month + '분 리포트 발송 확인',
+    '<p style="font-size:14px;color:#3a3a3c;line-height:1.7;"><strong>수신자</strong><br>' + escapeHtml(recipients) + '</p>' +
+    warn +
+    '<p style="font-size:13px;color:#6e6e73;line-height:1.7;">다음 달 첫째 수요일의 자동 발송은 이 수동 발송과 무관하게 정상 진행됩니다.</p>' +
+    '<label style="display:block;background:#f5f7f4;border:1px solid #d8ded6;border-radius:8px;padding:12px 14px;margin:14px 0;font-size:13.5px;color:#1d1d1f;cursor:pointer;">' +
+      '<input type="checkbox" id="skipauto" style="margin-right:8px;">이번 달 자동 발송 건너뛰기' +
+      '<div style="font-size:12px;color:#6e6e73;margin-top:4px;margin-left:22px;">체크하면 이번 달 자동 발송이 생략됩니다 (수동 발송본이 정식본이 됩니다).</div>' +
+    '</label>' +
+    '<div style="margin-top:18px;">' +
+      '<a id="sendBtn" href="' + sendUrl + '" style="display:inline-block;background:#3a5035;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;">전체 발송하기</a>' +
+      '<a href="' + testUrl + '" style="display:inline-block;margin-left:10px;background:#ffffff;color:#3a5035;border:1.5px solid #3a5035;padding:11px 20px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;">나에게만 테스트 발송</a>' +
+    '</div>' +
+    '<p style="font-size:11.5px;color:#aeaeb2;margin-top:14px;">발송 버튼은 10분간 유효한 일회용 링크입니다.</p>' +
+    '<script>document.getElementById("skipauto").addEventListener("change",function(){' +
+      'var a=document.getElementById("sendBtn");var base="' + sendUrl + '";a.href=this.checked?base+"&skipauto=1":base;});' +
+    '</scr' + 'ipt>');
 }
 
 // ============================================================
@@ -3315,8 +3357,33 @@ function handleGetSurveyData(token) {
     responses: readSheetRecords(SURVEY_SHEET_NAME, SURVEY_HEADERS),
     ledger:    readSheetRecords(LEDGER_SHEET_NAME, LEDGER_HEADERS),
     issues:    readSheetRecords(ISSUE_SHEET_NAME, ISSUE_HEADERS),
-    visitors:  readSheetRecords(VISITOR_SHEET_NAME, VISITOR_HEADERS)   // 방문자 현장 설문 (§8-5, 조회 전용)
+    visitors:  readSheetRecords(VISITOR_SHEET_NAME, VISITOR_HEADERS),  // 방문자 현장 설문 (§8-5, 조회 전용)
+    insights:  readSheetRecords(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS) // 월간 리포트 큐레이션 (§8-7 5·6)
   });
+}
+
+// ── 월간 리포트 큐레이션 (§8-7 5·6 — monthly_insights 탭, 관리자 토큰 게이트) ──
+// type='insight'(핵심 인사이트, seq 순 렌더) / type='quote'(인상 깊은 한마디 선택본, source='인솔자'|'방문자')
+function handleInsightAdd(data) {
+  const sheet = getNamedSheet(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS);
+  const month = String(data.month || '');
+  if (!/^\d{4}-\d{2}$/.test(month) || !String(data.text || '').trim()) {
+    return jsonResponse({ ok: false, error: 'invalid_input' });
+  }
+  const rows = readSheetRecords(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS);
+  // data.type은 라우팅 타입(insight_add)이므로 행 타입은 rowType 필드로 받는다
+  const type = String(data.rowType) === 'quote' ? 'quote' : 'insight';
+  const maxSeq = rows.filter(r => String(r.month) === month && String(r.type || 'insight') === type)
+    .reduce((mx, r) => Math.max(mx, Number(r.seq) || 0), 0);
+  const id = String(Date.now());
+  sheet.appendRow([id, month, maxSeq + 1, type, String(data.text).trim(),
+                   String(data.source || ''), new Date().toISOString()]);
+  return jsonResponse({ ok: true, id });
+}
+
+function handleInsightDelete(data) {
+  const n = deleteRowsByValue(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS, 'id', data.id);
+  return jsonResponse(n ? { ok: true } : { ok: false, error: 'not_found' });
 }
 
 function readSheetRecords(name, headers) {
@@ -3366,12 +3433,30 @@ function collectMonthlySurvey(month) {
   responses.forEach(r => { respMonthById[String(r.response_id)] = respMonth(r); });
   const issueCount = issues.filter(x => respMonthById[String(x.response_id)] === month).length;
 
+  // §8-7: 방문자 설문 지표 + 만족도/NPS (인솔자·방문자, 혼재 척도 분리 집계)
+  let visitor = null, satAll = null, satOperator = null, satVisitor = null;
+  try {
+    const visitors = readSheetRecords(VISITOR_SHEET_NAME, VISITOR_HEADERS)
+      .filter(v => String(v.submitted_at || '').slice(0, 7) === month);
+    const opSats = monthResponses.map(r => r.satisfaction);
+    const vSats = visitors.map(v => v.satisfaction);
+    satOperator = classifySatisfaction(opSats);
+    satVisitor = classifySatisfaction(vSats);
+    satAll = classifySatisfaction(opSats.concat(vSats));
+    visitor = {
+      count: visitors.length,
+      ko: visitors.filter(v => v.lang === 'KO').length,
+      en: visitors.filter(v => v.lang === 'EN').length,
+    };
+  } catch (err) { Logger.log('[monthly] visitor metrics fail: ' + err); }
+
   return {
     count: monthResponses.length, tracks,
     revisitPct,
     ledgerNew: ledgerNew.length, ledgerConfirmed: confirmedRows.length,
     ledgerDropped: droppedNew, confirmedSum,
-    issueCount
+    issueCount,
+    visitor, satAll, satOperator, satVisitor
   };
 }
 
