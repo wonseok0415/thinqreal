@@ -93,6 +93,14 @@
 
 완전 익명(성명·소속 미수집) · 파생 없음 · ROI 미산입. 컬럼 단일 소스: `VISITOR_HEADERS` 상수. 첫 호출 시 자동 생성. 관리자 영구 삭제 가능(`visitor_delete` — 테스트 정리용), **수정은 불가** (익명 응답 원문 보존 원칙).
 
+### `monthly_insights` (월간 리포트 큐레이션, 7컬럼 — 2026-08-03 §8-7 추가)
+`id`(`Date.now()` 문자열) · `month`(YYYY-MM — 리포트 대상 월) · `seq`(월·타입별 자동 증가, 렌더 순서) · `type`(`insight` 핵심 인사이트 / `quote` 인상 깊은 한마디) · `text` · `source`(quote만: `인솔자`\|`방문자` — 리포트 출처 라벨 직결) · `created_at`(ISO)
+
+행이 없는 월은 리포트에서 해당 블록 자동 생략. 입력은 관리자 설문·대장 탭 큐레이션 UI(`insight_add`/`insight_delete`).
+
+### 만족도 척도 변경 (2026-08-03 — survey_responses·visitor_responses 공통)
+`satisfaction` 저장값: **신 0~10 정수 문자열**("0"~"10", NPS 추천 의향형). 2026-08-03 이전 행은 구 5단계("N - 라벨") — **혼재 시 절대 섞어 평균 금지**, 척도 판별·분리 집계는 `classifySatisfaction()` 단일 소스.
+
 ## 4.6 `export_log` 탭 (CSV 내보내기 감사 로그 — 2026-07-20 추가)
 
 개인정보보호팀 요구로 CSV 다운로드 시 사유를 기록. 첫 호출 시 자동 생성.

@@ -546,12 +546,24 @@
 
   <div class="card hidden" id="commonCard">
     <h2><span class="q-num" id="commonQNum">7</span>공간 만족도 및 의견</h2>
-    <p class="q-desc">이번 방문의 전반적 만족도와 개선 의견을 남겨주세요.</p>
-    <div class="opt-group" data-name="satisfaction" style="flex-direction: row; flex-wrap: wrap;">
-      <label class="opt" style="flex:1; min-width:80px; justify-content:center;"><input type="radio" name="satisfaction" value="5 - 매우 만족"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">매우 만족</span></span></label>
-      <label class="opt" style="flex:1; min-width:80px; justify-content:center;"><input type="radio" name="satisfaction" value="4 - 만족"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">만족</span></span></label>
-      <label class="opt" style="flex:1; min-width:80px; justify-content:center;"><input type="radio" name="satisfaction" value="3 - 보통"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">보통</span></span></label>
-      <label class="opt" style="flex:1; min-width:80px; justify-content:center;"><input type="radio" name="satisfaction" value="2 - 미흡"><span class="radio-dot"></span><span class="opt-text"><span class="opt-title">미흡</span></span></label>
+    <!-- 0~10 NPS 척도 (2026-08-03 §8-7 전환) — 저장값은 정수 문자열 "0"~"10".
+         구 5단계("N - 라벨")와의 혼재 처리는 리포트 집계에서 척도 판별로 분리 (섞어 평균 금지) -->
+    <p class="q-desc">ThinQ Real 방문을 동료·지인에게 추천하시겠습니까? (0=전혀 아니다 ~ 10=매우 그렇다)</p>
+    <div class="opt-group" data-name="satisfaction" style="flex-direction: row; flex-wrap: wrap; gap:6px;">
+      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="0"><span class="opt-text"><span class="opt-title">0</span></span></label>
+      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="1"><span class="opt-text"><span class="opt-title">1</span></span></label>
+      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="2"><span class="opt-text"><span class="opt-title">2</span></span></label>
+      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="3"><span class="opt-text"><span class="opt-title">3</span></span></label>
+      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="4"><span class="opt-text"><span class="opt-title">4</span></span></label>
+      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="5"><span class="opt-text"><span class="opt-title">5</span></span></label>
+      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="6"><span class="opt-text"><span class="opt-title">6</span></span></label>
+      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="7"><span class="opt-text"><span class="opt-title">7</span></span></label>
+      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="8"><span class="opt-text"><span class="opt-title">8</span></span></label>
+      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="9"><span class="opt-text"><span class="opt-title">9</span></span></label>
+      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="10"><span class="opt-text"><span class="opt-title">10</span></span></label>
+    </div>
+    <div style="margin-left:28px; margin-top:6px; display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-3);">
+      <span>0 = 전혀 아니다</span><span>10 = 매우 그렇다</span>
     </div>
     <div style="margin-left:28px; margin-top:14px;">
       <label class="field-label">자유 의견 (선택)</label>
@@ -814,7 +826,7 @@ const REQUIRED_MSG = {
   voiceSpace: '음성 제어를 가장 많이 쓸 공간을 선택해 주세요. 음성을 안 쓸 것 같으면 마지막 항목을 선택하시면 됩니다.',
   iotConnect: '우선 연결하고 싶은 IoT 제품을 선택해 주세요 (최대 3개). 없다면 "연결하고 싶은 것 없음"을 선택하시면 됩니다.',
   aiBarrier: '가장 큰 걸림돌을 선택해 주세요. 없다면 "걸림돌 없음"을 선택하시면 됩니다.',
-  satisfaction: '만족도를 선택해 주세요.'
+  satisfaction: '추천 의향 점수를 선택해 주세요 (0~10).'
 };
 // 카드 등장 순서대로 검사 — 첫 미작성 문항으로 스크롤되도록
 function firstMissingRequired() {

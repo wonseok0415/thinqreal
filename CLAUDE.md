@@ -52,7 +52,7 @@
 | 항목 | 값 |
 |------|-----|
 | Sheets ID | `1-Z158TV46MtSEArir9bW4h4KQ438NCuhb3qaGyOooA0` |
-| 시트 탭 | `bookings`(예약) · `roi_snapshots` · `slot_blocks` · `monthly_articles` · `survey_responses` · `performance_ledger` · `iot_issue_log` · `export_log` · `visitor_responses`(방문자 현장 설문) · `health_checks`(FieldCheck 자동 점검 — 전용 세션 소관) — bookings 외에는 첫 호출 시 자동 생성 |
+| 시트 탭 | `bookings`(예약) · `roi_snapshots` · `slot_blocks` · `monthly_articles` · `monthly_insights`(리포트 인사이트·한마디 큐레이션) · `survey_responses` · `performance_ledger` · `iot_issue_log` · `export_log` · `visitor_responses`(방문자 현장 설문) · `health_checks`(FieldCheck 자동 점검 — 전용 세션 소관) — bookings 외에는 첫 호출 시 자동 생성 |
 | Apps Script URL | `https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec` |
 | 스크립트 소유자(발신 계정) | `kangwonseok0415@gmail.com` — 발신 표시명은 모든 메일 `ThinQ Real` 통일 |
 | 관리자 인증 | 이메일 코드 (명단 한정) — `AUTH_ADMIN_EMAILS` 6명: kang.wonseok / jhs.kim / ch275.lee / moonsu.seo / hj8462.kim / kwangsoo.park. 토큰 90일 |
@@ -65,14 +65,17 @@
   - ROI `roi_snapshot`/`roi_delete`는 토큰 미적용 (별창 열림 → 토큰 전달 경로 없음, 저위험 수용)
 
 ### Script Properties (코드·리포에 두지 않는 값)
-`AUTH_SECRET` / `MONTHLY_REPORT_TO`(리포트 수신자) / `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID` / `CALENDAR_ID` / `SERPER_API_KEY` / `GOOGLE_CSE_ID`·`GOOGLE_CSE_KEY`(현재 403 차단) / `SURVEY_CAS_JSON`(채널 단가 — **유일한 위치**) / `FC_API_KEY`(FieldCheck 장비 키 — 2026-07-30 이전, rig config.json과 동일 값) / `monthly_report_last_sent_month`(중복 가드)
+`AUTH_SECRET` / `MONTHLY_REPORT_TO`(리포트 수신자) / `MONTHLY_REPORT_TEST_TO`(테스트 발송 수신자 — §8-6) / `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID` / `CALENDAR_ID` / `SERPER_API_KEY` / `GOOGLE_CSE_ID`·`GOOGLE_CSE_KEY`(현재 403 차단) / `SURVEY_CAS_JSON`(채널 단가 — **유일한 위치**) / `FC_API_KEY`(FieldCheck 장비 키 — 2026-07-30 이전, rig config.json과 동일 값) / `monthly_report_last_sent_month`(자동 발송 가드 — §8-6 건너뛰기 체크 시에도 기록) / `manual_sent_<YYYY-MM>`·`send_token_*`·`test_token_*`(§8-6 수동 발송 이력·일회용 토큰 — 자동 생성)
 
 ## 메일 발송 규칙
 - **모든 메일**: HTML + plain-text 동시, 다크 올리브(#3a5035) 카드형, **인라인 스타일만** (Gmail/Outlook 호환 — `<style>`·CSS 변수·외부 리소스 금지). 유일한 예외: 월간 리포트의 Noto Sans KR `@import` 1줄 (차단 환경에선 무시되어 무해).
 - **예약 확정 메일**(buildConfirm*): 📅일정/📍위치/📶Wi-Fi(2.4G·5G 분리)/🔐도어락/🅿주차/☎문의/📖안내. **민감 정보는 확정 메일에만** — SSID `ThinQ_REAL_2.4G`/`ThinQ_REAL`, PW `real2026`, 도어락 PIN `509067` (2026-07-20 교체). 값 변경은 buildConfirm* 빌더에서만.
 - **조건부 첨부**: R&D 목적(`purpose.indexOf('R&D')`) → 구비 가전 45개 표 / B2B·홍보(`/(B2B|홍보)/`) → 웰컴 보드 안내. 라벨 변경 시 이 정규식들 점검.
 - **담당자 알림**(sendAdminAlert): 신규 예약 시 담당자 3 To + CC. 카테고리별 주제 라벨(`ADMIN_ALERT_SUBJ_LABELS`).
-- **월간 운영 리포트**: 매월 **첫째 수요일** 08:30 KST에 **전월 리포트** 자동 발송 (2026-07-29 변경 — 매일 트리거 + `isFirstWednesdayOfMonth` + 월 중복 가드. 가드는 자동만 차단, 수동 `monthly_report_send&confirm=YES`는 매번 발송). 구성: 요약 KPI 2카드·목적 도넛(QuickChart)·방문 이력(B2B·홍보만 상세, 카테고리 그룹)·설문 지표·ROI 누적 그래프·기사. 기사는 `monthly_articles` 시트 수동 큐레이션 우선 → Serper → CSE.
+- **월간 운영 리포트**: 매월 **첫째 수요일** 08:30 KST에 **전월 리포트** 자동 발송 (2026-07-29 변경 — 매일 트리거 + `isFirstWednesdayOfMonth` + 월 중복 가드. 가드는 자동만 차단).
+  - **구성 (2026-08-03 §8-7 개편)**: ① Executive 요약(KPI 4카드+MoM+3줄) ② 사업부별 활용(6본부+기타, 확정 기준) ③ 목적 도넛 ④ 핵심 인사이트(큐레이션, 없으면 생략) ⑤ 인상 깊은 한마디(큐레이션, 출처 라벨) ⑥ 방문 이력 ⑦ 설문·성과 지표(+방문자 설문·NPS) ⑧ 기사 ⑨ **ROI 스냅샷 최하단·고정 수치**(그래프 삭제 — 연간 확정 가치 2.14억·총 투자 2.886억·BEP 1.31년·3년 +122.4%·5년 +270.7% + 실측 누적). 블록별 try-catch 격리.
+  - **수동 발송 2단계 (2026-08-03 §8-6)**: `monthly_report_send`는 URL만으로 발송 불가 — 확인 화면(수신자·기발송 경고·**자동 발송 건너뛰기 체크박스**) → 일회용 토큰(10분) 버튼 [전체 발송]/[나에게만 테스트]. `confirm=YES` 레거시 폐기(무해화). 건너뛰기 체크 시에만 `PROP_LAST_SENT_KEY` 기록 → 그 달 자동 발송 스킵. 테스트 발송은 `MONTHLY_REPORT_TEST_TO`로 1인·[테스트] 접두·이력 무기록. `monthlyReportTrigger` 자체는 무변경.
+  - 기사는 `monthly_articles` 시트 수동 큐레이션 우선 → Serper → CSE. 인사이트·한마디는 `monthly_insights` 탭(관리자 설문·대장 탭 큐레이션 UI로 입력).
 - **설문 요청 메일**: §자동화 참조.
 
 ## 예약 슬롯 (확정, 변경 금지)
@@ -167,7 +170,7 @@
 - `TELEGRAM_*`·`CALENDAR_ID`·`SURVEY_CAS_JSON`·`FC_API_KEY`(FieldCheck 장비 키 — 2026-07-30 이전) 등 비밀값은 **Script Property에만** — 코드·리포 커밋 금지. FC_API_KEY 교체 시 점검 장비 rig `config.json`과 동시 교체.
 - 캘린더 일정에 방문자 명단·연락처 미표기 원칙.
 - CSV 내보내기: 파일 비밀번호는 **로그·시트·코드 어디에도 기록 금지**. 사유 기록(`export_log`)이 먼저 — 실패 시 다운로드도 차단. `export_log` 행 삭제 기능 금지.
-- **커밋 전 민감 단가 grep 필수**: `grep -rnE "6,220|34,220|114,220|108,000|659원|16,126|Hi-Teleservice|헤이홈"` → 0건. **콤마 없는 변형(6220 등)도 의심할 것.** 커밋 금지: CS 채널 실단가, 판매량·CS 원단위, 딜·수주 실데이터, 대장 실제 과제명·금액, 보고 PPT·사내 메일. ROI 툴 보호는 파일 제외가 아니라 **내용 수준**(민감 수치 미포함)으로.
+- **커밋 전 민감 단가 grep 필수 (2026-08-03 확장)**: `grep -rn "6,220\|34,220\|114,220\|108,000\|659원\|16,126\|Hi-Teleservice\|헤이홈\|206,000,000\|258,924,080\|279,417,851\|20,493,771"` → 0건. **콤마 없는 변형(6220 등)도 의심할 것.** 커밋 금지: CS 채널 실단가, 판매량·CS 원단위, 딜·수주 실데이터, 대장 실제 과제명·금액, 보고 PPT·사내 메일, **구축비 항목별 실집행 단가·구축/구매 소계**. 커밋 가능: 총액 요약(2.794억·2.886억), BEP·ROI 지표, KOSA 공표 단가(197,714원). ROI 툴 보호는 파일 제외가 아니라 **내용 수준**(민감 수치 미포함)으로.
 
 ### 예약·폼
 - 필수 동의 3종(수집/국외이전/파손·분실) 미체크 차단 로직 해제 금지.
@@ -185,7 +188,10 @@
 - 파생 트리거 3종(`media_link/etc_link/iot_defect`)과 `raw_json`은 수정 불가 유지. 행 삭제는 테스트·실수 정리용 — 실제 성과·이슈는 드롭/기각 상태 전환으로 보존. `survey_delete`는 파생 행 cascade (응답만 지우고 파생을 남기는 것 불가).
 - 대장 `confirmed_amount`는 **만원 단위** (ROI 툴 파이프 입력은 백만원 — 환산 주의).
 - 새 문항 추가 시: `firstMissingRequired`(카드 순서 위치)+`REQUIRED_MSG` 등록, 도피 선택지 포함(전 문항 필수의 전제), track 밖 카드면 옵션 클릭 셀렉터에 카드 id 추가. 조건부 표시를 라디오 change 이벤트에만 의존하지 말 것(`updateLinkDetails()` 직접 호출). 조건부 입력 칸은 **라벨 밖에** 배치. dealAmount는 검증 제외(무응답 정상).
-- BEP 대표 수치는 **1.65년** — "2년 7개월"은 감응도 체크용이므로 대표로 쓰지 말 것.
+- BEP 대표 수치는 **1.31년 (약 1년 4개월)** — 2026-08 확정 기준(구 1.65년 대체). 리포트 ROI는 `ROI_FIXED` 상수(고정 표기)가 단일 소스 — 저장 시나리오 최신값 참조로 회귀 금지.
+- **만족도 척도는 0~10 NPS** (2026-08-03 전환, 두 설문 폼 공통 — 저장값 정수 문자열 "0"~"10"). **구 5단계("N - 라벨")와 절대 섞어 평균 금지** — 척도 판별·분리 집계는 `classifySatisfaction()`이 단일 소스. 구 척도만 있는 월은 "N/5 (구 척도)" 표기 + NPS 미표기.
+- **수동 발송 2단계 유지** — `confirm=YES` 복원 금지 (URL 단발 발송 사고 방지가 목적). 자동 발송 스킵은 §8-6 건너뛰기 체크(=`PROP_LAST_SENT_KEY` 기록)로만, `monthlyReportTrigger` 로직 수정 금지. 테스트 발송은 이력·가드 무기록 유지.
+- `monthly_insights` 탭: 인사이트·한마디 큐레이션 전용 (`id/month/seq/type/text/source/created_at`). type=quote의 text·source는 리포트 출처 라벨과 직결 — 임의 변경 금지. 행 없으면 리포트 블록 자동 생략이 정상.
 - **8번 블록 확장 4문항**(`adopt_pick`/`voice_space`/`iot_connect`/`ai_barrier`)은 **파생·ROI 미산입이 확정 설계** — handleSurveySubmit 파생 로직(대장·이슈)에 연결하지 말 것. 용도는 상품기획·엔지니어링 인사이트.
 - 8-2(도입 의향) 저장 value는 8-1 모드명 어휘("웰컴 모드" 등)와 **동일 유지** — 인상 vs 도입 의향 격차 분석의 전제이므로 한쪽만 라벨 변경 금지. `iot_connect` 최대 3개는 클라이언트 검증(서버는 관대 수용·raw_json 보존이 의도), "없음" 배타는 `enforceIotConnectRules()`.
 - **방문자 현장 설문**: 완전 익명 유지 — 성명·소속 등 개인정보 필드 추가 금지(추가 시 privacy.html 개정 필수). 딜·수주·기여도 등 **내부 정보 문항 추가 금지**(고객이 직접 보는 폼). 저장 value는 운영 설문과 **문자열 완전 동일** 유지(EN 화면도 한국어 canonical 저장 — 한쪽만 변경 금지). `visitor_submit` 공개 경로·파생 미연결·mailto 폴백 없음 유지. 만족도는 방문자 폼만 5단계(운영 폼은 4단계 — 공유 4개 value는 동일).
@@ -206,7 +212,8 @@
 
 ## 운영 리마인드
 - [x] ~~7/31(금) 08:30 전 에디터 저장~~ — **완료(2026-07-29)**: `isFirstWednesdayOfMonth` 저장 확인, 7월 마지막 금요일 자동 발송 차단됨.
-- [ ] **8/5(수) 7월 리포트 첫 자동 발송 전**: 팀장 논의 수정 사항 반영 (방안 모색 중) + `MONTHLY_REPORT_TO` 20명 복원 확인 (첫 회차 때 센터장·담당·실장 3명 임시 제외). 수정 반영이 8/5를 넘길 것 같으면 트리거를 임시 삭제해 발송 보류.
+- [ ] **8/4(월) 팀장 리뷰**: 재배포 후 발송 확인 화면 → [나에게만 테스트 발송]으로 7월분 개편본 수신 확인 (`MONTHLY_REPORT_TEST_TO` 등록 필요). `monthly_insights`에 7월 인사이트 입력 + 한마디 선택 (관리자 설문·대장 탭 큐레이션 UI).
+- [ ] **8/5(수) 수동 발송**: 확인 화면에서 **「이번 달 자동 발송 건너뛰기」 체크** 후 [전체 발송하기] — 같은 날 08:30 자동 발송과의 중복 방지 (수동본이 정식본). `MONTHLY_REPORT_TO` 20명 복원 확인 선행.
 - [ ] **방문자 설문 QR 포스터 부착** (거실 협탁): QR 2종(흑백/올리브, 1960px·오류정정 H) 전달됨. **QR 스캔·동작 확인 완료(2026-07-27)** — 포스터 인쇄·부착만 남음. 테스트 응답은 재배포 후 관리자 설문·대장 탭 → 방문자 상세 모달 → 영구 삭제로 정리.
 - 기사 섹션은 Serper 자동 검색(2026-05-30~)이 채움 — `monthly_articles` 행 추가는 **선택**(자동 결과가 마음에 안 들 때만 큐레이션, 행이 있으면 그 달은 자동 검색 미호출). 발송 전 품질 확인은 `monthly_report_preview&month=YYYY-MM`으로.
 - [ ] **Option B — 리포트 전월 대비 증감 표시**: 합의된 후속 작업, 미착수.
