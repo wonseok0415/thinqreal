@@ -1503,7 +1503,7 @@ function collectMonthlyData(month) {
   let insights = [], quotes = [];
   try {
     const rowsIns = readSheetRecords(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS)
-      .filter(r => String(r.month) === month)
+      .filter(r => insightMonthKey(r.month) === month)
       .sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0));
     insights = rowsIns.filter(r => String(r.type || 'insight') !== 'quote').map(r => String(r.text || '')).filter(Boolean);
     quotes = rowsIns.filter(r => String(r.type) === 'quote')
@@ -3359,7 +3359,19 @@ function handleGetSurveyData(token) {
     issues:    readSheetRecords(ISSUE_SHEET_NAME, ISSUE_HEADERS),
     visitors:  readSheetRecords(VISITOR_SHEET_NAME, VISITOR_HEADERS),  // 방문자 현장 설문 (§8-5, 조회 전용)
     insights:  readSheetRecords(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS) // 월간 리포트 큐레이션 (§8-7 5·6)
+      .map(r => { r.month = insightMonthKey(r.month); return r; })     // 날짜 자동 변환된 기존 행 복원
   });
+}
+
+// monthly_insights month 셀 정규화 — Sheets가 "2026-07" 문자열을 날짜(해당 월 1일 0시 KST)로 자동
+// 변환해 저장하는 경우가 있어, 읽기 시 KST 기준 yyyy-MM으로 되돌린다.
+// (readSheetRecords가 Date를 UTC ISO로 바꾸므로 그대로 slice하면 전월로 밀림 — 큐레이션 행 증발 버그의 원인)
+function insightMonthKey(v) {
+  const s = String(v == null ? '' : v).trim();
+  if (/^\d{4}-\d{2}$/.test(s)) return s;
+  const d = (Object.prototype.toString.call(v) === '[object Date]') ? v : new Date(s);
+  if (!isNaN(d.getTime())) return Utilities.formatDate(d, 'Asia/Seoul', 'yyyy-MM');
+  return s.slice(0, 7);
 }
 
 // ── 월간 리포트 큐레이션 (§8-7 5·6 — monthly_insights 탭, 관리자 토큰 게이트) ──
@@ -3373,10 +3385,11 @@ function handleInsightAdd(data) {
   const rows = readSheetRecords(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS);
   // data.type은 라우팅 타입(insight_add)이므로 행 타입은 rowType 필드로 받는다
   const type = String(data.rowType) === 'quote' ? 'quote' : 'insight';
-  const maxSeq = rows.filter(r => String(r.month) === month && String(r.type || 'insight') === type)
+  const maxSeq = rows.filter(r => insightMonthKey(r.month) === month && String(r.type || 'insight') === type)
     .reduce((mx, r) => Math.max(mx, Number(r.seq) || 0), 0);
   const id = String(Date.now());
-  sheet.appendRow([id, month, maxSeq + 1, type, String(data.text).trim(),
+  // month는 선행 아포스트로피로 텍스트 강제 — Sheets의 날짜 자동 변환 차단 (셀 값은 "2026-07" 그대로)
+  sheet.appendRow([id, "'" + month, maxSeq + 1, type, String(data.text).trim(),
                    String(data.source || ''), new Date().toISOString()]);
   return jsonResponse({ ok: true, id });
 }
