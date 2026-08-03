@@ -43,7 +43,7 @@
 | `slot_blocks` | `date=` (선택) | — | 차단 슬롯 현황 (비민감) |
 | `telegram_test` | — | — | `{ok:true}` 또는 `{ok:false, reason:'not_configured'}` |
 | `calendar_test` | — | — | 캘린더 연동 점검 (테스트 일정 생성 후 즉시 삭제) |
-| `survey_data` | `token` | 관리자 | `{responses:[], ledger:[], issues:[], visitors:[], insights:[]}` — 설문·대장·이슈·방문자·큐레이션 통합 조회 (insights는 2026-08-03 추가) |
+| `survey_data` | `token` | 관리자 | `{responses:[], ledger:[], issues:[], visitors:[], insights:[], articles:[]}` — 설문·대장·이슈·방문자·큐레이션·기사 통합 조회 (insights·articles는 2026-08-03 추가) |
 | `health_checks` | `days=` (선택) | — ⚠ 무인증 | FieldCheck 점검 이력 조회 (관리자 🩺 탭용). ⚠ 토큰 게이트 적용 검토는 FieldCheck 전용 세션에 위임 (2026-07-30 관찰) |
 
 ### 인증 관련 오류 응답
@@ -68,6 +68,8 @@
 | `health_check` | **FC_API_KEY** (Script Property — 점검 장비 전용, 2026-07-30 Property 이전) | FieldCheck 점검 결과 append (`health_checks` 12컬럼). ⚠ 기능 상세는 FieldCheck 전용 세션 소관 — 이 표에는 존재·인증 방식만 등재 | FC_IMMEDIATE_ALERT 시 실패 알림 (현재 꺼짐) |
 | `insight_add` | 관리자 토큰 | 리포트 큐레이션 행 추가 `{month, text, rowType('insight'\|'quote'), source}` → `monthly_insights` (2026-08-03 §8-7). seq는 월·타입별 자동 증가 | — |
 | `insight_delete` | 관리자 토큰 | 큐레이션 행 삭제 `{id}` | — |
+| `article_add` | 관리자 토큰 | 관련 기사 링크 추가 `{month, url}` → `monthly_articles` (2026-08-03). 제목·출처·요약·썸네일은 서버가 메타 태그에서 자동 추출(실패 시 공란 → 리포트 빌드 때 재시도). month는 텍스트 강제 저장. 같은 달 중복 URL 거부 | — |
+| `article_delete` | 관리자 토큰 | 관련 기사 링크 삭제 `{month, url}` | — |
 | `survey_update` | 관리자 토큰 | 설문 응답 내용 정정 (2026-07-14). 불변: `response_id/submitted_at/track/raw_json` + 파생 트리거 3종(`media_link/etc_link/iot_defect`) | — (행 삭제 없음 — 의도) |
 | `ledger_update` | 관리자 토큰 | 성과 대장 상태 전환·확정 필드 + 내용 정정(`category/project_name/expected_scale/attribution_pct/visit_date/respondent/dept` — 2026-07-14 확장). `attribution_text`(라디오 원문)는 불변 | — (행 삭제 없음 — 의도) |
 | `issue_update` | 관리자 토큰 | 이슈 속성 부여 (`device/symptom/severity/channel/q_ship/status`) + est_value 서버 계산 | — (행 삭제 없음 — 의도) |

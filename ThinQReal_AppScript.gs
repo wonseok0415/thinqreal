@@ -360,7 +360,8 @@ function doPost(e) {
       data.type === 'ledger_update' || data.type === 'ledger_delete' ||
       data.type === 'issue_update' || data.type === 'issue_delete' ||
       data.type === 'visitor_delete' || data.type === 'export_log' ||
-      data.type === 'insight_add' || data.type === 'insight_delete') {
+      data.type === 'insight_add' || data.type === 'insight_delete' ||
+      data.type === 'article_add' || data.type === 'article_delete') {
     var admin = verifyAdminToken(data.token);
     if (!admin.ok) {
       return jsonResponse({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
@@ -381,6 +382,8 @@ function doPost(e) {
     if (data.type === 'export_log')           return handleExportLog(data, admin.email);
     if (data.type === 'insight_add')          return handleInsightAdd(data);
     if (data.type === 'insight_delete')       return handleInsightDelete(data);
+    if (data.type === 'article_add')          return handleArticleAdd(data);
+    if (data.type === 'article_delete')       return handleArticleDelete(data);
   }
 
   return jsonResponse({ error: 'Unknown type' });
@@ -1436,16 +1439,30 @@ function collectMonthlyData(month) {
     .sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
   const roiLatest = eligibleRoi[0] || null;
 
-  // 3) 관련 기사 — 수동 큐레이션 우선, 없으면 Google Custom Search
-  const manualItems = getManualArticles(month);
+  // 3) 관련 기사 — 수동 큐레이션 우선 배치, 상한(5건) 미달분만 자동 수집으로 보충
+  //    (2026-08-03 렌더 리뷰 후속 — 종전 "수동 행 있으면 자동 미호출"에서 병합 방식으로 변경)
+  const manualItems = getManualArticles(month).slice(0, REPORT_ARTICLE_LIMIT);
   let articles;
-  if (manualItems.length > 0) {
-    articles = { items: manualItems, skipReason: '', source: 'manual' };
+  if (manualItems.length >= REPORT_ARTICLE_LIMIT) {
+    articles = { items: manualItems, skipReason: '', source: 'manual', manualCount: manualItems.length, autoCount: 0 };
+  } else if (manualItems.length > 0) {
+    let fill = [];
+    try {
+      const seen = {};
+      manualItems.forEach(it => { seen[it.link] = true; });
+      fill = (fetchThinqRealArticles().items || []).filter(it => !seen[it.link])
+        .slice(0, REPORT_ARTICLE_LIMIT - manualItems.length);
+    } catch (err) { Logger.log('[monthly] article fill fail: ' + err); }
+    articles = { items: manualItems.concat(fill), skipReason: '',
+                 source: fill.length ? 'mixed' : 'manual',
+                 manualCount: manualItems.length, autoCount: fill.length };
   } else {
     articles = fetchThinqRealArticles();
     articles.source = articles.provider || 'auto';
+    articles.items = (articles.items || []).slice(0, REPORT_ARTICLE_LIMIT);
+    articles.manualCount = 0;
+    articles.autoCount = articles.items.length;
   }
-  articles.items = (articles.items || []).slice(0, REPORT_ARTICLE_LIMIT);
 
   // 4) 설문·성과 지표 (Phase 5 — 설문 파이프라인 월간 집계 + §8-7 만족도/NPS·방문자 지표)
   //    집계 실패가 리포트 발송 자체를 막지 않도록 격리 (텔레그램·캘린더와 동일 원칙)
@@ -1503,7 +1520,7 @@ function collectMonthlyData(month) {
   let insights = [], quotes = [];
   try {
     const rowsIns = readSheetRecords(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS)
-      .filter(r => String(r.month) === month)
+      .filter(r => insightMonthKey(r.month) === month)
       .sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0));
     insights = rowsIns.filter(r => String(r.type || 'insight') !== 'quote').map(r => String(r.text || '')).filter(Boolean);
     quotes = rowsIns.filter(r => String(r.type) === 'quote')
@@ -1957,6 +1974,8 @@ function buildMonthlyReportText(d) {
   L.push('📰 관련 기사');
   L.push(d.articles.source === 'manual'
     ? '   담당자가 큐레이션한 이번 달 ThinQ Real 관련 보도 ' + d.articles.items.length + '건'
+    : d.articles.source === 'mixed'
+    ? '   담당자 큐레이션 ' + d.articles.manualCount + '건 + "' + MONTHLY_REPORT_QUERY + '" 자동 수집 ' + d.articles.autoCount + '건'
     : '   "' + MONTHLY_REPORT_QUERY + '" 키워드로 자동 수집한 최근 1개월 언론 보도 (AI홈 시장 동향 포함)');
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   if (!d.articles.items.length) {
@@ -2194,6 +2213,8 @@ function buildMonthlyReportHtml(d) {
   const descRoi = '구축·운영 총투자와 회수 지표 (확정 기준) · 26년 실측 누적 진척';
   const descArticles = d.articles.source === 'manual'
     ? '담당자가 큐레이션한 이번 달 ThinQ Real 관련 보도 ' + d.articles.items.length + '건'
+    : d.articles.source === 'mixed'
+    ? '담당자 큐레이션 ' + d.articles.manualCount + '건 + "' + MONTHLY_REPORT_QUERY + '" 키워드 자동 수집 ' + d.articles.autoCount + '건'
     : '"' + MONTHLY_REPORT_QUERY + '" 키워드로 자동 수집한 최근 1개월 언론 보도 — ThinQ Real 직접 보도 외에 AI홈 시장 동향 기사가 포함될 수 있습니다.';
 
   // 한글 가독성: Noto Sans KR 웹폰트 시도 (2026-07-15) — 브라우저 미리보기·Apple Mail 등
@@ -3359,7 +3380,20 @@ function handleGetSurveyData(token) {
     issues:    readSheetRecords(ISSUE_SHEET_NAME, ISSUE_HEADERS),
     visitors:  readSheetRecords(VISITOR_SHEET_NAME, VISITOR_HEADERS),  // 방문자 현장 설문 (§8-5, 조회 전용)
     insights:  readSheetRecords(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS) // 월간 리포트 큐레이션 (§8-7 5·6)
+      .map(r => { r.month = insightMonthKey(r.month); return r; }),    // 날짜 자동 변환된 기존 행 복원
+    articles:  readArticleRows()                                       // 관련 기사 큐레이션 (렌더 리뷰 후속)
   });
+}
+
+// monthly_insights month 셀 정규화 — Sheets가 "2026-07" 문자열을 날짜(해당 월 1일 0시 KST)로 자동
+// 변환해 저장하는 경우가 있어, 읽기 시 KST 기준 yyyy-MM으로 되돌린다.
+// (readSheetRecords가 Date를 UTC ISO로 바꾸므로 그대로 slice하면 전월로 밀림 — 큐레이션 행 증발 버그의 원인)
+function insightMonthKey(v) {
+  const s = String(v == null ? '' : v).trim();
+  if (/^\d{4}-\d{2}$/.test(s)) return s;
+  const d = (Object.prototype.toString.call(v) === '[object Date]') ? v : new Date(s);
+  if (!isNaN(d.getTime())) return Utilities.formatDate(d, 'Asia/Seoul', 'yyyy-MM');
+  return s.slice(0, 7);
 }
 
 // ── 월간 리포트 큐레이션 (§8-7 5·6 — monthly_insights 탭, 관리자 토큰 게이트) ──
@@ -3373,10 +3407,11 @@ function handleInsightAdd(data) {
   const rows = readSheetRecords(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS);
   // data.type은 라우팅 타입(insight_add)이므로 행 타입은 rowType 필드로 받는다
   const type = String(data.rowType) === 'quote' ? 'quote' : 'insight';
-  const maxSeq = rows.filter(r => String(r.month) === month && String(r.type || 'insight') === type)
+  const maxSeq = rows.filter(r => insightMonthKey(r.month) === month && String(r.type || 'insight') === type)
     .reduce((mx, r) => Math.max(mx, Number(r.seq) || 0), 0);
   const id = String(Date.now());
-  sheet.appendRow([id, month, maxSeq + 1, type, String(data.text).trim(),
+  // month는 선행 아포스트로피로 텍스트 강제 — Sheets의 날짜 자동 변환 차단 (셀 값은 "2026-07" 그대로)
+  sheet.appendRow([id, "'" + month, maxSeq + 1, type, String(data.text).trim(),
                    String(data.source || ''), new Date().toISOString()]);
   return jsonResponse({ ok: true, id });
 }
@@ -3384,6 +3419,70 @@ function handleInsightAdd(data) {
 function handleInsightDelete(data) {
   const n = deleteRowsByValue(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS, 'id', data.id);
   return jsonResponse(n ? { ok: true } : { ok: false, error: 'not_found' });
+}
+
+// ── 관련 기사 큐레이션 (2026-08-03 렌더 리뷰 후속 — monthly_articles 탭, 관리자 토큰 게이트) ──
+// URL만 받아 행 추가 — 제목·출처·요약·썸네일은 메타 태그에서 자동 추출 (실패 시 공란 → 리포트 빌드 때 재시도)
+function handleArticleAdd(data) {
+  const month = String(data.month || '');
+  const url = String(data.url || '').trim();
+  if (!/^\d{4}-\d{2}$/.test(month) || !/^https?:\/\//i.test(url)) {
+    return jsonResponse({ ok: false, error: 'invalid_input' });
+  }
+  const sheet = getArticlesSheet();
+  const headers = getOrCreateArticlesHeaders(sheet);
+  if (readArticleRows().some(r => r.month === month && r.url === url)) {
+    return jsonResponse({ ok: false, error: 'duplicate' });
+  }
+  const it = enrichArticleFromUrl({ title: '', link: url, source: '', snippet: '', publishedAt: '', thumbnail: '' });
+  const vals = {
+    month: "'" + month,                                   // 텍스트 강제 — Sheets 날짜 자동 변환 차단
+    title: (it.title && it.title !== url) ? it.title : '', // 추출 실패 시 공란 (다음 읽기에서 재시도)
+    url: url,
+    source: it.source || '', summary: it.snippet || '',
+    published_at: it.publishedAt || '', thumbnail: it.thumbnail || '',
+  };
+  sheet.appendRow(headers.map(h => (vals[h] != null ? vals[h] : '')));
+  return jsonResponse({ ok: true, title: vals.title });
+}
+
+function handleArticleDelete(data) {
+  const month = String(data.month || '');
+  const url = String(data.url || '').trim();
+  const sheet = getArticlesSheet();
+  const headers = getOrCreateArticlesHeaders(sheet);
+  const iM = headers.indexOf('month'), iU = headers.indexOf('url');
+  const rows = sheet.getDataRange().getValues();
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (normalizeMonth(rows[i][iM]) === month && String(rows[i][iU] || '').trim() === url) {
+      sheet.deleteRow(i + 1);
+      return jsonResponse({ ok: true });
+    }
+  }
+  return jsonResponse({ ok: false, error: 'not_found' });
+}
+
+// 관리자 큐레이션 UI용 기사 행 조회 — 원본 셀에서 직접 읽어 month/published_at을 정규화
+// (readSheetRecords는 Date를 UTC ISO로 바꿔 월이 밀리므로 사용하지 않음)
+function readArticleRows() {
+  const sheet = getArticlesSheet();
+  const headers = getOrCreateArticlesHeaders(sheet);
+  const rows = sheet.getDataRange().getValues();
+  const iM = headers.indexOf('month'), iT = headers.indexOf('title'), iU = headers.indexOf('url'),
+        iS = headers.indexOf('source'), iP = headers.indexOf('published_at');
+  const out = [];
+  for (let i = 1; i < rows.length; i++) {
+    const url = String(rows[i][iU] || '').trim();
+    if (!url) continue;
+    out.push({
+      month: normalizeMonth(rows[i][iM]),
+      title: String(rows[i][iT] || '').trim(),
+      url: url,
+      source: iS >= 0 ? String(rows[i][iS] || '').trim() : '',
+      published_at: iP >= 0 ? formatPublishedDate(rows[i][iP]) : '',
+    });
+  }
+  return out;
 }
 
 function readSheetRecords(name, headers) {
