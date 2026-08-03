@@ -1977,7 +1977,7 @@ function buildMonthlyReportText(d) {
   // ROI 스냅샷 — 최하단, 확정 기준 고정 수치 (§8-7 8. 그래프·저장 시나리오 의존 폐기)
   const rf = d.roiFixed || ROI_FIXED;
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push('💰 ROI 스냅샷 (확정 기준)');
+  L.push('💰 투자 대비 성과 (ROI) — 확정 기준');
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   L.push(`   연간 확정 가치 ${rf.annualValue} · 총 투자 ${rf.totalCost} (구축 ${rf.capex} + 운영 ${rf.opexYr})`);
   L.push(`   BEP ${rf.bep} · 3년 ROI ${rf.roi3} · 5년 ROI ${rf.roi5}`);
@@ -2191,7 +2191,7 @@ function buildMonthlyReportHtml(d) {
   const descInsights = '이번 달 운영에서 주목할 핵심 사항';
   const descQuotes = '이번 달 설문에서 수집된 방문 경험의 목소리';
   const descPurpose = '확정된 방문이 어떤 목적으로 진행되었는지의 비중';
-  const descRoi = '확정 기준 수치 고정 표기 — 구축·운영 총액과 회수 지표, 26년 실측 누적 진척';
+  const descRoi = '구축·운영 총투자와 회수 지표 (확정 기준) · 26년 실측 누적 진척';
   const descArticles = d.articles.source === 'manual'
     ? '담당자가 큐레이션한 이번 달 ThinQ Real 관련 보도 ' + d.articles.items.length + '건'
     : '"' + MONTHLY_REPORT_QUERY + '" 키워드로 자동 수집한 최근 1개월 언론 보도 — ThinQ Real 직접 보도 외에 AI홈 시장 동향 기사가 포함될 수 있습니다.';
@@ -2218,7 +2218,7 @@ function buildMonthlyReportHtml(d) {
         '<tr><td style="padding:0 28px 16px;">' + purposeBody + '</td></tr>' +
         sectionHeader('📰', '관련 기사', descArticles) +
         '<tr><td style="padding:0 28px 24px;">' + articlesBody + '</td></tr>' +
-        sectionHeader('💰', 'ROI 스냅샷', descRoi) +
+        sectionHeader('💰', '투자 대비 성과 (ROI)', descRoi) +
         '<tr><td style="padding:0 28px 24px;">' + roiBody + '</td></tr>' +
         '<tr><td style="padding:28px;border-top:1px solid #eeeeee;font-size:15px;color:#3a3a3c;line-height:1.65;">' +
           '<div style="font-weight:600;color:#1d1d1f;margin-bottom:4px;">감사합니다.</div>' +
