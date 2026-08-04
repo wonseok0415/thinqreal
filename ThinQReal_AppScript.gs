@@ -1695,6 +1695,9 @@ function renderPurposeDonutBytes(d) {
       px[o] = c[0]; px[o + 1] = c[1]; px[o + 2] = c[2];
     }
   }
+  // 슬라이스 위 "N건" 라벨 — 흰색 비트맵 폰트 직접 래스터 (5% 미만 슬라이스는 생략, 범례가 보완)
+  drawSliceLabels(px, w, cx, cy, (R + r) / 2, dist, total);
+
   // 다운샘플(SSxSS 평균) → PNG 스캔라인 (행마다 filter 0)
   const raw = [];
   for (let Y = 0; Y < W; Y++) {
@@ -1712,6 +1715,52 @@ function renderPurposeDonutBytes(d) {
     }
   }
   return encodePngBytes(raw, W, W);
+}
+
+// 도넛 슬라이스 중앙에 건수 숫자 흰색 라벨 — 5x7 비트맵 숫자 폰트를 픽셀로 찍는다
+// ('건' 글자는 소형 수제 비트맵으로는 품질이 떨어져 숫자만 표기 — 단위는 범례("N건")가 담당)
+function drawSliceLabels(px, w, cx, cy, midR, dist, total) {
+  const DIGITS = {
+    '0': ['01110','10001','10011','10101','11001','10001','01110'],
+    '1': ['00100','01100','00100','00100','00100','00100','01110'],
+    '2': ['01110','10001','00001','00010','00100','01000','11111'],
+    '3': ['11110','00001','00001','01110','00001','00001','11110'],
+    '4': ['00010','00110','01010','10010','11111','00010','00010'],
+    '5': ['11111','10000','11110','00001','00001','10001','01110'],
+    '6': ['00110','01000','10000','11110','10001','10001','01110'],
+    '7': ['11111','00001','00010','00100','01000','01000','01000'],
+    '8': ['01110','10001','10001','01110','10001','10001','01110'],
+    '9': ['01110','10001','10001','01111','00001','00010','01100'],
+  };
+  const stamp = (rows, x0, y0, scale) => {
+    for (let gy = 0; gy < rows.length; gy++) {
+      for (let gx = 0; gx < rows[gy].length; gx++) {
+        if (rows[gy][gx] !== '1') continue;
+        for (let sy = 0; sy < scale; sy++) {
+          for (let sx = 0; sx < scale; sx++) {
+            const X = x0 + gx * scale + sx, Y = y0 + gy * scale + sy;
+            if (X < 0 || Y < 0 || X >= w || Y >= w) continue;
+            const o = (Y * w + X) * 3;
+            px[o] = 255; px[o + 1] = 255; px[o + 2] = 255;
+          }
+        }
+      }
+    }
+  };
+  const sD = 4;   // 슈퍼샘플 버퍼 기준 스케일 (숫자 높이 28px → 최종 14px)
+  let acc = 0;
+  dist.forEach(sl => {
+    const frac = sl.count / total;
+    const mid = (acc + frac / 2) * 2 * Math.PI;
+    acc += frac;
+    if (frac < 0.05) return;   // 좁은 슬라이스는 생략 — 수치는 범례에 있음
+    const lx = cx + Math.sin(mid) * midR;
+    const ly = cy - Math.cos(mid) * midR;
+    const digits = String(sl.count).split('');
+    const wAll = digits.length * 6 * sD - sD;
+    let x = Math.round(lx - wAll / 2);
+    digits.forEach(ch => { stamp(DIGITS[ch], x, Math.round(ly - 7 * sD / 2), sD); x += 6 * sD; });
+  });
 }
 
 // 순수 GAS PNG 인코더 — GAS에 deflate API가 없어 zlib 스트림은 Utilities.gzip의

@@ -1523,3 +1523,10 @@ sales 트랙 운영 설문의 8번 블록 컬럼은 2026-07-27 이후 구조적�
 - **구현**: `renderPurposeDonutBytes` — 240×240 픽셀 래스터라이즈(2x 슈퍼샘플링, 12시 시작 시계방향, PURPOSE_COLORS) + `encodePngBytes` — 순수 GAS PNG 인코더 (GAS에 deflate API가 없어 zlib 스트림은 `Utilities.gzip`의 deflate 페이로드를 gzip 헤더 가변 파싱 후 zlib 헤더+adler32로 재포장, CRC32 자체 구현). 범례는 HTML(색 점+건수+%).
 - **전달 경로**: 메일 = `MailApp.sendEmail inlineImages`(cid — 수신자 측 외부 로드 없음, 차단망·Outlook에서도 표시) / 미리보기(dryRun) = data URI 치환. `purposeDist()`가 도넛·범례·막대 폴백의 단일 소스.
 - 검증: Node에서 gzip 스텁으로 PNG 생성 → PIL 디코드(240×240 RGB·구멍 흰색·슬라이스 색 일치) 실증. 리포트 스텁 51항목(PNG 시그니처·IHDR·cid 분기·막대 폴백), §8-6 17항목 회귀. **재배포 필요** (PR #57 합류).
+
+---
+
+## 2026-08-04 (6) — 도넛 슬라이스 건수 라벨 (비트맵 숫자 폰트)
+
+- 도넛 위 건수 표기 복원(구 QuickChart datalabels 상당) — `drawSliceLabels`: 5x7 비트맵 숫자 폰트를 슬라이스 중앙(중간 반경·중간 각도)에 흰색으로 래스터. 5% 미만 슬라이스는 생략(범례가 보완). '건' 글자는 소형 수제 비트맵 품질 문제로 숫자만 표기 — 단위는 범례("N건")가 담당.
+- 검증: PIL 디코드·시각 확인, 리포트 스텁 51항목·§8-6 17항목 회귀. PR #57 합류. **재배포 필요**.
