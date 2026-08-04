@@ -2171,11 +2171,16 @@ function buildMonthlyReportHtml(d) {
       }
     }, { w: 480, h: 240 });
 
+    // 이미지 차단 환경(quickchart 차단망·Outlook 기본 차단) 대비 — 도넛 아래 텍스트 분포 병기
+    const distList = purposeKeys.map(k => [k, d.purposeCounts[k]])
+      .filter(pair => pair[1] > 0).sort((a, b) => b[1] - a[1])
+      .map(pair => escapeHtml(pair[0]) + ' <strong>' + pair[1] + '건</strong>').join(' &nbsp;·&nbsp; ');
     purposeBody =
       '<div style="text-align:center;">' +
         '<img src="' + escapeHtml(chartUrl) + '" alt="방문 목적별 분포" style="max-width:100%;width:480px;height:auto;display:inline-block;" />' +
       '</div>' +
-      '<div style="font-size:13px;color:#6e6e73;text-align:center;margin-top:6px;">총 ' + purposeTotal + '건 (확정 기준)</div>';
+      '<div style="font-size:12.5px;color:#3a3a3c;text-align:center;margin-top:8px;line-height:1.8;">' + distList + '</div>' +
+      '<div style="font-size:13px;color:#6e6e73;text-align:center;margin-top:4px;">총 ' + purposeTotal + '건 (확정 기준)</div>';
   }
 
   // ── 6) ROI 스냅샷 (§8-7 8 — 최하단·확정 기준 고정 수치. 그래프·저장 시나리오 의존 폐기) ──
@@ -3431,6 +3436,11 @@ function handleInsightAdd(data) {
   const rows = readSheetRecords(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS);
   // data.type은 라우팅 타입(insight_add)이므로 행 타입은 rowType 필드로 받는다
   const type = String(data.rowType) === 'quote' ? 'quote' : 'insight';
+  // 한마디는 체크박스 토글 특성상 같은 문장 중복 저장이 항상 버그 — 가드 (증발 버그 시절 중복 재발 방지)
+  if (type === 'quote' && rows.some(r => insightMonthKey(r.month) === month &&
+      String(r.type) === 'quote' && String(r.text || '').trim() === String(data.text).trim())) {
+    return jsonResponse({ ok: false, error: 'duplicate' });
+  }
   const maxSeq = rows.filter(r => insightMonthKey(r.month) === month && String(r.type || 'insight') === type)
     .reduce((mx, r) => Math.max(mx, Number(r.seq) || 0), 0);
   const id = String(Date.now());
