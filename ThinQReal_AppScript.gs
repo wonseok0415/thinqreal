@@ -1673,7 +1673,9 @@ function hexToRgb(hex) {
 function renderPurposeDonutBytes(d) {
   const dist = purposeDist(d);
   if (!dist.length) return null;
-  const W = 240, SS = 2;                 // 출력 240x240, 2x 슈퍼샘플링 (계단 완화)
+  // "레티나" 방식: PNG는 표시 크기(180px)의 ~2.7배(480px)로 생성 — 메일 클라이언트가 축소하며
+  // 추가 안티앨리어싱이 생겨 곡선·숫자가 매끈해짐 (2026-08-04 리뷰: 표시 축소 + 폰트 해상도 개선)
+  const W = 480, SS = 2;                 // 출력 480x480, 2x 슈퍼샘플링
   const w = W * SS, cx = w / 2, cy = w / 2;
   const R = w * 0.485, r = w * 0.30;
   const total = dist.reduce((s, x) => s + x.count, 0);
@@ -1747,7 +1749,7 @@ function drawSliceLabels(px, w, cx, cy, midR, dist, total) {
       }
     }
   };
-  const sD = 4;   // 슈퍼샘플 버퍼 기준 스케일 (숫자 높이 28px → 최종 14px)
+  const sD = 10;   // 슈퍼샘플 버퍼(960) 기준 스케일 — 숫자 높이 70px → PNG 35px → 표시(180px) 시 ~13px, 축소 AA로 매끈
   let acc = 0;
   dist.forEach(sl => {
     const frac = sl.count / total;
@@ -2288,7 +2290,7 @@ function buildMonthlyReportHtml(d) {
       '</span>').join('');
     purposeBody =
       '<div style="text-align:center;">' +
-        '<img src="cid:' + d.donutCid + '" width="220" alt="방문 목적별 분포" style="width:220px;height:auto;display:inline-block;" />' +
+        '<img src="cid:' + d.donutCid + '" width="180" alt="방문 목적별 분포" style="width:180px;height:auto;display:inline-block;" />' +
       '</div>' +
       '<div style="text-align:center;margin-top:6px;line-height:1.7;">' + legend + '</div>' +
       '<div style="font-size:13px;color:#6e6e73;text-align:center;margin-top:5px;">총 ' + purposeTotal + '건 (확정 기준)</div>';
