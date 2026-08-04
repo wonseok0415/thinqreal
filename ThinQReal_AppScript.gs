@@ -2470,7 +2470,7 @@ function buildMonthlyReportHtml(d) {
   // 웹폰트 허용 환경에서만 적용되고, 차단 환경(PC Outlook·Gmail)은 맑은 고딕으로 폴백.
   // "<style> 블록 금지" 규칙의 의도적 예외 — @import가 무시돼도 인라인 스타일이 그대로 살아있어 무해.
   return (
-    '<style>@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap");</style>' +
+    '<style>@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap");</style>' +
     '<div style="background:#f5f5f7;padding:24px 12px;font-family:\'Noto Sans KR\',\'Malgun Gothic\',\'Apple SD Gothic Neo\',-apple-system,BlinkMacSystemFont,sans-serif;">' +
       '<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:collapse;max-width:760px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">' +
         '<tr><td style="background:#3a5035;color:#ffffff;padding:28px 28px 24px;">' +
