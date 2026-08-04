@@ -1778,7 +1778,7 @@ function normalizeMonth(v) {
   if (Object.prototype.toString.call(v) === '[object Date]') {
     return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM');
   }
-  return String(v).slice(0, 7);
+  return String(v).replace(/^'+/, '').slice(0, 7);   // 텍스트 강제용 아포스트로피가 값에 남는 환경 흡수
 }
 
 function formatPublishedDate(v) {
@@ -3389,11 +3389,22 @@ function handleGetSurveyData(token) {
 // 변환해 저장하는 경우가 있어, 읽기 시 KST 기준 yyyy-MM으로 되돌린다.
 // (readSheetRecords가 Date를 UTC ISO로 바꾸므로 그대로 slice하면 전월로 밀림 — 큐레이션 행 증발 버그의 원인)
 function insightMonthKey(v) {
-  const s = String(v == null ? '' : v).trim();
+  const s = String(v == null ? '' : v).trim().replace(/^'+/, '');   // 텍스트 강제용 아포스트로피가 값에 남는 환경 흡수
   if (/^\d{4}-\d{2}$/.test(s)) return s;
   const d = (Object.prototype.toString.call(v) === '[object Date]') ? v : new Date(s);
   if (!isNaN(d.getTime())) return Utilities.formatDate(d, 'Asia/Seoul', 'yyyy-MM');
   return s.slice(0, 7);
+}
+
+// month 셀 텍스트 확정 기록 — appendRow의 입력 파싱(날짜 변환·아포스트로피 해석)이 환경에 따라
+// 달라 "행이 저장돼도 월 필터에 안 걸리는" 증발 증상이 재발해, 저장 직후 셀 서식을 텍스트(@)로
+// 강제하고 값을 다시 쓴다. 읽기 정규화(insightMonthKey/normalizeMonth)와 이중 방어.
+function forceMonthTextCell(sheet, row, col, month) {
+  try {
+    const cell = sheet.getRange(row, col);
+    cell.setNumberFormat('@');
+    cell.setValue(month);
+  } catch (err) { Logger.log('forceMonthTextCell fail: ' + err); }
 }
 
 // ── 월간 리포트 큐레이션 (§8-7 5·6 — monthly_insights 탭, 관리자 토큰 게이트) ──
@@ -3410,9 +3421,9 @@ function handleInsightAdd(data) {
   const maxSeq = rows.filter(r => insightMonthKey(r.month) === month && String(r.type || 'insight') === type)
     .reduce((mx, r) => Math.max(mx, Number(r.seq) || 0), 0);
   const id = String(Date.now());
-  // month는 선행 아포스트로피로 텍스트 강제 — Sheets의 날짜 자동 변환 차단 (셀 값은 "2026-07" 그대로)
   sheet.appendRow([id, "'" + month, maxSeq + 1, type, String(data.text).trim(),
                    String(data.source || ''), new Date().toISOString()]);
+  forceMonthTextCell(sheet, sheet.getLastRow(), INSIGHTS_HEADERS.indexOf('month') + 1, month);
   return jsonResponse({ ok: true, id });
 }
 
@@ -3436,13 +3447,14 @@ function handleArticleAdd(data) {
   }
   const it = enrichArticleFromUrl({ title: '', link: url, source: '', snippet: '', publishedAt: '', thumbnail: '' });
   const vals = {
-    month: "'" + month,                                   // 텍스트 강제 — Sheets 날짜 자동 변환 차단
+    month: "'" + month,
     title: (it.title && it.title !== url) ? it.title : '', // 추출 실패 시 공란 (다음 읽기에서 재시도)
     url: url,
     source: it.source || '', summary: it.snippet || '',
     published_at: it.publishedAt || '', thumbnail: it.thumbnail || '',
   };
   sheet.appendRow(headers.map(h => (vals[h] != null ? vals[h] : '')));
+  forceMonthTextCell(sheet, sheet.getLastRow(), headers.indexOf('month') + 1, month);
   return jsonResponse({ ok: true, title: vals.title });
 }
 
