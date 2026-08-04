@@ -1210,34 +1210,6 @@ const ROI_VALUE_LABELS = {
   vPR:           { label: 'PR 가치',             color: '#af52de' },
 };
 
-// QuickChart.io 차트 이미지 URL 생성 — 이메일 클라이언트 호환을 위해 외부 PNG로 렌더
-// 함수(formatter 등)는 JSON.stringify가 제거하므로 토큰으로 치환 후 원본 함수 소스로 복원 (JSON5 형식)
-function quickChartUrl(config, opts) {
-  opts = opts || {};
-  const w = opts.w || 600;
-  const h = opts.h || 320;
-  const bkg = opts.bkg || 'white';
-
-  let counter = 0;
-  const fnMap = {};
-  const json = JSON.stringify(config, function(key, value) {
-    if (typeof value === 'function') {
-      const token = '___FN_' + (counter++) + '___';
-      fnMap[token] = value.toString();
-      return token;
-    }
-    return value;
-  });
-  // split+join으로 치환 — replace의 두 번째 인자가 함수 소스 내 $/ 같은 특수 시퀀스로 해석될 위험 차단
-  let out = json;
-  Object.keys(fnMap).forEach(function(token) {
-    out = out.split('"' + token + '"').join(fnMap[token]);
-  });
-
-  return 'https://quickchart.io/chart?w=' + w + '&h=' + h + '&bkg=' + encodeURIComponent(bkg) +
-    '&c=' + encodeURIComponent(out);
-}
-
 function installMonthlyReportTrigger() {
   ScriptApp.getProjectTriggers().forEach(t => {
     if (t.getHandlerFunction() === 'monthlyReportTrigger') ScriptApp.deleteTrigger(t);
@@ -2141,46 +2113,28 @@ function buildMonthlyReportHtml(d) {
   if (purposeTotal === 0) {
     purposeBody = '<div style="font-size:14px;color:#aeaeb2;padding:8px 0;">해당 없음</div>';
   } else {
-    const canonical = Object.keys(PURPOSE_COLORS);
-    const extras = purposeKeys.filter(k => !PURPOSE_COLORS[k] && d.purposeCounts[k] > 0);
-    const labels = canonical.concat(extras);
-    const values = canonical.map(k => d.purposeCounts[k] || 0).concat(extras.map(k => d.purposeCounts[k]));
-    const colors = canonical.map(k => PURPOSE_COLORS[k]).concat(extras.map(() => '#5e7858'));
-
-    const chartUrl = quickChartUrl({
-      type: 'doughnut',
-      data: {
-        labels: labels,
-        datasets: [{ data: values, backgroundColor: colors, borderWidth: 3, borderColor: '#ffffff' }]
-      },
-      options: {
-        cutoutPercentage: 60,
-        legend: {
-          position: 'bottom',
-          labels: { fontSize: 11, padding: 10, boxWidth: 10, usePointStyle: true }
-        },
-        plugins: {
-          datalabels: {
-            color: '#ffffff',
-            font: { size: 13, weight: 'bold' },
-            anchor: 'center',
-            align: 'center',
-            formatter: function(value) { return value > 0 ? value + '건' : ''; }
-          }
-        }
-      }
-    }, { w: 480, h: 240 });
-
-    // 이미지 차단 환경(quickchart 차단망·Outlook 기본 차단) 대비 — 도넛 아래 텍스트 분포 병기
-    const distList = purposeKeys.map(k => [k, d.purposeCounts[k]])
-      .filter(pair => pair[1] > 0).sort((a, b) => b[1] - a[1])
-      .map(pair => escapeHtml(pair[0]) + ' <strong>' + pair[1] + '건</strong>').join(' &nbsp;·&nbsp; ');
+    // QuickChart 도넛 폐기 (2026-08-04) — 인라인 HTML 막대 차트로 대체.
+    // 이관 결정(decisions-2026-07-06 §⑦ "차트는 내부 렌더링") 선반영: 외부 서비스·이미지 의존 0
+    // → 차단망(사내 PC)·Outlook 기본 이미지 차단 환경에서도 항상 렌더.
+    const sortedP = purposeKeys.map(k => [k, d.purposeCounts[k] || 0])
+      .filter(pair => pair[1] > 0)
+      .sort((a, b) => b[1] - a[1]);
+    const maxV = sortedP.length ? sortedP[0][1] : 1;
+    const barRows = sortedP.map(pair => {
+      const color = PURPOSE_COLORS[pair[0]] || '#5e7858';
+      const widthPct = Math.max(8, Math.round(pair[1] / maxV * 100));
+      const totPct = Math.round(pair[1] / purposeTotal * 100);
+      return '<tr>' +
+        '<td style="padding:5px 10px 5px 0;font-size:12.5px;color:#3a3a3c;white-space:nowrap;text-align:right;width:168px;">' + escapeHtml(pair[0]) + '</td>' +
+        '<td style="padding:5px 0;">' +
+          '<div style="background:' + color + ';width:' + widthPct + '%;min-width:36px;border-radius:4px;color:#ffffff;font-size:11.5px;font-weight:700;padding:3px 8px;white-space:nowrap;box-sizing:border-box;">' + pair[1] + '건</div>' +
+        '</td>' +
+        '<td style="padding:5px 0 5px 8px;font-size:12px;color:#8e8e93;white-space:nowrap;width:40px;">' + totPct + '%</td>' +
+      '</tr>';
+    }).join('');
     purposeBody =
-      '<div style="text-align:center;">' +
-        '<img src="' + escapeHtml(chartUrl) + '" alt="방문 목적별 분포" style="max-width:100%;width:480px;height:auto;display:inline-block;" />' +
-      '</div>' +
-      '<div style="font-size:12.5px;color:#3a3a3c;text-align:center;margin-top:8px;line-height:1.8;">' + distList + '</div>' +
-      '<div style="font-size:13px;color:#6e6e73;text-align:center;margin-top:4px;">총 ' + purposeTotal + '건 (확정 기준)</div>';
+      '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' + barRows + '</table>' +
+      '<div style="font-size:13px;color:#6e6e73;text-align:center;margin-top:8px;">총 ' + purposeTotal + '건 (확정 기준)</div>';
   }
 
   // ── 6) ROI 스냅샷 (§8-7 8 — 최하단·확정 기준 고정 수치. 그래프·저장 시나리오 의존 폐기) ──
