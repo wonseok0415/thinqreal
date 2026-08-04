@@ -2570,7 +2570,7 @@ function handleMonthlyReportSend(params) {
     return sendSafetyPage('발송 방식이 변경되었습니다',
       '<p style="font-size:14px;color:#3a3a3c;line-height:1.7;">confirm=YES 방식은 오클릭 사고 방지를 위해 폐기되었습니다.<br>' +
       '아래 링크로 접속해 <strong>확인 화면</strong>을 거쳐 발송해 주세요.</p>' +
-      '<p><a href="' + selfUrl + '" style="color:#3a5035;font-weight:600;">발송 확인 화면 열기 →</a></p>');
+      '<p><a href="' + selfUrl + '" target="_top" style="color:#3a5035;font-weight:600;">발송 확인 화면 열기 →</a></p>');
   }
 
   // ── Step 2: 전체 발송 실행 (일회용 토큰) ──
@@ -2578,7 +2578,7 @@ function handleMonthlyReportSend(params) {
     if (!consumeSendToken('send', month, params.confirm)) {
       return sendSafetyPage('토큰이 유효하지 않습니다',
         '<p style="font-size:14px;color:#3a3a3c;line-height:1.7;">발송 토큰이 만료(10분)됐거나 이미 사용되었습니다.<br>' +
-        '<a href="' + selfUrl + '" style="color:#3a5035;font-weight:600;">확인 화면에서 다시 시도 →</a></p>');
+        '<a href="' + selfUrl + '" target="_top" style="color:#3a5035;font-weight:600;">확인 화면에서 다시 시도 →</a></p>');
     }
     const result = sendMonthlyReport({ month: month });
     if (!result.sentTo) {
@@ -2608,7 +2608,7 @@ function handleMonthlyReportSend(params) {
     if (!consumeSendToken('test', month, params.test)) {
       return sendSafetyPage('토큰이 유효하지 않습니다',
         '<p style="font-size:14px;color:#3a3a3c;line-height:1.7;">테스트 토큰이 만료(10분)됐거나 이미 사용되었습니다.<br>' +
-        '<a href="' + selfUrl + '" style="color:#3a5035;font-weight:600;">확인 화면에서 다시 시도 →</a></p>');
+        '<a href="' + selfUrl + '" target="_top" style="color:#3a5035;font-weight:600;">확인 화면에서 다시 시도 →</a></p>');
     }
     const testTo = props.getProperty('MONTHLY_REPORT_TEST_TO') || '';
     if (!testTo) {
@@ -2646,8 +2646,8 @@ function handleMonthlyReportSend(params) {
       '<div style="font-size:12px;color:#6e6e73;margin-top:4px;margin-left:22px;">체크하면 이번 달 자동 발송이 생략됩니다 (수동 발송본이 정식본이 됩니다).</div>' +
     '</label>' +
     '<div style="margin-top:18px;">' +
-      '<a id="sendBtn" href="' + sendUrl + '" style="display:inline-block;background:#3a5035;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;">전체 발송하기</a>' +
-      '<a href="' + testUrl + '" style="display:inline-block;margin-left:10px;background:#ffffff;color:#3a5035;border:1.5px solid #3a5035;padding:11px 20px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;">나에게만 테스트 발송</a>' +
+      '<a id="sendBtn" href="' + sendUrl + '" target="_top" style="display:inline-block;background:#3a5035;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;">전체 발송하기</a>' +
+      '<a href="' + testUrl + '" target="_top" style="display:inline-block;margin-left:10px;background:#ffffff;color:#3a5035;border:1.5px solid #3a5035;padding:11px 20px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;">나에게만 테스트 발송</a>' +
     '</div>' +
     '<p style="font-size:11.5px;color:#aeaeb2;margin-top:14px;">발송 버튼은 10분간 유효한 일회용 링크입니다.</p>' +
     '<script>document.getElementById("skipauto").addEventListener("change",function(){' +
