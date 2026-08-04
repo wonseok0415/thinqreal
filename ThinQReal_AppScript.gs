@@ -1210,34 +1210,6 @@ const ROI_VALUE_LABELS = {
   vPR:           { label: 'PR 가치',             color: '#af52de' },
 };
 
-// QuickChart.io 차트 이미지 URL 생성 — 이메일 클라이언트 호환을 위해 외부 PNG로 렌더
-// 함수(formatter 등)는 JSON.stringify가 제거하므로 토큰으로 치환 후 원본 함수 소스로 복원 (JSON5 형식)
-function quickChartUrl(config, opts) {
-  opts = opts || {};
-  const w = opts.w || 600;
-  const h = opts.h || 320;
-  const bkg = opts.bkg || 'white';
-
-  let counter = 0;
-  const fnMap = {};
-  const json = JSON.stringify(config, function(key, value) {
-    if (typeof value === 'function') {
-      const token = '___FN_' + (counter++) + '___';
-      fnMap[token] = value.toString();
-      return token;
-    }
-    return value;
-  });
-  // split+join으로 치환 — replace의 두 번째 인자가 함수 소스 내 $/ 같은 특수 시퀀스로 해석될 위험 차단
-  let out = json;
-  Object.keys(fnMap).forEach(function(token) {
-    out = out.split('"' + token + '"').join(fnMap[token]);
-  });
-
-  return 'https://quickchart.io/chart?w=' + w + '&h=' + h + '&bkg=' + encodeURIComponent(bkg) +
-    '&c=' + encodeURIComponent(out);
-}
-
 function installMonthlyReportTrigger() {
   ScriptApp.getProjectTriggers().forEach(t => {
     if (t.getHandlerFunction() === 'monthlyReportTrigger') ScriptApp.deleteTrigger(t);
@@ -1287,11 +1259,23 @@ function sendMonthlyReport(options) {
   const to    = options.to    || props.getProperty('MONTHLY_REPORT_TO') || '';
 
   const data = collectMonthlyData(month);
+  // 목적 도넛 내부 렌더링 — 실패해도 발송은 막지 않음 (막대 폴백)
+  let donutBytes = null;
+  try {
+    donutBytes = renderPurposeDonutBytes(data);
+    if (donutBytes) data.donutCid = 'purposeDonut';
+  } catch (err) { Logger.log('[monthly] donut render fail → bar fallback: ' + err); }
   const text = buildMonthlyReportText(data);
   const html = buildMonthlyReportHtml(data);
   const subject = `[ThinQ Real] ${data.year}년 ${data.monthNum}월 운영 리포트`;
 
-  if (options.dryRun) return { subject, html, text, data, sentTo: '' };
+  if (options.dryRun) {
+    // 미리보기는 cid를 못 쓰므로 data URI로 치환
+    const previewHtml = donutBytes
+      ? html.replace(/cid:purposeDonut/g, 'data:image/png;base64,' + Utilities.base64Encode(donutBytes))
+      : html;
+    return { subject, html: previewHtml, text, data, sentTo: '' };
+  }
   if (!to) {
     Logger.log('Monthly report skipped: MONTHLY_REPORT_TO 미설정');
     return { subject, sentTo: '', skipped: 'no recipients' };
@@ -1303,6 +1287,7 @@ function sendMonthlyReport(options) {
     body: text, htmlBody: html,
     name: 'ThinQ Real',
   };
+  if (donutBytes) mail.inlineImages = { purposeDonut: Utilities.newBlob(donutBytes, 'image/png', 'purpose-donut.png') };
   if (!options.noCc) mail.cc = CC_EMAIL;
   MailApp.sendEmail(mail);
   Logger.log('Monthly report sent → ' + to + ' (' + month + ')');
@@ -1662,6 +1647,159 @@ function fetchYoutubeMeta(url) {
 // **굵게** 마크다운을 <strong>으로 — 인사이트·한마디 강조용 (escapeHtml 이후 적용 전제)
 function mdBold(escapedText) {
   return String(escapedText).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+
+// ── 목적 분포 도넛 — 내부 렌더링 (2026-08-04) ─────────────────────
+// 이관 결정(decisions-2026-07-06 §⑦ "차트는 내부 렌더링") 준수: 외부 차트 서비스 없이
+// Apps Script 안에서 PNG를 직접 생성해 메일에 cid 인라인 첨부 (수신자 측 외부 이미지 로드 없음
+// → 차단망·Outlook 기본 차단에서도 표시). 렌더 실패 시 막대 차트 폴백.
+
+// 목적별 분포 목록 — 도넛 슬라이스·범례·막대 폴백이 공유하는 단일 소스 (건수 내림차순, 0건 제외)
+function purposeDist(d) {
+  const total = Object.keys(d.purposeCounts).reduce((s, k) => s + (d.purposeCounts[k] || 0), 0);
+  if (!total) return [];
+  return Object.keys(d.purposeCounts).map(k => [k, d.purposeCounts[k] || 0])
+    .filter(p => p[1] > 0).sort((a, b) => b[1] - a[1])
+    .map(p => ({ label: p[0], count: p[1], pct: Math.round(p[1] / total * 100),
+                 color: PURPOSE_COLORS[p[0]] || '#5e7858' }));
+}
+
+function hexToRgb(hex) {
+  const m = String(hex).replace('#', '');
+  return [parseInt(m.slice(0, 2), 16), parseInt(m.slice(2, 4), 16), parseInt(m.slice(4, 6), 16)];
+}
+
+// 도넛 PNG 바이트 생성 (GAS 서명 바이트 배열 -128..127 — base64Encode/newBlob에 그대로 사용)
+function renderPurposeDonutBytes(d) {
+  const dist = purposeDist(d);
+  if (!dist.length) return null;
+  const W = 240, SS = 2;                 // 출력 240x240, 2x 슈퍼샘플링 (계단 완화)
+  const w = W * SS, cx = w / 2, cy = w / 2;
+  const R = w * 0.485, r = w * 0.30;
+  const total = dist.reduce((s, x) => s + x.count, 0);
+  let acc = 0;
+  const bounds = dist.map(x => { acc += x.count / total; return acc; });
+  const rgbs = dist.map(x => hexToRgb(x.color));
+  const px = new Array(w * w * 3).fill(255);   // 흰 배경
+  for (let y = 0; y < w; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = x + 0.5 - cx, dy = y + 0.5 - cy;
+      const dist2 = Math.sqrt(dx * dx + dy * dy);
+      if (dist2 < r || dist2 > R) continue;
+      let ang = Math.atan2(dx, -dy) / (2 * Math.PI);   // 12시 시작, 시계 방향 0..1
+      if (ang < 0) ang += 1;
+      let si = 0;
+      while (si < bounds.length - 1 && ang >= bounds[si]) si++;
+      const c = rgbs[si];
+      const o = (y * w + x) * 3;
+      px[o] = c[0]; px[o + 1] = c[1]; px[o + 2] = c[2];
+    }
+  }
+  // 슬라이스 위 "N건" 라벨 — 흰색 비트맵 폰트 직접 래스터 (5% 미만 슬라이스는 생략, 범례가 보완)
+  drawSliceLabels(px, w, cx, cy, (R + r) / 2, dist, total);
+
+  // 다운샘플(SSxSS 평균) → PNG 스캔라인 (행마다 filter 0)
+  const raw = [];
+  for (let Y = 0; Y < W; Y++) {
+    raw.push(0);
+    for (let X = 0; X < W; X++) {
+      let rs = 0, gs = 0, bs = 0;
+      for (let sy = 0; sy < SS; sy++) {
+        for (let sx = 0; sx < SS; sx++) {
+          const o = ((Y * SS + sy) * w + (X * SS + sx)) * 3;
+          rs += px[o]; gs += px[o + 1]; bs += px[o + 2];
+        }
+      }
+      const n = SS * SS;
+      raw.push(Math.round(rs / n), Math.round(gs / n), Math.round(bs / n));
+    }
+  }
+  return encodePngBytes(raw, W, W);
+}
+
+// 도넛 슬라이스 중앙에 건수 숫자 흰색 라벨 — 5x7 비트맵 숫자 폰트를 픽셀로 찍는다
+// ('건' 글자는 소형 수제 비트맵으로는 품질이 떨어져 숫자만 표기 — 단위는 범례("N건")가 담당)
+function drawSliceLabels(px, w, cx, cy, midR, dist, total) {
+  const DIGITS = {
+    '0': ['01110','10001','10011','10101','11001','10001','01110'],
+    '1': ['00100','01100','00100','00100','00100','00100','01110'],
+    '2': ['01110','10001','00001','00010','00100','01000','11111'],
+    '3': ['11110','00001','00001','01110','00001','00001','11110'],
+    '4': ['00010','00110','01010','10010','11111','00010','00010'],
+    '5': ['11111','10000','11110','00001','00001','10001','01110'],
+    '6': ['00110','01000','10000','11110','10001','10001','01110'],
+    '7': ['11111','00001','00010','00100','01000','01000','01000'],
+    '8': ['01110','10001','10001','01110','10001','10001','01110'],
+    '9': ['01110','10001','10001','01111','00001','00010','01100'],
+  };
+  const stamp = (rows, x0, y0, scale) => {
+    for (let gy = 0; gy < rows.length; gy++) {
+      for (let gx = 0; gx < rows[gy].length; gx++) {
+        if (rows[gy][gx] !== '1') continue;
+        for (let sy = 0; sy < scale; sy++) {
+          for (let sx = 0; sx < scale; sx++) {
+            const X = x0 + gx * scale + sx, Y = y0 + gy * scale + sy;
+            if (X < 0 || Y < 0 || X >= w || Y >= w) continue;
+            const o = (Y * w + X) * 3;
+            px[o] = 255; px[o + 1] = 255; px[o + 2] = 255;
+          }
+        }
+      }
+    }
+  };
+  const sD = 4;   // 슈퍼샘플 버퍼 기준 스케일 (숫자 높이 28px → 최종 14px)
+  let acc = 0;
+  dist.forEach(sl => {
+    const frac = sl.count / total;
+    const mid = (acc + frac / 2) * 2 * Math.PI;
+    acc += frac;
+    if (frac < 0.05) return;   // 좁은 슬라이스는 생략 — 수치는 범례에 있음
+    const lx = cx + Math.sin(mid) * midR;
+    const ly = cy - Math.cos(mid) * midR;
+    const digits = String(sl.count).split('');
+    const wAll = digits.length * 6 * sD - sD;
+    let x = Math.round(lx - wAll / 2);
+    digits.forEach(ch => { stamp(DIGITS[ch], x, Math.round(ly - 7 * sD / 2), sD); x += 6 * sD; });
+  });
+}
+
+// 순수 GAS PNG 인코더 — GAS에 deflate API가 없어 zlib 스트림은 Utilities.gzip의
+// deflate 페이로드를 추출해 zlib 헤더+adler32로 재포장한다 (gzip 헤더는 FLG 비트별 가변 파싱)
+function encodePngBytes(raw, width, height) {
+  const toSigned = v => (v > 127 ? v - 256 : v);
+  const be32 = v => [(v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255];
+  const crcTable = [];
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    crcTable.push(c >>> 0);
+  }
+  const crc32 = bytes => {
+    let c = 0xffffffff;
+    for (let i = 0; i < bytes.length; i++) c = crcTable[(c ^ bytes[i]) & 255] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+  let a = 1, b = 0;
+  for (let i = 0; i < raw.length; i++) { a = (a + raw[i]) % 65521; b = (b + a) % 65521; }
+  const adler = ((b << 16) | a) >>> 0;
+
+  const gz = Utilities.gzip(Utilities.newBlob(raw.map(toSigned))).getBytes().map(v => v & 255);
+  let p = 10;
+  const flg = gz[3];
+  if (flg & 4) { const xlen = gz[p] | (gz[p + 1] << 8); p += 2 + xlen; }
+  if (flg & 8) { while (gz[p++] !== 0) {} }
+  if (flg & 16) { while (gz[p++] !== 0) {} }
+  if (flg & 2) p += 2;
+  const zlibStream = [0x78, 0x9c].concat(gz.slice(p, gz.length - 8), be32(adler));
+
+  const chunk = (type, data) => {
+    const t = [type.charCodeAt(0), type.charCodeAt(1), type.charCodeAt(2), type.charCodeAt(3)];
+    return be32(data.length).concat(t, data, be32(crc32(t.concat(data))));
+  };
+  const ihdr = be32(width).concat(be32(height), [8, 2, 0, 0, 0]);   // 8bit RGB
+  const png = [137, 80, 78, 71, 13, 10, 26, 10]
+    .concat(chunk('IHDR', ihdr), chunk('IDAT', zlibStream), chunk('IEND', []));
+  return png.map(toSigned);
 }
 
 // URL의 HTML을 fetch해서 OpenGraph 메타 태그로 빈 필드 자동 채우기
@@ -2140,42 +2278,37 @@ function buildMonthlyReportHtml(d) {
   const purposeTotal = Object.keys(d.purposeCounts).reduce((s, k) => s + (d.purposeCounts[k] || 0), 0);
   if (purposeTotal === 0) {
     purposeBody = '<div style="font-size:14px;color:#aeaeb2;padding:8px 0;">해당 없음</div>';
-  } else {
-    const canonical = Object.keys(PURPOSE_COLORS);
-    const extras = purposeKeys.filter(k => !PURPOSE_COLORS[k] && d.purposeCounts[k] > 0);
-    const labels = canonical.concat(extras);
-    const values = canonical.map(k => d.purposeCounts[k] || 0).concat(extras.map(k => d.purposeCounts[k]));
-    const colors = canonical.map(k => PURPOSE_COLORS[k]).concat(extras.map(() => '#5e7858'));
-
-    const chartUrl = quickChartUrl({
-      type: 'doughnut',
-      data: {
-        labels: labels,
-        datasets: [{ data: values, backgroundColor: colors, borderWidth: 3, borderColor: '#ffffff' }]
-      },
-      options: {
-        cutoutPercentage: 60,
-        legend: {
-          position: 'bottom',
-          labels: { fontSize: 11, padding: 10, boxWidth: 10, usePointStyle: true }
-        },
-        plugins: {
-          datalabels: {
-            color: '#ffffff',
-            font: { size: 13, weight: 'bold' },
-            anchor: 'center',
-            align: 'center',
-            formatter: function(value) { return value > 0 ? value + '건' : ''; }
-          }
-        }
-      }
-    }, { w: 480, h: 240 });
-
+  } else if (d.donutCid) {
+    // 내부 렌더링 도넛 (cid 인라인 첨부 — 미리보기는 data URI로 치환됨) + HTML 범례
+    const dist = purposeDist(d);
+    const legend = dist.map(x =>
+      '<span style="display:inline-block;margin:3px 9px;font-size:12.5px;color:#3a3a3c;white-space:nowrap;">' +
+        '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + x.color + ';margin-right:5px;"></span>' +
+        escapeHtml(x.label) + ' <strong>' + x.count + '건</strong> <span style="color:#8e8e93;">(' + x.pct + '%)</span>' +
+      '</span>').join('');
     purposeBody =
       '<div style="text-align:center;">' +
-        '<img src="' + escapeHtml(chartUrl) + '" alt="방문 목적별 분포" style="max-width:100%;width:480px;height:auto;display:inline-block;" />' +
+        '<img src="cid:' + d.donutCid + '" width="220" alt="방문 목적별 분포" style="width:220px;height:auto;display:inline-block;" />' +
       '</div>' +
-      '<div style="font-size:13px;color:#6e6e73;text-align:center;margin-top:6px;">총 ' + purposeTotal + '건 (확정 기준)</div>';
+      '<div style="text-align:center;margin-top:6px;line-height:1.7;">' + legend + '</div>' +
+      '<div style="font-size:13px;color:#6e6e73;text-align:center;margin-top:5px;">총 ' + purposeTotal + '건 (확정 기준)</div>';
+  } else {
+    // 막대 폴백 — 도넛 렌더 실패 시에도 분포는 항상 표시 (외부 의존 0 공통)
+    const dist = purposeDist(d);
+    const maxV = dist.length ? dist[0].count : 1;
+    const barRows = dist.map(x => {
+      const widthPct = Math.max(8, Math.round(x.count / maxV * 100));
+      return '<tr>' +
+        '<td style="padding:5px 10px 5px 0;font-size:12.5px;color:#3a3a3c;white-space:nowrap;text-align:right;width:168px;">' + escapeHtml(x.label) + '</td>' +
+        '<td style="padding:5px 0;">' +
+          '<div style="background:' + x.color + ';width:' + widthPct + '%;min-width:36px;border-radius:4px;color:#ffffff;font-size:11.5px;font-weight:700;padding:3px 8px;white-space:nowrap;box-sizing:border-box;">' + x.count + '건</div>' +
+        '</td>' +
+        '<td style="padding:5px 0 5px 8px;font-size:12px;color:#8e8e93;white-space:nowrap;width:40px;">' + x.pct + '%</td>' +
+      '</tr>';
+    }).join('');
+    purposeBody =
+      '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' + barRows + '</table>' +
+      '<div style="font-size:13px;color:#6e6e73;text-align:center;margin-top:8px;">총 ' + purposeTotal + '건 (확정 기준)</div>';
   }
 
   // ── 6) ROI 스냅샷 (§8-7 8 — 최하단·확정 기준 고정 수치. 그래프·저장 시나리오 의존 폐기) ──
@@ -3431,6 +3564,11 @@ function handleInsightAdd(data) {
   const rows = readSheetRecords(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS);
   // data.type은 라우팅 타입(insight_add)이므로 행 타입은 rowType 필드로 받는다
   const type = String(data.rowType) === 'quote' ? 'quote' : 'insight';
+  // 한마디는 체크박스 토글 특성상 같은 문장 중복 저장이 항상 버그 — 가드 (증발 버그 시절 중복 재발 방지)
+  if (type === 'quote' && rows.some(r => insightMonthKey(r.month) === month &&
+      String(r.type) === 'quote' && String(r.text || '').trim() === String(data.text).trim())) {
+    return jsonResponse({ ok: false, error: 'duplicate' });
+  }
   const maxSeq = rows.filter(r => insightMonthKey(r.month) === month && String(r.type || 'insight') === type)
     .reduce((mx, r) => Math.max(mx, Number(r.seq) || 0), 0);
   const id = String(Date.now());
