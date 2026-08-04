@@ -1514,3 +1514,12 @@ sales 트랙 운영 설문의 8번 블록 컬럼은 2026-07-27 이후 구조적�
 - **조치**: (3)의 텍스트 병기(임시방편)를 폐기하고 목적 도넛 자체를 **인라인 HTML 막대 차트**로 대체 — 외부 이미지·서비스 의존 0, 모든 메일 클라이언트에서 렌더(Outlook 기본 차단 포함), 이관 결정 선반영. `quickChartUrl` 함수 제거(유일 소비처였음 — 코드베이스에서 QuickChart 참조 완전 소멸). 막대: PURPOSE_COLORS 색상, 건수 내림차순·0건 제외, 최대값 대비 폭 + 전체 대비 % 병기.
 - dependency-inventory의 QuickChart 행을 폐기 표시로 갱신 (이관 시 별도 대체 불필요).
 - 검증: 리포트 스텁 48항목(막대 렌더·quickchart 참조 0 확인), §8-6 17항목 회귀. **재배포 필요** (PR #57에 합류).
+
+---
+
+## 2026-08-04 (5) — 도넛 복원: Apps Script 내부 렌더링 PNG (cid 인라인 첨부)
+
+- 운영자가 막대보다 도넛 유지 희망 → (4)의 막대를 **내부 렌더링 도넛**으로 대체 (막대는 렌더 실패 시 폴백으로 유지).
+- **구현**: `renderPurposeDonutBytes` — 240×240 픽셀 래스터라이즈(2x 슈퍼샘플링, 12시 시작 시계방향, PURPOSE_COLORS) + `encodePngBytes` — 순수 GAS PNG 인코더 (GAS에 deflate API가 없어 zlib 스트림은 `Utilities.gzip`의 deflate 페이로드를 gzip 헤더 가변 파싱 후 zlib 헤더+adler32로 재포장, CRC32 자체 구현). 범례는 HTML(색 점+건수+%).
+- **전달 경로**: 메일 = `MailApp.sendEmail inlineImages`(cid — 수신자 측 외부 로드 없음, 차단망·Outlook에서도 표시) / 미리보기(dryRun) = data URI 치환. `purposeDist()`가 도넛·범례·막대 폴백의 단일 소스.
+- 검증: Node에서 gzip 스텁으로 PNG 생성 → PIL 디코드(240×240 RGB·구멍 흰색·슬라이스 색 일치) 실증. 리포트 스텁 51항목(PNG 시그니처·IHDR·cid 분기·막대 폴백), §8-6 17항목 회귀. **재배포 필요** (PR #57 합류).
