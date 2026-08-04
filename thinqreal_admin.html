@@ -2136,7 +2136,7 @@ body {
         <div style="font-size:var(--t-subhead); font-weight:600; margin-bottom:10px;">💡 핵심 인사이트</div>
         <div id="insightList"></div>
         <div style="display:flex; gap:8px; margin-top:10px;">
-          <input class="finput" id="insightNewText" placeholder="예: ○○사 30명 벤치마킹 — AI홈 연동 시나리오 도입 검토 의사 표명" style="flex:1; min-width:0;" onkeydown="if(event.key==='Enter')insightAdd()">
+          <input class="finput" id="insightNewText" placeholder="예: ○○사 **30명 벤치마킹** — 도입 검토 의사 표명 (**별표 두 개**로 감싸면 굵게)" style="flex:1; min-width:0;" onkeydown="if(event.key==='Enter')insightAdd()">
           <button class="sv-save-btn" onclick="insightAdd()">추가</button>
         </div>
       </div>
@@ -4153,6 +4153,42 @@ function renderSurveyTab() {
 let quoteCandidateList = [];   // 렌더 시점의 후보 배열 (인덱스로 토글 — 텍스트 이스케이프 문제 회피)
 let articleRowList = [];       // 렌더 시점의 기사 행 배열 (인덱스로 삭제 — URL 이스케이프 문제 회피)
 
+// **굵게** 마크다운 → <strong> (escapeHtml 이후 적용 — 리포트 빌더 mdBold와 동일 문법)
+function svMdBold(escaped) { return String(escaped).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>'); }
+
+// ▲▼ 순서 버튼 쌍 — callPrefix 예: "insightMove('123'" / "articleMove(0"
+function svMoveBtns(callPrefix, i, len) {
+  const b = (dir, dis) =>
+    '<button class="sv-save-btn" style="padding:4px 8px;' + (dis ? 'opacity:0.35;pointer-events:none;' : '') + '" onclick="' + callPrefix + ', \'' + dir + '\')">' + (dir === 'up' ? '▲' : '▼') + '</button>';
+  return b('up', i === 0) + b('down', i === len - 1);
+}
+
+async function insightMove(id, dir) {
+  // 낙관적 반영: 같은 월·타입 그룹에서 이웃과 seq 교환 (서버는 그룹 seq를 1..n 재기록)
+  const target = (surveyData.insights || []).find(r => String(r.id) === String(id));
+  if (target) {
+    const month = document.getElementById('svInsightMonth').value;
+    const isQuote = String(target.type) === 'quote';
+    const group = (surveyData.insights || []).filter(r => String(r.month) === month &&
+      (String(r.type) === 'quote') === isQuote)
+      .sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0));
+    const idx = group.findIndex(r => String(r.id) === String(id));
+    const nb = group[idx + (dir === 'up' ? -1 : 1)];
+    if (nb) { const s = target.seq; target.seq = nb.seq; nb.seq = s; renderSurveyTab(); }
+  }
+  if (await svPost({ type: 'insight_move', id: String(id), dir })) loadSurveyData(true, true);
+}
+
+async function articleMove(i, dir) {
+  const r = articleRowList[i];
+  const other = articleRowList[i + (dir === 'up' ? -1 : 1)];
+  if (!r || !other) return;
+  const arr = surveyData.articles || [];
+  const ai = arr.indexOf(r), bi = arr.indexOf(other);
+  if (ai >= 0 && bi >= 0) { arr[ai] = other; arr[bi] = r; renderSurveyTab(); }
+  if (await svPost({ type: 'article_move', month: r.month, url: r.url, dir })) loadSurveyData(true, true);
+}
+
 function svPrevMonthKey() {
   const d = new Date();
   d.setMonth(d.getMonth() - 1);
@@ -4165,34 +4201,46 @@ function renderCurationSection() {
   const month = mEl.value;
   const rows = (surveyData.insights || []).filter(r => String(r.month) === month);
 
-  // 핵심 인사이트 (직접 입력 목록)
+  // 핵심 인사이트 (직접 입력 목록 — **굵게** 렌더 + ▲▼ 순서 조정)
   const ins = rows.filter(r => String(r.type || 'insight') !== 'quote')
     .sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0));
-  document.getElementById('insightList').innerHTML = ins.length ? ins.map(r =>
-    '<div style="display:flex; align-items:flex-start; gap:8px; padding:8px 0; border-bottom:1px solid var(--c-separator);">' +
-      '<span style="flex:1; font-size:var(--t-footnote); line-height:1.6;">' + escapeHtml(r.text) + '</span>' +
+  document.getElementById('insightList').innerHTML = ins.length ? ins.map((r, i) =>
+    '<div style="display:flex; align-items:flex-start; gap:6px; padding:8px 0; border-bottom:1px solid var(--c-separator);">' +
+      '<span style="flex:1; font-size:var(--t-footnote); line-height:1.6;">' + svMdBold(escapeHtml(r.text)) + '</span>' +
+      svMoveBtns("insightMove('" + escapeHtml(String(r.id)) + "'", i, ins.length) +
       '<button class="sv-save-btn" style="border-color:var(--c-red); color:var(--c-red);" onclick="insightDelete(\'' + escapeHtml(String(r.id)) + '\')">삭제</button>' +
     '</div>').join('')
     : '<div style="font-size:var(--t-footnote); color:var(--c-label-3);">아직 입력된 인사이트가 없습니다 — 이 달 리포트에서 블록이 생략됩니다.</div>';
 
   // 인상 깊은 한마디 후보 (당월 인솔자·방문자 자유 의견 20자 이상)
+  // 출처는 인솔자의 소속(dept)을 저장·표기 (2026-08-04 팀장 리뷰 — '인솔자 후기' 워딩 삭제). 방문자는 익명 유지.
   const respMonth = r => String(r.visit_date || r.submitted_at || '').slice(0, 7);
   quoteCandidateList = [];
   (surveyData.responses || []).forEach(r => {
     const t = String(r.feedback || '').trim();
-    if (t.length >= 20 && respMonth(r) === month) quoteCandidateList.push({ text: t, source: '인솔자' });
+    if (t.length >= 20 && respMonth(r) === month) {
+      quoteCandidateList.push({ text: t, source: String(r.dept || '').trim() || '인솔자' });
+    }
   });
   (surveyData.visitors || []).forEach(v => {
     const t = String(v.feedback || '').trim();
     if (t.length >= 20 && String(v.submitted_at || '').slice(0, 7) === month) quoteCandidateList.push({ text: t, source: '방문자' });
   });
-  const quotes = rows.filter(r => String(r.type) === 'quote');
+  const quotes = rows.filter(r => String(r.type) === 'quote')
+    .sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0));
   document.getElementById('quoteCandidates').innerHTML = quoteCandidateList.length ? quoteCandidateList.map((c, i) => {
-    const sel = quotes.some(q => String(q.text) === c.text && String(q.source) === c.source);
+    // 선택 여부는 텍스트로 대조 (source가 구 '인솔자' 저장분이어도 체크 상태 유지)
+    const selRow = quotes.find(q => String(q.text) === c.text);
+    const selPos = selRow ? quotes.indexOf(selRow) : -1;
+    const srcLabel = c.source === '방문자' ? '방문자 (익명)' : c.source;
     return '<label style="display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid var(--c-separator); cursor:pointer;">' +
-      '<input type="checkbox" ' + (sel ? 'checked' : '') + ' onchange="quoteToggle(' + i + ', this)" style="margin-top:3px;">' +
-      '<span style="flex:1; font-size:var(--t-footnote); line-height:1.6;">' + escapeHtml(c.text) +
-        ' <span style="color:var(--c-label-3);">— ' + (c.source === '방문자' ? '방문자 (익명)' : '인솔자 후기') + '</span></span>' +
+      '<input type="checkbox" ' + (selRow ? 'checked' : '') + ' onchange="quoteToggle(' + i + ', this)" style="margin-top:3px;">' +
+      '<span style="flex:1; font-size:var(--t-footnote); line-height:1.6;">' + svMdBold(escapeHtml(c.text)) +
+        ' <span style="color:var(--c-label-3);">— ' + escapeHtml(srcLabel) + '</span></span>' +
+      (selRow && String(selRow.id).indexOf('tmp') !== 0
+        ? '<span style="display:flex; align-items:center; gap:4px;"><span style="font-size:var(--t-caption); color:var(--c-label-3);">' + (selPos + 1) + '번</span>' +
+          svMoveBtns("insightMove('" + escapeHtml(String(selRow.id)) + "'", selPos, quotes.length) + '</span>'
+        : '') +
     '</label>';
   }).join('')
     : '<div style="font-size:var(--t-footnote); color:var(--c-label-3);">후보가 없습니다 — 당월 설문 자유 의견(20자 이상)이 후보로 올라옵니다.</div>';
@@ -4200,11 +4248,12 @@ function renderCurationSection() {
   // 관련 기사 큐레이션 (수동 링크 — 리포트 우선 배치, 5건 미달분은 자동 수집 보충)
   articleRowList = (surveyData.articles || []).filter(r => String(r.month) === month);
   document.getElementById('articleList').innerHTML = articleRowList.length ? articleRowList.map((r, i) =>
-    '<div style="display:flex; align-items:flex-start; gap:8px; padding:8px 0; border-bottom:1px solid var(--c-separator);">' +
+    '<div style="display:flex; align-items:flex-start; gap:6px; padding:8px 0; border-bottom:1px solid var(--c-separator);">' +
       '<span style="flex:1; font-size:var(--t-footnote); line-height:1.6; min-width:0; overflow-wrap:anywhere;">' +
         '<a href="' + escapeHtml(r.url) + '" target="_blank" rel="noopener" style="color:var(--c-accent);">' + escapeHtml(r.title || r.url) + '</a>' +
         ((r.source || r.published_at) ? ' <span style="color:var(--c-label-3);">— ' + escapeHtml([r.source, r.published_at].filter(Boolean).join(' · ')) + '</span>' : '') +
       '</span>' +
+      svMoveBtns('articleMove(' + i, i, articleRowList.length) +
       '<button class="sv-save-btn" style="border-color:var(--c-red); color:var(--c-red);" onclick="articleDelete(' + i + ')">삭제</button>' +
     '</div>').join('')
     : '<div style="font-size:var(--t-footnote); color:var(--c-label-3);">등록된 링크가 없습니다 — 이 달 기사는 자동 수집으로만 채워집니다.</div>';
@@ -4264,8 +4313,9 @@ async function quoteToggle(i, cb) {
     surveyData.insights = (surveyData.insights || []).concat([{ id: 'tmp' + Date.now(), month, seq: 999, type: 'quote', text: c.text, source: c.source }]);
     if (await svPost({ type: 'insight_add', month, text: c.text, source: c.source, rowType: 'quote' })) loadSurveyData(true, true);
   } else {
+    // 텍스트로만 대조 — 구 '인솔자' source 저장분도 해제 가능
     const row = (surveyData.insights || []).find(r =>
-      String(r.month) === month && String(r.type) === 'quote' && String(r.text) === c.text && String(r.source) === c.source);
+      String(r.month) === month && String(r.type) === 'quote' && String(r.text) === c.text);
     surveyData.insights = (surveyData.insights || []).filter(r => r !== row);
     if (row && String(row.id).indexOf('tmp') !== 0) await svPost({ type: 'insight_delete', id: row.id });
     else loadSurveyData(true, true);

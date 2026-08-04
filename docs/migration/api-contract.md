@@ -70,6 +70,8 @@
 | `insight_delete` | 관리자 토큰 | 큐레이션 행 삭제 `{id}` | — |
 | `article_add` | 관리자 토큰 | 관련 기사 링크 추가 `{month, url}` → `monthly_articles` (2026-08-03). 제목·출처·요약·썸네일은 서버가 메타 태그에서 자동 추출(실패 시 공란 → 리포트 빌드 때 재시도). month는 텍스트 강제 저장. 같은 달 중복 URL 거부 | — |
 | `article_delete` | 관리자 토큰 | 관련 기사 링크 삭제 `{month, url}` | — |
+| `insight_move` | 관리자 토큰 | 큐레이션 항목 순서 조정 `{id, dir:'up'|'down'}` — 같은 월·타입 그룹 seq 1..n 재기록 (2026-08-04) | — |
+| `article_move` | 관리자 토큰 | 기사 순서 조정 `{month, url, dir}` — 같은 달 이웃 행과 값 교환 (순서 컬럼 없음 — 컬럼 구조 불변) | — |
 | `survey_update` | 관리자 토큰 | 설문 응답 내용 정정 (2026-07-14). 불변: `response_id/submitted_at/track/raw_json` + 파생 트리거 3종(`media_link/etc_link/iot_defect`) | — (행 삭제 없음 — 의도) |
 | `ledger_update` | 관리자 토큰 | 성과 대장 상태 전환·확정 필드 + 내용 정정(`category/project_name/expected_scale/attribution_pct/visit_date/respondent/dept` — 2026-07-14 확장). `attribution_text`(라디오 원문)는 불변 | — (행 삭제 없음 — 의도) |
 | `issue_update` | 관리자 토큰 | 이슈 속성 부여 (`device/symptom/severity/channel/q_ship/status`) + est_value 서버 계산 | — (행 삭제 없음 — 의도) |

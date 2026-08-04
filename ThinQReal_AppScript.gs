@@ -361,7 +361,8 @@ function doPost(e) {
       data.type === 'issue_update' || data.type === 'issue_delete' ||
       data.type === 'visitor_delete' || data.type === 'export_log' ||
       data.type === 'insight_add' || data.type === 'insight_delete' ||
-      data.type === 'article_add' || data.type === 'article_delete') {
+      data.type === 'article_add' || data.type === 'article_delete' ||
+      data.type === 'insight_move' || data.type === 'article_move') {
     var admin = verifyAdminToken(data.token);
     if (!admin.ok) {
       return jsonResponse({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
@@ -384,6 +385,8 @@ function doPost(e) {
     if (data.type === 'insight_delete')       return handleInsightDelete(data);
     if (data.type === 'article_add')          return handleArticleAdd(data);
     if (data.type === 'article_delete')       return handleArticleDelete(data);
+    if (data.type === 'insight_move')         return handleInsightMove(data);
+    if (data.type === 'article_move')         return handleArticleMove(data);
   }
 
   return jsonResponse({ error: 'Unknown type' });
@@ -1185,7 +1188,7 @@ function buildRejectHtml(data) {
 // 기사 자동 수집 키워드 — "ThinQ Real" 정확 문구는 보도가 드물어 사실상 LG전자 일반 기사로
 // 흘렀던 것을, AI홈 동향 수집 의도를 명확히 하는 키워드로 변경 (2026-07-20).
 // 변경 시 기사 섹션 설명문(descArticles·평문)이 이 상수를 참조하므로 자동 동기화됨.
-const MONTHLY_REPORT_QUERY = 'LG전자 AI홈';
+const MONTHLY_REPORT_QUERY = 'LG전자 ThinQ Real';   // 2026-08-04 팀장 리뷰 — ThinQ Real 직접 관련 기사만 (구 'LG전자 AI홈')
 const PROP_LAST_SENT_KEY   = 'monthly_report_last_sent_month';
 
 // 방문 목적별 카테고리 색상 — 관리자 페이지 PURPOSE_COLORS와 동기화 (thinqreal_admin.html)
@@ -1311,18 +1314,14 @@ function sendMonthlyReport(options) {
 // ============================================================
 
 // 사업부(본부) 고정 목록 — 예약 폼 #fDivision 드롭다운과 동기화 (건수 있는 본부만 표시, 목록 외/공란은 '기타')
-const REPORT_DIVISIONS = ['HS사업본부', 'MS사업본부', 'VS사업본부', 'ES사업본부', '한국영업본부', '해외영업본부'];
-
 // 리포트 기사 상한 — 스크랩 결과 중 상위 N건만 썸네일과 함께 배치 (2026-08-03 렌더 리뷰)
 const REPORT_ARTICLE_LIMIT = 5;
 
 // ROI 확정 기준 수치 (2026-08 확정 — 저장 시나리오 의존 폐기, 고정 표기)
-// ※ 총액 요약·지표만 커밋 가능 — 항목별 실집행 단가는 커밋 금지 (§6.5 확장 grep 대상)
+// 표기는 소수 1자리 억원 통일 (2026-08-04 팀장 리뷰). ※ 총액 요약·지표만 커밋 가능 — 항목별 실집행 단가는 커밋 금지
 const ROI_FIXED = {
-  annualValue: '2.14억원',
-  capex: '2.794억원', opexYr: '0.092억원/년', totalCost: '2.886억원',
+  capex: '2.8억원', opexYr: '0.1억원/년', totalCost: '2.9억원',
   bep: '1.31년 (약 1년 4개월)', roi3: '+122.4%', roi5: '+270.7%',
-  baseVisits: 30, baseRdDays: 39,   // 25년 연간 베이스라인 (실측 누적 대비용)
 };
 
 // 월간 인사이트·한마디 큐레이션 탭 (§8-7 5·6)
@@ -1364,14 +1363,6 @@ function satDisplay(sat) {
   return parts.join(' / ');
 }
 
-// MoM 증감 표기 — 전월 데이터 없으면 빈 문자열 (증감 생략은 오류 아님)
-function momDisplay(cur, prev) {
-  if (prev == null) return '';
-  const diff = cur - prev;
-  if (diff === 0) return '전월과 동일';
-  const pct = prev > 0 ? Math.round(diff / prev * 100) : null;
-  return (diff > 0 ? '▲ ' : '▼ ') + Math.abs(diff) + (pct != null ? ' (' + (diff > 0 ? '+' : '-') + Math.abs(pct) + '%)' : '');
-}
 
 function collectMonthlyData(month) {
   const [yStr, mStr] = month.split('-');
@@ -1450,7 +1441,7 @@ function collectMonthlyData(month) {
     try {
       const seen = {};
       manualItems.forEach(it => { seen[it.link] = true; });
-      fill = (fetchThinqRealArticles().items || []).filter(it => !seen[it.link])
+      fill = filterThinqRealItems(fetchThinqRealArticles().items).filter(it => !seen[it.link])
         .slice(0, REPORT_ARTICLE_LIMIT - manualItems.length);
     } catch (err) { Logger.log('[monthly] article fill fail: ' + err); }
     articles = { items: manualItems.concat(fill), skipReason: '',
@@ -1459,9 +1450,10 @@ function collectMonthlyData(month) {
   } else {
     articles = fetchThinqRealArticles();
     articles.source = articles.provider || 'auto';
-    articles.items = (articles.items || []).slice(0, REPORT_ARTICLE_LIMIT);
+    articles.items = filterThinqRealItems(articles.items).slice(0, REPORT_ARTICLE_LIMIT);
     articles.manualCount = 0;
     articles.autoCount = articles.items.length;
+    if (!articles.items.length && !articles.skipReason) articles.skipReason = '이번 달 ThinQ Real 관련 보도 없음';
   }
 
   // 4) 설문·성과 지표 (Phase 5 — 설문 파이프라인 월간 집계 + §8-7 만족도/NPS·방문자 지표)
@@ -1469,19 +1461,6 @@ function collectMonthlyData(month) {
   let survey = null;
   try { survey = collectMonthlySurvey(month); }
   catch (err) { Logger.log('[monthly] survey metrics fail: ' + err); }
-
-  // 5) 전월 대비(MoM) — 전월 확정 건수·인원 (§8-7 2). 전월 데이터 없으면 null (증감 생략)
-  let prev = null;
-  try {
-    const pm = monthNum === 1 ? (year - 1) + '-12' : year + '-' + ('0' + (monthNum - 1)).slice(-2);
-    const prevConfirmed = allBookings.filter(b => String(b.date).slice(0, 7) === pm && b.status === '확정');
-    if (prevConfirmed.length || allBookings.some(b => String(b.date).slice(0, 7) === pm)) {
-      prev = {
-        confirmed: prevConfirmed.length,
-        visitors: prevConfirmed.reduce((s, b) => s + (Number(b.count) || 0), 0),
-      };
-    }
-  } catch (err) { Logger.log('[monthly] prev metrics fail: ' + err); }
 
   // 6) 26년 누적(YTD) — 1월~보고월 확정 기준 건수·인원 + R&D 사용일수 (§8-7 2·8)
   let ytd = null;
@@ -1499,21 +1478,21 @@ function collectMonthlyData(month) {
     };
   } catch (err) { Logger.log('[monthly] ytd metrics fail: ' + err); }
 
-  // 7) 사업부별 활용 현황 — 확정 기준 건수/인원, 건수 있는 본부만 + 목록 외/공란은 '기타'
-  //    (§8-7 4는 0건 포함 6본부였으나 2026-08-03 렌더 리뷰로 0건 본부 미표시 전환)
+  // 7) 사업부별 활용 현황 — 확정 기준 건수/인원, 실제 저장된 본부 값 그대로 그룹핑 (건수 내림차순)
+  //    (2026-08-04 팀장 리뷰 — 고정 6본부 목록 폐기: 고객가치혁신부문·홍보담당 등 목록 외 조직이 '기타'로 뭉치던 문제)
   let divisions = null;
   try {
     const map = {};
-    REPORT_DIVISIONS.forEach(name => { map[name] = { name, count: 0, people: 0 }; });
-    const etc = { name: '기타', count: 0, people: 0 };
     confirmed.forEach(b => {
-      const dv = String(b.division || '').trim();
-      const slot = map[dv] || etc;
-      slot.count += 1;
-      slot.people += Number(b.count) || 0;
+      const dv = String(b.division || '').trim() || '기타';
+      if (!map[dv]) map[dv] = { name: dv, count: 0, people: 0 };
+      map[dv].count += 1;
+      map[dv].people += Number(b.count) || 0;
     });
-    divisions = REPORT_DIVISIONS.map(name => map[name]).filter(dv => dv.count > 0);
-    if (etc.count > 0) divisions.push(etc);
+    divisions = Object.keys(map).map(k => map[k])
+      .sort((a, b) => (b.count - a.count) || (b.people - a.people));
+    const etcIdx = divisions.findIndex(d => d.name === '기타');
+    if (etcIdx >= 0) divisions.push(divisions.splice(etcIdx, 1)[0]);   // '기타'(본부 공란)는 항상 맨 뒤
   } catch (err) { Logger.log('[monthly] division metrics fail: ' + err); }
 
   // 8) 핵심 인사이트·인상 깊은 한마디 (monthly_insights 큐레이션 — §8-7 5·6). 행 없으면 블록 생략
@@ -1542,7 +1521,7 @@ function collectMonthlyData(month) {
     roiLatest,
     articles,
     survey,
-    prev, ytd, divisions, insights, quotes,
+    ytd, divisions, insights, quotes,
     roiFixed: ROI_FIXED,
   };
 }
@@ -1644,10 +1623,51 @@ function getManualArticles(month) {
   return items;
 }
 
+// 자동 수집 기사 필터 — ThinQ Real 직접 관련 기사만 (2026-08-04 팀장 리뷰: 무관 기사 제외, 없으면 0건)
+function filterThinqRealItems(items) {
+  const re = /(thinq\s*real|씽큐\s*리얼)/i;
+  return (items || []).filter(it => re.test(String(it.title || '') + ' ' + String(it.snippet || '')));
+}
+
+// YouTube URL은 페이지 스크랩 시 영상 정보가 아니라 사이트 일반 소개("YouTube"/"동영상 공유")가
+// 잡히므로(SPA·동의 화면), 공개 oEmbed API(제목·채널)와 i.ytimg 공식 썸네일로 우회
+function youtubeVideoId(url) {
+  const m = String(url || '').match(/(?:youtube\.com\/(?:watch\?[^#]*v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+  return m ? m[1] : '';
+}
+
+function fetchYoutubeMeta(url) {
+  const id = youtubeVideoId(url);
+  if (!id) return null;
+  let title = '', author = '';
+  try {
+    const resp = UrlFetchApp.fetch(
+      'https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + id),
+      { muteHttpExceptions: true });
+    if (resp.getResponseCode() === 200) {
+      const j = JSON.parse(resp.getContentText());
+      title = String(j.title || '');
+      author = String(j.author_name || '');
+    }
+  } catch (err) { Logger.log('fetchYoutubeMeta fail: ' + err); }
+  return {
+    title: title,
+    description: '',
+    source: author ? 'YouTube · ' + author : 'YouTube',
+    publishedAt: '',
+    image: 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg',
+  };
+}
+
+// **굵게** 마크다운을 <strong>으로 — 인사이트·한마디 강조용 (escapeHtml 이후 적용 전제)
+function mdBold(escapedText) {
+  return String(escapedText).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+
 // URL의 HTML을 fetch해서 OpenGraph 메타 태그로 빈 필드 자동 채우기
 // 담당자가 이미 채워둔 필드는 보존, 비어 있는 필드만 자동으로 채움
 function enrichArticleFromUrl(item) {
-  const meta = fetchUrlMeta(item.link);
+  const meta = fetchYoutubeMeta(item.link) || fetchUrlMeta(item.link);
   if (!meta) {
     // fetch 실패 시 도메인이라도 source로 (마지막 안전망)
     return Object.assign({}, item, {
@@ -1914,10 +1934,8 @@ function buildMonthlyReportText(d) {
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   L.push('📊 Executive 요약');
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  const momC = d.prev ? momDisplay(d.kpi.confirmed, d.prev.confirmed) : '';
-  const momV = d.prev ? momDisplay(d.kpi.visitors, d.prev.visitors) : '';
-  L.push(`   당월 방문 건수   ${d.kpi.confirmed}건` + (momC ? `  (전월 대비 ${momC})` : ''));
-  L.push(`   당월 방문 인원   ${d.kpi.visitors}명` + (momV ? `  (전월 대비 ${momV})` : ''));
+  L.push(`   당월 방문 건수   ${d.kpi.confirmed}건` + (d.ytd ? `  (26년 누적 ${d.ytd.confirmed}건)` : ''));
+  L.push(`   당월 방문 인원   ${d.kpi.visitors}명` + (d.ytd ? `  (26년 누적 ${d.ytd.visitors}명)` : ''));
   L.push(`   만족도(NPS)      ${d.survey ? satDisplay(d.survey.satAll) : '—'}`);
   L.push('');
 
@@ -1940,7 +1958,7 @@ function buildMonthlyReportText(d) {
     L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     L.push('💡 핵심 인사이트');
     L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    d.insights.forEach(t => L.push('   • ' + t));
+    d.insights.forEach(t => L.push('   • ' + String(t).replace(/\*\*/g, '')));
     L.push('');
   }
 
@@ -1950,8 +1968,9 @@ function buildMonthlyReportText(d) {
     L.push('💬 인상 깊은 한마디');
     L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     d.quotes.forEach(q => {
-      L.push('   "' + q.text + '"');
-      L.push('     — ' + (q.source === '방문자' ? '방문자 (익명)' : '인솔자 후기'));
+      L.push('   "' + String(q.text).replace(/\*\*/g, '') + '"');
+      const label = q.source === '방문자' ? '방문자 (익명)' : (q.source && q.source !== '인솔자' ? q.source : '');
+      if (label) L.push('     — ' + label);
       L.push('');
     });
   }
@@ -1998,11 +2017,8 @@ function buildMonthlyReportText(d) {
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   L.push('💰 투자 대비 성과 (ROI) — 확정 기준');
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push(`   연간 확정 가치 ${rf.annualValue} · 총 투자 ${rf.totalCost} (구축 ${rf.capex} + 운영 ${rf.opexYr})`);
+  L.push(`   총 투자 ${rf.totalCost} (구축 ${rf.capex} + 운영 ${rf.opexYr})`);
   L.push(`   BEP ${rf.bep} · 3년 ROI ${rf.roi3} · 5년 ROI ${rf.roi5}`);
-  if (d.ytd) {
-    L.push(`   실측 누적(26년): 방문 ${d.ytd.confirmed}건 · R&D 사용 ${d.ytd.rdDays}일 — 베이스라인 ${rf.baseVisits}건/${rf.baseRdDays}일 대비 진척`);
-  }
   L.push('');
   L.push('');
   L.push('감사합니다.');
@@ -2030,19 +2046,16 @@ function buildMonthlyReportHtml(d) {
 
   // ── 1) Executive 요약 — KPI 3카드 (당월 건수·인원 + MoM / NPS)
   //    (§8-7 2의 26년 누적 카드·요약 3줄은 2026-08-03 렌더 리뷰로 삭제 — 누적 진척은 ROI 스냅샷이 단일 위치)
-  // MoM·보조 설명이 있는 Executive 카드 셀
+  // Executive 카드 셀 — 라벨(상) → 값(중) → 보조 줄(하: 누적) (2026-08-04 팀장 리뷰 — MoM 표기 대신 26년 누적)
   const execCell = (label, value, unit, sub) =>
     '<td valign="top" align="center" style="padding:16px 8px;background:#f5f5f7;border-radius:10px;">' +
-      '<div style="line-height:1.1;">' +
+      '<div style="font-size:12px;color:#6e6e73;font-weight:500;">' + escapeHtml(label) + '</div>' +
+      '<div style="line-height:1.1;margin-top:7px;">' +
         '<span style="font-size:21px;font-weight:700;color:#3a5035;">' + escapeHtml(String(value)) + '</span>' +
         (unit ? '<span style="font-size:12px;font-weight:500;color:#3a5035;margin-left:3px;">' + escapeHtml(unit) + '</span>' : '') +
       '</div>' +
-      (sub ? '<div style="font-size:11px;color:#6e6e73;margin-top:5px;line-height:1.4;">' + escapeHtml(sub) + '</div>' : '') +
-      '<div style="font-size:12px;color:#6e6e73;margin-top:7px;font-weight:500;">' + escapeHtml(label) + '</div>' +
+      (sub ? '<div style="font-size:11px;color:#6e6e73;margin-top:6px;line-height:1.4;">' + escapeHtml(sub) + '</div>' : '') +
     '</td>';
-
-  const momC = d.prev ? momDisplay(d.kpi.confirmed, d.prev.confirmed) : '';
-  const momV = d.prev ? momDisplay(d.kpi.visitors, d.prev.visitors) : '';
   // 만족도 카드 — NPS(-100~+100)는 부호 병기가 관례라 양수도 '+' 표기. 구 척도만 있는 월은 라벨 자체를 전환
   const satAll = d.survey ? d.survey.satAll : null;
   let satCardValue = '—', satCardUnit = '', satCardSub = '', satCardLabel = 'NPS (추천 지수)';
@@ -2060,8 +2073,8 @@ function buildMonthlyReportHtml(d) {
     '<tr><td style="padding:0 28px 16px;">' +
       '<table role="presentation" cellspacing="10" cellpadding="0" border="0" style="border-collapse:separate;width:100%;">' +
         '<tr>' +
-          execCell('당월 방문 건수', d.kpi.confirmed, '건', momC ? '전월 대비 ' + momC : '') +
-          execCell('당월 방문 인원', d.kpi.visitors, '명', momV ? '전월 대비 ' + momV : '') +
+          execCell('당월 방문 건수', d.kpi.confirmed, '건', d.ytd ? '26년 누적 ' + d.ytd.confirmed + '건' : '') +
+          execCell('당월 방문 인원', d.kpi.visitors, '명', d.ytd ? '26년 누적 ' + d.ytd.visitors + '명' : '') +
           execCell(satCardLabel, satCardValue, satCardUnit, satCardSub) +
         '</tr>' +
       '</table>' +
@@ -2101,18 +2114,21 @@ function buildMonthlyReportHtml(d) {
       '<tr><td style="padding:0 28px 16px;">' +
         d.insights.map(t =>
           '<div style="padding:10px 14px;margin-bottom:8px;background:#f5f7f4;border-left:3px solid #3a5035;border-radius:0 6px 6px 0;font-size:14px;color:#1d1d1f;line-height:1.6;">' +
-            escapeHtml(t) + '</div>').join('') +
+            mdBold(escapeHtml(t)) + '</div>').join('') +
       '</td></tr>';
   }
   let quotesRow = '';
   if (d.quotes && d.quotes.length) {
     quotesRow =
       '<tr><td style="padding:0 28px 16px;">' +
-        d.quotes.map(q =>
-          '<div style="padding:14px 18px;margin-bottom:10px;background:#fdf9f2;border-radius:8px;">' +
-            '<div style="font-size:14.5px;color:#1d1d1f;line-height:1.65;">&ldquo;' + escapeHtml(q.text) + '&rdquo;</div>' +
-            '<div style="font-size:12px;color:#8e8e93;margin-top:6px;">— ' + (q.source === '방문자' ? '방문자 (익명)' : '인솔자 후기') + '</div>' +
-          '</div>').join('') +
+        d.quotes.map(q => {
+          // 출처: 방문자→익명 표기, 사업부/부서(선택 시 dept 저장)→그대로. 구 '인솔자' 저장분은 라벨 생략 (2026-08-04 팀장 리뷰)
+          const label = q.source === '방문자' ? '방문자 (익명)' : (q.source && q.source !== '인솔자' ? q.source : '');
+          return '<div style="padding:14px 18px;margin-bottom:10px;background:#fdf9f2;border-radius:8px;">' +
+            '<div style="font-size:14.5px;color:#1d1d1f;line-height:1.65;">&ldquo;' + mdBold(escapeHtml(q.text)) + '&rdquo;</div>' +
+            (label ? '<div style="font-size:12px;color:#8e8e93;margin-top:6px;">— ' + escapeHtml(label) + '</div>' : '') +
+          '</div>';
+        }).join('') +
       '</td></tr>';
   }
 
@@ -2165,11 +2181,8 @@ function buildMonthlyReportHtml(d) {
   // ── 6) ROI 스냅샷 (§8-7 8 — 최하단·확정 기준 고정 수치. 그래프·저장 시나리오 의존 폐기) ──
   const roiBody =
     '<div style="background:#f5f7f4;border-radius:10px;padding:18px 22px;font-size:14px;color:#1d1d1f;line-height:1.9;">' +
-      '<div>연간 확정 가치 <strong>' + rfx.annualValue + '</strong> · 총 투자 <strong>' + rfx.totalCost + '</strong> (구축 ' + rfx.capex + ' + 운영 ' + rfx.opexYr + ')</div>' +
+      '<div>총 투자 <strong>' + rfx.totalCost + '</strong> (구축 ' + rfx.capex + ' + 운영 ' + rfx.opexYr + ')</div>' +
       '<div>BEP <strong>' + rfx.bep + '</strong> · 3년 ROI <strong>' + rfx.roi3 + '</strong> · 5년 ROI <strong>' + rfx.roi5 + '</strong></div>' +
-      (d.ytd
-        ? '<div style="font-size:13px;color:#6e6e73;">실측 누적(26년): 방문 ' + d.ytd.confirmed + '건 · R&D 사용 ' + d.ytd.rdDays + '일 — 베이스라인 ' + rfx.baseVisits + '건/' + rfx.baseRdDays + '일 대비 진척</div>'
-        : '') +
     '</div>';
 
   // ── 5) 관련 기사 — REPORT_ARTICLE_LIMIT(5)건, 썸네일 있는 건은 카드형 배치 ──
@@ -2205,12 +2218,12 @@ function buildMonthlyReportHtml(d) {
   }
 
   // 섹션별 한 줄 설명 (임원진 가독성 우선 — 무엇을 보여주는지 즉시 이해)
-  const descKpi = '이번 달 핵심 성과와 전월 대비 증감';
+  const descKpi = '이번 달 핵심 성과와 26년 누적';
   const descDivisions = '확정 방문 기준 본부별 활용 현황 (★ 최다 활용)';
   const descInsights = '이번 달 운영에서 주목할 핵심 사항';
   const descQuotes = '이번 달 설문에서 수집된 방문 경험의 목소리';
   const descPurpose = '확정된 방문이 어떤 목적으로 진행되었는지의 비중';
-  const descRoi = '구축·운영 총투자와 회수 지표 (확정 기준) · 26년 실측 누적 진척';
+  const descRoi = '구축·운영 총투자와 회수 지표 (확정 기준)';
   const descArticles = d.articles.source === 'manual'
     ? '담당자가 큐레이션한 이번 달 ThinQ Real 관련 보도 ' + d.articles.items.length + '건'
     : d.articles.source === 'mixed'
@@ -3430,6 +3443,64 @@ function handleInsightAdd(data) {
 function handleInsightDelete(data) {
   const n = deleteRowsByValue(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS, 'id', data.id);
   return jsonResponse(n ? { ok: true } : { ok: false, error: 'not_found' });
+}
+
+// 큐레이션 항목 순서 조정 (2026-08-04 팀장 리뷰) — 같은 월·타입 그룹을 seq 순으로 세우고
+// 대상 항목을 한 칸 이동시킨 뒤 그룹 전체 seq를 1..n으로 재기록 (레거시 중복 seq도 함께 정리)
+function handleInsightMove(data) {
+  const id = String(data.id || '');
+  const dir = data.dir === 'up' ? -1 : 1;
+  const rows = readSheetRecords(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS);
+  const target = rows.find(r => String(r.id) === id);
+  if (!target) return jsonResponse({ ok: false, error: 'not_found' });
+  const group = rows.filter(r => insightMonthKey(r.month) === insightMonthKey(target.month) &&
+      String(r.type || 'insight') === String(target.type || 'insight'))
+    .sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0));
+  const idx = group.findIndex(r => String(r.id) === id);
+  const to = idx + dir;
+  if (to < 0 || to >= group.length) return jsonResponse({ ok: false, error: 'edge' });
+  const order = group.map(r => String(r.id));
+  order.splice(idx, 1);
+  order.splice(to, 0, id);
+  const seqById = {};
+  order.forEach((rid, i) => { seqById[rid] = i + 1; });
+  const sheet = getNamedSheet(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS);
+  const all = sheet.getDataRange().getValues();
+  const iId = INSIGHTS_HEADERS.indexOf('id'), iSeq = INSIGHTS_HEADERS.indexOf('seq');
+  for (let i = 1; i < all.length; i++) {
+    const rid = String(all[i][iId]);
+    if (seqById[rid] != null && Number(all[i][iSeq]) !== seqById[rid]) {
+      sheet.getRange(i + 1, iSeq + 1).setValue(seqById[rid]);
+    }
+  }
+  return jsonResponse({ ok: true });
+}
+
+// 기사 순서 조정 — monthly_articles는 순서 컬럼이 없어(컬럼 구조 불변) 같은 달 이웃 행과 값 전체 교환
+function handleArticleMove(data) {
+  const month = String(data.month || '');
+  const url = String(data.url || '').trim();
+  const dir = data.dir === 'up' ? -1 : 1;
+  const sheet = getArticlesSheet();
+  const headers = getOrCreateArticlesHeaders(sheet);
+  const iM = headers.indexOf('month'), iU = headers.indexOf('url');
+  const all = sheet.getDataRange().getValues();
+  const idxs = [];
+  for (let i = 1; i < all.length; i++) {
+    if (normalizeMonth(all[i][iM]) === month && String(all[i][iU] || '').trim()) idxs.push(i);
+  }
+  const pos = idxs.findIndex(i => String(all[i][iU]).trim() === url);
+  if (pos < 0) return jsonResponse({ ok: false, error: 'not_found' });
+  const npos = pos + dir;
+  if (npos < 0 || npos >= idxs.length) return jsonResponse({ ok: false, error: 'edge' });
+  const a = idxs[pos], b = idxs[npos];
+  const width = headers.length;
+  const rowA = all[a].slice(0, width), rowB = all[b].slice(0, width);
+  sheet.getRange(a + 1, 1, 1, width).setValues([rowB]);
+  sheet.getRange(b + 1, 1, 1, width).setValues([rowA]);
+  forceMonthTextCell(sheet, a + 1, iM + 1, normalizeMonth(rowB[iM]));   // 교환 시 재파싱 대비
+  forceMonthTextCell(sheet, b + 1, iM + 1, normalizeMonth(rowA[iM]));
+  return jsonResponse({ ok: true });
 }
 
 // ── 관련 기사 큐레이션 (2026-08-03 렌더 리뷰 후속 — monthly_articles 탭, 관리자 토큰 게이트) ──
