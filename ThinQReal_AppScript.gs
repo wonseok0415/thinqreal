@@ -1719,37 +1719,137 @@ function renderPurposeDonutBytes(d) {
   return encodePngBytes(raw, W, W);
 }
 
-// 도넛 슬라이스 중앙에 건수 숫자 흰색 라벨 — 5x7 비트맵 숫자 폰트를 픽셀로 찍는다
-// ('건' 글자는 소형 수제 비트맵으로는 품질이 떨어져 숫자만 표기 — 단위는 범례("N건")가 담당)
+// 도넛 슬라이스 중앙에 건수 숫자 흰색 라벨 — DejaVu Sans Bold를 미리 래스터한 16단계 알파맵을
+// 픽셀별 블렌딩으로 찍는다 (구 5x7 비트맵 폰트는 글자꼴 자체가 각져 레티나 축소로도 한계 — 2026-08-04 교체).
+// ('건' 글자는 소형 래스터 품질이 떨어져 숫자만 표기 — 단위는 범례("N건")가 담당)
 function drawSliceLabels(px, w, cx, cy, midR, dist, total) {
-  const DIGITS = {
-    '0': ['01110','10001','10011','10101','11001','10001','01110'],
-    '1': ['00100','01100','00100','00100','00100','00100','01110'],
-    '2': ['01110','10001','00001','00010','00100','01000','11111'],
-    '3': ['11110','00001','00001','01110','00001','00001','11110'],
-    '4': ['00010','00110','01010','10010','11111','00010','00010'],
-    '5': ['11111','10000','11110','00001','00001','10001','01110'],
-    '6': ['00110','01000','10000','11110','10001','10001','01110'],
-    '7': ['11111','00001','00010','00100','01000','01000','01000'],
-    '8': ['01110','10001','10001','01110','10001','10001','01110'],
-    '9': ['01110','10001','10001','01111','00001','00010','01100'],
+  // DejaVu Sans Bold 숫자 알파맵 (높이 35px·PNG 스케일, 16단계 hex) — 스크립트 생성 데이터
+  const GLYPHS = {
+    '0': { w: 28, h: 35, d: '00000000159ceffec9510000000000000018effffffffffe81000000000003dffffffffffffffd30000000004effffff' +
+           'ffffffffffe400000003effffffffffffffffffe3000000cffffffffffffffffffffc000006ffffffffb4114bfffffff' +
+           'f60000efffffffb000000bfffffffe0005ffffffff20000002ffffffff500afffffffb00000000bfffffffa00fffffff' +
+           'f7000000007ffffffff03ffffffff4000000004ffffffff36ffffffff1000000002ffffffff68ffffffff0000000000f' +
+           'fffffff89fffffffe0000000000efffffffaafffffffd0000000000dfffffffabfffffffd0000000000dfffffffbcfff' +
+           'ffffd0000000000dfffffffcbfffffffd0000000000dfffffffbafffffffd0000000000efffffffa9fffffffe0000000' +
+           '000efffffffa8ffffffff0000000000ffffffff86ffffffff2000000002ffffffff63ffffffff4000000004ffffffff3' +
+           '0ffffffff7000000007ffffffff00afffffffb00000000bfffffffb005ffffffff20000002ffffffff5000efffffffb0' +
+           '00000bfffffffe00006ffffffffc4114cffffffff700000cffffffffffffffffffffc0000003effffffffffffffffffe' +
+           '300000004ffffffffffffffffff40000000003dffffffffffffffd30000000000018effffffffffe8100000000000000' +
+           '159ceffec95100000000' },
+    '1': { w: 24, h: 35, d: '0000000000000000000000000000259dffffffff30000000159dffffffffffff30000000cfffffffffffffff30000000' +
+           'cfffffffffffffff30000000cfffffffffffffff30000000cfffffffffffffff30000000cfffea62ffffffff30000000' +
+           'ba620000ffffffff3000000000000000ffffffff3000000000000000ffffffff3000000000000000ffffffff30000000' +
+           '00000000ffffffff3000000000000000ffffffff3000000000000000ffffffff3000000000000000ffffffff30000000' +
+           '00000000ffffffff3000000000000000ffffffff3000000000000000ffffffff3000000000000000ffffffff30000000' +
+           '00000000ffffffff3000000000000000ffffffff3000000000000000ffffffff3000000000000000ffffffff30000000' +
+           '00000000ffffffff3000000000000000ffffffff3000000000000000ffffffff3000000000000000ffffffff30000000' +
+           '00000000ffffffff300000009ffffffffffffffffffffffd9ffffffffffffffffffffffd9ffffffffffffffffffffffd' +
+           '9ffffffffffffffffffffffd9ffffffffffffffffffffffd9ffffffffffffffffffffffd' },
+    '2': { w: 26, h: 35, d: '00001479bdeffedb8400000000038cffffffffffffffd70000004fffffffffffffffffffd300004fffffffffffffffff' +
+           'fffe30004fffffffffffffffffffffe2004ffffffffffffffffffffffa004ffffd9521025cffffffffff104ffa400000' +
+           '00008fffffffff60492000000000000affffffff900000000000000003ffffffffb00000000000000000ffffffffb000' +
+           '00000000000000efffffffb00000000000000001ffffffff800000000000000006ffffffff40000000000000000cffff' +
+           'fffd00000000000000008ffffffff60000000000000006ffffffffc0000000000000006ffffffffe2000000000000006' +
+           'ffffffffe3000000000000007ffffffffe4000000000000007ffffffffe4000000000000008ffffffffe300000000000' +
+           '0009ffffffffe3000000000000009ffffffffd200000000000000affffffffd200000000000000affffffffc10000000' +
+           '0000001bffffffffc100000000000001bffffffffc100000000000001cffffffffb1000000000000005fffffffffffff' +
+           'fffffffffff05ffffffffffffffffffffffff05ffffffffffffffffffffffff05ffffffffffffffffffffffff05fffff' +
+           'fffffffffffffffffff05ffffffffffffffffffffffff0' },
+    '3': { w: 26, h: 35, d: '0000037acdefeedb9610000000015aeffffffffffffffb40000007fffffffffffffffffffa100007ffffffffffffffff' +
+           'ffffc00007fffffffffffffffffffff80007fffffffffffffffffffffe0007ffd963100249ffffffffff400793000000' +
+           '00003effffffff700000000000000006ffffffff800000000000000002ffffffff800000000000000002ffffffff5000' +
+           '00000000000006ffffffff20000000000000003efffffffa0000000000001259ffffffffd100000003ffffffffffffff' +
+           'fc2000000003fffffffffffffc500000000003ffffffffffffd8200000000003fffffffffffffff91000000003ffffff' +
+           'ffffffffffc100000003fffffffffffffffffc0000000000001259efffffffff60000000000000001affffffffc00000' +
+           '000000000000cffffffff100000000000000007ffffffff400000000000000005ffffffff500000000000000007fffff' +
+           'fff40000000000000000cffffffff2c72000000000001affffffffe0effd9642101248efffffffff90efffffffffffff' +
+           'ffffffffff30effffffffffffffffffffff700efffffffffffffffffffff8000efffffffffffffffffffe50000efffff' +
+           'ffffffffffffc71000001358abcdeefeedb96200000000' },
+    '4': { w: 28, h: 35, d: '00000000000000000000000000000000000000000cfffffffff200000000000000007ffffffffff20000000000000003' +
+           'fffffffffff2000000000000000cfffffffffff2000000000000007ffffffffffff200000000000002fffffffffffff2' +
+           '0000000000000bfffffffffffff20000000000007fffffdffffffff2000000000002efffff4ffffffff200000000000b' +
+           'fffff91ffffffff200000000006fffffd11ffffffff20000000002efffff401ffffffff2000000000bfffff9001fffff' +
+           'fff2000000006fffffe1001ffffffff200000001efffff50001ffffffff20000000afffffa00001ffffffff20000005f' +
+           'ffffe100001ffffffff2000001efffff6000001ffffffff200000afffffb0000001ffffffff200005fffffe20000001f' +
+           'fffffff20000dfffff600000001ffffffff20000effffc000000001ffffffff20000effffffffffffffffffffffffffd' +
+           'effffffffffffffffffffffffffdeffffffffffffffffffffffffffdeffffffffffffffffffffffffffdefffffffffff' +
+           'fffffffffffffffdeffffffffffffffffffffffffffd000000000000001ffffffff20000000000000000001ffffffff2' +
+           '0000000000000000001ffffffff20000000000000000001ffffffff20000000000000000001ffffffff2000000000000' +
+           '0000001ffffffff20000' },
+    '5': { w: 26, h: 35, d: '0000000000000000000000000002fffffffffffffffffffff60002fffffffffffffffffffff60002ffffffffffffffff' +
+           'fffff60002fffffffffffffffffffff60002fffffffffffffffffffff60002fffffffffffffffffffff60002ffffffc0' +
+           '000000000000000002ffffffc0000000000000000002ffffffc0000000000000000002ffffffc0000000000000000002' +
+           'ffffffc0000000000000000002ffffffd9cefedca62000000002fffffffffffffffffb40000002ffffffffffffffffff' +
+           'f9000002ffffffffffffffffffffb00002fffffffffffffffffffffa0002ffffffffffffffffffffff4002fffb752101' +
+           '37dfffffffffc002c610000000001afffffffff30000000000000000bffffffff700000000000000003ffffffff90000' +
+           '0000000000000efffffffb00000000000000000dfffffffc00000000000000000efffffffb00000000000000004fffff' +
+           'fff96810000000000000bffffffff67fe930000000001afffffffff27ffffd95210137dfffffffffb07fffffffffffff' +
+           'ffffffffff307ffffffffffffffffffffff7007fffffffffffffffffffff80007fffffffffffffffffffe50000059eff' +
+           'ffffffffffffd81000000000269aceefedda7400000000' },
+    '6': { w: 28, h: 35, d: '0000000000058bdefedb951000000000000018effffffffffffb500000000006effffffffffffffff5000000009fffff' +
+           'fffffffffffff50000000afffffffffffffffffff50000008ffffffffffffffffffff5000003fffffffffd73101259df' +
+           'f500000cffffffff600000000003a500005ffffffff5000000000000000000bfffffff80000000000000000002ffffff' +
+           'fe10000000000000000006fffffffa00000000000000000009fffffff6017bdefdc8400000000cfffffff48fffffffff' +
+           'fd5000000efffffffefffffffffffffa10001fffffffffffffffffffffffb0001ffffffffffffffffffffffff9002fff' +
+           'ffffffffffffffffffffff302ffffffffffe72015cffffffffa01ffffffffff3000001dffffffff10fffffffff900000' +
+           '005ffffffff40effffffff500000000ffffffff60cffffffff200000000dfffffff709ffffffff200000000cfffffff7' +
+           '06ffffffff200000000dfffffff602ffffffff500000000ffffffff400bfffffff900000005ffffffff1005ffffffff3' +
+           '000001dfffffffb0000dfffffffe72015cffffffff500004fffffffffffffffffffffc0000009fffffffffffffffffff' +
+           'e20000000afffffffffffffffffe30000000008fffffffffffffffc2000000000003bfffffffffffd600000000000000' +
+           '037bdefedb8400000000' },
+    '7': { w: 26, h: 35, d: '00000000000000000000000000effffffffffffffffffffffff5effffffffffffffffffffffff5efffffffffffffffff' +
+           'fffffff5effffffffffffffffffffffff5effffffffffffffffffffffff5effffffffffffffffffffffff20000000000' +
+           '000001efffffffa00000000000000006ffffffff30000000000000000dfffffffb00000000000000005ffffffff40000' +
+           '000000000000bfffffffd00000000000000003ffffffff60000000000000000afffffffe00000000000000002fffffff' +
+           'f700000000000000008fffffffe10000000000000001efffffff900000000000000006ffffffff20000000000000000d' +
+           'fffffffa00000000000000004ffffffff40000000000000000bfffffffc00000000000000003ffffffff500000000000' +
+           '000009fffffffd00000000000000001ffffffff700000000000000008fffffffe10000000000000000efffffff800000' +
+           '000000000006ffffffff20000000000000000dfffffffa00000000000000004ffffffff30000000000000000bfffffff' +
+           'b00000000000000003ffffffff500000000000000009fffffffd00000000000000001ffffffff600000000000000007f' +
+           'ffffffe10000000000000000efffffff80000000000000' },
+    '8': { w: 28, h: 35, d: '0000000269bdeffedb9620000000000004bffffffffffffffb4000000000affffffffffffffffff90000000bffffffff' +
+           'ffffffffffffb000007ffffffffffffffffffffff60000dffffffffffffffffffffffd0003fffffffff931139fffffff' +
+           'ff3005ffffffff50000005ffffffff5007fffffffd00000000efffffff6006fffffffb00000000cfffffff5003ffffff' +
+           'fd00000000efffffff2000dfffffff50000006fffffffc00005ffffffff931139ffffffff4000008ffffffffffffffff' +
+           'ffff700000005effffffffffffffffe500000000016dffffffffffffc6000000000004bffffffffffffffb4000000001' +
+           'bffffffffffffffffffa1000001dffffffffffffffffffffd10000bfffffffe831137efffffffb0005fffffffe300000' +
+           '03efffffff400bfffffff7000000008fffffffa00efffffff2000000003fffffffe02ffffffff0000000001ffffffff1' +
+           '3ffffffff0000000001ffffffff22ffffffff2000000003ffffffff10ffffffff7000000008ffffffff00cfffffffe30' +
+           '000003efffffffc008ffffffffe730027effffffff8002ffffffffffffffffffffffff20008fffffffffffffffffffff' +
+           'f800000affffffffffffffffffffa00000009ffffffffffffffffff90000000003affffffffffffffa30000000000001' +
+           '69bdeffedb9610000000' },
+    '9': { w: 28, h: 35, d: '0000000048cdefeda720000000000000017efffffffffffa3000000000003dfffffffffffffff70000000005ffffffff' +
+           'ffffffffff900000003efffffffffffffffffff7000000dfffffffffffffffffffff200006ffffffffc41027ffffffff' +
+           'c0000dfffffffc0000004ffffffff4002ffffffff40000000afffffffa006fffffffe000000006ffffffff108fffffff' +
+           'c000000003ffffffff409fffffffb000000003ffffffff709fffffffc000000003ffffffffa08fffffffe000000006ff' +
+           'ffffffd06ffffffff30000000affffffffe02ffffffffc0000004ffffffffff00cffffffffc41027effffffffff005ff' +
+           'fffffffffffffffffffffff100bffffffffffffffffffffffff0001cffffffffffffffffffffffe00001bfffffffffff' +
+           'ffdfffffffd0000006dfffffffffe75fffffffb0000000059cefeda6107fffffff80000000000000000000bfffffff40' +
+           '000000000000000002ffffffff10000000000000000009fffffffa0000000000000000006ffffffff400005930000000' +
+           '0007ffffffffb000006ffd85210137dfffffffff2000006ffffffffffffffffffff60000006fffffffffffffffffff90' +
+           '0000006ffffffffffffffffff8000000006ffffffffffffffffe500000000006cffffffffffffe810000000000000269' +
+           'ceefedb8400000000000' },
   };
-  const stamp = (rows, x0, y0, scale) => {
-    for (let gy = 0; gy < rows.length; gy++) {
-      for (let gx = 0; gx < rows[gy].length; gx++) {
-        if (rows[gy][gx] !== '1') continue;
-        for (let sy = 0; sy < scale; sy++) {
-          for (let sx = 0; sx < scale; sx++) {
-            const X = x0 + gx * scale + sx, Y = y0 + gy * scale + sy;
+  const S = 2;   // 알파맵은 PNG(480) 스케일 — 슈퍼샘플 버퍼(960)엔 2x2 블록으로 찍으면 다운샘플이 원본 알파를 그대로 복원
+  const stamp = (g, x0, y0) => {
+    for (let gy = 0; gy < g.h; gy++) {
+      for (let gx = 0; gx < g.w; gx++) {
+        const a = parseInt(g.d[gy * g.w + gx], 16) / 15;
+        if (!a) continue;
+        for (let sy = 0; sy < S; sy++) {
+          for (let sx = 0; sx < S; sx++) {
+            const X = x0 + gx * S + sx, Y = y0 + gy * S + sy;
             if (X < 0 || Y < 0 || X >= w || Y >= w) continue;
             const o = (Y * w + X) * 3;
-            px[o] = 255; px[o + 1] = 255; px[o + 2] = 255;
+            px[o] += Math.round((255 - px[o]) * a);
+            px[o + 1] += Math.round((255 - px[o + 1]) * a);
+            px[o + 2] += Math.round((255 - px[o + 2]) * a);
           }
         }
       }
     }
   };
-  const sD = 10;   // 슈퍼샘플 버퍼(960) 기준 스케일 — 숫자 높이 70px → PNG 35px → 표시(180px) 시 ~13px, 축소 AA로 매끈
+  const SP = 2 * S;   // 자간 (PNG 스케일 2px)
   let acc = 0;
   dist.forEach(sl => {
     const frac = sl.count / total;
@@ -1758,13 +1858,13 @@ function drawSliceLabels(px, w, cx, cy, midR, dist, total) {
     if (frac < 0.05) return;   // 좁은 슬라이스는 생략 — 수치는 범례에 있음
     const lx = cx + Math.sin(mid) * midR;
     const ly = cy - Math.cos(mid) * midR;
-    const digits = String(sl.count).split('');
-    const wAll = digits.length * 6 * sD - sD;
+    const glyphs = String(sl.count).split('').map(ch => GLYPHS[ch]);
+    const wAll = glyphs.reduce((s2, g) => s2 + g.w * S, 0) + (glyphs.length - 1) * SP;
     let x = Math.round(lx - wAll / 2);
-    digits.forEach(ch => { stamp(DIGITS[ch], x, Math.round(ly - 7 * sD / 2), sD); x += 6 * sD; });
+    const y = Math.round(ly - glyphs[0].h * S / 2);
+    glyphs.forEach(g => { stamp(g, x, y); x += g.w * S + SP; });
   });
 }
-
 // 순수 GAS PNG 인코더 — GAS에 deflate API가 없어 zlib 스트림은 Utilities.gzip의
 // deflate 페이로드를 추출해 zlib 헤더+adler32로 재포장한다 (gzip 헤더는 FLG 비트별 가변 파싱)
 function encodePngBytes(raw, width, height) {
@@ -2264,8 +2364,9 @@ function buildMonthlyReportHtml(d) {
         d.quotes.map(q => {
           // 출처: 방문자→익명 표기, 사업부/부서(선택 시 dept 저장)→그대로. 구 '인솔자' 저장분은 라벨 생략 (2026-08-04 팀장 리뷰)
           const label = q.source === '방문자' ? '방문자 (익명)' : (q.source && q.source !== '인솔자' ? q.source : '');
-          return '<div style="padding:14px 18px;margin-bottom:10px;background:#fdf9f2;border-radius:8px;">' +
-            '<div style="font-size:14.5px;color:#1d1d1f;line-height:1.65;">&ldquo;' + mdBold(escapeHtml(q.text)) + '&rdquo;</div>' +
+          // 타이포·텍스트 폭은 인사이트 카드와 동일 (14px/1.6, 텍스트 시작 17px = 인사이트 border 3px+패딩 14px — 2026-08-04 통일)
+          return '<div style="padding:12px 17px;margin-bottom:8px;background:#fdf9f2;border-radius:8px;">' +
+            '<div style="font-size:14px;color:#1d1d1f;line-height:1.6;">&ldquo;' + mdBold(escapeHtml(q.text)) + '&rdquo;</div>' +
             (label ? '<div style="font-size:12px;color:#8e8e93;margin-top:6px;">— ' + escapeHtml(label) + '</div>' : '') +
           '</div>';
         }).join('') +
