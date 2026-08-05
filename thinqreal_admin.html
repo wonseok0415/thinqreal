@@ -236,6 +236,7 @@ body {
 .roi-card-tag.tag-teal   { background:var(--c-accent-light); color:var(--c-accent); }
 .roi-card-tag.tag-orange { background:#fff4e5; color:#cc7000; }
 .roi-card-tag.tag-purple { background:#eeedfe; color:#7f51e4; }
+.roi-card-tag.tag-blue   { background:#e5f1fb; color:#1b6ca8; }
 .roi-card-desc {
   font-size:var(--t-footnote); color:var(--c-label-2);
   line-height:1.6; margin-bottom:var(--sp-12);
@@ -1922,7 +1923,7 @@ body {
 
         <div class="roi-explain-formula">
           <div class="roi-formula-line"><span class="roi-formula-label">BEP (손익분기 회수기간)</span><span class="roi-formula-expr">=  C<sub>Invest</sub>  /  연간 창출 가치</span></div>
-          <div class="roi-formula-line"><span class="roi-formula-label">연간 창출 가치</span><span class="roi-formula-expr">=  V<sub>R&amp;D</sub>  +  V<sub>Sales (A)</sub>  +  V<sub>Sales (B)</sub>  +  V<sub>PR</sub></span></div>
+          <div class="roi-formula-line"><span class="roi-formula-label">연간 창출 가치</span><span class="roi-formula-expr">=  V<sub>R&amp;D</sub>  +  V<sub>Sales (A)</sub>  +  V<sub>Sales (B)</sub>  +  V<sub>PR</sub>  +  V<sub>Quality</sub></span></div>
           <div class="roi-formula-line"><span class="roi-formula-label">N년 ROI</span><span class="roi-formula-expr">=  ( 연간가치 × N − (C<sub>Invest</sub> + C<sub>Oper</sub>) )  /  (C<sub>Invest</sub> + C<sub>Oper</sub>)  × 100</span></div>
         </div>
 
@@ -1971,11 +1972,23 @@ body {
           <article class="roi-explain-card">
             <header><span class="roi-card-tag tag-purple">V_PR</span><h3>PR 가치 (AVE 기반)</h3></header>
             <p class="roi-card-desc">Press Tour의 광고환산가치(AVE)를 보수적으로 산정.</p>
-            <div class="roi-card-eq">V<sub>PR</sub> = N<sub>press</sub> × R<sub>media</sub> × K<sub>adj</sub></div>
+            <div class="roi-card-eq">V<sub>PR</sub> = N<sub>press</sub> × R<sub>media</sub> × K<sub>adj</sub> × W<sub>PR</sub></div>
             <ul>
               <li><strong>N<sub>press</sub></strong> · Press Tour 건수</li>
               <li><strong>R<sub>media</sub></strong> · 건당 매체 광고 정가</li>
               <li><strong>K<sub>adj</sub></strong> · 보수 계수 (0–1) — 광고가 대비 PR 가치 보정</li>
+              <li><strong>W<sub>PR</sub></strong> · 기여도 — AI홈·ThinQ Real 보도 100% / 가전 중심 보도 50%</li>
+            </ul>
+          </article>
+
+          <article class="roi-explain-card">
+            <header><span class="roi-card-tag tag-blue">V_Quality</span><h3>품질 가치 (검증 대체비용)</h3></header>
+            <p class="roi-card-desc">발견한 IoT 결함의 외부 검증 대체비용 — V<sub>R&amp;D</sub>와 동일한 대체 비용 구조.</p>
+            <div class="roi-card-eq">V<sub>Quality</sub> = Σ ( N<sub>edge</sub> × D<sub>verify</sub> × C<sub>tester</sub> )</div>
+            <ul>
+              <li><strong>N<sub>edge</sub></strong> · 발견 결함 건수 — 이슈 로그에서 전기</li>
+              <li><strong>D<sub>verify</sub></strong> · 건당 검증 투입 일수 — 실측 입력 (하한 1일)</li>
+              <li><strong>C<sub>tester</sub></strong> · IT테스터 일평균임금 197,714원 (KOSA 공표, 고정)</li>
             </ul>
           </article>
 
@@ -1984,7 +1997,7 @@ body {
             <ul>
               <li><strong>BEP</strong> ≤ 3년이면 통상 ROI 관점에서 충분히 매력적</li>
               <li><strong>3년 ROI ≥ 0</strong> 시점부터 누적 손익이 흑자 전환</li>
-              <li>R&amp;D·Sales(A)·PR은 기본값으로도 산입되지만, Sales(B)는 부서 입력이 있어야 가산되어 보수적 추정에 유리</li>
+              <li>R&amp;D·Sales(A)·PR은 기본값으로도 산입되지만, Sales(B)·Quality는 부서 입력·이슈 로그가 있어야 가산되어 보수적 추정에 유리</li>
               <li>시점별 시나리오는 하단 "저장된 시나리오"에 기록해 변경 이력 비교</li>
             </ul>
           </article>
@@ -2666,7 +2679,7 @@ window.addEventListener('resize', () => {
 })();
 
 // ROI 툴 캐시 무력화 토큰 (ROI 툴을 갱신할 때마다 이 숫자를 올리세요)
-const ROI_BUILD = '20260805a';
+const ROI_BUILD = '20260805b';
 
 // "새 창에서 열기" 링크에도 동일 토큰 부착
 (function attachRoiBuild() {

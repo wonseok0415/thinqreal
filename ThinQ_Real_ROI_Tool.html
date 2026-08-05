@@ -1234,11 +1234,15 @@
           <div class="variable-header">
             <span class="variable-label">
               <span class="symbol">D_verify</span>
-              건당 검증 환산 일수
+              건당 검증 투입 일수
+              <button class="info-btn" onclick="showInfo('dVerify')" aria-label="설명 보기">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              </button>
             </span>
-            <span class="variable-value"><strong style="font-size:15px;">1</strong><span class="unit">일 · 고정</span></span>
+            <span class="variable-value"><input type="number" id="dVerify" value="1" min="1" max="30" step="0.5"><span class="unit">일</span></span>
           </div>
-          <div style="font-size:10.5px; color:var(--text-3); margin-top:4px;">결함 1건의 발견·재현·리포트 최소 공수 — 명백한 하한이므로 입력구 없이 고정</div>
+          <input type="range" id="dVerify-slider" min="1" max="30" step="0.5" value="1">
+          <div style="font-size:10.5px; color:var(--text-3); margin-top:4px;">실측 입력 — 검증을 ThinQ Real이 직접 수행하므로 실제 투입 일수를 기록해 반영 (하한 1일)</div>
         </div>
 
         <div class="variable">
@@ -1626,6 +1630,23 @@ const infoContent = {
       </div>
     `
   },
+  dVerify: {
+    symbol: 'D_verify',
+    title: '건당 검증 투입 일수 (D_verify)',
+    body: `
+      <div class="modal-section">
+        <h4>정의</h4>
+        <p>결함 1건의 발견·재현·리포트에 실제 투입된 일수입니다. 결함 발견과 검증을 <strong>ThinQ Real이 직접 수행</strong>하므로 건별 실측이 가능합니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>입력 원칙</h4>
+        <ul class="modal-list">
+          <li><strong>실측 기록 기반으로만 입력</strong> — 이슈 로그의 실제 투입 일수(평균)를 반영. 기록 없는 임의 상향 금지</li>
+          <li><strong>하한 1일</strong> — 최소 공수 미만으로는 내려가지 않음 (기본값 1 = 보수 하한)</li>
+        </ul>
+      </div>
+    `
+  },
   nEdge: {
     symbol: 'N_edge',
     title: '발견 결함 건수 (N_edge)',
@@ -1653,7 +1674,7 @@ const infoContent = {
         <h4>변수 설명</h4>
         <ul class="modal-list">
           <li><strong>N_edge</strong> — 발견 결함 건수. 설문 Track C 'IoT 품질 이슈 리포트' → 이슈 로그 자동 파생. <strong>유일하게 남은 축적 과제</strong></li>
-          <li><strong>D_verify</strong> — 건당 외부 검증 환산 일수 <strong>1일 고정</strong>. 결함 1건의 발견·재현·리포트에 드는 최소 공수이며, 실제는 이보다 길어 명백한 하한</li>
+          <li><strong>D_verify</strong> — 건당 검증 투입 일수, <strong>실측 입력 (기본·하한 1일)</strong>. 결함 발견·검증을 ThinQ Real이 직접 수행하므로 실제 투입 일수를 기록해 반영 — 기록 없는 임의 상향 금지</li>
           <li><strong>C_tester</strong> — <strong>KOSA 「2026년 적용 SW기술자 평균임금」 IT테스터 일평균 197,714원</strong>. 통계법 제27조 공표 통계. 상위 직군(IT품질관리자)이 아닌 하위 직군 채택으로 보수 적용</li>
         </ul>
       </div>
@@ -1821,7 +1842,7 @@ categories.forEach(c => {
 });
 
 // ==================== 슬라이더 ↔ 입력 동기화 ====================
-const linkedPairs = ['capex', 'opex', 'cExtLab', 'dTest', 'cVenue', 'nVisit', 'cAgency', 'nPress', 'rMedia', 'kAdj', 'wPr', 'nEdge'];
+const linkedPairs = ['capex', 'opex', 'cExtLab', 'dTest', 'cVenue', 'nVisit', 'cAgency', 'nPress', 'rMedia', 'kAdj', 'wPr', 'nEdge', 'dVerify'];
 linkedPairs.forEach(id => {
   const input = document.getElementById(id);
   const slider = document.getElementById(id + '-slider');
@@ -1963,9 +1984,8 @@ function initCharts() {
 }
 
 // ==================== 계산 ====================
-// V_Quality 고정 상수 — 화면 표기와 세트 (임의 조정 방지: D_verify는 검증 최소 공수 하한,
-// C_tester는 KOSA 2026 IT테스터 일평균임금 공표값)
-const D_VERIFY_DAYS = 1;
+// V_Quality 고정 상수 — KOSA 2026 IT테스터 일평균임금 공표값 (화면 표기와 세트, 임의 조정 방지)
+// D_verify는 실측 입력으로 전환 (2026-08-05 — 발견·검증을 ThinQ Real이 직접 수행해 건별 측정 가능)
 const C_TESTER_DAILY = 197714;
 
 function fmt(n) {
@@ -2043,9 +2063,10 @@ function calculate() {
   const wPr = +document.getElementById('wPr').value;
   const vPR = nPress * rMedia * kAdj * (wPr / 100);
 
-  // V_Quality — 검증 대체비용 방식 (발견 결함 × 환산 1일 × IT테스터 일단가)
+  // V_Quality — 검증 대체비용 방식 (발견 결함 × 실측 검증 일수 × IT테스터 일단가)
   const nEdge = +document.getElementById('nEdge').value;
-  const vQuality = nEdge * D_VERIFY_DAYS * C_TESTER_DAILY;
+  const dVerify = Math.max(1, +document.getElementById('dVerify').value || 1);   // 하한 1일
+  const vQuality = nEdge * dVerify * C_TESTER_DAILY;
 
   const annualValue = vRnD + vSalesInfra + vSalesContrib + vPR + vQuality;
 
@@ -2105,7 +2126,7 @@ function calculate() {
 const DEFAULT_MARGIN = 4.9;
 
 function resetToDefaults() {
-  const defaults = { capex:279.42, opex:9.2, cExtLab:1.0, dTest:39, cVenue:2.0, nVisit:30, cAgency:40, nPress:3, rMedia:50, kAdj:0.5, wPr:100, nEdge:0 };
+  const defaults = { capex:279.42, opex:9.2, cExtLab:1.0, dTest:39, cVenue:2.0, nVisit:30, cAgency:40, nPress:3, rMedia:50, kAdj:0.5, wPr:100, nEdge:0, dVerify:1 };
   Object.entries(defaults).forEach(([id, val]) => {
     document.getElementById(id).value = val;
     document.getElementById(id + '-slider').value = val;
@@ -2141,7 +2162,7 @@ function loadSampleContribution() {
 
 // ==================== 시나리오 스냅샷 (이력 관리) ====================
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec';
-const SIMPLE_INPUTS = ['capex','opex','cExtLab','dTest','cVenue','nVisit','cAgency','nPress','rMedia','kAdj','wPr','nEdge'];
+const SIMPLE_INPUTS = ['capex','opex','cExtLab','dTest','cVenue','nVisit','cAgency','nPress','rMedia','kAdj','wPr','nEdge','dVerify'];
 
 function collectInputs() {
   const inputs = {};
@@ -2166,8 +2187,8 @@ function applyInputs(inputs) {
     const slider = document.getElementById(id + '-slider');
     if (slider) slider.value = inputs[id];
   });
-  // §8-8 이전 스냅샷 호환 — 신규 변수 미존재 시 구 의미(기여도 100%·결함 미산입)로 복원 (stage 폴백 패턴과 동일)
-  [['wPr', 100], ['nEdge', 0]].forEach(([id, dflt]) => {
+  // §8-8 이전 스냅샷 호환 — 신규 변수 미존재 시 구 의미(기여도 100%·결함 미산입·검증 1일)로 복원 (stage 폴백 패턴과 동일)
+  [['wPr', 100], ['nEdge', 0], ['dVerify', 1]].forEach(([id, dflt]) => {
     if (inputs[id] == null) {
       document.getElementById(id).value = dflt;
       document.getElementById(id + '-slider').value = dflt;
@@ -2213,7 +2234,8 @@ function collectOutputs() {
   const wPr = +document.getElementById('wPr').value;
   const vPR = nPress * rMedia * kAdj * (wPr / 100);
   const nEdge = +document.getElementById('nEdge').value;
-  const vQuality = nEdge * D_VERIFY_DAYS * C_TESTER_DAILY;
+  const dVerify = Math.max(1, +document.getElementById('dVerify').value || 1);
+  const vQuality = nEdge * dVerify * C_TESTER_DAILY;
   const annualValue = vRnD + vSalesInfra + vSalesContrib + vPR + vQuality;
   const totalCost = capex + opex;
   const roi3 = ((annualValue * 3 - totalCost) / totalCost) * 100;
