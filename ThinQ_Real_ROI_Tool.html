@@ -904,7 +904,7 @@
       <div class="value" id="sum-sales-infra">1억원</div>
     </div>
     <div class="summary-item">
-      <div class="label">기여 영업 이익</div>
+      <div class="label">수주 기여 이익</div>
       <div class="value" id="sum-sales-contrib">0원</div>
       <div style="font-size:10.5px; color:var(--text-3); margin-top:2px;" id="sum-pipeline">파이프라인(참고) 0원</div>
     </div>
@@ -1171,7 +1171,7 @@
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title-group">
-            <h2>기여 영업 이익</h2>
+            <h2>수주 기여 이익</h2>
             <span class="panel-tag orange">V_Sales (B)</span>
           </div>
           <button class="info-btn" onclick="showInfo('vsalesContrib')" aria-label="설명 보기" style="padding:6px;">
@@ -1476,7 +1476,7 @@ const infoContent = {
   },
   vsalesContrib: {
     symbol: 'V_Sales (B)',
-    title: '기여 영업 이익',
+    title: '수주 기여 이익',
     body: `
       <div class="modal-section">
         <h4>개념 — 두 단계로 읽는 산식</h4>
@@ -1941,7 +1941,7 @@ function initCharts() {
   breakdownChart = new Chart(ctx2, {
     type: 'doughnut',
     data: {
-      labels: ['R&D 기여 가치', '영업 기여 가치', '기여 영업 이익', '홍보 노출 가치', '품질 개선 가치'],
+      labels: ['R&D 기여 가치', '영업 기여 가치', '수주 기여 이익', '홍보 노출 가치', '품질 개선 가치'],
       datasets: [{
         data: [39, 100, 0, 75, 0],
         backgroundColor: ['#3a5035', '#8fa889', '#FF9500', '#AF52DE', '#1B6CA8'],

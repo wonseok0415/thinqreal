@@ -1206,7 +1206,7 @@ const PURPOSE_COLORS = {
 const ROI_VALUE_LABELS = {
   vRnD:          { label: 'R&D 기여 가치',   color: '#3a5035' },
   vSalesInfra:   { label: '영업 기여 가치',  color: '#8fa889' },
-  vSalesContrib: { label: '기여 영업 이익',  color: '#ff9500' },
+  vSalesContrib: { label: '수주 기여 이익',  color: '#ff9500' },
   vPR:           { label: '홍보 노출 가치',  color: '#af52de' },
   vQuality:      { label: '품질 개선 가치',  color: '#1b6ca8' },
 };
