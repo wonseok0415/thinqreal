@@ -877,18 +877,18 @@
     <div class="hero-result-label">실시간 산출 결과</div>
     <div class="hero-grid">
       <div class="hero-bep">
-        <div class="hero-value" id="kpi-bep">1년 8개월</div>
+        <div class="hero-value" id="kpi-bep">1년 4개월</div>
         <div class="hero-label">손익분기점까지 회수 예상</div>
       </div>
       <div class="hero-side">
         <div class="hero-label">3년 누적 ROI</div>
-        <div class="hero-value" id="kpi-roi3">+76.7%</div>
-        <div class="hero-sub" id="kpi-roi3-sub">+2억 7,868만원</div>
+        <div class="hero-value" id="kpi-roi3">+122.4%</div>
+        <div class="hero-sub" id="kpi-roi3-sub">+3억 5,338만원</div>
       </div>
       <div class="hero-side">
         <div class="hero-label">5년 누적 ROI</div>
-        <div class="hero-value" id="kpi-roi5">+194.8%</div>
-        <div class="hero-sub" id="kpi-roi5-sub">+7억 680만원</div>
+        <div class="hero-value" id="kpi-roi5">+270.7%</div>
+        <div class="hero-sub" id="kpi-roi5-sub">+7억 8,138만원</div>
       </div>
     </div>
   </div>
@@ -918,7 +918,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
         </button>
       </div>
-      <div class="value muted">정성 처리</div>
+      <div class="value muted" id="sum-quality">0원</div>
     </div>
     <div class="summary-item total">
       <div class="label">연간 합계 (확정 기준)</div>
@@ -977,9 +977,9 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
               </button>
             </span>
-            <span class="variable-value"><input type="number" id="capex" value="354" min="0" max="1000" step="1"><span class="unit">백만원</span></span>
+            <span class="variable-value"><input type="number" id="capex" value="279.42" min="0" max="1000" step="0.01"><span class="unit">백만원</span></span>
           </div>
-          <input type="range" id="capex-slider" min="0" max="1000" step="1" value="354">
+          <input type="range" id="capex-slider" min="0" max="1000" step="0.01" value="279.42">
         </div>
 
         <div class="variable">
@@ -1149,6 +1149,20 @@
           </div>
           <input type="range" id="kAdj-slider" min="0" max="1" step="0.05" value="0.5">
         </div>
+
+        <div class="variable">
+          <div class="variable-header">
+            <span class="variable-label">
+              <span class="symbol">W_PR</span>
+              기여도 (W_PR)
+              <button class="info-btn" onclick="showInfo('wPr')" aria-label="설명 보기">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              </button>
+            </span>
+            <span class="variable-value"><input type="number" id="wPr" value="100" min="0" max="100" step="5"><span class="unit">%</span></span>
+          </div>
+          <input type="range" id="wPr-slider" min="0" max="100" step="5" value="100">
+        </div>
       </div>
     </div>
 
@@ -1188,6 +1202,56 @@
           </div>
         </div>
       </div>
+
+      <!-- V_Quality (품질 가치 — IoT 한정) -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <h2>품질 가치 — IoT 한정</h2>
+            <span class="panel-tag" style="background:#E5F1FB; color:#1B6CA8;">V_Quality</span>
+          </div>
+          <button class="info-btn" onclick="showInfo('vquality')" aria-label="설명 보기" style="padding:6px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          </button>
+        </div>
+        <p class="panel-desc">발견 결함의 <strong>외부 검증 대체비용</strong> — V_R&D(외부 스튜디오 대관)와 동일한 대체 비용 구조입니다. 결함 건수는 이슈 로그에서 전기하며, 0건은 '가치 없음'이 아니라 <strong>'축적 전'</strong>입니다.</p>
+
+        <div class="variable">
+          <div class="variable-header">
+            <span class="variable-label">
+              <span class="symbol">N_edge</span>
+              발견 결함 건수
+              <button class="info-btn" onclick="showInfo('nEdge')" aria-label="설명 보기">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              </button>
+            </span>
+            <span class="variable-value"><input type="number" id="nEdge" value="0" min="0" max="200" step="1"><span class="unit">건</span></span>
+          </div>
+          <input type="range" id="nEdge-slider" min="0" max="200" step="1" value="0">
+        </div>
+
+        <div class="variable">
+          <div class="variable-header">
+            <span class="variable-label">
+              <span class="symbol">D_verify</span>
+              건당 검증 환산 일수
+            </span>
+            <span class="variable-value"><strong style="font-size:15px;">1</strong><span class="unit">일 · 고정</span></span>
+          </div>
+          <div style="font-size:10.5px; color:var(--text-3); margin-top:4px;">결함 1건의 발견·재현·리포트 최소 공수 — 명백한 하한이므로 입력구 없이 고정</div>
+        </div>
+
+        <div class="variable">
+          <div class="variable-header">
+            <span class="variable-label">
+              <span class="symbol">C_tester</span>
+              검증 인력 일단가
+            </span>
+            <span class="variable-value"><strong style="font-size:15px;">197,714</strong><span class="unit">원 · 고정</span></span>
+          </div>
+          <div style="font-size:10.5px; color:var(--text-3); margin-top:4px;">KOSA 「2026년 적용 SW기술자 평균임금」 IT테스터 일평균 — 공표 통계이므로 임의 조정 배제</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1209,7 +1273,7 @@
 
 
   <footer>
-    ThinQ Real ROI 분석툴 · 2026년 5월 · 데이터가 쌓일수록 더 강해지는 공간
+    ThinQ Real ROI 분석툴 · 2026년 8월 · 데이터가 쌓일수록 더 강해지는 공간
   </footer>
 </div>
 
@@ -1258,11 +1322,12 @@ const infoContent = {
       </div>
       <div class="modal-section">
         <h4>기본값 산정 근거</h4>
-        <p><strong>354백만원</strong> — 2026년 5월 리뉴얼 시 실제 집행된 금액</p>
+        <p><strong>279.4백만원</strong> — 2026년 5월 리뉴얼 <strong>실집행 금액</strong> 기준 (입력값은 백만원 둘째 자리 반올림 279.42)</p>
         <ul class="modal-list">
-          <li>리뉴얼 공사비 (인테리어, 전기, 배관)</li>
-          <li>가전 및 IoT 기기 구입·설치비</li>
+          <li>구축 (기획·공사·설비) — 258.9백만원</li>
+          <li>구매 (가구·가전·IoT) — 20.5백만원</li>
         </ul>
+        <p style="font-size:12px; color:var(--text-3);">항목별 세부 단가는 사내 보고 자료 참조 (2026-08 팀장 리뷰 확정 — 실집행 반영).</p>
       </div>
     `
   },
@@ -1459,7 +1524,7 @@ const infoContent = {
       <div class="modal-section">
         <h4>개념</h4>
         <p>Press Tour를 통한 글로벌 매체 노출의 광고 환산 가치(AVE, Advertising Value Equivalency)입니다. 사업개발 관점에서 ThinQ Real이 만들어내는 PR 자산을 정량화합니다.</p>
-        <div class="modal-formula">V_PR = Σ ( <span class="accent">R_media,i</span> × <span class="accent">A_coverage,i</span> ) × <span class="accent">K_adj</span></div>
+        <div class="modal-formula">V_PR = Σ ( <span class="accent">R_media,i</span> × <span class="accent">A_coverage,i</span> ) × <span class="accent">K_adj</span> × <span class="accent">W_PR</span></div>
       </div>
       <div class="modal-section">
         <h4>보수적 산정 원칙</h4>
@@ -1539,31 +1604,62 @@ const infoContent = {
       </div>
     `
   },
+  wPr: {
+    symbol: 'W_PR',
+    title: '기여도 (W_PR)',
+    body: `
+      <div class="modal-section">
+        <h4>정의</h4>
+        <p>ThinQ Real 방문이 항상 AI홈 때문만은 아니므로, <strong>보도 성격에 따라 ThinQ Real의 기여도를 분리</strong>하는 계수입니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>적용 기준</h4>
+        <ul class="modal-list">
+          <li><strong>AI홈·ThinQ Real 관련 보도 — 100%</strong></li>
+          <li><strong>가전 중심 보도 — 50%</strong></li>
+        </ul>
+        <p>기존 Press Tour 3건(미국·영국·아르헨티나)은 AI홈 관련 보도로 <strong>100% 적용</strong> → 현재 V_PR 7,500만원 불변.</p>
+      </div>
+      <div class="modal-section">
+        <h4>근거</h4>
+        <p>2026-08 팀장 리뷰 확정.</p>
+      </div>
+    `
+  },
+  nEdge: {
+    symbol: 'N_edge',
+    title: '발견 결함 건수 (N_edge)',
+    body: `
+      <div class="modal-section">
+        <h4>정의</h4>
+        <p>ThinQ Real 운영 중 발견한 IoT 품질 결함 건수입니다. 설문 Track C 'IoT 품질 이슈 리포트' → 이슈 로그 자동 파생이 입구이며, <strong>유일하게 남은 축적 과제</strong>입니다.</p>
+      </div>
+      <div class="modal-section">
+        <h4>기본값 0의 의미</h4>
+        <p>이슈 로그 축적 전이므로 초기 V_Quality = 0. 기존 「임의 수치 배제」 원칙과 동일합니다 (V_pipe·W_attr 기본값 0과 같은 계열 — 0은 '가치 없음'이 아니라 '축적 전').</p>
+      </div>
+    `
+  },
   vquality: {
     symbol: 'V_Quality',
-    title: '품질 가치 — IoT 한정 (미산입 · C_AS 실측 확보)',
+    title: '품질 가치 — IoT 한정 (수식 확정 · 검증 대체비용 방식)',
     body: `
       <div class="modal-section">
         <h4>개념 · 범위</h4>
-        <p><strong>IoT 기기(ThinQ ON, 스마트 스위치, 모션/조도 센서, 스마트 도어락 등)의 시장 품질 결함</strong>을 양산 전 발견해 고객 환경 AS 비용을 회피하는 가치입니다. 가전(냉장고·세탁기 등) 테스트는 V_R&D(테스트 인프라 대체)에서 이미 산정하므로 제외 — 이중계산 방지와 조직 미션(AI홈솔루션사업개발) 정합.</p>
-        <div class="modal-formula">V_Quality = Σ ( <span class="accent">N_edge</span> × <span class="accent">P_occ</span> × <span class="accent">Q_ship</span> × <span class="accent">C_AS</span> )</div>
+        <p><strong>IoT 기기(ThinQ ON, 스마트 스위치, 모션/조도 센서, 스마트 도어락 등)의 품질 결함</strong>을 실환경에서 발견하는 가치입니다. ThinQ Real이 없었다면 외부 품질검증 용역으로 같은 결함을 찾아야 했을 것 — <strong>V_R&D(외부 스튜디오 대관)와 동일한 대체 비용 구조</strong>입니다. 가전(냉장고·세탁기 등) 테스트는 V_R&D에서 이미 산정하므로 제외 (이중계산 방지).</p>
+        <div class="modal-formula">V_Quality = Σ ( <span class="accent">N_edge</span> × <span class="accent">D_verify</span> × <span class="accent">C_tester</span> )</div>
       </div>
       <div class="modal-section">
-        <h4>현재 처리 — 미산입 (정성)</h4>
-        <p>이슈 로그 축적 전이라 ROI에는 산입하지 않습니다. <strong>이 값은 위 합계·BEP에 영향을 주지 않습니다.</strong></p>
-      </div>
-      <div class="modal-section">
-        <h4>변수별 확보 현황</h4>
+        <h4>변수 설명</h4>
         <ul class="modal-list">
-          <li><strong>N_edge</strong> (결함 건수) — 이슈 로그 시트 + <strong>방문 설문 R&D 트랙의 IoT 결함 리포트</strong>가 입구. 유일하게 남는 축적 과제</li>
-          <li><strong>P_occ</strong> (발생 확률) — 심각도 등급 매핑(높음 50% / 가끔 10% / 드묾 1%)을 운영팀이 직접 적용</li>
-          <li><strong>Q_ship</strong> (출하량) — IoT 솔루션 출시 목표 수량. 미확보 시 해당 건 미산입(AND 게이트)</li>
-          <li><strong>C_AS</strong> (건당 AS비용) — <strong>CS팀 실측 단가 확보 완료(1순위)</strong>. IoT 결함은 LG전자고객센터로 접수되며, 결함 유형별 채널 매핑(원격/내방/출장)으로 산정. 채널 불확실 시 낮은 값 적용(보수). 상세 단가는 사내 보고 자료 참조 — 외부 공시 폴백: 제조사 출장점검료 약 2.8만원/건</li>
+          <li><strong>N_edge</strong> — 발견 결함 건수. 설문 Track C 'IoT 품질 이슈 리포트' → 이슈 로그 자동 파생. <strong>유일하게 남은 축적 과제</strong></li>
+          <li><strong>D_verify</strong> — 건당 외부 검증 환산 일수 <strong>1일 고정</strong>. 결함 1건의 발견·재현·리포트에 드는 최소 공수이며, 실제는 이보다 길어 명백한 하한</li>
+          <li><strong>C_tester</strong> — <strong>KOSA 「2026년 적용 SW기술자 평균임금」 IT테스터 일평균 197,714원</strong>. 통계법 제27조 공표 통계. 상위 직군(IT품질관리자)이 아닌 하위 직군 채택으로 보수 적용</li>
         </ul>
       </div>
       <div class="modal-section">
-        <h4>산입 조건</h4>
-        <p>이슈 로그 6개월 누적 시 정량 산출 가능. 채널 단가 출처: AI홈 제품 서비스비용 기준(사내 문서, 2026.7) — 상세 수치는 사내 보고 자료 참조.</p>
+        <h4>참고 — 시장 임팩트는 미산입</h4>
+        <p>시장 임팩트(AS 회피 환산액)는 이슈 로그 <strong>est_value</strong>에 병기하되 <strong>ROI에는 산입하지 않습니다</strong> — 산입은 검증 대체비용 방식으로 일원화 (2026-08 팀장 리뷰 확정).</p>
       </div>
     `
   },
@@ -1725,7 +1821,7 @@ categories.forEach(c => {
 });
 
 // ==================== 슬라이더 ↔ 입력 동기화 ====================
-const linkedPairs = ['capex', 'opex', 'cExtLab', 'dTest', 'cVenue', 'nVisit', 'cAgency', 'nPress', 'rMedia', 'kAdj'];
+const linkedPairs = ['capex', 'opex', 'cExtLab', 'dTest', 'cVenue', 'nVisit', 'cAgency', 'nPress', 'rMedia', 'kAdj', 'wPr', 'nEdge'];
 linkedPairs.forEach(id => {
   const input = document.getElementById(id);
   const slider = document.getElementById(id + '-slider');
@@ -1824,10 +1920,10 @@ function initCharts() {
   breakdownChart = new Chart(ctx2, {
     type: 'doughnut',
     data: {
-      labels: ['R&D 효율화', '영업 지원 (인프라)', '영업 지원 (기여이익)', 'PR 가치'],
+      labels: ['R&D 효율화', '영업 지원 (인프라)', '영업 지원 (기여이익)', 'PR 가치', '품질 가치'],
       datasets: [{
-        data: [39, 100, 0, 75],
-        backgroundColor: ['#3a5035', '#8fa889', '#FF9500', '#AF52DE'],
+        data: [39, 100, 0, 75, 0],
+        backgroundColor: ['#3a5035', '#8fa889', '#FF9500', '#AF52DE', '#1B6CA8'],
         borderWidth: 3,
         borderColor: 'white',
         hoverOffset: 8,
@@ -1867,6 +1963,11 @@ function initCharts() {
 }
 
 // ==================== 계산 ====================
+// V_Quality 고정 상수 — 화면 표기와 세트 (임의 조정 방지: D_verify는 검증 최소 공수 하한,
+// C_tester는 KOSA 2026 IT테스터 일평균임금 공표값)
+const D_VERIFY_DAYS = 1;
+const C_TESTER_DAILY = 197714;
+
 function fmt(n) {
   if (n === 0) return '0원';
   const isNeg = n < 0;
@@ -1935,13 +2036,18 @@ function calculate() {
     }
   });
 
-  // V_PR (PR 가치) — AVE 기반 보수적 산정
+  // V_PR (PR 가치) — AVE 기반 보수적 산정 × 기여도(W_PR)
   const nPress = +document.getElementById('nPress').value;
   const rMedia = (+document.getElementById('rMedia').value) * 1e6;
   const kAdj = +document.getElementById('kAdj').value;
-  const vPR = nPress * rMedia * kAdj;
+  const wPr = +document.getElementById('wPr').value;
+  const vPR = nPress * rMedia * kAdj * (wPr / 100);
 
-  const annualValue = vRnD + vSalesInfra + vSalesContrib + vPR;
+  // V_Quality — 검증 대체비용 방식 (발견 결함 × 환산 1일 × IT테스터 일단가)
+  const nEdge = +document.getElementById('nEdge').value;
+  const vQuality = nEdge * D_VERIFY_DAYS * C_TESTER_DAILY;
+
+  const annualValue = vRnD + vSalesInfra + vSalesContrib + vPR + vQuality;
 
   // PPT와 동일한 산식으로 통일
   // - 총 비용 = Capex + Opex(1회분만)
@@ -1968,6 +2074,9 @@ function calculate() {
   document.getElementById('panel-confirmed').textContent = fmt(vSalesContrib);
   document.getElementById('panel-pipeline').textContent = fmt(vPipeline);
   document.getElementById('sum-pr').textContent = fmt(vPR);
+  const sumQualityEl = document.getElementById('sum-quality');
+  sumQualityEl.textContent = fmt(vQuality);
+  sumQualityEl.classList.toggle('muted', vQuality === 0);   // 0원(축적 전)만 muted
   document.getElementById('sum-total').textContent = fmt(annualValue);
 
   // 누적 손익 차트 데이터 (PPT 산식과 동일)
@@ -1985,6 +2094,7 @@ function calculate() {
     vSalesInfra / 1e6,
     vSalesContrib / 1e6,
     vPR / 1e6,
+    vQuality / 1e6,
   ];
   breakdownChart.update('none');
 }
@@ -1995,7 +2105,7 @@ function calculate() {
 const DEFAULT_MARGIN = 4.9;
 
 function resetToDefaults() {
-  const defaults = { capex:354, opex:9.2, cExtLab:1.0, dTest:39, cVenue:2.0, nVisit:30, cAgency:40, nPress:3, rMedia:50, kAdj:0.5 };
+  const defaults = { capex:279.42, opex:9.2, cExtLab:1.0, dTest:39, cVenue:2.0, nVisit:30, cAgency:40, nPress:3, rMedia:50, kAdj:0.5, wPr:100, nEdge:0 };
   Object.entries(defaults).forEach(([id, val]) => {
     document.getElementById(id).value = val;
     document.getElementById(id + '-slider').value = val;
@@ -2031,7 +2141,7 @@ function loadSampleContribution() {
 
 // ==================== 시나리오 스냅샷 (이력 관리) ====================
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec';
-const SIMPLE_INPUTS = ['capex','opex','cExtLab','dTest','cVenue','nVisit','cAgency','nPress','rMedia','kAdj'];
+const SIMPLE_INPUTS = ['capex','opex','cExtLab','dTest','cVenue','nVisit','cAgency','nPress','rMedia','kAdj','wPr','nEdge'];
 
 function collectInputs() {
   const inputs = {};
@@ -2055,6 +2165,13 @@ function applyInputs(inputs) {
     document.getElementById(id).value = inputs[id];
     const slider = document.getElementById(id + '-slider');
     if (slider) slider.value = inputs[id];
+  });
+  // §8-8 이전 스냅샷 호환 — 신규 변수 미존재 시 구 의미(기여도 100%·결함 미산입)로 복원 (stage 폴백 패턴과 동일)
+  [['wPr', 100], ['nEdge', 0]].forEach(([id, dflt]) => {
+    if (inputs[id] == null) {
+      document.getElementById(id).value = dflt;
+      document.getElementById(id + '-slider').value = dflt;
+    }
   });
   if (inputs.categories) {
     categories.forEach(c => {
@@ -2093,8 +2210,11 @@ function collectOutputs() {
   const nPress = +document.getElementById('nPress').value;
   const rMedia = (+document.getElementById('rMedia').value) * 1e6;
   const kAdj = +document.getElementById('kAdj').value;
-  const vPR = nPress * rMedia * kAdj;
-  const annualValue = vRnD + vSalesInfra + vSalesContrib + vPR;
+  const wPr = +document.getElementById('wPr').value;
+  const vPR = nPress * rMedia * kAdj * (wPr / 100);
+  const nEdge = +document.getElementById('nEdge').value;
+  const vQuality = nEdge * D_VERIFY_DAYS * C_TESTER_DAILY;
+  const annualValue = vRnD + vSalesInfra + vSalesContrib + vPR + vQuality;
   const totalCost = capex + opex;
   const roi3 = ((annualValue * 3 - totalCost) / totalCost) * 100;
   const roi5 = ((annualValue * 5 - totalCost) / totalCost) * 100;
@@ -2105,7 +2225,7 @@ function collectOutputs() {
     bepYears,
     bepText: document.getElementById('kpi-bep').textContent,
     roi3, roi5, profit3, profit5,
-    annualValue, vRnD, vSalesInfra, vSalesContrib, vPR,
+    annualValue, vRnD, vSalesInfra, vSalesContrib, vPR, vQuality,
     vPipeline,
     totalCost,
   };
