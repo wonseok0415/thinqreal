@@ -1977,6 +1977,16 @@ function showPage(id) {
   if (id === 'book') warmupAppsScript();
 }
 
+// ── 해시 딥링크 라우팅 ─────────────────────────────────────
+// 확정 메일의 '방문 전 이용 안내'(#page-guide) 등 해시로 특정 탭 직접 진입.
+// #guide 축약형도 허용. 게이트와 독립 — 게이트 해제 시 이미 해당 탭이 활성 상태.
+function applyHashRoute() {
+  const h = decodeURIComponent(location.hash || '').replace(/^#/, '').replace(/^page-/, '');
+  if (h && document.getElementById('page-' + h)) showPage(h);
+}
+applyHashRoute();
+window.addEventListener('hashchange', applyHashRoute);
+
 // ── Toast ─────────────────────────────────────────────────
 function toast(msg, ms=3000) {
   const el = document.getElementById('toast');

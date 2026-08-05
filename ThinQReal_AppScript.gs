@@ -1204,10 +1204,11 @@ const PURPOSE_COLORS = {
 
 // ROI 가치 항목별 색상/라벨 — ROI 툴(ThinQ_Real_ROI_Tool.html line 1723-1726)과 동기화
 const ROI_VALUE_LABELS = {
-  vRnD:          { label: 'R&D 효율화',          color: '#3a5035' },
-  vSalesInfra:   { label: '영업 지원 (인프라)',   color: '#8fa889' },
-  vSalesContrib: { label: '영업 지원 (기여이익)', color: '#ff9500' },
-  vPR:           { label: 'PR 가치',             color: '#af52de' },
+  vRnD:          { label: 'R&D 기여 가치',   color: '#3a5035' },
+  vSalesInfra:   { label: '영업 기여 가치',  color: '#8fa889' },
+  vSalesContrib: { label: '기여 영업 이익',  color: '#ff9500' },
+  vPR:           { label: '홍보 노출 가치',  color: '#af52de' },
+  vQuality:      { label: '품질 개선 가치',  color: '#1b6ca8' },
 };
 
 function installMonthlyReportTrigger() {

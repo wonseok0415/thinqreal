@@ -161,7 +161,7 @@
 - **허용 도메인**: gs `AUTH_ALLOWED_DOMAINS` ↔ index 정규식.
 - **방문자 캡**: `MAX_VISITORS` 상수 + 폼 힌트 문구 + 이 파일.
 - **보유 기간 "방문일로부터 3년"**: privacy.html §3 ↔ 폼 동의 문구. 수집 항목 변경 시 동의 문구 + privacy.html §1 + 버전 이력 함께.
-- **PURPOSE_COLORS**: admin ↔ gs(월간 리포트 도넛) 양쪽. `ROI_VALUE_LABELS`는 ROI 툴 `collectOutputs` 키(vRnD/vSalesInfra/vSalesContrib/vPR)와 정확히 매칭.
+- **PURPOSE_COLORS**: admin ↔ gs(월간 리포트 도넛) 양쪽. `ROI_VALUE_LABELS`는 ROI 툴 `collectOutputs` 키(vRnD/vSalesInfra/vSalesContrib/vPR/vQuality)와 정확히 매칭. 가치 항목 한글 명칭(R&D 기여 가치·영업 기여 가치·기여 영업 이익·홍보 노출 가치·품질 개선 가치 — 2026-08-05 확정)은 ROI 툴 ↔ admin 동작 원리 ↔ gs `ROI_VALUE_LABELS` 3곳 동기.
 
 ### 보안·개인정보
 - **Wi-Fi SSID/PW·도어락 PIN은 메인 페이지 절대 노출 금지** — 확정 메일(buildConfirm*)에서만.
