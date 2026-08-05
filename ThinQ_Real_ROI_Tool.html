@@ -896,25 +896,25 @@
   <!-- Summary Strip -->
   <div class="summary-strip">
     <div class="summary-item">
-      <div class="label">R&D 효율화</div>
+      <div class="label">R&D 기여 가치</div>
       <div class="value" id="sum-rnd">3,900만원</div>
     </div>
     <div class="summary-item">
-      <div class="label">영업 지원 (인프라)</div>
+      <div class="label">영업 기여 가치</div>
       <div class="value" id="sum-sales-infra">1억원</div>
     </div>
     <div class="summary-item">
-      <div class="label">영업 지원 (기여이익)</div>
+      <div class="label">수주 기여 이익</div>
       <div class="value" id="sum-sales-contrib">0원</div>
       <div style="font-size:10.5px; color:var(--text-3); margin-top:2px;" id="sum-pipeline">파이프라인(참고) 0원</div>
     </div>
     <div class="summary-item">
-      <div class="label">PR 가치</div>
+      <div class="label">홍보 노출 가치</div>
       <div class="value" id="sum-pr">7,500만원</div>
     </div>
     <div class="summary-item">
-      <div class="label" style="display:flex; align-items:center; justify-content:center; gap:4px;">품질 가치
-        <button class="info-btn" onclick="showInfo('vquality')" aria-label="품질 가치 설명 보기" style="padding:2px;">
+      <div class="label" style="display:flex; align-items:center; justify-content:center; gap:4px;">품질 개선 가치
+        <button class="info-btn" onclick="showInfo('vquality')" aria-label="품질 개선 가치 설명 보기" style="padding:2px;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
         </button>
       </div>
@@ -1001,7 +1001,7 @@
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title-group">
-            <h2>R&D 효율화</h2>
+            <h2>R&D 기여 가치</h2>
             <span class="panel-tag teal">V_R&D</span>
           </div>
           <button class="info-btn" onclick="showInfo('vrnd')" aria-label="설명 보기" style="padding:6px;">
@@ -1043,7 +1043,7 @@
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title-group">
-            <h2>영업 지원 — 인프라 효용</h2>
+            <h2>영업 기여 가치</h2>
             <span class="panel-tag teal">V_Sales (A)</span>
           </div>
           <button class="info-btn" onclick="showInfo('vsalesInfra')" aria-label="설명 보기" style="padding:6px;">
@@ -1095,11 +1095,11 @@
         </div>
       </div>
 
-      <!-- V_PR (PR 가치) -->
+      <!-- V_PR (홍보 노출 가치) -->
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title-group">
-            <h2>PR 가치</h2>
+            <h2>홍보 노출 가치</h2>
             <span class="panel-tag" style="background:#EEEDFE; color:#7F51E4;">V_PR</span>
           </div>
           <button class="info-btn" onclick="showInfo('vpr')" aria-label="설명 보기" style="padding:6px;">
@@ -1171,7 +1171,7 @@
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title-group">
-            <h2>영업 지원 — 기여 영업이익</h2>
+            <h2>수주 기여 이익</h2>
             <span class="panel-tag orange">V_Sales (B)</span>
           </div>
           <button class="info-btn" onclick="showInfo('vsalesContrib')" aria-label="설명 보기" style="padding:6px;">
@@ -1203,11 +1203,11 @@
         </div>
       </div>
 
-      <!-- V_Quality (품질 가치 — IoT 한정) -->
+      <!-- V_Quality (품질 개선 가치 — IoT 한정) -->
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title-group">
-            <h2>품질 가치 — IoT 한정</h2>
+            <h2>품질 개선 가치 — IoT 한정</h2>
             <span class="panel-tag" style="background:#E5F1FB; color:#1B6CA8;">V_Quality</span>
           </div>
           <button class="info-btn" onclick="showInfo('vquality')" aria-label="설명 보기" style="padding:6px;">
@@ -1355,7 +1355,7 @@ const infoContent = {
   },
   vrnd: {
     symbol: 'V_R&D',
-    title: 'R&D 효율화 가치',
+    title: 'R&D 기여 가치',
     body: `
       <div class="modal-section">
         <h4>개념</h4>
@@ -1409,7 +1409,7 @@ const infoContent = {
   },
   vsalesInfra: {
     symbol: 'V_Sales (A)',
-    title: 'V_Sales — 인프라 효용',
+    title: '영업 기여 가치 — 인프라 효용',
     body: `
       <div class="modal-section">
         <h4>개념</h4>
@@ -1476,7 +1476,7 @@ const infoContent = {
   },
   vsalesContrib: {
     symbol: 'V_Sales (B)',
-    title: 'V_Sales — 기여 영업이익',
+    title: '수주 기여 이익',
     body: `
       <div class="modal-section">
         <h4>개념 — 두 단계로 읽는 산식</h4>
@@ -1523,7 +1523,7 @@ const infoContent = {
   },
   vpr: {
     symbol: 'V_PR',
-    title: 'PR 가치 (Press Tour 광고환산가치)',
+    title: '홍보 노출 가치 (Press Tour 광고환산가치)',
     body: `
       <div class="modal-section">
         <h4>개념</h4>
@@ -1539,7 +1539,7 @@ const infoContent = {
       </div>
       <div class="modal-section">
         <h4>AVE의 한계 (보고서에 명시 권장)</h4>
-        <p>AMEC 바르셀로나 원칙은 AVE를 "커뮤니케이션 가치"로 인정하지 않습니다. 본 산정은 그 한계를 인정하면서도 "재무팀이 이해 가능한 언어"로 PR 가치를 표현하는 데 유효합니다.</p>
+        <p>AMEC 바르셀로나 원칙은 AVE를 "커뮤니케이션 가치"로 인정하지 않습니다. 본 산정은 그 한계를 인정하면서도 "재무팀이 이해 가능한 언어"로 홍보 노출 가치를 표현하는 데 유효합니다.</p>
       </div>
       <div class="modal-section">
         <h4>향후 정확도 향상</h4>
@@ -1663,7 +1663,7 @@ const infoContent = {
   },
   vquality: {
     symbol: 'V_Quality',
-    title: '품질 가치 — IoT 한정 (수식 확정 · 검증 대체비용 방식)',
+    title: '품질 개선 가치 — IoT 한정 (수식 확정 · 검증 대체비용 방식)',
     body: `
       <div class="modal-section">
         <h4>개념 · 범위</h4>
@@ -1941,7 +1941,7 @@ function initCharts() {
   breakdownChart = new Chart(ctx2, {
     type: 'doughnut',
     data: {
-      labels: ['R&D 효율화', '영업 지원 (인프라)', '영업 지원 (기여이익)', 'PR 가치', '품질 가치'],
+      labels: ['R&D 기여 가치', '영업 기여 가치', '수주 기여 이익', '홍보 노출 가치', '품질 개선 가치'],
       datasets: [{
         data: [39, 100, 0, 75, 0],
         backgroundColor: ['#3a5035', '#8fa889', '#FF9500', '#AF52DE', '#1B6CA8'],
@@ -2056,7 +2056,7 @@ function calculate() {
     }
   });
 
-  // V_PR (PR 가치) — AVE 기반 보수적 산정 × 기여도(W_PR)
+  // V_PR (홍보 노출 가치) — AVE 기반 보수적 산정 × 기여도(W_PR)
   const nPress = +document.getElementById('nPress').value;
   const rMedia = (+document.getElementById('rMedia').value) * 1e6;
   const kAdj = +document.getElementById('kAdj').value;

@@ -553,6 +553,7 @@ body {
 .modal {
   background:var(--c-bg); border-radius:var(--radius-lg); padding:var(--sp-32);
   width:min(520px,calc(100vw - 48px)); box-shadow:0 24px 80px rgba(0,0,0,0.2);
+  max-height:calc(100vh - 48px); overflow-y:auto;   /* 긴 상세(설문 응답 등) 스크롤 — 잘림 방지 */
   animation:modalIn .25s var(--ease-spring) both;
 }
 @keyframes modalIn { from{opacity:0;transform:scale(.95) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
@@ -1939,7 +1940,7 @@ body {
           </article>
 
           <article class="roi-explain-card">
-            <header><span class="roi-card-tag tag-teal">V_R&amp;D</span><h3>R&D 효율화</h3></header>
+            <header><span class="roi-card-tag tag-teal">V_R&amp;D</span><h3>R&D 기여 가치</h3></header>
             <p class="roi-card-desc">외부 스튜디오 임차료를 자사 공간 활용으로 방어한 가치.</p>
             <div class="roi-card-eq">V<sub>R&amp;D</sub> = C<sub>ext_lab</sub> × D<sub>test</sub></div>
             <ul>
@@ -1949,7 +1950,7 @@ body {
           </article>
 
           <article class="roi-explain-card">
-            <header><span class="roi-card-tag tag-teal">V_Sales (A)</span><h3>영업 지원 — 인프라 효용</h3></header>
+            <header><span class="roi-card-tag tag-teal">V_Sales (A)</span><h3>영업 기여 가치</h3></header>
             <p class="roi-card-desc">외부 응대 공간 구축·운영의 기회비용을 절감한 가치.</p>
             <div class="roi-card-eq">V<sub>Sales(A)</sub> = C<sub>venue</sub> × N<sub>visit</sub> + C<sub>agency</sub></div>
             <ul>
@@ -1960,7 +1961,7 @@ body {
           </article>
 
           <article class="roi-explain-card">
-            <header><span class="roi-card-tag tag-orange">V_Sales (B)</span><h3>영업 지원 — 기여 영업이익</h3></header>
+            <header><span class="roi-card-tag tag-orange">V_Sales (B)</span><h3>수주 기여 이익</h3></header>
             <p class="roi-card-desc">방문 응대를 통해 실제 수주에 기여한 정도를 카테고리별로 가산.</p>
             <div class="roi-card-eq">V<sub>Sales(B)</sub> = Σ ( 수주금액 × 이익률 × 기여도 )</div>
             <ul>
@@ -1970,19 +1971,19 @@ body {
           </article>
 
           <article class="roi-explain-card">
-            <header><span class="roi-card-tag tag-purple">V_PR</span><h3>PR 가치 (AVE 기반)</h3></header>
+            <header><span class="roi-card-tag tag-purple">V_PR</span><h3>홍보 노출 가치 (AVE 기반)</h3></header>
             <p class="roi-card-desc">Press Tour의 광고환산가치(AVE)를 보수적으로 산정.</p>
             <div class="roi-card-eq">V<sub>PR</sub> = N<sub>press</sub> × R<sub>media</sub> × K<sub>adj</sub> × W<sub>PR</sub></div>
             <ul>
               <li><strong>N<sub>press</sub></strong> · Press Tour 건수</li>
               <li><strong>R<sub>media</sub></strong> · 건당 매체 광고 정가</li>
-              <li><strong>K<sub>adj</sub></strong> · 보수 계수 (0–1) — 광고가 대비 PR 가치 보정</li>
+              <li><strong>K<sub>adj</sub></strong> · 보수 계수 (0–1) — 광고가 대비 홍보 노출 가치 보정</li>
               <li><strong>W<sub>PR</sub></strong> · 기여도 — AI홈·ThinQ Real 보도 100% / 가전 중심 보도 50%</li>
             </ul>
           </article>
 
           <article class="roi-explain-card">
-            <header><span class="roi-card-tag tag-blue">V_Quality</span><h3>품질 가치 (검증 대체비용)</h3></header>
+            <header><span class="roi-card-tag tag-blue">V_Quality</span><h3>품질 개선 가치 (검증 대체비용)</h3></header>
             <p class="roi-card-desc">발견한 IoT 결함의 외부 검증 대체비용 — V<sub>R&amp;D</sub>와 동일한 대체 비용 구조.</p>
             <div class="roi-card-eq">V<sub>Quality</sub> = Σ ( N<sub>edge</sub> × D<sub>verify</sub> × C<sub>tester</sub> )</div>
             <ul>
@@ -2679,7 +2680,7 @@ window.addEventListener('resize', () => {
 })();
 
 // ROI 툴 캐시 무력화 토큰 (ROI 툴을 갱신할 때마다 이 숫자를 올리세요)
-const ROI_BUILD = '20260805b';
+const ROI_BUILD = '20260805c';
 
 // "새 창에서 열기" 링크에도 동일 토큰 부착
 (function attachRoiBuild() {
