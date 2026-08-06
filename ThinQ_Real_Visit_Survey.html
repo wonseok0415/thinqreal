@@ -126,6 +126,18 @@
   .opt-sub::before { content: '('; }
   .opt-sub::after { content: ')'; }
 
+  /* NPS 0~10 버튼: 그리드 고정 트랙 — 좁은 화면에서 줄바꿈되어도 11개 버튼 폭이 항상 동일
+     (구 flex:1 방식은 줄바꿈 시 마지막 "10" 버튼이 잔여 줄 전체로 확장되는 문제) */
+  .opt-group.nps { display: grid; grid-template-columns: repeat(11, 1fr); gap: 6px; }
+  .opt-group.nps .opt { justify-content: center; align-items: center; padding: 12px 2px; }
+  .opt-group.nps .opt-text { flex: none; }
+  .nps-hint { margin-left: 28px; margin-top: 6px; display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-3); }
+  /* 모바일: 6열 2줄 + 들여쓰기 해제 (28px 회수로 터치 타깃 폭 확보) */
+  @media (max-width: 639px) {
+    .opt-group.nps { grid-template-columns: repeat(6, 1fr); margin-left: 0; }
+    .nps-hint { margin-left: 0; }
+  }
+
   /* 유형별 배지 */
   .track-badge {
     font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 980px;
@@ -549,20 +561,20 @@
     <!-- 0~10 NPS 척도 (2026-08-03 §8-7 전환) — 저장값은 정수 문자열 "0"~"10".
          구 5단계("N - 라벨")와의 혼재 처리는 리포트 집계에서 척도 판별로 분리 (섞어 평균 금지) -->
     <p class="q-desc">ThinQ Real 방문을 동료·지인에게 추천하시겠습니까? (0=전혀 아니다 ~ 10=매우 그렇다)</p>
-    <div class="opt-group" data-name="satisfaction" style="flex-direction: row; flex-wrap: wrap; gap:6px;">
-      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="0"><span class="opt-text"><span class="opt-title">0</span></span></label>
-      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="1"><span class="opt-text"><span class="opt-title">1</span></span></label>
-      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="2"><span class="opt-text"><span class="opt-title">2</span></span></label>
-      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="3"><span class="opt-text"><span class="opt-title">3</span></span></label>
-      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="4"><span class="opt-text"><span class="opt-title">4</span></span></label>
-      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="5"><span class="opt-text"><span class="opt-title">5</span></span></label>
-      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="6"><span class="opt-text"><span class="opt-title">6</span></span></label>
-      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="7"><span class="opt-text"><span class="opt-title">7</span></span></label>
-      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="8"><span class="opt-text"><span class="opt-title">8</span></span></label>
-      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="9"><span class="opt-text"><span class="opt-title">9</span></span></label>
-      <label class="opt" style="flex:1; min-width:42px; justify-content:center; padding:12px 4px;"><input type="radio" name="satisfaction" value="10"><span class="opt-text"><span class="opt-title">10</span></span></label>
+    <div class="opt-group nps" data-name="satisfaction">
+      <label class="opt"><input type="radio" name="satisfaction" value="0"><span class="opt-text"><span class="opt-title">0</span></span></label>
+      <label class="opt"><input type="radio" name="satisfaction" value="1"><span class="opt-text"><span class="opt-title">1</span></span></label>
+      <label class="opt"><input type="radio" name="satisfaction" value="2"><span class="opt-text"><span class="opt-title">2</span></span></label>
+      <label class="opt"><input type="radio" name="satisfaction" value="3"><span class="opt-text"><span class="opt-title">3</span></span></label>
+      <label class="opt"><input type="radio" name="satisfaction" value="4"><span class="opt-text"><span class="opt-title">4</span></span></label>
+      <label class="opt"><input type="radio" name="satisfaction" value="5"><span class="opt-text"><span class="opt-title">5</span></span></label>
+      <label class="opt"><input type="radio" name="satisfaction" value="6"><span class="opt-text"><span class="opt-title">6</span></span></label>
+      <label class="opt"><input type="radio" name="satisfaction" value="7"><span class="opt-text"><span class="opt-title">7</span></span></label>
+      <label class="opt"><input type="radio" name="satisfaction" value="8"><span class="opt-text"><span class="opt-title">8</span></span></label>
+      <label class="opt"><input type="radio" name="satisfaction" value="9"><span class="opt-text"><span class="opt-title">9</span></span></label>
+      <label class="opt"><input type="radio" name="satisfaction" value="10"><span class="opt-text"><span class="opt-title">10</span></span></label>
     </div>
-    <div style="margin-left:28px; margin-top:6px; display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-3);">
+    <div class="nps-hint">
       <span>0 = 전혀 아니다</span><span>10 = 매우 그렇다</span>
     </div>
     <div style="margin-left:28px; margin-top:14px;">
