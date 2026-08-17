@@ -1294,3 +1294,7 @@ claude.ai ROI 세션에서 개편된 `ThinQ_ROI_Tool_v46.html`을 리포 `ThinQ_
 - 이관 브랜치는 이제 main 병합 시점(3c8ed88) 기준 — **이후 main에 라이브 변경이 또 쌓이면 Stage1 최종 전달 전에 재병합**할 것 (같은 채택 규칙).
 - 컨테이너 설문 엔드포인트도 .gs와 동일하게 **행 삭제 없음 / 제출 공개 경로 / 불변 필드 7종** 계약 유지.
 - `SURVEY_CAS_JSON`은 env로만 — 코드·리포·문서에 실단가 기재 금지 (§6.5 grep 규칙 동일 적용).
+
+## 작업 내역 (2026-08-17 — 사내 인프라 현황 기록 (Teams 박현정 책임, 7/16~8/13))
+
+BE팀이 사내 클라우드에 ThinQ Real 인프라 구축 진행 — **상세는 `docs/migration/decisions-2026-07-06.md` §6 (신설)이 단일 소스**. 요지: 사내 Gitea 저장소(`gitea.thinqcloud.link/extapps/thinq-real`) + push 자동배포 CI/CD + ST/QA 환경 가동(샘플 앱) + **DB는 PostgreSQL로 확정(DynamoDB 검토 대체)** + Valkey(Redis 호환) 제공 + `ENVIRONMENT` 환경변수 + URL `thinq-real`로 하이픈 변경(8/13) + 운영 도메인 `thinqreal.lge.com` 승인 확보. DB 자격증명은 평문 금지(env 주입 — 우리 컨테이너 구조와 일치). 다음 이관 세션: `server/` 코드를 Gitea 샘플 자리에 README 규칙대로 이식 + store의 postgres 어댑터 구현.
