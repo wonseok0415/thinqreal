@@ -55,7 +55,7 @@
 | 시트 탭 | `bookings`(예약) · `roi_snapshots` · `slot_blocks` · `monthly_articles` · `monthly_insights`(리포트 인사이트·한마디 큐레이션) · `survey_responses` · `performance_ledger` · `iot_issue_log` · `export_log` · `visitor_responses`(방문자 현장 설문) · `health_checks`(FieldCheck 자동 점검 — 전용 세션 소관) — bookings 외에는 첫 호출 시 자동 생성 |
 | Apps Script URL | `https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec` |
 | 스크립트 소유자(발신 계정) | `kangwonseok0415@gmail.com` — 발신 표시명은 모든 메일 `ThinQ Real` 통일 |
-| 관리자 인증 | 이메일 코드 (명단 한정) — `AUTH_ADMIN_EMAILS` 6명: kang.wonseok / jhs.kim / ch275.lee / moonsu.seo / hj8462.kim / kwangsoo.park. 토큰 90일 |
+| 관리자 인증 | 이메일 코드 (명단 한정) — `AUTH_ADMIN_EMAILS` 7명: kang.wonseok / jhs.kim / ch275.lee / moonsu.seo / hj8462.kim / kwangsoo.park / jason.kwon. 토큰 90일 |
 | 담당자 알림 수신(ADMIN_EMAILS) | 이철호(ch275.lee) · 서문수(moonsu.seo) · 김현진(hj8462.kim) |
 | CC(CC_EMAIL) | kang.wonseok@lge.com |
 
@@ -90,7 +90,7 @@
 - **이용 안내**: 유의사항 5그룹(공통/가전/공간/욕실/ThinQ — 구조 유지, 홈초대 규정은 ThinQ 그룹이 단일 소스) → 기타 이용 안내 → 주차(지하/지상 2카드 + 인라인 SVG 약도) → 웰컴 보드 → 담당자.
 
 ## 관리자 대시보드 (thinqreal_admin.html)
-- **인증**: 관리자 이메일 코드 (명단 6명 한정) → 토큰 90일. 클라이언트 게이트는 편의일 뿐 — **백엔드 `verifyAdminToken`이 진짜 방어선**.
+- **인증**: 관리자 이메일 코드 (명단 7명 한정) → 토큰 90일. 클라이언트 게이트는 편의일 뿐 — **백엔드 `verifyAdminToken`이 진짜 방어선**.
 - **관리 탭**: 📋 예약 관리(KPI·필터·승인/거절·상세 모달·이력 추가/수정·영구 삭제·CSV 내보내기) / 📊 통계 / 🚫 슬롯 제어 / 🔐 연동 계정 / 🎬 시연 시나리오 / 💡 조명 스위치 / ⚙️ 시스템 구성 / 📦 구비 가전(45개, `?type=appliances` fetch)
 - **분석 탭**: 📈 ROI 분석(iframe, `ROI_BUILD` 캐시 토큰) / 📝 설문·대장
 - **데이터 로딩**: stale-while-revalidate — localStorage 캐시(`thinqreal_bookings_v1`, TTL 30분) 즉시 렌더 + 백그라운드 fresh fetch. 콜드 스타트 1~3초 스피너는 정상.
@@ -166,7 +166,7 @@
 ### 보안·개인정보
 - **Wi-Fi SSID/PW·도어락 PIN은 메인 페이지 절대 노출 금지** — 확정 메일(buildConfirm*)에서만.
 - 모든 파괴적/쓰기 작업과 `bookings`·`survey_data` 조회는 **백엔드 `verifyAdminToken` 게이트** — 우회·약화 금지. 클라이언트 게이트는 편의일 뿐.
-- 관리자 명단 단일 소스 = `AUTH_ADMIN_EMAILS`(6명). **임시 권한은 `AUTH_TEMP_ADMINS`로만** (만료일 `'YYYY-MM-DDT23:59:59+09:00'` KST 파싱 유지) — 영구 배열에 직접 추가 금지. 이탈자는 배열 제거+재배포로 즉시 회수(토큰 TTL 90일이지만 매 요청 명단 검사).
+- 관리자 명단 단일 소스 = `AUTH_ADMIN_EMAILS`(7명). **임시 권한은 `AUTH_TEMP_ADMINS`로만** (만료일 `'YYYY-MM-DDT23:59:59+09:00'` KST 파싱 유지) — 영구 배열에 직접 추가 금지. 이탈자는 배열 제거+재배포로 즉시 회수(토큰 TTL 90일이지만 매 요청 명단 검사).
 - `TELEGRAM_*`·`CALENDAR_ID`·`SURVEY_CAS_JSON`·`FC_API_KEY`(FieldCheck 장비 키 — 2026-07-30 이전) 등 비밀값은 **Script Property에만** — 코드·리포 커밋 금지. FC_API_KEY 교체 시 점검 장비 rig `config.json`과 동시 교체.
 - 캘린더 일정에 방문자 명단·연락처 미표기 원칙.
 - CSV 내보내기: 파일 비밀번호는 **로그·시트·코드 어디에도 기록 금지**. 사유 기록(`export_log`)이 먼저 — 실패 시 다운로드도 차단. `export_log` 행 삭제 기능 금지.
@@ -197,7 +197,7 @@
 - 8-2(도입 의향) 저장 value는 8-1 모드명 어휘("웰컴 모드" 등)와 **동일 유지** — 인상 vs 도입 의향 격차 분석의 전제이므로 한쪽만 라벨 변경 금지. `iot_connect` 최대 3개는 클라이언트 검증(서버는 관대 수용·raw_json 보존이 의도), "없음" 배타는 `enforceIotConnectRules()`.
 - **방문자 현장 설문**: 완전 익명 유지 — 성명·소속 등 개인정보 필드 추가 금지(추가 시 privacy.html 개정 필수). 딜·수주·기여도 등 **내부 정보 문항 추가 금지**(고객이 직접 보는 폼). 저장 value는 운영 설문과 **문자열 완전 동일** 유지(EN 화면도 한국어 canonical 저장 — 한쪽만 변경 금지). `visitor_submit` 공개 경로·파생 미연결·mailto 폴백 없음 유지. 만족도는 방문자 폼만 5단계(운영 폼은 4단계 — 공유 4개 value는 동일).
 - **sales 트랙 8번 블록 미노출은 방문자 설문과 세트 설계** — 한쪽만 롤백 금지 (미노출을 되돌리려면 방문자 설문과의 역할 분담 재검토가 전제). 격차 분석 시 인솔자 8블록은 media/etc 트랙만, B2B 방문객은 `visitor_responses` 기준.
-- 설문 초대: `surveyInviteSentAt` 마커 임의 삭제 금지(재발송 방지 장치). 발송 대상 @lge.com 한정. CC 변경은 `SURVEY_INVITE_CC_BATCH/AUTO` 상수만 — **관리자 6명 전원 참조로 회귀 금지**(통수 부담으로 폐기된 설계).
+- 설문 초대: `surveyInviteSentAt` 마커 임의 삭제 금지(재발송 방지 장치). 발송 대상 @lge.com 한정. CC 변경은 `SURVEY_INVITE_CC_BATCH/AUTO` 상수만 — **관리자 전원 참조로 회귀 금지**(통수 부담으로 폐기된 설계).
 
 ### 메인 페이지 구조
 - 게이트 가림은 `body.unauth > *:not(...)` **direct-child 선택자** — 새 최상위 요소 추가 시 게이트 동작 확인.

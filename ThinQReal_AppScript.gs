@@ -66,7 +66,8 @@ const AUTH_ADMIN_EMAILS = [
   'ch275.lee@lge.com',     // 이철호 책임
   'moonsu.seo@lge.com',    // 서문수 선임
   'hj8462.kim@lge.com',    // 김현진 선임
-  'kwangsoo.park@lge.com'  // 박광수 책임
+  'kwangsoo.park@lge.com', // 박광수 책임
+  'jason.kwon@lge.com'     // 권영섭 (2026-08-06 추가 — 관리자 페이지 접근용, 담당자 알림 미수신)
 ];
 const AUTH_ADMIN_TOKEN_TTL_DAYS = 90;       // 관리자 토큰 유효 기간 (2026-07-07 7일→90일 연장)
 
