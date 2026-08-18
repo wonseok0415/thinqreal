@@ -21,7 +21,7 @@
 
 - 형식: `base64url(payload) + "." + base64url(HMAC-SHA256(payloadB64, AUTH_SECRET))`
 - 서명 비교는 상수시간 비교(`constantTimeEquals`).
-- 관리자 판정: `AUTH_ADMIN_EMAILS`(영구 7명 — 2026-08-06 기준) OR `AUTH_TEMP_ADMINS`(만료일 기반 임시) — 백엔드 검증이 유일한 방어선.
+- 관리자 판정: `AUTH_ADMIN_EMAILS`(영구 7명 — 2026-08-18 기준) OR `AUTH_TEMP_ADMINS`(만료일 기반 임시) — 백엔드 검증이 유일한 방어선.
 - 인증 코드: 6자리 숫자, TTL 20분, 재요청 쿨다운 60초, 검증 5회 연속 실패 시 20분 잠금.
 
 ## GET 엔드포인트
