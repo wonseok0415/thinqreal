@@ -45,6 +45,7 @@
 | `calendar_test` | — | — | 캘린더 연동 점검 (테스트 일정 생성 후 즉시 삭제) |
 | `survey_data` | `token` | 관리자 | `{responses:[], ledger:[], issues:[], visitors:[], insights:[], articles:[]}` — 설문·대장·이슈·방문자·큐레이션·기사 통합 조회 (insights·articles는 2026-08-03 추가) |
 | `health_checks` | `days=` (선택) | — ⚠ 무인증 | FieldCheck 점검 이력 조회 (관리자 🩺 탭용). ⚠ 토큰 게이트 적용 검토는 FieldCheck 전용 세션에 위임 (2026-07-30 관찰) |
+| `voc_reports` | `token`, `days=` (선택) | **관리자** | FieldVoice 현장 인사이트 리포트 목록 (관리자 🎙 탭용, 2026-08-19). 방문객 발화 인용이 포함되므로 health_checks와 달리 처음부터 토큰 게이트. ⚠ 기능 상세는 FieldVoice(아이디어 트랙) 소관 — 존재·인증 방식만 등재 |
 
 ### 인증 관련 오류 응답
 `{ok:false, error:...}` — `not_allowed_domain` / `not_admin` / `cooldown` / `mail_failed` / `invalid_code` / `expired_code` / `too_many_attempts`
@@ -66,6 +67,7 @@
 | `visitor_submit` | — | 방문자 현장 설문 append (`visitor_responses`, 익명 — 2026-07-27 §8-5). **파생 없음**, 저장 value는 언어 무관 한국어 canonical | 텔레그램 발송 ("방문자 설문 접수 [KO\|EN]") |
 | `visitor_delete` | 관리자 토큰 | 방문자 응답 영구 삭제 (테스트·실수 정리용 — 2026-07-27). cascade 없음(파생 무). **수정 엔드포인트는 의도적으로 없음** — 익명 응답 원문 보존 | — (알림 미발송) |
 | `health_check` | **FC_API_KEY** (Script Property — 점검 장비 전용, 2026-07-30 Property 이전) | FieldCheck 점검 결과 append (`health_checks` 12컬럼). ⚠ 기능 상세는 FieldCheck 전용 세션 소관 — 이 표에는 존재·인증 방식만 등재 | FC_IMMEDIATE_ALERT 시 실패 알림 (현재 꺼짐) |
+| `voc_report` | **FV_API_KEY** (Script Property — FieldVoice 파이프라인 전용, 2026-08-19) | FieldVoice 1페이지 리포트 append (`voc_reports` 9컬럼, 20KB 초과 거부). ⚠ 기능 상세는 FieldVoice(아이디어 트랙) 소관 — 존재·인증 방식만 등재 | — (알림 미발송) |
 | `insight_add` | 관리자 토큰 | 리포트 큐레이션 행 추가 `{month, text, rowType('insight'\|'quote'), source}` → `monthly_insights` (2026-08-03 §8-7). seq는 월·타입별 자동 증가 | — |
 | `insight_delete` | 관리자 토큰 | 큐레이션 행 삭제 `{id}` | — |
 | `article_add` | 관리자 토큰 | 관련 기사 링크 추가 `{month, url}` → `monthly_articles` (2026-08-03). 제목·출처·요약·썸네일은 서버가 메타 태그에서 자동 추출(실패 시 공란 → 리포트 빌드 때 재시도). month는 텍스트 강제 저장. 같은 달 중복 URL 거부 | — |

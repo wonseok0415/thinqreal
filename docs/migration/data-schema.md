@@ -118,6 +118,9 @@
 ## 4.7 `health_checks` 탭 (FieldCheck 자동 점검 이력 — ⚠ 전용 세션 소관, 존재만 등재)
 `id` · `timestamp` · `level` · `scenario_id` · `scenario_label` · `result` · `latency_ms` · `detail` · `stt_text` · `expected` · `media_ref` · `note` (12컬럼). 스키마 상세·이관 설계는 FieldCheck 전용 세션이 관리.
 
+## 4.8 `voc_reports` 탭 (FieldVoice 현장 인사이트 리포트 — ⚠ 아이디어 트랙 소관, 존재만 등재)
+`id` · `timestamp` · `visit_date` · `session_id` · `purpose` · `one_liner` · `report_md` · `consent` · `author` (9컬럼, 2026-08-19). 가명화된 1페이지 요약만 저장 — 원본 음성·전사는 현장 장비 로컬에만 존재(시트 미저장). 스키마 상세·이관 설계는 `wonseok-lab/thinqreal/fieldvoice/`(DESIGN.md §8·OPERATIONS.md)가 관리.
+
 ## 5. 런타임 상태 (Script Properties — 이전 시 설정 저장소/환경변수로)
 
 | 키 | 용도 |
@@ -130,6 +133,8 @@
 | `SERPER_API_KEY` | 뉴스 검색 (우선) |
 | `GOOGLE_CSE_ID` / `GOOGLE_CSE_KEY` | 뉴스 검색 (폴백, 현재 계정 정책으로 차단 상태) |
 | `SURVEY_CAS_JSON` | IoT 이슈 est_value용 채널 단가 `{"원격":N,"내방":N,"출장":N}` — **민감 단가라 코드·리포 미기재**, 이 Property가 유일한 위치 |
+| `FC_API_KEY` | FieldCheck 점검 결과 접수 인증 키 (미설정 시 fail-closed — 상세는 FieldCheck 전용 세션 소관) |
+| `FV_API_KEY` | FieldVoice 리포트 업로드 인증 키 (2026-08-19, FC_API_KEY와 동일 원칙 — 미설정 시 fail-closed) |
 
 ## 6. 휘발성 캐시 (CacheService — 이전 시 Redis/TTL 테이블로)
 
