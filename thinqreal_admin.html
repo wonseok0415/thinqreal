@@ -387,6 +387,29 @@ body {
 .hc-spark-label { font-size:10px; color:var(--c-label-3); white-space:nowrap; }
 .hc-note { font-size:var(--t-caption); color:var(--c-label-3); line-height:1.7; margin-top:var(--sp-12);
   padding:var(--sp-12) var(--sp-16); background:var(--c-fill); border-radius:var(--radius-sm); }
+
+/* ── 현장 인사이트 (FieldVoice) ── */
+.voc-row { display:flex; gap:var(--sp-16); padding:var(--sp-16); border:1px solid var(--c-separator);
+  border-radius:var(--radius-sm); margin-bottom:var(--sp-8); cursor:pointer; transition:all 0.2s var(--ease); }
+.voc-row:hover { border-color:var(--c-accent-mid); background:var(--c-fill); }
+.voc-row-date { font-size:var(--t-subhead); font-weight:600; color:var(--c-accent); white-space:nowrap; }
+.voc-row-main { min-width:0; }
+.voc-row-one { font-size:var(--t-subhead); color:var(--c-label); }
+.voc-row-sub { font-size:var(--t-caption); color:var(--c-label-3); margin-top:4px; }
+.voc-card { border:1px solid var(--c-separator); border-radius:var(--radius-sm);
+  padding:var(--sp-24); margin-top:var(--sp-12); }
+.voc-meta { font-size:var(--t-caption); color:var(--c-label-3); margin-bottom:var(--sp-12); }
+.voc-body { font-size:var(--t-subhead); line-height:1.75; color:var(--c-label); }
+.voc-body h3 { margin:var(--sp-16) 0 var(--sp-8); color:var(--c-accent); font-size:16px; }
+.voc-body h4 { margin:var(--sp-12) 0 var(--sp-8); font-size:14px; }
+.voc-p { margin:6px 0; }
+.voc-ul { margin:6px 0 6px 20px; }
+.voc-quote { border-left:3px solid var(--c-accent); padding-left:12px; color:var(--c-label-2); margin:6px 0; }
+.voc-hr { border:0; border-top:1px solid var(--c-separator); margin:var(--sp-16) 0; }
+.voc-table { border-collapse:collapse; margin:8px 0; width:100%; }
+.voc-table th, .voc-table td { border:1px solid var(--c-separator); padding:6px 10px;
+  font-size:var(--t-footnote); text-align:left; vertical-align:top; }
+.voc-table th { background:var(--c-fill); }
 @media (max-width:640px) {
   .hc-row { grid-template-columns:minmax(0,1fr) 76px 64px; }
   .hc-lat { display:none; }
@@ -1047,6 +1070,9 @@ body {
     </div>
     <div class="nav-item" id="nav-health" onclick="switchTab('health')">
       <span class="nav-item-icon">🩺</span>자동 점검
+    </div>
+    <div class="nav-item" id="nav-voc" onclick="switchTab('voc')">
+      <span class="nav-item-icon">🎙</span>현장 인사이트
     </div>
     <span class="nav-section-label" style="margin-top:var(--sp-8);">도구</span>
     <div class="nav-item" onclick="loadData()">
@@ -2250,6 +2276,28 @@ body {
       </div>
     </div>
 
+    <!-- 현장 인사이트 (FieldVoice) -->
+    <div class="tab-panel voc-scope" id="tab-voc">
+      <div class="page-header">
+        <h1>현장 인사이트</h1>
+        <p>방문 인터뷰 녹음을 분석한 1페이지 리포트가 회차별로 쌓입니다. 가명화된 요약만 저장되며, 원본 녹음·전사는 현장 장비에만 있습니다.</p>
+      </div>
+
+      <div class="toolbar">
+        <button class="toolbar-btn" onclick="loadVocReports(true)">↺ 새로고침</button>
+      </div>
+
+      <div id="vocList"></div>
+
+      <div id="vocDetail" style="display:none;">
+        <button class="toolbar-btn" onclick="renderVocList(vocRecords || [])">← 목록으로</button>
+        <div class="voc-card">
+          <div class="voc-meta" id="vocDetailMeta"></div>
+          <div class="voc-body" id="vocDetailBody"></div>
+        </div>
+      </div>
+    </div>
+
    </div>
   </main>
 </div>
@@ -2698,12 +2746,114 @@ function switchTab(id) {
   if (id === 'appliances') renderAppliances();
   if (id === 'survey') loadSurveyData();
   if (id === 'health') loadHealthChecks();
+  if (id === 'voc') loadVocReports();
   if (id === 'roi') {
     const f = document.getElementById('roiFrame');
     // 캐시 무력화: 빌드 토큰을 쿼리로 부착해 GitHub Pages/iframe 캐시 우회
     if (!f.getAttribute('src')) f.setAttribute('src', 'ThinQ_Real_ROI_Tool.html?v=' + ROI_BUILD);
   }
   if (isMobileLayout()) closeSidebar();
+}
+
+// ── 현장 인사이트 (FieldVoice) ──────────────────────────────
+// ?type=voc_reports — 방문객 발화 인용이 포함되므로 관리자 토큰 필수.
+// 파이프라인(현장 노트북)이 업로드한 1페이지 리포트를 목록·상세로 열람한다.
+let vocRecords = null;
+
+async function loadVocReports(force) {
+  const list = document.getElementById('vocList');
+  if (!force && vocRecords) { renderVocList(vocRecords); return; }
+  document.getElementById('vocDetail').style.display = 'none';
+  list.style.display = 'block';
+  list.innerHTML = '<div class="empty-state"><div class="empty-state-text">불러오는 중…</div></div>';
+  try {
+    const res = await fetch(SCRIPT_URL + '?type=voc_reports&days=365&token=' + encodeURIComponent(adminToken()));
+    const json = await res.json();
+    if (!json.records) throw new Error(json.reason || json.error || '응답 형식 오류');
+    vocRecords = json.records;
+    renderVocList(vocRecords);
+  } catch (e) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-state-text">리포트를 불러오지 못했습니다 — ' +
+      vocEsc(e.message || e) + '</div></div>';
+  }
+}
+
+function renderVocList(records) {
+  document.getElementById('vocDetail').style.display = 'none';
+  const wrap = document.getElementById('vocList');
+  wrap.style.display = 'block';
+  if (!records.length) {
+    wrap.innerHTML = '<div class="empty-state"><div class="empty-state-text">아직 업로드된 리포트가 없습니다.<br>' +
+      '분석 후 파이프라인 웹 UI에서 [관리자 페이지로 업로드]를 누르면 여기에 쌓입니다.</div></div>';
+    return;
+  }
+  wrap.innerHTML = records.map(r =>
+    '<div class="voc-row" onclick="openVocReport(\'' + vocEsc(String(r.id)) + '\')">' +
+      '<div class="voc-row-date">' + vocEsc(r.visit_date || String(r.timestamp).slice(0, 10)) + '</div>' +
+      '<div class="voc-row-main">' +
+        '<div class="voc-row-one">' + vocEsc(r.one_liner || '(한 줄 결론 없음)') + '</div>' +
+        '<div class="voc-row-sub">' + vocEsc(r.purpose || '목적 미기재') +
+          (r.author ? ' · ' + vocEsc(r.author) : '') +
+          (r.consent ? ' · 동의: ' + vocEsc(r.consent) : '') + '</div>' +
+      '</div>' +
+    '</div>').join('');
+}
+
+function openVocReport(id) {
+  const r = (vocRecords || []).find(x => String(x.id) === String(id));
+  if (!r) return;
+  document.getElementById('vocList').style.display = 'none';
+  const d = document.getElementById('vocDetail');
+  d.style.display = 'block';
+  document.getElementById('vocDetailMeta').textContent =
+    (r.visit_date || '') + (r.purpose ? ' · ' + r.purpose : '') + (r.author ? ' · ' + r.author : '') +
+    (r.consent ? ' · 동의: ' + r.consent : '');
+  document.getElementById('vocDetailBody').innerHTML = vocMd(r.report_md);
+  d.scrollIntoView({ behavior: 'smooth' });
+}
+
+// 1페이지 리포트(마크다운) 최소 렌더러 — 외부 라이브러리 없이 제목/표/인용/목록/굵게만 지원
+function vocEsc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function vocInline(s) {
+  return s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+function vocMd(md) {
+  const lines = String(md || '').split(/\r?\n/);
+  let html = '', i = 0, inList = false;
+  const closeList = () => { if (inList) { html += '</ul>'; inList = false; } };
+  while (i < lines.length) {
+    const raw = lines[i];
+    const line = vocEsc(raw);
+    if (/^\s*\|/.test(raw) && i + 1 < lines.length && /^\s*\|[\s:|-]+\|?\s*$/.test(lines[i + 1])) {
+      closeList();
+      const cellsOf = s => s.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|')
+                            .map(c => vocInline(vocEsc(c.trim())));
+      html += '<table class="voc-table"><thead><tr>' +
+        cellsOf(raw).map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
+      i += 2;
+      while (i < lines.length && /^\s*\|/.test(lines[i])) {
+        html += '<tr>' + cellsOf(lines[i]).map(c => '<td>' + c + '</td>').join('') + '</tr>';
+        i++;
+      }
+      html += '</tbody></table>';
+      continue;
+    }
+    if (/^###\s/.test(raw))            { closeList(); html += '<h4>' + vocInline(line.replace(/^###\s*/, '')) + '</h4>'; }
+    else if (/^##\s/.test(raw))        { closeList(); html += '<h3>' + vocInline(line.replace(/^##\s*/, '')) + '</h3>'; }
+    else if (/^#\s/.test(raw))         { closeList(); html += '<h3>' + vocInline(line.replace(/^#\s*/, '')) + '</h3>'; }
+    else if (/^\s*-{3,}\s*$/.test(raw)) { closeList(); html += '<hr class="voc-hr">'; }
+    else if (/^\s*>/.test(raw))        { closeList(); html += '<blockquote class="voc-quote">' + vocInline(line.replace(/^\s*&gt;\s*/, '')) + '</blockquote>'; }
+    else if (/^\s*[-*]\s+/.test(raw))  { if (!inList) { html += '<ul class="voc-ul">'; inList = true; } html += '<li>' + vocInline(line.replace(/^\s*[-*]\s+/, '')) + '</li>'; }
+    else if (/^\s*\d+\.\s+/.test(raw)) { if (!inList) { html += '<ul class="voc-ul">'; inList = true; } html += '<li>' + vocInline(line.replace(/^\s*\d+\.\s+/, '')) + '</li>'; }
+    else if (raw.trim() === '')        { closeList(); }
+    else                               { closeList(); html += '<p class="voc-p">' + vocInline(line) + '</p>'; }
+    i++;
+  }
+  closeList();
+  return html;
 }
 
 // ── 자동 점검 (FieldCheck) ─────────────────────────────────

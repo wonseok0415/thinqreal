@@ -18,11 +18,18 @@ const ROI_SHEET_NAME = 'roi_snapshots';      // 시트 탭 이름 (ROI 시나리
 const ARTICLES_SHEET_NAME = 'monthly_articles'; // 시트 탭 이름 (월간 리포트 수동 큐레이션 기사)
 const SLOT_BLOCKS_SHEET_NAME = 'slot_blocks';   // 시트 탭 이름 (관리자 슬롯 차단)
 const HEALTH_SHEET_NAME = 'health_checks';      // 시트 탭 이름 (FieldCheck 자동 점검 이력)
+const VOC_SHEET_NAME = 'voc_reports';           // 시트 탭 이름 (FieldVoice 현장 인사이트 리포트)
 // FieldCheck 점검 장비 인증 키 — **Script Property 'FC_API_KEY'에만 둔다** (퍼블릭 리포라 코드 커밋 금지, 2026-07-30 이전).
 // 기존 하드코딩 값은 노출된 것으로 간주해 폐기 — Property에는 새 값을 등록하고 점검 장비(fieldcheck/rig config.json
 // api_key)와 동시 교체할 것. Property 미설정 시 health_check 접수는 전부 거부된다 (fail-closed).
 function getFcApiKey() {
   return PropertiesService.getScriptProperties().getProperty('FC_API_KEY') || '';
+}
+// FieldVoice 업로드 인증 키 — FC_API_KEY와 동일 원칙: **Script Property 'FV_API_KEY'에만 둔다**
+// (코드·문서에 실제 키 기재 금지). 미설정 시 voc_report 접수는 전부 거부된다 (fail-closed).
+// 파이프라인 쪽 짝은 wonseok-lab/thinqreal/fieldvoice/pipeline config.json의 upload.api_key.
+function getFvApiKey() {
+  return PropertiesService.getScriptProperties().getProperty('FV_API_KEY') || '';
 }
 // FieldCheck 알림 정책
 const FC_TEST_MODE = true;        // 테스트 단계: 메일은 CC_EMAIL(강원석)에게만, 텔레그램 발송 안 함. 정식 운영 전환 시 false
@@ -208,6 +215,10 @@ function doGet(e) {
   if (type === 'health_checks') {
     return handleGetHealthChecks(e.parameter.days);
   }
+  // voc_reports는 방문객 발화 인용이 포함되므로 health_checks와 달리 관리자 토큰 필수
+  if (type === 'voc_reports') {
+    return handleGetVocReports(e.parameter.token, e.parameter.days);
+  }
 
   return jsonResponse({ error: 'Unknown type' });
 }
@@ -351,6 +362,8 @@ function doPost(e) {
   if (data.type === 'roi_delete')   return handleDeleteRoiSnapshot(data);
   // health_check는 점검 장비(무인 기기)가 호출 — 관리자 토큰 대신 FC_API_KEY로 인증
   if (data.type === 'health_check') return handleNewHealthCheck(data);
+  // voc_report는 FieldVoice 파이프라인(현장 노트북)이 호출 — FV_API_KEY로 인증
+  if (data.type === 'voc_report') return handleNewVocReport(data);
 
   // ── 관리자 토큰이 필요한 파괴적/운영 작업 ──
   // 클라이언트 화면을 우회해도 백엔드가 토큰을 검증하므로 명단 외 요청은 거부된다.
@@ -4745,4 +4758,100 @@ function buildHealthSummaryHtml(v) {
       '</table>' +
     '</div>'
   );
+}
+
+
+// ============================================================
+//  FieldVoice 현장 인사이트 (방문 인터뷰 분석 리포트)
+//  - 시트 탭: voc_reports
+//  - 파이프라인(wonseok-lab/thinqreal/fieldvoice/pipeline)이 도슨트의
+//    수동 확인 후 1페이지 요약 리포트를 POST, 관리자 페이지 🎙 탭이 GET
+//  - 저장 원칙: 가명화된 1페이지 요약만 — 원본 음성·전사는 절대 업로드하지 않음
+//    (fieldvoice/DESIGN.md §5·§8)
+//  - 인증: POST = FV_API_KEY (Script Property) / GET = 관리자 토큰 필수
+//    (health_checks와 달리 방문객 발화 인용이 포함되므로 무인증 조회 불가)
+// ============================================================
+
+function getVocSheet() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  return ss.getSheetByName(VOC_SHEET_NAME) || ss.insertSheet(VOC_SHEET_NAME);
+}
+
+function getOrCreateVocHeaders(sheet) {
+  const HEADERS = ['id', 'timestamp', 'visit_date', 'session_id', 'purpose',
+                   'one_liner', 'report_md', 'consent', 'author'];
+  const firstRow = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
+  if (!firstRow[0]) {
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+    const headerRange = sheet.getRange(1, 1, 1, HEADERS.length);
+    headerRange.setBackground('#3a5035');
+    headerRange.setFontColor('#ffffff');
+    headerRange.setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return HEADERS;
+}
+
+// ── 리포트 저장 (FV_API_KEY 인증, fail-closed) ──────────────
+function handleNewVocReport(data) {
+  const fvKey = getFvApiKey();
+  if (!fvKey || String(data.apiKey || '') !== fvKey) {
+    return jsonResponse({ error: 'Unauthorized' });
+  }
+  // 1페이지 요약만 받는다 — 비정상적으로 큰 본문(전사 전문 오업로드 등)은 거부.
+  const md = String(data.report_md || '').trim();
+  if (!md) return jsonResponse({ error: 'report_md is required' });
+  if (md.length > 20000) {
+    return jsonResponse({ error: 'report too large — 1페이지 요약(report.md)만 업로드하세요' });
+  }
+
+  const sheet = getVocSheet();
+  const headers = getOrCreateVocHeaders(sheet);
+  const id = String(Date.now());
+  const row = headers.map(h => {
+    if (h === 'id')        return id;
+    if (h === 'timestamp') return data.timestamp || new Date().toISOString();
+    if (h === 'report_md') return md;
+    return data[h] != null ? String(data[h]) : '';
+  });
+  sheet.appendRow(row);
+  return jsonResponse({ success: true, id });
+}
+
+// ── 리포트 목록 조회 (관리자 토큰 필수) ─────────────────────
+function handleGetVocReports(token, days) {
+  const admin = verifyAdminToken(token);
+  if (!admin.ok) {
+    return jsonResponse({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
+  }
+
+  const sheet = getVocSheet();
+  getOrCreateVocHeaders(sheet);
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+
+  let cutoff = null;
+  const n = Number(days);
+  if (n > 0) cutoff = new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+
+  const records = rows.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((h, j) => {
+      let v = row[j];
+      if (Object.prototype.toString.call(v) === '[object Date]') v = v.toISOString();
+      obj[h] = v == null ? '' : v;
+    });
+    return obj;
+  }).filter(r => {
+    if (!r.id) return false;
+    if (!cutoff) return true;
+    const t = new Date(r.timestamp);
+    return !isNaN(t) && t >= cutoff;
+  });
+
+  // 방문일 최신순 (같은 날은 업로드 시각순)
+  records.sort((a, b) =>
+    String(b.visit_date || b.timestamp).localeCompare(String(a.visit_date || a.timestamp)) ||
+    String(b.timestamp).localeCompare(String(a.timestamp)));
+  return jsonResponse({ records });
 }
