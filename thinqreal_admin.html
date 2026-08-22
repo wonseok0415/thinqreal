@@ -976,6 +976,15 @@ body {
 }
 /* ── 설문·대장 탭 ── */
 .sv-section-title { font-size:15px; font-weight:600; color:var(--c-label); margin:var(--sp-24) 0 var(--sp-12); }
+/* 설문·대장 서브탭 세그먼트 (A안 2026-08-22) — 워크플로 3분할, KPI는 공통 상단 */
+.sv-seg { display:flex; gap:2px; background:var(--c-fill-2); border-radius:9px; padding:2px; }
+.sv-seg-btn {
+  border:none; background:transparent; font-family:inherit; font-size:var(--t-footnote);
+  font-weight:600; color:var(--c-label-2); padding:6px 14px; border-radius:7px;
+  cursor:pointer; min-height:32px; transition:all 0.15s; white-space:nowrap;
+}
+.sv-seg-btn.active { background:#ffffff; color:var(--c-label); box-shadow:0 1px 2px rgba(0,0,0,0.10); }
+.sv-view-hidden { display:none; }
 .sv-section-desc { font-size:12px; color:var(--c-label-3); margin:-4px 0 var(--sp-12); }
 .sv-badge { display:inline-block; padding:2px 10px; border-radius:980px; font-size:11px; font-weight:600; white-space:nowrap; }
 .sv-badge.cand { background:var(--c-orange-light); color:#C2540A; }
@@ -2092,7 +2101,15 @@ body {
         </div>
       </div>
 
+      <!-- 서브탭 (A안 2026-08-22): 워크플로 3분할 — ① 응답·대장·이슈(파생 관계 세트) ② 방문자 ③ 리포트 준비.
+           렌더는 항상 전 섹션 수행(renderSurveyTab 무변경) — 여기서는 표시만 전환. 마지막 뷰는 localStorage 기억 -->
       <div class="toolbar">
+        <div class="sv-seg" role="tablist">
+          <button type="button" id="svSeg-main" class="sv-seg-btn active" onclick="svSubTab('main')">📝 응답·대장·이슈</button>
+          <button type="button" id="svSeg-visitor" class="sv-seg-btn" onclick="svSubTab('visitor')">🙋 방문자</button>
+          <button type="button" id="svSeg-report" class="sv-seg-btn" onclick="svSubTab('report')">📑 리포트 준비</button>
+        </div>
+        <span class="toolbar-spacer"></span>
         <select class="toolbar-select" id="svTrackFilter" onchange="renderSurveyTab()">
           <option value="">전체 트랙</option>
           <option value="sales">B2B 영업</option>
@@ -2100,10 +2117,10 @@ body {
           <option value="etc">R&D·내부·기타</option>
         </select>
         <input type="month" class="toolbar-input" id="svMonthFilter" onchange="renderSurveyTab()">
-        <span class="toolbar-spacer"></span>
         <button class="toolbar-btn" onclick="loadSurveyData(true)">↺ 새로고침</button>
       </div>
 
+      <div id="svView-main">
       <h2 class="sv-section-title">📝 설문 응답 (인솔자 — 방문 후기 설문)</h2>
       <p class="sv-section-desc">행을 클릭하면 상세 내용을 확인하고, 상세 화면의 수정 버튼으로 오탈자·내용을 정정할 수 있습니다.</p>
       <div class="table-card">
@@ -2142,7 +2159,9 @@ body {
           </tbody>
         </table>
       </div>
+      </div><!-- /svView-main -->
 
+      <div id="svView-visitor" class="sv-view-hidden">
       <h2 class="sv-section-title">🙋 방문자 설문 (익명)</h2>
       <p class="sv-section-desc">퇴장 전 현장 QR로 수집되는 방문객 익명 응답입니다 (파생·ROI 미산입). 상단 월 필터가 함께 적용되며, 행을 클릭하면 상세 확인·영구 삭제(테스트 정리용)가 가능합니다. 익명 응답 원문 보존을 위해 수정 기능은 없습니다.</p>
       <div class="toolbar">
@@ -2164,7 +2183,9 @@ body {
           </tbody>
         </table>
       </div>
+      </div><!-- /svView-visitor -->
 
+      <div id="svView-report" class="sv-view-hidden">
       <h2 class="sv-section-title">📑 월간 리포트 큐레이션</h2>
       <p class="sv-section-desc">월간 리포트의 「핵심 인사이트」(직접 입력, 월 3~5줄 권장)와 「인상 깊은 한마디」(당월 자유 의견 20자 이상 후보 중 체크 선택)를 준비합니다. 행이 없는 블록은 리포트에서 자동 생략됩니다.</p>
       <div class="toolbar">
@@ -2200,6 +2221,7 @@ body {
           <button class="sv-save-btn" onclick="articleAdd()">추가</button>
         </div>
       </div>
+      </div><!-- /svView-report -->
     </div>
 
     <!-- 자동 점검 (FieldCheck) -->
@@ -4220,6 +4242,25 @@ function copySurveyLink() {
     ? navigator.clipboard.writeText(SURVEY_URL).then(() => toast('설문 링크가 복사되었습니다.'))
     : toast(SURVEY_URL);
 }
+
+// ── 서브탭 (A안 2026-08-22): 표시 전환만 담당 — renderSurveyTab은 항상 전 섹션 렌더 ──
+// 필터 스코프 동기: 트랙=응답 전용(main만) / 월=응답·대장·이슈·방문자 공용(report 제외 — 큐레이션은 자체 월 선택)
+const SV_SUBTAB_KEY = 'thinqreal_admin_sv_subtab';
+function svSubTab(view) {
+  if (!['main', 'visitor', 'report'].includes(view)) view = 'main';
+  ['main', 'visitor', 'report'].forEach(v => {
+    document.getElementById('svView-' + v).classList.toggle('sv-view-hidden', v !== view);
+    document.getElementById('svSeg-' + v).classList.toggle('active', v === view);
+  });
+  document.getElementById('svTrackFilter').style.display = view === 'main' ? '' : 'none';
+  document.getElementById('svMonthFilter').style.display = view === 'report' ? 'none' : '';
+  try { localStorage.setItem(SV_SUBTAB_KEY, view); } catch (e) {}
+}
+(function () {
+  let v = 'main';
+  try { v = localStorage.getItem(SV_SUBTAB_KEY) || 'main'; } catch (e) {}
+  svSubTab(v);
+})();
 
 async function loadSurveyData(force, quiet) {
   if (surveyData && !force) { renderSurveyTab(); return; }

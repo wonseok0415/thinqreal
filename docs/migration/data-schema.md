@@ -157,6 +157,7 @@
 | `thinqreal_admin_token` | 관리자 토큰 (7일) |
 | `thinqreal_bookings_v1` | 관리자 stale-while-revalidate 캐시 (TTL 30분) |
 | `thinqreal_admin_sidebar_collapsed` | 사이드바 상태 |
+| `thinqreal_admin_sv_subtab` | 설문·대장 탭 마지막 서브탭 (main/visitor/report — 2026-08-22) |
 
 ## 8. 데이터 취급 규칙 (이전 후에도 유지)
 
