@@ -2444,8 +2444,42 @@ body {
     <div class="detail-grid" id="surveyModalGrid"></div>
     <div class="modal-actions">
       <button class="modal-btn-danger" onclick="openSvDelete('response', surveyModalTarget)">영구 삭제</button>
+      <button class="modal-btn-edit" id="bestSendBtn" onclick="openBestModal(surveyModalTarget)">🏆 베스트 발송</button>
       <button class="modal-btn-edit" onclick="openSurveyEdit(surveyModalTarget)">수정</button>
       <button class="modal-btn-close" onclick="closeSurveyModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 베스트 리뷰어 발송 모달 (입력 폼 — 백드롭 닫기 미바인딩 원칙).
+     설문 초대 메일의 「매월 베스트 리뷰어 세 분」 공지 이행 — 축하 메일만 발송, 기프티콘(모바일 쿠폰)은 별도 전달 -->
+<div class="modal-backdrop" id="bestBg">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h2 class="modal-title">🏆 베스트 리뷰어 발송</h2>
+      <button class="modal-close" onclick="closeBestModal()">✕</button>
+    </div>
+    <p class="modal-delete-summary" id="bestMeta"></p>
+    <div class="ffield" style="margin-bottom:var(--sp-12);">
+      <label class="ffield-label">선정 월 <span class="req">*</span> <span id="bestMonthStat" style="font-weight:400;"></span></label>
+      <input class="finput" type="month" id="bestMonth" onchange="updateBestMonthStat()">
+    </div>
+    <div class="ffield" style="margin-bottom:var(--sp-12);">
+      <label class="ffield-label">수신 이메일 <span class="req">*</span> <span style="font-weight:400;">— @lge.com 한정</span></label>
+      <input class="finput" type="email" id="bestEmail" placeholder="name@lge.com" autocomplete="off">
+      <span id="bestEmailHint" style="font-size:var(--t-caption); color:var(--c-label-3);"></span>
+    </div>
+    <div class="ffield">
+      <label class="ffield-label">사은품 <span class="req">*</span> <span style="font-weight:400;">— 계절에 따라 문구 수정 가능</span></label>
+      <input class="finput" type="text" id="bestProduct" autocomplete="off">
+    </div>
+    <p style="font-size:var(--t-caption); color:var(--c-label-3); margin-top:var(--sp-12); line-height:1.6;">
+      축하 메일만 발송됩니다 — 기프티콘(모바일 쿠폰)은 별도로 전달하세요.<br>
+      숨은 참조: 담당자 3명 + 팀장 + 운영자. 같은 응답 재발송·월 3명 초과는 서버가 차단합니다.
+    </p>
+    <div class="modal-delete-actions">
+      <button class="modal-btn-close" onclick="closeBestModal()">취소</button>
+      <button class="modal-btn-confirm" id="bestSendConfirm" onclick="doBestSend()">축하 메일 발송</button>
     </div>
   </div>
 </div>
@@ -4253,9 +4287,11 @@ function renderSurveyTab() {
   let rs = all.slice().filter(r => (!track || r.track === track) && svMonthMatch(r, month));
   rs.sort((a, b) => String(b.response_id).localeCompare(String(a.response_id)));
   const respBody = document.getElementById('svRespBody');
+  const bestSent = bestSentSet();   // 베스트 리뷰어 발송 완료 표시 (🏆)
   respBody.innerHTML = rs.length ? rs.map(r => {
-    const linked = (r.media_link === '특정 캠페인·프로모션과 연결됨' || r.etc_link === '신규 Task·과제') ? '📒' :
-                   (r.iot_defect === '발견함' ? '⚠' : '');
+    const linked = (bestSent.has(String(r.response_id)) ? '🏆' : '') +
+                   ((r.media_link === '특정 캠페인·프로모션과 연결됨' || r.etc_link === '신규 Task·과제') ? '📒' :
+                   (r.iot_defect === '발견함' ? '⚠' : ''));
     return '<tr class="sv-row-click" onclick="openSurveyModal(\'' + escapeHtml(String(r.response_id)) + '\')">'
       + '<td style="white-space:nowrap;">' + escapeHtml(r.visit_date || '-') + '</td>'
       + '<td><span class="sv-badge ' + (SV_TRACK_CLS[r.track] || '') + '">' + escapeHtml(SV_TRACK_LABEL[r.track] || r.track) + '</span></td>'
@@ -4626,11 +4662,92 @@ function openSurveyModal(id) {
     html += '<span class="detail-label">' + escapeHtml(label) + '</span><span class="detail-value">' + fmtMultiline(shown) + '</span>';
   });
   document.getElementById('surveyModalGrid').innerHTML = html;
+  const bb = document.getElementById('bestSendBtn');
+  const sent = bestSentSet().has(String(id));
+  bb.disabled = sent;
+  bb.textContent = sent ? '🏆 발송 완료' : '🏆 베스트 발송';
   document.getElementById('surveyModalBg').classList.add('open');
 }
 function closeSurveyModal() { document.getElementById('surveyModalBg').classList.remove('open'); }
 bindBackdropClose('surveyModalBg', closeSurveyModal);
-// ledgerModalBg·surveyEditBg는 입력 폼 성격 — 백드롭 닫기 미바인딩 원칙 (✕/취소로만 닫음)
+// ledgerModalBg·surveyEditBg·bestBg는 입력 폼 성격 — 백드롭 닫기 미바인딩 원칙 (✕/취소로만 닫음)
+
+// ── 베스트 리뷰어 발송 (매월 3명 사은품 — 설문 초대 메일 공지 이행, 2026-08-22) ──
+// 축하 메일만 발송 — 기프티콘(모바일 쿠폰)은 별도 전달. 서버(best_reviewer_send)가
+// 재발송·월 한도를 최종 차단하고, 클라이언트는 같은 가드를 사전 표시로 복제한다.
+const BEST_DEFAULT_PRODUCT = '스타벅스 아이스 카페 아메리카노 T 2잔';
+const BEST_MONTHLY_LIMIT = 3;
+let bestTarget = null;
+
+function bestSentSet() {
+  return new Set((surveyData?.bestReviewers || []).map(b => String(b.response_id)));
+}
+function bestMonthRows(m) {
+  return (surveyData?.bestReviewers || []).filter(b => String(b.month).slice(0, 7) === m);
+}
+
+function openBestModal(id) {
+  const r = (surveyData?.responses || []).find(x => String(x.response_id) === String(id));
+  if (!r) return;
+  if (bestSentSet().has(String(id))) { toast('이미 발송된 응답입니다.'); return; }
+  bestTarget = r;
+  document.getElementById('bestMeta').textContent =
+    (r.name || '(무명)') + (r.dept ? ' · ' + r.dept : '') + (r.visit_date ? ' · ' + r.visit_date + ' 방문' : '');
+  document.getElementById('bestMonth').value =
+    String(r.visit_date || '').slice(0, 7) || fmtLocalDateTime(r.submitted_at).slice(0, 7);
+  // 이메일 자동 매칭: 방문일+작성자명이 일치하는 예약의 신청자 이메일 (설문 프리필 경로의 역방향)
+  const hit = (allBookings || []).find(b =>
+    b.date === r.visit_date && String(b.name || '').trim() === String(r.name || '').trim());
+  document.getElementById('bestEmail').value = (hit && hit.email) || '';
+  document.getElementById('bestEmailHint').textContent = (hit && hit.email)
+    ? '예약 이력에서 자동 매칭됨 — 발송 전 확인하세요.'
+    : '예약 이력 자동 매칭 실패 — 직접 입력하세요.';
+  document.getElementById('bestProduct').value = BEST_DEFAULT_PRODUCT;
+  updateBestMonthStat();
+  document.getElementById('bestBg').classList.add('open');
+}
+
+function updateBestMonthStat() {
+  const m = document.getElementById('bestMonth').value;
+  const rows = bestMonthRows(m);
+  const el = document.getElementById('bestMonthStat');
+  el.textContent = m
+    ? '— 이 달 발송 ' + rows.length + '/' + BEST_MONTHLY_LIMIT +
+      (rows.length ? ' (' + rows.map(b => b.name).join(', ') + ')' : '')
+    : '';
+  el.style.color = rows.length >= BEST_MONTHLY_LIMIT ? 'var(--c-red)' : '';
+}
+
+function closeBestModal() { document.getElementById('bestBg').classList.remove('open'); }
+
+async function doBestSend() {
+  if (!bestTarget) return;
+  const month = document.getElementById('bestMonth').value;
+  const email = document.getElementById('bestEmail').value.trim().toLowerCase();
+  const product = document.getElementById('bestProduct').value.trim();
+  if (!month) { toast('선정 월을 선택하세요.'); return; }
+  if (!/^[a-z0-9._%+-]+@lge\.com$/.test(email)) { toast('수신 이메일은 @lge.com 주소여야 합니다.'); return; }
+  if (!product) { toast('사은품을 입력하세요.'); return; }
+  if (bestMonthRows(month).length >= BEST_MONTHLY_LIMIT) {
+    toast(month + '은 이미 ' + BEST_MONTHLY_LIMIT + '명에게 발송되었습니다.'); return;
+  }
+  const btn = document.getElementById('bestSendConfirm');
+  btn.disabled = true; btn.textContent = '발송 중…';
+  const ok = await svPost({
+    type: 'best_reviewer_send', responseId: String(bestTarget.response_id),
+    month, email, product,
+    name: bestTarget.name || '', dept: bestTarget.dept || '', visitDate: bestTarget.visit_date || ''
+  });
+  if (ok) {
+    // POST는 no-cors라 응답을 못 읽음 — 이력 재조회로 발송 성공을 확인 (서버 가드에 걸리면 행이 없음)
+    await loadSurveyData(true, true);
+    const sent = bestSentSet().has(String(bestTarget.response_id));
+    toast(sent ? '🏆 축하 메일을 발송했습니다. 기프티콘은 별도로 전달하세요.'
+               : '발송이 확인되지 않습니다 — 월 한도·중복·이메일을 확인하세요.');
+    if (sent) { closeBestModal(); closeSurveyModal(); }
+  }
+  btn.disabled = false; btn.textContent = '축하 메일 발송';
+}
 
 // ── 설문 응답 수정 (오탈자·내용 정정) ──
 // 제출 원문 증빙(submitted_at/track/raw_json)과 파생 트리거 3종(media_link/etc_link/iot_defect)은

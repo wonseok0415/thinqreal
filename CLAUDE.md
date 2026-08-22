@@ -52,14 +52,14 @@
 | 항목 | 값 |
 |------|-----|
 | Sheets ID | `1-Z158TV46MtSEArir9bW4h4KQ438NCuhb3qaGyOooA0` |
-| 시트 탭 | `bookings`(예약) · `roi_snapshots` · `slot_blocks` · `monthly_articles` · `monthly_insights`(리포트 인사이트·한마디 큐레이션) · `survey_responses` · `performance_ledger` · `iot_issue_log` · `export_log` · `visitor_responses`(방문자 현장 설문) · `health_checks`(FieldCheck 자동 점검 — 전용 세션 소관) — bookings 외에는 첫 호출 시 자동 생성 |
+| 시트 탭 | `bookings`(예약) · `roi_snapshots` · `slot_blocks` · `monthly_articles` · `monthly_insights`(리포트 인사이트·한마디 큐레이션) · `survey_responses` · `performance_ledger` · `iot_issue_log` · `export_log` · `visitor_responses`(방문자 현장 설문) · `best_reviewers`(베스트 리뷰어 발송 이력 — 2026-08-22) · `health_checks`(FieldCheck 자동 점검 — 전용 세션 소관) — bookings 외에는 첫 호출 시 자동 생성 |
 | Apps Script URL | `https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec` |
 | 스크립트 소유자(발신 계정) | `kangwonseok0415@gmail.com` — 발신 표시명은 모든 메일 `ThinQ Real` 통일 |
 | 관리자 인증 | 이메일 코드 (명단 한정) — `AUTH_ADMIN_EMAILS` 7명: kang.wonseok / jhs.kim / ch275.lee / moonsu.seo / hj8462.kim / kwangsoo.park / jason.kwon. 토큰 90일 |
 | 담당자 알림 수신(ADMIN_EMAILS) | 이철호(ch275.lee) · 서문수(moonsu.seo) · 김현진(hj8462.kim) |
 | CC(CC_EMAIL) | kang.wonseok@lge.com |
 
-- **엔드포인트 전체 스펙은 `docs/migration/api-contract.md`가 단일 소스** (GET 16종 + POST 17종, 인증 모델·메일 규칙·스케줄 포함). 여기엔 요약만 둔다:
+- **엔드포인트 전체 스펙은 `docs/migration/api-contract.md`가 단일 소스** (GET 18종 + POST 28종 — 2026-08-22 기준, 인증 모델·메일 규칙·스케줄 포함). 여기엔 요약만 둔다:
   - 공개: `booking`(예약 접수→알림 메일+텔레그램), `survey_submit`(설문→파생 행+텔레그램), `visitor_submit`(방문자 현장 설문→텔레그램, 파생 없음), `availability`, `appliances`, `auth_*`/`admin_auth_*`(코드 인증)
   - 관리자 토큰 필수: `bookings` 조회, `update`(확정/거절→예약자 메일+캘린더), `booking_delete`, `admin_booking_create/edit`(알림 미발송 — 백필용), `slot_block/unblock`, `survey/ledger/issue`의 update·delete, `export_log`, `survey_data`
   - ROI `roi_snapshot`/`roi_delete`는 토큰 미적용 (별창 열림 → 토큰 전달 경로 없음, 저위험 수용)
@@ -77,6 +77,7 @@
   - **수동 발송 2단계 (2026-08-03 §8-6)**: `monthly_report_send`는 URL만으로 발송 불가 — 확인 화면(수신자·기발송 경고·**자동 발송 건너뛰기 체크박스**) → 일회용 토큰(10분) 버튼 [전체 발송]/[나에게만 테스트]. `confirm=YES` 레거시 폐기(무해화). 건너뛰기 체크 시에만 `PROP_LAST_SENT_KEY` 기록 → 그 달 자동 발송 스킵. 테스트 발송은 `MONTHLY_REPORT_TEST_TO`로 1인·[테스트] 접두·이력 무기록. `monthlyReportTrigger` 자체는 무변경.
   - 기사는 `monthly_articles` 시트 수동 큐레이션 우선 → Serper → CSE. 인사이트·한마디는 `monthly_insights` 탭(관리자 설문·대장 탭 큐레이션 UI로 입력).
 - **설문 요청 메일**: §자동화 참조.
+- **베스트 리뷰어 축하 메일**(2026-08-22): 관리자 설문 탭 상세 모달 [🏆 베스트 발송] → `best_reviewer_send`(관리자 토큰). 월 3명(`BEST_MONTHLY_LIMIT`)·같은 응답 재발송·@lge.com 외 수신은 서버 차단. BCC = 담당자 3+팀장(jhs.kim)+운영자(`BEST_REVIEWER_BCC`). **축하 메일만 발송 — 기프티콘(모바일 쿠폰)은 별도 채널 전달, 시스템 미경유**. 사은품 문구는 발송 화면 입력(기본 `BEST_DEFAULT_PRODUCT` — 계절 변경 시 코드 수정 불필요).
 
 ## 예약 슬롯 (확정, 변경 금지)
 1회차 09:00–10:30 / 재정비 10:30–11:00 / 점심 11:30–13:00(예약 불가) / 2회차 13:00–14:30 / 재정비 14:30–15:00 / 3회차 15:00–16:30
@@ -92,7 +93,7 @@
 ## 관리자 대시보드 (thinqreal_admin.html)
 - **인증**: 관리자 이메일 코드 (명단 7명 한정) → 토큰 90일. 클라이언트 게이트는 편의일 뿐 — **백엔드 `verifyAdminToken`이 진짜 방어선**.
 - **관리 탭**: 📋 예약 관리(KPI·필터·승인/거절·상세 모달·이력 추가/수정·영구 삭제·CSV 내보내기) / 📊 통계 / 🚫 슬롯 제어 / 🔐 연동 계정 / 🎬 시연 시나리오 / 💡 조명 스위치 / ⚙️ 시스템 구성 / 📦 구비 가전(45개, `?type=appliances` fetch)
-- **분석 탭**: 📈 ROI 분석(iframe, `ROI_BUILD` 캐시 토큰) / 📝 설문·대장
+- **분석 탭**: 📈 ROI 분석(iframe, `ROI_BUILD` 캐시 토큰) / 📝 설문·대장(응답 상세 모달에서 베스트 리뷰어 발송 — 🏆 마커·월 현황 표시)
 - **데이터 로딩**: stale-while-revalidate — localStorage 캐시(`thinqreal_bookings_v1`, TTL 30분) 즉시 렌더 + 백그라운드 fresh fetch. 콜드 스타트 1~3초 스피너는 정상.
 - **CSV 내보내기**: 모달에서 다운로드 사유(5자+) + 비밀번호(ASCII 8자+) → `export_log` 기록 성공 후에만 ZipCrypto 암호화 ZIP 다운로드.
 - **반응형**: 사이드바 240↔64 토글(localStorage `thinqreal_admin_sidebar_collapsed`) / 모바일 오프캔버스 드로어. 표는 `.table-card` 가로 스크롤(booking 760px·survey 780px·ledger 960px·issue 1000px min-width).
@@ -197,6 +198,7 @@
 - 8-2(도입 의향) 저장 value는 8-1 모드명 어휘("웰컴 모드" 등)와 **동일 유지** — 인상 vs 도입 의향 격차 분석의 전제이므로 한쪽만 라벨 변경 금지. `iot_connect` 최대 3개는 클라이언트 검증(서버는 관대 수용·raw_json 보존이 의도), "없음" 배타는 `enforceIotConnectRules()`.
 - **방문자 현장 설문**: 완전 익명 유지 — 성명·소속 등 개인정보 필드 추가 금지(추가 시 privacy.html 개정 필수). 딜·수주·기여도 등 **내부 정보 문항 추가 금지**(고객이 직접 보는 폼). 저장 value는 운영 설문과 **문자열 완전 동일** 유지(EN 화면도 한국어 canonical 저장 — 한쪽만 변경 금지). `visitor_submit` 공개 경로·파생 미연결·mailto 폴백 없음 유지. 만족도는 방문자 폼만 5단계(운영 폼은 4단계 — 공유 4개 value는 동일).
 - **sales 트랙 8번 블록 미노출은 방문자 설문과 세트 설계** — 한쪽만 롤백 금지 (미노출을 되돌리려면 방문자 설문과의 역할 분담 재검토가 전제). 격차 분석 시 인솔자 8블록은 media/etc 트랙만, B2B 방문객은 `visitor_responses` 기준.
+- **베스트 리뷰어 (2026-08-22)**: 월 3명 한도·같은 응답 재발송 가드 약화 금지. `best_reviewers`는 발송 이력 — 행 삭제 기능 금지. **기프티콘 쿠폰 코드·바코드는 메일·시트·코드 어디에도 싣지 않음** (축하 메일만 발송이 확정 설계 — 금전 가치물 시스템 미경유). 발송 이력 기록은 메일 발송 성공 후에만 (역전 금지 — 실패 시 재시도 가능해야 함).
 - 설문 초대: `surveyInviteSentAt` 마커 임의 삭제 금지(재발송 방지 장치). 발송 대상 @lge.com 한정. CC 변경은 `SURVEY_INVITE_CC_BATCH/AUTO` 상수만 — **관리자 전원 참조로 회귀 금지**(통수 부담으로 폐기된 설계).
 
 ### 메인 페이지 구조

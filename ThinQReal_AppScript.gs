@@ -376,7 +376,8 @@ function doPost(e) {
       data.type === 'visitor_delete' || data.type === 'export_log' ||
       data.type === 'insight_add' || data.type === 'insight_delete' ||
       data.type === 'article_add' || data.type === 'article_delete' ||
-      data.type === 'insight_move' || data.type === 'article_move') {
+      data.type === 'insight_move' || data.type === 'article_move' ||
+      data.type === 'best_reviewer_send') {
     var admin = verifyAdminToken(data.token);
     if (!admin.ok) {
       return jsonResponse({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
@@ -401,6 +402,7 @@ function doPost(e) {
     if (data.type === 'article_delete')       return handleArticleDelete(data);
     if (data.type === 'insight_move')         return handleInsightMove(data);
     if (data.type === 'article_move')         return handleArticleMove(data);
+    if (data.type === 'best_reviewer_send')   return handleBestReviewerSend(data, admin.email);
   }
 
   return jsonResponse({ error: 'Unknown type' });
@@ -3486,6 +3488,16 @@ const SURVEY_HEADERS = ['response_id','submitted_at','visit_date','dept','name',
 const LEDGER_HEADERS = ['ledger_id','response_id','category','project_name','expected_scale','attribution_text','attribution_pct','visit_date','respondent','dept','status','confirmed_amount','confirmed_date','confirmed_note','roi_included'];
 const ISSUE_HEADERS  = ['issue_id','response_id','device','symptom','severity','channel','q_ship','status','est_value'];
 
+// ── 베스트 리뷰어 사은품 발송 (2026-08-22) ─────────────────
+// 설문 요청 메일의 「매월 베스트 리뷰어 세 분」 공지 이행 — 관리자 설문 탭에서 선정·발송.
+// 축하 메일만 발송하고 기프티콘(모바일 쿠폰)은 별도 채널로 전달한다 (금전 가치물은 시스템 미경유 — 운영자 결정).
+const BEST_SHEET_NAME = 'best_reviewers';
+const BEST_HEADERS = ['id','month','response_id','name','dept','email','visit_date','product','sent_at','sent_by'];
+const BEST_MONTHLY_LIMIT = 3;   // 월 발송 한도 — 공지 문구('세 분')와 세트
+const BEST_DEFAULT_PRODUCT = '스타벅스 아이스 카페 아메리카노 T 2잔';   // 계절별 변경은 발송 화면 입력값으로 (코드 수정 불필요)
+// 숨은 참조: 담당자 3명 + 팀장 + 운영자 (2026-08-22 운영자 결정) — 발송 사실 공유용, 수신자에게 미노출
+const BEST_REVIEWER_BCC = ADMIN_EMAILS + ', jhs.kim@lge.com, ' + CC_EMAIL;
+
 // 시트 확보 + 헤더 자동 생성 (getRoiSheet/getOrCreateRoiHeaders 패턴)
 // 기존 시트에 상수의 새 컬럼이 없으면 끝에 자동 append — bookings getOrCreateHeaders와 동일한 스키마 진화 방식
 function getNamedSheet(name, headers) {
@@ -3645,7 +3657,9 @@ function handleGetSurveyData(token) {
     visitors:  readSheetRecords(VISITOR_SHEET_NAME, VISITOR_HEADERS),  // 방문자 현장 설문 (§8-5, 조회 전용)
     insights:  readSheetRecords(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS) // 월간 리포트 큐레이션 (§8-7 5·6)
       .map(r => { r.month = insightMonthKey(r.month); return r; }),    // 날짜 자동 변환된 기존 행 복원
-    articles:  readArticleRows()                                       // 관련 기사 큐레이션 (렌더 리뷰 후속)
+    articles:  readArticleRows(),                                      // 관련 기사 큐레이션 (렌더 리뷰 후속)
+    bestReviewers: readSheetRecords(BEST_SHEET_NAME, BEST_HEADERS)     // 베스트 리뷰어 발송 이력 (2026-08-22)
+      .map(r => { r.month = insightMonthKey(r.month); return r; })     // month 셀 날짜 자동 변환 흡수 (insights와 동일)
   });
 }
 
@@ -4281,6 +4295,122 @@ function buildSurveyInviteHtml(b) {
           '</div>' +
           '<div style="margin-top:28px;padding-top:20px;border-top:1px solid #eeeeee;font-size:13px;color:#6e6e73;line-height:1.6;">' +
             '응답해 주신 내용은 ThinQ Real 운영 개선과 성과 분석에 소중하게 활용됩니다.<br>' +
+            '감사합니다.<br>HS플랫폼사업센터 AI홈솔루션엔지니어링팀' +
+          '</div>' +
+        '</td></tr>' +
+      '</table>' +
+    '</div>'
+  );
+}
+
+// ============================================================
+//  베스트 리뷰어 사은품 발송 (2026-08-22)
+//  - 설문 요청 메일의 「매월 베스트 리뷰어 세 분」 공지 이행.
+//  - 관리자 설문 탭에서 응답을 보고 선정 → 축하 메일 발송 + best_reviewers 기록.
+//  - 축하 메일만 발송 — 기프티콘(모바일 쿠폰)은 별도 채널로 전달 (시스템 미경유).
+//  - 가드: 같은 응답 재발송 차단 / 같은 달 3명(BEST_MONTHLY_LIMIT) 초과 차단.
+// ============================================================
+
+// 'YYYY-MM' → 'YYYY년 M월'
+function bestMonthLabel(month) {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(month) || '');
+  return m ? m[1] + '년 ' + Number(m[2]) + '월' : String(month);
+}
+
+function handleBestReviewerSend(data, adminEmail) {
+  const sheet = getNamedSheet(BEST_SHEET_NAME, BEST_HEADERS);
+  const month = String(data.month || '');
+  const responseId = String(data.responseId || '').trim();
+  const email = String(data.email || '').trim().toLowerCase();
+  const name = String(data.name || '').trim();
+  if (!/^\d{4}-\d{2}$/.test(month) || !responseId || !name) {
+    return jsonResponse({ ok: false, error: 'invalid_input' });
+  }
+  // 수신 대상은 설문 초대와 동일하게 @lge.com 한정 (사내 리워드)
+  if (!/^[a-z0-9._%+-]+@lge\.com$/.test(email)) {
+    return jsonResponse({ ok: false, error: 'invalid_email' });
+  }
+  const rows = readSheetRecords(BEST_SHEET_NAME, BEST_HEADERS);
+  if (rows.some(function(r) { return String(r.response_id) === responseId; })) {
+    return jsonResponse({ ok: false, error: 'already_sent' });
+  }
+  const monthCount = rows.filter(function(r) { return insightMonthKey(r.month) === month; }).length;
+  if (monthCount >= BEST_MONTHLY_LIMIT) {
+    return jsonResponse({ ok: false, error: 'limit_reached' });
+  }
+  const product = String(data.product || '').trim() || BEST_DEFAULT_PRODUCT;
+  const visitDate = String(data.visitDate || '').trim();
+
+  // 메일 발송이 본질 — 발송 성공 후에만 이력 기록 (실패 시 기록 없음 → 재시도 가능)
+  MailApp.sendEmail({
+    to: email,
+    bcc: BEST_REVIEWER_BCC,
+    subject: buildBestReviewerSubject(month),
+    body: buildBestReviewerText(name, month, product, visitDate),
+    htmlBody: buildBestReviewerHtml(name, month, product, visitDate),
+    name: 'ThinQ Real'
+  });
+  sheet.appendRow([String(Date.now()), "'" + month, responseId, name,
+                   String(data.dept || ''), email, visitDate, product,
+                   new Date().toISOString(), String(adminEmail || '')]);
+  forceMonthTextCell(sheet, sheet.getLastRow(), BEST_HEADERS.indexOf('month') + 1, month);
+  Logger.log('Best reviewer mail sent → ' + email + ' (' + month + ')');
+  return jsonResponse({ ok: true });
+}
+
+function buildBestReviewerSubject(month) {
+  return '[ThinQ Real] 🏆 ' + bestMonthLabel(month) + ' 베스트 리뷰어로 선정되셨습니다';
+}
+
+function buildBestReviewerText(name, month, product, visitDate) {
+  const label = bestMonthLabel(month);
+  const lines = [
+    '안녕하세요, ' + name + '님.',
+    '',
+    '남겨주신 방문 후기가 ' + label + ' 베스트 리뷰어 세 분에 선정되었습니다.',
+    '정성스러운 후기 감사드립니다 — ThinQ Real 운영 개선에 큰 힘이 됩니다.',
+    '',
+    '🎁 사은품 안내',
+    '   ' + product,
+  ];
+  if (visitDate) lines.push('   (선정 후기: ' + visitDate + ' 방문)');
+  lines.push(
+    '',
+    '모바일 쿠폰은 이 메일과 별도로 전달드릴 예정입니다.',
+    '',
+    '앞으로도 ThinQ Real에 많은 관심 부탁드립니다.',
+    '감사합니다.',
+    'HS플랫폼사업센터 AI홈솔루션엔지니어링팀'
+  );
+  return lines.join('\n');
+}
+
+function buildBestReviewerHtml(name, month, product, visitDate) {
+  const label = bestMonthLabel(month);
+  const n = escapeHtml(name);
+  const p = escapeHtml(product);
+  const v = escapeHtml(visitDate || '');
+  return (
+    '<div style="background:#f5f5f7;padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,\'Helvetica Neue\',\'Apple SD Gothic Neo\',\'Malgun Gothic\',sans-serif;">' +
+      '<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:collapse;max-width:680px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">' +
+        '<tr><td style="background:#3a5035;color:#ffffff;padding:24px 28px;">' +
+          '<div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.7;">ThinQ Real</div>' +
+          '<div style="font-size:20px;font-weight:600;margin-top:4px;">🏆 ' + escapeHtml(label) + ' 베스트 리뷰어</div>' +
+        '</td></tr>' +
+        '<tr><td style="padding:28px;">' +
+          '<div style="font-size:15px;color:#1d1d1f;line-height:1.7;margin-bottom:20px;">' +
+            '안녕하세요, <strong>' + n + '</strong>님.<br>' +
+            '남겨주신 방문 후기가 <strong style="color:#3a5035;">' + escapeHtml(label) + ' 베스트 리뷰어 세 분</strong>에 선정되었습니다.<br>' +
+            '정성스러운 후기 감사드립니다 — ThinQ Real 운영 개선에 큰 힘이 됩니다.' +
+          '</div>' +
+          '<div style="padding:16px 18px;background:#fdf7ec;border-radius:8px;font-size:14px;line-height:1.7;">' +
+            '<div style="font-weight:600;color:#6e5a2e;margin-bottom:4px;">🎁 사은품 안내</div>' +
+            '<div style="font-size:15px;font-weight:600;color:#1d1d1f;">' + p + '</div>' +
+            (v ? '<div style="color:#6e6e73;font-size:13px;margin-top:2px;">선정 후기: ' + v + ' 방문</div>' : '') +
+            '<div style="margin-top:8px;color:#6e5a2e;font-size:13px;">모바일 쿠폰은 이 메일과 별도로 전달드릴 예정입니다.</div>' +
+          '</div>' +
+          '<div style="margin-top:28px;padding-top:20px;border-top:1px solid #eeeeee;font-size:13px;color:#6e6e73;line-height:1.6;">' +
+            '앞으로도 ThinQ Real에 많은 관심 부탁드립니다.<br>' +
             '감사합니다.<br>HS플랫폼사업센터 AI홈솔루션엔지니어링팀' +
           '</div>' +
         '</td></tr>' +
