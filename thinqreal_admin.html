@@ -2107,6 +2107,7 @@ body {
         <div class="sv-seg" role="tablist">
           <button type="button" id="svSeg-main" class="sv-seg-btn active" onclick="svSubTab('main')">📝 응답·대장·이슈</button>
           <button type="button" id="svSeg-visitor" class="sv-seg-btn" onclick="svSubTab('visitor')">🙋 방문자</button>
+          <button type="button" id="svSeg-best" class="sv-seg-btn" onclick="svSubTab('best')">🏆 베스트 리뷰어</button>
           <button type="button" id="svSeg-report" class="sv-seg-btn" onclick="svSubTab('report')">📑 리포트 준비</button>
         </div>
         <span class="toolbar-spacer"></span>
@@ -2184,6 +2185,38 @@ body {
         </table>
       </div>
       </div><!-- /svView-visitor -->
+
+      <div id="svView-best" class="sv-view-hidden">
+      <h2 class="sv-section-title">🏆 베스트 리뷰어</h2>
+      <p class="sv-section-desc">설문 초대 메일에 공지된 「매월 베스트 리뷰어 세 분」 사은품 발송을 관리합니다. 축하 메일만 발송되며, 기프티콘(모바일 쿠폰)은 별도로 전달하세요. 후보 행을 클릭하면 응답 전문을 확인할 수 있습니다.</p>
+      <div class="toolbar">
+        <input type="month" class="toolbar-input" id="bestTabMonth" onchange="renderSurveyTab()">
+        <span id="bestTabStat" style="font-size:var(--t-footnote); font-weight:600; color:var(--c-label-2); align-self:center;"></span>
+        <span class="toolbar-spacer"></span>
+      </div>
+      <h2 class="sv-section-title">📮 발송 이력</h2>
+      <div class="table-card">
+        <table class="booking-table" style="min-width:820px;">
+          <thead>
+            <tr><th>발송 시각</th><th>이름</th><th>부서</th><th>방문일</th><th>사은품</th><th>발송자</th></tr>
+          </thead>
+          <tbody id="bestHistBody">
+            <tr><td colspan="6"><div class="empty-state"><div class="empty-state-text">—</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h2 class="sv-section-title">📝 당월 후보 (설문 응답)</h2>
+      <div class="table-card">
+        <table class="booking-table" style="min-width:880px;">
+          <thead>
+            <tr><th>방문일</th><th>트랙</th><th>작성자</th><th>부서</th><th>만족도</th><th>자유 의견</th><th>처리</th></tr>
+          </thead>
+          <tbody id="bestCandBody">
+            <tr><td colspan="7"><div class="empty-state"><div class="empty-state-text">—</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      </div><!-- /svView-best -->
 
       <div id="svView-report" class="sv-view-hidden">
       <h2 class="sv-section-title">📑 월간 리포트 큐레이션</h2>
@@ -4243,17 +4276,19 @@ function copySurveyLink() {
     : toast(SURVEY_URL);
 }
 
-// ── 서브탭 (A안 2026-08-22): 표시 전환만 담당 — renderSurveyTab은 항상 전 섹션 렌더 ──
-// 필터 스코프 동기: 트랙=응답 전용(main만) / 월=응답·대장·이슈·방문자 공용(report 제외 — 큐레이션은 자체 월 선택)
+// ── 서브탭 (A안 2026-08-22, 🏆 별도 뷰 분리로 4분할): 표시 전환만 담당 — renderSurveyTab은 항상 전 섹션 렌더 ──
+// 필터 스코프 동기: 트랙=응답 전용(main만) / 월=응답·대장·이슈·방문자 공용
+// (best·report 제외 — 각자 자체 월 선택기: bestTabMonth / svInsightMonth)
 const SV_SUBTAB_KEY = 'thinqreal_admin_sv_subtab';
+const SV_SUBTAB_VIEWS = ['main', 'visitor', 'best', 'report'];
 function svSubTab(view) {
-  if (!['main', 'visitor', 'report'].includes(view)) view = 'main';
-  ['main', 'visitor', 'report'].forEach(v => {
+  if (!SV_SUBTAB_VIEWS.includes(view)) view = 'main';
+  SV_SUBTAB_VIEWS.forEach(v => {
     document.getElementById('svView-' + v).classList.toggle('sv-view-hidden', v !== view);
     document.getElementById('svSeg-' + v).classList.toggle('active', v === view);
   });
   document.getElementById('svTrackFilter').style.display = view === 'main' ? '' : 'none';
-  document.getElementById('svMonthFilter').style.display = view === 'report' ? 'none' : '';
+  document.getElementById('svMonthFilter').style.display = (view === 'report' || view === 'best') ? 'none' : '';
   try { localStorage.setItem(SV_SUBTAB_KEY, view); } catch (e) {}
 }
 (function () {
@@ -4395,7 +4430,58 @@ function renderSurveyTab() {
   }).join('') : '<tr><td colspan="9"><div class="empty-state"><div class="empty-state-text">등록된 이슈가 없습니다. R&D 트랙 설문의 결함 리포트에서 자동 생성됩니다.</div></div></td></tr>';
 
   renderVisitorSection(month);
+  renderBestSection(bestSent);
   renderCurationSection();
+}
+
+// ── 🏆 베스트 리뷰어 뷰 (자체 월 선택 — 상단 공용 월 필터와 독립) ──
+function renderBestSection(bestSent) {
+  const bmEl = document.getElementById('bestTabMonth');
+  if (!bmEl.value) {
+    const now = new Date();   // 로컬 getter 조합 (toISOString 금지 규칙)
+    bmEl.value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  }
+  const bm = bmEl.value;
+
+  // 발송 이력 (선택 월)
+  const hist = bestMonthRows(bm).slice()
+    .sort((a, b) => String(b.sent_at || '').localeCompare(String(a.sent_at || '')));
+  const stat = document.getElementById('bestTabStat');
+  stat.textContent = '이 달 발송 ' + hist.length + '/' + BEST_MONTHLY_LIMIT;
+  stat.style.color = hist.length >= BEST_MONTHLY_LIMIT ? 'var(--c-red)' : '';
+  document.getElementById('bestHistBody').innerHTML = hist.length ? hist.map(h =>
+    '<tr>'
+    + '<td style="white-space:nowrap;">' + escapeHtml(fmtLocalDateTime(h.sent_at)) + '</td>'
+    + '<td style="white-space:nowrap;">🏆 ' + escapeHtml(h.name || '-') + '</td>'
+    + '<td>' + escapeHtml(h.dept || '-') + '</td>'
+    + '<td style="white-space:nowrap;">' + escapeHtml(h.visit_date || '-') + '</td>'
+    + '<td>' + escapeHtml(h.product || '-') + '</td>'
+    + '<td style="font-size:12px; color:var(--c-label-3);">' + escapeHtml(h.sent_by || '-') + '</td>'
+    + '</tr>').join('')
+    : '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-text">' + escapeHtml(bm) + ' 발송 이력이 없습니다.</div></div></td></tr>';
+
+  // 당월 후보 = 그 달 설문 응답 (행 클릭 → 응답 전문, 처리 버튼 → 발송 모달)
+  const cands = (surveyData.responses || []).slice()
+    .filter(r => svMonthMatch(r, bm))
+    .sort((a, b) => String(b.response_id).localeCompare(String(a.response_id)));
+  document.getElementById('bestCandBody').innerHTML = cands.length ? cands.map(r => {
+    const id = escapeHtml(String(r.response_id));
+    const sent = bestSent.has(String(r.response_id));
+    const fb = String(r.feedback || '');
+    const fbShort = fb.length > 42 ? fb.slice(0, 42) + '…' : (fb || '-');
+    return '<tr class="sv-row-click" onclick="openSurveyModal(\'' + id + '\')">'
+      + '<td style="white-space:nowrap;">' + escapeHtml(r.visit_date || '-') + '</td>'
+      + '<td><span class="sv-badge ' + (SV_TRACK_CLS[r.track] || '') + '">' + escapeHtml(SV_TRACK_LABEL[r.track] || r.track) + '</span></td>'
+      + '<td style="white-space:nowrap;">' + escapeHtml(r.name || '-') + '</td>'
+      + '<td>' + escapeHtml(r.dept || '-') + '</td>'
+      + '<td>' + escapeHtml(String(r.satisfaction || '-').split(' ')[0]) + '</td>'
+      + '<td title="' + escapeHtml(fb) + '">' + escapeHtml(fbShort) + '</td>'
+      + '<td style="white-space:nowrap;">'
+      + (sent ? '<span class="sv-badge conf">🏆 발송 완료</span>'
+              : '<button class="sv-save-btn" onclick="event.stopPropagation(); openBestModal(\'' + id + '\')">🏆 선정·발송</button>')
+      + '</td></tr>';
+  }).join('')
+    : '<tr><td colspan="7"><div class="empty-state"><div class="empty-state-text">' + escapeHtml(bm) + ' 설문 응답이 없습니다.</div></div></td></tr>';
 }
 
 // ── 월간 리포트 큐레이션 (§8-7 5·6 — monthly_insights 탭) ──
