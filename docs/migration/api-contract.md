@@ -43,7 +43,7 @@
 | `slot_blocks` | `date=` (선택) | — | 차단 슬롯 현황 (비민감) |
 | `telegram_test` | — | — | `{ok:true}` 또는 `{ok:false, reason:'not_configured'}` |
 | `calendar_test` | — | — | 캘린더 연동 점검 (테스트 일정 생성 후 즉시 삭제) |
-| `survey_data` | `token` | 관리자 | `{responses:[], ledger:[], issues:[], visitors:[], insights:[], articles:[]}` — 설문·대장·이슈·방문자·큐레이션·기사 통합 조회 (insights·articles는 2026-08-03 추가) |
+| `survey_data` | `token` | 관리자 | `{responses:[], ledger:[], issues:[], visitors:[], insights:[], articles:[], bestReviewers:[]}` — 설문·대장·이슈·방문자·큐레이션·기사·베스트 리뷰어 이력 통합 조회 (insights·articles 2026-08-03, bestReviewers 2026-08-22 추가) |
 | `health_checks` | `days=` (선택) | — ⚠ 무인증 | FieldCheck 점검 이력 조회 (관리자 🩺 탭용). ⚠ 토큰 게이트 적용 검토는 FieldCheck 전용 세션에 위임 (2026-07-30 관찰) |
 | `voc_reports` | `token`, `days=` (선택) | **관리자** | FieldVoice 현장 인사이트 리포트 목록 (관리자 🎙 탭용, 2026-08-19). 방문객 발화 인용이 포함되므로 health_checks와 달리 처음부터 토큰 게이트. ⚠ 기능 상세는 FieldVoice(아이디어 트랙) 소관 — 존재·인증 방식만 등재 |
 
@@ -81,6 +81,7 @@
 | `ledger_delete` | 관리자 토큰 | 대장 행 영구 삭제 (테스트·실수 정리용 — 실제 성과 기록은 드롭 권장) | — (알림 미발송) |
 | `issue_delete` | 관리자 토큰 | 이슈 행 영구 삭제 (테스트·실수 정리용 — 실제 이슈는 기각 권장) | — (알림 미발송) |
 | `export_log` | 관리자 토큰 | CSV 내보내기 감사 로그 기록 `{reason, rowCount}` (2026-07-20 — 개인정보보호팀 요구). email은 토큰 payload에서 추출, 파일 비밀번호는 미기록 | — |
+| `best_reviewer_send` | 관리자 토큰 | 베스트 리뷰어 축하 메일 발송 `{responseId, month, email, name, dept, visitDate, product}` → `best_reviewers` 이력 기록 (2026-08-22). 가드: 같은 responseId 재발송·월 3명(`BEST_MONTHLY_LIMIT`) 초과·@lge.com 외 수신 거부. 발송 성공 후에만 기록(실패 시 재시도 가능) | 축하 메일 발송 (BCC: 담당자 3+팀장+운영자 — `BEST_REVIEWER_BCC`). **기프티콘은 별도 채널 전달 — 시스템 미경유** |
 
 ⚠️ ROI 2종은 토큰 미적용 — ROI 툴이 별창으로도 열려 토큰 전달 경로가 없음 (저위험 판단, 현행 유지). **사내 이전 시 세션 기반 인증으로 보호 권장.**
 

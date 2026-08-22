@@ -98,6 +98,11 @@
 
 행이 없는 월은 리포트에서 해당 블록 자동 생략. 입력은 관리자 설문·대장 탭 큐레이션 UI(`insight_add`/`insight_delete`).
 
+### `best_reviewers` (베스트 리뷰어 발송 이력, 10컬럼 — 2026-08-22 추가)
+`id`(`Date.now()` 문자열) · `month`(YYYY-MM — 선정 월, 텍스트 강제) · `response_id`(선정된 설문 응답 — 재발송 차단 키) · `name` · `dept` · `email`(수신자 — @lge.com 한정) · `visit_date` · `product`(사은품 문구 — 발송 화면 입력, 계절별 변경) · `sent_at`(ISO) · `sent_by`(발송 관리자 — 검증된 토큰 payload에서 추출)
+
+설문 초대 메일의 「매월 베스트 리뷰어 세 분」 공지 이행. 같은 `response_id` 재발송·월 3명(`BEST_MONTHLY_LIMIT`) 초과는 서버가 차단. **축하 메일만 발송 — 기프티콘(모바일 쿠폰)은 별도 채널 전달(시스템 미경유, 쿠폰 코드·바코드 미저장)**. 컬럼 단일 소스: `BEST_HEADERS` 상수, 첫 호출 시 자동 생성. 발송 이력이므로 행 삭제 기능 없음.
+
 ### 만족도 척도 변경 (2026-08-03 — survey_responses·visitor_responses 공통)
 `satisfaction` 저장값: **신 0~10 정수 문자열**("0"~"10", NPS 추천 의향형). 2026-08-03 이전 행은 구 5단계("N - 라벨") — **혼재 시 절대 섞어 평균 금지**, 척도 판별·분리 집계는 `classifySatisfaction()` 단일 소스.
 
@@ -152,6 +157,7 @@
 | `thinqreal_admin_token` | 관리자 토큰 (7일) |
 | `thinqreal_bookings_v1` | 관리자 stale-while-revalidate 캐시 (TTL 30분) |
 | `thinqreal_admin_sidebar_collapsed` | 사이드바 상태 |
+| `thinqreal_admin_sv_subtab` | 설문·대장 탭 마지막 서브탭 (main/visitor/report — 2026-08-22) |
 
 ## 8. 데이터 취급 규칙 (이전 후에도 유지)
 
