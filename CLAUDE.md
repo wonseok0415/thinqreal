@@ -1298,3 +1298,7 @@ claude.ai ROI 세션에서 개편된 `ThinQ_ROI_Tool_v46.html`을 리포 `ThinQ_
 ## 작업 내역 (2026-08-17 — 사내 인프라 현황 기록 (Teams 박현정 책임, 7/16~8/13))
 
 BE팀이 사내 클라우드에 ThinQ Real 인프라 구축 진행 — **상세는 `docs/migration/decisions-2026-07-06.md` §6 (신설)이 단일 소스**. 요지: 사내 Gitea 저장소(`gitea.thinqcloud.link/extapps/thinq-real`) + push 자동배포 CI/CD + ST/QA 환경 가동(샘플 앱) + **DB는 PostgreSQL로 확정(DynamoDB 검토 대체)** + Valkey(Redis 호환) 제공 + `ENVIRONMENT` 환경변수 + URL `thinq-real`로 하이픈 변경(8/13) + 운영 도메인 `thinqreal.lge.com` 승인 확보(사용은 CSR redirect 등록 필요 — decisions §6). DB 자격증명은 평문 금지(env 주입 — 우리 컨테이너 구조와 일치). 다음 이관 세션: `server/` 코드를 Gitea 샘플 자리에 README 규칙대로 이식 + store의 postgres 어댑터 구현.
+
+## 작업 내역 (2026-08-25 — Gitea 저장소 README 계약 전사)
+
+담당자가 Gitea `extapps/thinq-real` README 캡처 6장을 제공 — 세션에서 사내 Gitea 접근 불가(프록시 403)하므로 **`docs/migration/gitea-repo-contract.md`(신규)에 전사**해 이식 작업 기준 사본으로 확보. 요지: `/healthz` 유지 필수 / 코드 변경 시 Dockerfile·release.yml 테스트 명령 동반 수정 / conventional commits(`feat:`/`fix:`) 안 지키면 배포 안 됨 / DB_* 6종·KVSTORE_* env 제공 / 샘플 `src/server.js` 교체가 공식 절차 / kic-op 미등록 상태. 이식 체크리스트 10항목 §8에 정리 — 다음 이관 세션은 **저장소 zip 업로드받아** §8 순서로 진행. 미결: 앱 커스텀 비밀값(AUTH_SECRET 등) 주입 절차 BE팀 확인 필요.
