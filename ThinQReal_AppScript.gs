@@ -3485,7 +3485,9 @@ const ISSUE_SHEET_NAME  = 'iot_issue_log';
 // desired_solutions: 추가 필요·체험 희망 솔루션 주관식 (2026-07 신규 — 선택 입력)
 // impressive_reasons: 모드별 인상 깊었던 이유 ("모드명 — 이유; ..." 직렬화, 선택 입력)
 const SURVEY_HEADERS = ['response_id','submitted_at','visit_date','dept','name','client','visit_count','track','purpose','deal_stage','deal_size','deal_area','reaction','attr','media_work','media_days','media_alt','media_cost','media_link','media_link_name','media_link_size','media_link_attr','etc_work','etc_days','etc_alt','iot_defect','iot_defect_detail','etc_link','etc_link_name','etc_link_size','etc_link_attr','satisfaction','feedback','raw_json','deal_amount','impressive_modes','desired_solutions','impressive_reasons','adopt_pick','voice_space','iot_connect','ai_barrier'];
-const LEDGER_HEADERS = ['ledger_id','response_id','category','project_name','expected_scale','attribution_text','attribution_pct','visit_date','respondent','dept','status','confirmed_amount','confirmed_date','confirmed_note','roi_included'];
+const LEDGER_HEADERS = ['ledger_id','response_id','category','project_name','expected_scale','attribution_text','attribution_pct','visit_date','respondent','dept','status','confirmed_amount','confirmed_date','confirmed_note','roi_included','amount_basis'];
+// amount_basis (2026-08-24 확정 금액 추정 산입): '실측'(실제 금액) / '추정'(예상 규모 구간 하한 × 기여도 — 보수 원칙) / '미상'(금액 없이 확정).
+// 기존 행 공란 = 실측 취급 (2026-08-24 이전 확정은 전부 실측 입력이었음). 추정 계산은 클라이언트(SCALE_FLOOR_MANWON) 담당.
 const ISSUE_HEADERS  = ['issue_id','response_id','device','symptom','severity','channel','q_ship','status','est_value'];
 
 // ── 베스트 리뷰어 사은품 발송 (2026-08-22) ─────────────────
@@ -3948,7 +3950,7 @@ function handleLedgerUpdate(data) {
   const idIdx = headers.indexOf('ledger_id');
   const EDITABLE = ['status', 'confirmed_amount', 'confirmed_date', 'confirmed_note', 'roi_included',
                     'category', 'project_name', 'expected_scale', 'attribution_pct',
-                    'visit_date', 'respondent', 'dept'];
+                    'visit_date', 'respondent', 'dept', 'amount_basis'];
   for (let i = 1; i < rows.length; i++) {
     if (String(rows[i][idIdx]) === String(data.id)) {
       EDITABLE.forEach(f => {

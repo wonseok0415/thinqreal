@@ -75,7 +75,7 @@
 | `insight_move` | 관리자 토큰 | 큐레이션 항목 순서 조정 `{id, dir:'up'|'down'}` — 같은 월·타입 그룹 seq 1..n 재기록 (2026-08-04) | — |
 | `article_move` | 관리자 토큰 | 기사 순서 조정 `{month, url, dir}` — 같은 달 이웃 행과 값 교환 (순서 컬럼 없음 — 컬럼 구조 불변) | — |
 | `survey_update` | 관리자 토큰 | 설문 응답 내용 정정 (2026-07-14). 불변: `response_id/submitted_at/track/raw_json` + 파생 트리거 3종(`media_link/etc_link/iot_defect`) | — (행 삭제 없음 — 의도) |
-| `ledger_update` | 관리자 토큰 | 성과 대장 상태 전환·확정 필드 + 내용 정정(`category/project_name/expected_scale/attribution_pct/visit_date/respondent/dept` — 2026-07-14 확장). `attribution_text`(라디오 원문)는 불변 | — (행 삭제 없음 — 의도) |
+| `ledger_update` | 관리자 토큰 | 성과 대장 상태 전환·확정 필드(`confirmed_amount/confirmed_date/confirmed_note` + `amount_basis` 실측/추정/미상 — 2026-08-24) + 내용 정정(`category/project_name/expected_scale/attribution_pct/visit_date/respondent/dept` — 2026-07-14 확장). `attribution_text`(라디오 원문)는 불변. 금액 미상 확정 허용(confirmed_amount='') | — (행 삭제 없음 — 의도) |
 | `issue_update` | 관리자 토큰 | 이슈 속성 부여 (`device/symptom/severity/channel/q_ship/status`) + est_value 서버 계산 | — (행 삭제 없음 — 의도) |
 | `survey_delete` | 관리자 토큰 | 설문 응답 영구 삭제 (2026-07-16 — 테스트·실수 정리용). **파생 행(대장·이슈, response_id 연결) cascade 삭제** | — (알림 미발송) |
 | `ledger_delete` | 관리자 토큰 | 대장 행 영구 삭제 (테스트·실수 정리용 — 실제 성과 기록은 드롭 권장) | — (알림 미발송) |
