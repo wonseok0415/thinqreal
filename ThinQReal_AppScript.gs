@@ -377,7 +377,7 @@ function doPost(e) {
       data.type === 'insight_add' || data.type === 'insight_delete' ||
       data.type === 'article_add' || data.type === 'article_delete' ||
       data.type === 'insight_move' || data.type === 'article_move' ||
-      data.type === 'best_reviewer_send') {
+      data.type === 'best_reviewer_send' || data.type === 'roi_report_pin') {
     var admin = verifyAdminToken(data.token);
     if (!admin.ok) {
       return jsonResponse({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
@@ -403,6 +403,7 @@ function doPost(e) {
     if (data.type === 'insight_move')         return handleInsightMove(data);
     if (data.type === 'article_move')         return handleArticleMove(data);
     if (data.type === 'best_reviewer_send')   return handleBestReviewerSend(data, admin.email);
+    if (data.type === 'roi_report_pin')       return handleRoiReportPin(data);
   }
 
   return jsonResponse({ error: 'Unknown type' });
@@ -1326,6 +1327,62 @@ const ROI_FIXED = {
   bep: '1.31년 (약 1년 4개월)', roi3: '+122.4%', roi5: '+270.7%',
 };
 
+// ── 리포트 ROI 동적 반영 (2026-08-24 운영자 결정 — 지정 시에만 활성) ──
+// 관리자가 지정(pin)한 ROI 시나리오의 수치로 리포트 ROI 블록을 렌더한다.
+// 지정 없음·조회 실패·필드 결손 시 ROI_FIXED 폴백 → 지정 전까지는 기존 고정 표기와 완전 동일.
+// ⚠ roi_snapshot 저장은 공개 경로(토큰 없음)라 「최신 스냅샷 자동 참조」는 금지 —
+//    지정·해제는 관리자 토큰 POST(roi_report_pin)로만. (구 '최신값 자동 참조' 설계로의 회귀 아님)
+const PROP_ROI_PIN_KEY = 'roi_report_snapshot_id';
+
+function toEokStr(millionWon) {   // 백만원 → '2.8억원' (억원 소수 1자리 반올림)
+  return (Math.round(millionWon / 10) / 10).toFixed(1) + '억원';
+}
+
+function bepTextFromYears(y) {    // 1.31 → '1.31년 (약 1년 4개월)'
+  if (!(y > 0)) return null;
+  const months = Math.round(y * 12);
+  if (!months) return y.toFixed(2) + '년';
+  const yy = Math.floor(months / 12), mm = months % 12;
+  const approx = (yy ? yy + '년' : '') + (yy && mm ? ' ' : '') + (mm ? mm + '개월' : '');
+  return y.toFixed(2) + '년 (약 ' + approx + ')';
+}
+
+// 지정 스냅샷 → ROI_FIXED 형 객체 (+basis 출처 라벨). 어떤 실패든 null 반환 → 고정 수치 폴백.
+function resolveReportRoi(allRoi) {
+  try {
+    const id = PropertiesService.getScriptProperties().getProperty(PROP_ROI_PIN_KEY);
+    if (!id) return null;
+    const snap = (allRoi || []).find(function(r) { return String(r.id) === String(id); });
+    if (!snap) return null;
+    const inp = snap.inputs || {}, out = snap.outputs || {};
+    const capexM = Number(inp.capex), opexM = Number(inp.opex);
+    const roi3 = Number(out.roi3), roi5 = Number(out.roi5);
+    const bep = bepTextFromYears(Number(out.bepYears));
+    if (!isFinite(capexM) || !isFinite(opexM) || !isFinite(roi3) || !isFinite(roi5) || !bep) return null;
+    const pct = function(v) { return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; };
+    return {
+      capex: toEokStr(capexM), opexYr: toEokStr(opexM) + '/년', totalCost: toEokStr(capexM + opexM),
+      bep: bep, roi3: pct(roi3), roi5: pct(roi5),
+      basis: '기준: ROI 시나리오 「' + String(snap.label || '무제') + '」 (' + String(snap.timestamp).slice(0, 10) + ' 저장)'
+    };
+  } catch (err) { Logger.log('resolveReportRoi fail: ' + err); return null; }
+}
+
+// 리포트 반영 시나리오 지정/해제 (관리자 토큰) — id 공란이면 해제(고정 수치 복귀)
+function handleRoiReportPin(data) {
+  const props = PropertiesService.getScriptProperties();
+  const id = String(data.id || '').trim();
+  if (!id) { props.deleteProperty(PROP_ROI_PIN_KEY); return jsonResponse({ ok: true, pinned: '' }); }
+  const sheet = getRoiSheet();
+  getOrCreateRoiHeaders(sheet);
+  const rows = sheet.getDataRange().getValues();
+  const idIdx = rows[0].indexOf('id');
+  const exists = rows.slice(1).some(function(r) { return String(r[idIdx]) === id; });
+  if (!exists) return jsonResponse({ ok: false, error: 'not_found' });
+  props.setProperty(PROP_ROI_PIN_KEY, id);
+  return jsonResponse({ ok: true, pinned: id });
+}
+
 // 월간 인사이트·한마디 큐레이션 탭 (§8-7 5·6)
 // type: 'insight'(핵심 인사이트) | 'quote'(인상 깊은 한마디 — source: '인솔자'|'방문자')
 const INSIGHTS_SHEET_NAME = 'monthly_insights';
@@ -1524,7 +1581,8 @@ function collectMonthlyData(month) {
     articles,
     survey,
     ytd, divisions, insights, quotes,
-    roiFixed: ROI_FIXED,
+    // 관리자가 지정한 시나리오가 있으면 그 수치, 없으면 고정 수치 (2026-08-24 — resolveReportRoi 참조)
+    roiFixed: resolveReportRoi(allRoi) || ROI_FIXED,
   };
 }
 
@@ -2276,6 +2334,7 @@ function buildMonthlyReportText(d) {
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   L.push(`   총 투자 ${rf.totalCost} (구축 ${rf.capex} + 운영 ${rf.opexYr})`);
   L.push(`   BEP ${rf.bep} · 3년 ROI ${rf.roi3} · 5년 ROI ${rf.roi5}`);
+  if (rf.basis) L.push(`   ${rf.basis}`);
   L.push('');
   L.push('');
   L.push('감사합니다.');
@@ -2436,6 +2495,7 @@ function buildMonthlyReportHtml(d) {
     '<div style="background:#f5f7f4;border-radius:10px;padding:18px 22px;font-size:14px;color:#1d1d1f;line-height:1.9;">' +
       '<div>총 투자 <strong>' + rfx.totalCost + '</strong> (구축 ' + rfx.capex + ' + 운영 ' + rfx.opexYr + ')</div>' +
       '<div>BEP <strong>' + rfx.bep + '</strong> · 3년 ROI <strong>' + rfx.roi3 + '</strong> · 5년 ROI <strong>' + rfx.roi5 + '</strong></div>' +
+      (rfx.basis ? '<div style="font-size:11.5px;color:#8e8e93;margin-top:6px;">' + escapeHtml(rfx.basis) + '</div>' : '') +
     '</div>';
 
   // ── 5) 관련 기사 — REPORT_ARTICLE_LIMIT(5)건, 썸네일 있는 건은 카드형 배치 ──
@@ -2759,7 +2819,10 @@ function handleGetRoiSnapshots() {
   }).filter(r => r.id);
   // 최신순 정렬 (timestamp 내림차순)
   records.sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
-  return jsonResponse({ records });
+  // 리포트 반영 지정 스냅샷 id (2026-08-24 — 관리자 화면 표시용, id 자체는 비민감)
+  let reportPinnedId = '';
+  try { reportPinnedId = PropertiesService.getScriptProperties().getProperty(PROP_ROI_PIN_KEY) || ''; } catch (err) {}
+  return jsonResponse({ records, reportPinnedId });
 }
 
 function handleNewRoiSnapshot(data) {
