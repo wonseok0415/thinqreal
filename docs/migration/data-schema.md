@@ -133,6 +133,7 @@
 | `AUTH_SECRET` | HMAC 서명 비밀키 (없으면 최초 1회 자동 생성) |
 | `MONTHLY_REPORT_TO` | 리포트 수신자 (콤마 구분, 현재 20명) |
 | `monthly_report_last_sent_month` | 자동 발송 중복 가드 (`YYYY-MM`) — 상태값 |
+| `roi_report_snapshot_id` | 리포트 ROI 블록에 반영할 지정 스냅샷 id (2026-08-24 — 미설정 시 `ROI_FIXED` 고정 수치. 지정·해제는 `roi_report_pin` 관리자 토큰) |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | 텔레그램 알림 |
 | `CALENDAR_ID` | 팀 공유 캘린더 |
 | `SERPER_API_KEY` | 뉴스 검색 (우선) |
