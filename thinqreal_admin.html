@@ -2136,7 +2136,8 @@ body {
       </div>
 
       <h2 class="sv-section-title">📒 성과 추적 대장</h2>
-      <p class="sv-section-desc">설문의 성과 연결 응답에서 자동 생성됩니다. 후보 → 확정(실제 금액 입력) / 드롭 — 행 삭제 없이 상태로만 관리하며, 수정 버튼으로 과제명·기여도 등 내용을 정정할 수 있습니다.</p>
+      <p class="sv-section-desc">설문의 성과 연결 응답에서 자동 생성됩니다. 후보 → 확정(실측 금액 또는 규모 하한×기여도 추정) / 드롭 — 행 삭제 없이 상태로만 관리하며, 수정 버튼으로 과제명·기여도 등 내용을 정정할 수 있습니다.</p>
+      <p class="sv-section-desc" id="ledgerSumLine" style="font-weight:600; color:var(--c-label-2);"></p>
       <div class="table-card">
         <table class="booking-table" style="min-width:960px;">
           <thead>
@@ -2661,7 +2662,13 @@ body {
         </div>
       </div>
       <div id="lmAmountWrap">
-        <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;">확정 금액 (만원)</label>
+        <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;">금액 산정 방식</label>
+        <div style="display:flex; gap:16px; margin-bottom:6px; font-size:13px;">
+          <label style="display:flex; align-items:center; gap:5px; cursor:pointer;"><input type="radio" name="lmBasis" value="실측" onchange="lmBasisChange()"> 실측 (실제 금액)</label>
+          <label style="display:flex; align-items:center; gap:5px; cursor:pointer;" id="lmBasisEstLabel"><input type="radio" name="lmBasis" value="추정" id="lmBasisEst" onchange="lmBasisChange()"> 추정 (규모 하한 × 기여도)</label>
+        </div>
+        <div id="lmEstHint" style="font-size:12px; color:var(--c-label-3); margin-bottom:8px;"></div>
+        <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;">확정 금액 (만원) <span style="font-weight:400;">— 비워두면 「금액 미상」으로 확정</span></label>
         <input type="number" class="toolbar-input" id="lmAmount" min="0" style="width:100%;" placeholder="예: 3000">
       </div>
       <div id="lmDateWrap">
@@ -4383,11 +4390,27 @@ function renderSurveyTab() {
   let ls = ledger.slice().filter(l => svMonthMatch(l, month));
   ls.sort((a, b) => String(b.ledger_id).localeCompare(String(a.ledger_id)));
   const badgeCls = { '후보': 'cand', '확정': 'conf', '드롭': 'drop' };
+  // 확정 가치 누적 (전체 — 월 필터 무관): ROI 툴 수주 기여 이익 수동 반영의 참조 숫자
+  const confAll = ledger.filter(x => x.status === '확정');
+  const sumBy = f => confAll.filter(f).reduce((s, x) => s + (Number(x.confirmed_amount) || 0), 0);
+  const estSum = sumBy(x => x.amount_basis === '추정');
+  const measSum = sumBy(x => x.amount_basis !== '추정');   // 공란(구 데이터)은 실측 취급
+  const unknownN = confAll.filter(x => x.confirmed_amount === '' || x.confirmed_amount == null).length;
+  document.getElementById('ledgerSumLine').textContent = confAll.length
+    ? '확정 가치 누적: 실측 ' + measSum.toLocaleString() + '만원 + 추정 ' + estSum.toLocaleString() + '만원 = '
+      + (measSum + estSum).toLocaleString() + '만원 (≈ ' + ((measSum + estSum) / 100).toFixed(1)
+      + '백만원 — ROI 툴 「수주 기여 이익」 입력 참조'
+      + (unknownN ? ' · 금액 미상 ' + unknownN + '건 제외' : '') + ')'
+    : '';
+
   document.getElementById('svLedgerBody').innerHTML = ls.length ? ls.map(l => {
+    const basisTag = l.amount_basis === '추정' ? ' <span style="font-size:11px; color:var(--c-label-3);">(추정)</span>' : '';
     const amt = l.confirmed_amount !== '' && l.confirmed_amount != null
-      ? Number(l.confirmed_amount).toLocaleString() + '만원' : '-';
+      ? Number(l.confirmed_amount).toLocaleString() + '만원' + basisTag
+      : (l.status === '확정' ? '<span style="color:var(--c-label-3);">미상</span>' : '-');
+    // ROI 반영 체크는 금액 있는 확정 건만 — 미상(0원) 건이 반영 완료로 표시되는 혼선 방지
     const roiChk = '<input type="checkbox" ' + (l.roi_included === 'Y' ? 'checked' : '')
-      + (l.status === '확정' ? '' : ' disabled')
+      + (l.status === '확정' && Number(l.confirmed_amount) > 0 ? '' : ' disabled')
       + ' onchange="toggleRoiIncluded(\'' + escapeHtml(String(l.ledger_id)) + '\', this.checked)">';
     return '<tr>'
       + '<td><span class="sv-badge ' + (badgeCls[l.status] || 'cand') + '">' + escapeHtml(l.status || '후보') + '</span></td>'
@@ -4962,6 +4985,23 @@ async function saveSurveyEdit() {
 
 // ── 성과 대장: 확정/드롭/수정 ──
 let ledgerTarget = null;   // { id, mode } — mode: '확정' | '드롭' | '수정'
+// ── 확정 금액 추정 (2026-08-24): 예상 규모 구간 "하한" × 기여도 — 보수 원칙 (운영자 확정) ──
+// '1억 미만'은 하한이 0이라 자동 추정 불가(실측 입력 유도), '모름'류·기여도 없음도 불가.
+// 추정 선택 시 금액란은 계산값으로 고정(readonly) — 임의 상향 방지, 값을 바꾸려면 실측으로 전환.
+const SCALE_FLOOR_MANWON = { '1~10억': 10000, '10~50억': 100000, '50억 이상': 500000 };
+function ledgerEstimate(l) {
+  const floor = SCALE_FLOOR_MANWON[String(l.expected_scale || '').trim()];
+  const pct = Number(l.attribution_pct);
+  if (!floor || !isFinite(pct) || pct <= 0) return null;
+  return Math.round(floor * pct / 100);
+}
+function lmBasisChange() {
+  const est = ledgerTarget && ledgerTarget.est;
+  const amtEl = document.getElementById('lmAmount');
+  if (document.getElementById('lmBasisEst').checked && est) { amtEl.value = est; amtEl.readOnly = true; }
+  else amtEl.readOnly = false;
+}
+
 function openLedgerModal(id, mode) {
   const l = (surveyData?.ledger || []).find(x => String(x.ledger_id) === String(id));
   if (!l) return;
@@ -4993,8 +5033,28 @@ function openLedgerModal(id, mode) {
   } else {
     document.getElementById('lmNoteLabel').textContent = isConfirm ? '근거' : '드롭 사유';
     document.getElementById('lmAmount').value = l.confirmed_amount || '';
-    document.getElementById('lmDate').value = l.confirmed_date || new Date().toISOString().slice(0, 10);
+    // 확정 일자 기본값: 로컬 날짜 조합 (구 toISOString().slice(0,10)은 KST 오전 9시 이전 하루 밀림 — 날짜 규칙 위반 수정)
+    const now = new Date();
+    const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+    document.getElementById('lmDate').value = l.confirmed_date || today;
     document.getElementById('lmNote').value = l.confirmed_note || '';
+    if (isConfirm) {
+      const est = ledgerEstimate(l);
+      ledgerTarget.est = est;
+      document.getElementById('lmBasisEst').disabled = !est;
+      document.getElementById('lmBasisEstLabel').style.opacity = est ? '' : '0.45';
+      document.getElementById('lmEstHint').textContent = est
+        ? '추정 근거: 예상 규모 ' + (l.expected_scale || '-') + ' 하한 × 기여도 ' + l.attribution_pct + '% = '
+          + est.toLocaleString() + '만원 (추정 선택 시 계산값 고정 — 임의 조정 불가)'
+        : '자동 추정 불가 — 예상 규모(' + (l.expected_scale || '없음') + ') · 기여도('
+          + (l.attribution_pct !== '' && l.attribution_pct != null ? l.attribution_pct + '%' : '없음')
+          + ') 기준값이 부족합니다. 실측 입력 또는 금액을 비워 「미상」으로 확정하세요.';
+      // 기본 선택: 기존 추정 확정 → 추정 / 기존 실측 금액 → 실측 / 금액 없고 추정 가능 → 추정 / 그 외 실측
+      const hasAmt = l.confirmed_amount !== '' && l.confirmed_amount != null;
+      const basis = (l.amount_basis === '추정' && est) ? '추정' : (hasAmt ? '실측' : (est ? '추정' : '실측'));
+      document.querySelector('input[name="lmBasis"][value="' + basis + '"]').checked = true;
+      lmBasisChange();
+    }
   }
   document.getElementById('lmSaveBtn').textContent = isEdit ? '수정 저장' : (isConfirm ? '확정 저장' : '드롭 저장');
   document.getElementById('ledgerModalBg').classList.add('open');
@@ -5026,20 +5086,37 @@ async function saveLedgerModal() {
   }
 
   const payload = { type: 'ledger_update', id, status: mode, confirmed_note: document.getElementById('lmNote').value.trim() };
+  let unknownAmt = false;
   if (mode === '확정') {
     const amt = document.getElementById('lmAmount').value.trim();
-    if (!amt) { toast('확정 금액을 입력해 주세요.'); return; }
-    payload.confirmed_amount = Number(amt);
+    if (!amt) {
+      // 금액 미상 확정 허용 (2026-08-24) — 성사 사실의 확정과 금액의 확정을 분리
+      if (!confirm('확정 금액 없이 「금액 미상」으로 확정합니다.\n금액이 파악되면 [확정] 버튼으로 다시 열어 보완할 수 있습니다.')) return;
+      unknownAmt = true;
+      payload.confirmed_amount = '';
+      payload.amount_basis = '미상';
+    } else {
+      payload.confirmed_amount = Number(amt);
+      payload.amount_basis = document.getElementById('lmBasisEst').checked ? '추정' : '실측';
+    }
     payload.confirmed_date = document.getElementById('lmDate').value;
   }
   // 낙관적 로컬 반영
   if (l) {
     l.status = mode; l.confirmed_note = payload.confirmed_note;
-    if (mode === '확정') { l.confirmed_amount = payload.confirmed_amount; l.confirmed_date = payload.confirmed_date; }
+    if (mode === '확정') {
+      l.confirmed_amount = payload.confirmed_amount;
+      l.confirmed_date = payload.confirmed_date;
+      l.amount_basis = payload.amount_basis;
+    }
   }
   closeLedgerModal();
   renderSurveyTab();
-  if (await svPost(payload)) toast(mode === '확정' ? '확정 처리했습니다. ROI 툴에 수동 반영 후 "ROI 반영"을 체크하세요.' : '드롭 처리했습니다.');
+  if (await svPost(payload)) {
+    toast(mode !== '확정' ? '드롭 처리했습니다.'
+      : unknownAmt ? '금액 미상으로 확정했습니다. 금액 파악 시 [확정] 버튼으로 보완하세요.'
+      : '확정 처리했습니다. 상단 「확정 가치 누적」을 ROI 툴 수주 기여 이익에 반영 후 "ROI 반영"을 체크하세요.');
+  }
 }
 
 async function toggleRoiIncluded(id, checked) {

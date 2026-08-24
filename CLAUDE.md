@@ -162,6 +162,7 @@
 - **허용 도메인**: gs `AUTH_ALLOWED_DOMAINS` ↔ index 정규식.
 - **방문자 캡**: `MAX_VISITORS` 상수 + 폼 힌트 문구 + 이 파일.
 - **보유 기간 "방문일로부터 3년"**: privacy.html §3 ↔ 폼 동의 문구. 수집 항목 변경 시 동의 문구 + privacy.html §1 + 버전 이력 함께.
+- **규모 구간 라벨**: 설문 폼 `dealSize/mediaLinkSize/etcLinkSize` 라디오 value ↔ admin `SCALE_FLOOR_MANWON` 키 (구간 하한 추정 계산 — 라벨 한쪽만 바꾸면 추정 불가로 조용히 강등됨).
 - **PURPOSE_COLORS**: admin ↔ gs(월간 리포트 도넛) 양쪽. `ROI_VALUE_LABELS`는 ROI 툴 `collectOutputs` 키(vRnD/vSalesInfra/vSalesContrib/vPR/vQuality)와 정확히 매칭. 가치 항목 한글 명칭(R&D 기여 가치·영업 기여 가치·수주 기여 이익·홍보 노출 가치·품질 개선 가치 — 2026-08-05 확정)은 ROI 툴 ↔ admin 동작 원리 ↔ gs `ROI_VALUE_LABELS` 3곳 동기.
 
 ### 보안·개인정보
@@ -187,7 +188,7 @@
 ### 설문
 - `SURVEY_HEADERS` 새 컬럼은 **배열 끝에만** 추가 (appendRow가 상수 순서 의존, 기존 시트는 getNamedSheet가 자동 확장). `survey_submit`은 공개 경로 유지 (응답자는 토큰 없음).
 - 파생 트리거 3종(`media_link/etc_link/iot_defect`)과 `raw_json`은 수정 불가 유지. 행 삭제는 테스트·실수 정리용 — 실제 성과·이슈는 드롭/기각 상태 전환으로 보존. `survey_delete`는 파생 행 cascade (응답만 지우고 파생을 남기는 것 불가).
-- 대장 `confirmed_amount`는 **만원 단위** (ROI 툴 파이프 입력은 백만원 — 환산 주의).
+- 대장 `confirmed_amount`는 **만원 단위** (ROI 툴 파이프 입력은 백만원 — 대장 상단 「확정 가치 누적」 라인이 환산 표기). **확정 금액 3원칙 (2026-08-24)**: ① 실측/추정/미상을 `amount_basis`로 구분 (공란=실측 취급) ② 추정 = 예상 규모 구간 **하한** × 기여도 — 보수 원칙, 추정 선택 시 계산값 고정(임의 상향 불가·수정하려면 실측 전환) ③ 금액 미상 확정 허용(성사 사실과 금액 확정의 분리) — 단 **ROI 반영 체크는 금액 있는 확정만**. 리포트 ROI는 여전히 `ROI_FIXED` 고정 표기 — 대장 누적을 ROI 툴에 수동 반영해 재계산한 값은 **팀장 승인 후 상수 갱신** 경로로만 리포트에 반영 (자동 참조 회귀 금지 유지).
 - 새 문항 추가 시: `firstMissingRequired`(카드 순서 위치)+`REQUIRED_MSG` 등록, 도피 선택지 포함(전 문항 필수의 전제), track 밖 카드면 옵션 클릭 셀렉터에 카드 id 추가. 조건부 표시를 라디오 change 이벤트에만 의존하지 말 것(`updateLinkDetails()` 직접 호출). 조건부 입력 칸은 **라벨 밖에** 배치. dealAmount는 검증 제외(무응답 정상).
 - BEP 대표 수치는 **1.31년 (약 1년 4개월)** — 2026-08 확정 기준(구 1.65년 대체). 리포트 ROI는 `ROI_FIXED` 상수(고정 표기)가 단일 소스 — 저장 시나리오 최신값 참조로 회귀 금지.
 - **만족도 척도는 0~10 NPS** (2026-08-03 전환, 두 설문 폼 공통 — 저장값 정수 문자열 "0"~"10"). **구 5단계("N - 라벨")와 절대 섞어 평균 금지** — 척도 판별·분리 집계는 `classifySatisfaction()`이 단일 소스. 구 척도만 있는 월은 "N/5 (구 척도)" 표기 + NPS 미표기.
