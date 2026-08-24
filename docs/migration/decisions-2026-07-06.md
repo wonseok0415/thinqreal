@@ -114,7 +114,7 @@ BE팀이 사내 클라우드에 ThinQ Real 전용 인프라를 실제로 구축�
 | CI/CD | **commit & push만 하면 컨테이너 이미지 자동 빌드 → 서버 자동 배포**까지 완료되는 파이프라인 구축됨. 절차는 저장소 README가 단일 소스 |
 | 환경 3종 | **ST(개발) / QA(검증) / OP(운영)**. ST·QA 구축 완료, 샘플 앱("hello from thinq-real") 동작 확인. OP는 도메인 확정 후 |
 | 현재 URL | `kic-st-thinq-real.thinqcloud.link` / `kic-qa-thinq-real.thinqcloud.link` — **08-13에 `thinqreal` → `thinq-real`로 변경됨** (git repo 이름과 URL 일치 규칙). thinqcloud.link는 임시 도메인 |
-| 운영 도메인 | `thinqreal.lge.com` **사용 승인 완료** (강원석 확보). 환경별 전체 목록을 BE팀에 전달 필요 (예: kic-st-thinqreal.lge.com / kic-qa-thinqreal.lge.com / thinqreal.lge.com) |
+| 운영 도메인 | `thinqreal.lge.com` **사용 승인 완료** (강원석 확보). **(08-25 확인, 박현정 책임)** lge.com 도메인은 **redirect 방식** — 사용자가 입력하면 LG 주소 해석 서버가 실제 주소로 넘겨줌. 사용하려면 **CSR로 target 주소 등록 신청 필요** (target은 OP 환경 주소, 아마도 `kic-op-thinq-real.thinqcloud.link` — OP 구축 후 확정). 하이픈 변경은 redirect 목적지가 바뀌었다는 의미일 뿐 lge.com 사용 여부와 무관. redirect라서 최종 주소창은 thinqcloud.link가 됨 — 주소창까지 lge.com 유지가 필요하면 정식 DNS+인증서 방식을 별도 문의해야 함. ST/QA는 임시 도메인(thinqcloud.link) 유지로 충분 |
 | **DB — PostgreSQL로 확정** | §2의 "DynamoDB 우선 검토"는 실제 제공 인프라 기준 **PostgreSQL로 대체**. ST·QA에 DB 지원 추가됨, 샘플 앱에 DB 사용 API 예제 있음 (README `#db-사용-방법`). → `server/` store 어댑터의 dynamo 스텁은 **postgres 어댑터로 교체 구현**해야 함 |
 | DB 자격증명 | 현재 git에 평문 노출 상태(BE팀이 곧 암호화 예정). **app 코드에서 평문 값을 직접 쓰지 말 것** — 우리 컨테이너는 이미 전부 env 주입 구조라 원칙 일치 |
 | Valkey(Redis 호환) | ST·QA에 적용됨, 샘플 코드에 사용법 반영. → 우리 설계의 "멀티 레플리카 시 Redis 교체 지점"(인증 코드 캐시·쓰기 mutex)에 그대로 활용 가능 |
@@ -123,5 +123,5 @@ BE팀이 사내 클라우드에 ThinQ Real 전용 인프라를 실제로 구축�
 ### 다음 작업에의 함의 (이관 세션용)
 1. **2단계 실체 확정**: `server/` 코드를 gitea 저장소의 샘플 자리에 README 규칙대로 이식 → push → ST 자동 배포로 검증하는 흐름.
 2. **store 어댑터**: dynamo 스텁 → **postgres 구현**으로 교체 (인터페이스 5+1종은 그대로 — 설계 의도대로 교체만 하면 됨). 시트 → PostgreSQL 데이터 이행 계획 별도.
-3. 도메인 전달: 환경별 lge.com 도메인 목록을 BE팀에 회신 (ST/QA도 lge.com이 필요한지, 임시 도메인 유지로 충분한지 팀 결정).
+3. ~~도메인 전달~~ → **(08-25 정리됨)** OP만 lge.com 사용, ST/QA는 임시 도메인 유지. 잔여 액션: **OP 환경 구축 완료 통보를 받으면 CSR로 `thinqreal.lge.com` → OP 주소(예상 `kic-op-thinq-real.thinqcloud.link`) redirect 등록 신청** (강원석).
 4. 메일(SMTP)·SSO는 여전히 미결 — BE팀 채팅에서 아직 언급 없음.
