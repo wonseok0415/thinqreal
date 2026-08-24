@@ -124,4 +124,4 @@ BE팀이 사내 클라우드에 ThinQ Real 전용 인프라를 실제로 구축�
 1. **2단계 실체 확정**: `server/` 코드를 gitea 저장소의 샘플 자리에 README 규칙대로 이식 → push → ST 자동 배포로 검증하는 흐름.
 2. **store 어댑터**: dynamo 스텁 → **postgres 구현**으로 교체 (인터페이스 5+1종은 그대로 — 설계 의도대로 교체만 하면 됨). 시트 → PostgreSQL 데이터 이행 계획 별도.
 3. ~~도메인 전달~~ → **(08-25 정리됨)** OP만 lge.com 사용, ST/QA는 임시 도메인 유지. 잔여 액션: **OP 환경 구축 완료 통보를 받으면 CSR로 `thinqreal.lge.com` → OP 주소(예상 `kic-op-thinq-real.thinqcloud.link`) redirect 등록 신청** (강원석).
-4. 메일(SMTP)·SSO는 여전히 미결 — BE팀 채팅에서 아직 언급 없음.
+4. 메일(SMTP)은 여전히 미결. SSO는 방향 확인됨(08-20 Confluence) — **ops-gateway 계층에서 MS Entra ID로 처리(미완 항목)**, 앱은 게이트웨이 헤더의 사용자 이메일을 읽는 방식 대비. 상세는 gitea-repo-contract.md §9.

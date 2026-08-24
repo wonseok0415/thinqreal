@@ -81,3 +81,15 @@ main에 push → release workflow가 커밋 메시지로 새 버전 결정 → m
 8. 커밋 메시지: 그 저장소에서는 **conventional commits(`feat:`/`fix:`)** 필수 — 안 지키면 배포 안 됨.
 9. **BE팀 확인 필요(미결)**: 앱 자체 비밀값(AUTH_SECRET·SMTP·Wi-Fi·도어락 PIN·텔레그램 토큰 등)을 어떤 절차로 주입하는지 — `deploy/<env>/secret.yaml`(sealed)에 우리가 직접 추가 가능한지, 클러스터 관리자 요청인지. DB credential은 자동 provisioning이지만 앱 커스텀 secret 절차는 README에 없음.
 10. 사내/외 서비스 노출(ALB/gateway) 중 **사내 전용** 선택 확인 (임직원 전용 사이트).
+
+## 9. BE팀 Confluence 진행 현황 (2026-08-20 갱신본 — collab.lge.com "NOW | 박현정 | extapps: ThinQ Real")
+
+- **담당자**: 강원석 책임 (BE 위키에 이 서비스의 공식 담당자로 등재).
+- **환경 확정 정보**: Teams 방 `[서버지원] ThinQ Real` / argocd apps `kic-st-thinq-real`·`kic-qa-thinq-real` / Exposed URL `kic-st-thinq-real.thinqcloud.link`·`kic-qa-thinq-real.thinqcloud.link`.
+- **Decisions**: ① **ops-gateway 사용** (사내 서비스이므로 — README의 "사내/외 노출 선택"은 사내 게이트웨이로 확정) ② **DB: PostgreSQL**.
+- **Progress 체크리스트** (✅=완료):
+  - ✅ git repo + boilerplate 생성 / ✅ kic-st ops-gateway 연동(임시 도메인) / ✅ **PostgreSQL 연동** / ✅ ECR 연동(임시 IMAGE REPO 제거) / ✅ LENS(LOG·METRIC) 설정·전달
+  - ☐ **SealedSecret 설정 (미완)** — §8-9의 "앱 커스텀 비밀값 주입 절차"가 바로 이 항목에 걸려 있음. BE팀이 SealedSecret 체계를 마저 세팅하면 AUTH_SECRET 등 우리 비밀값을 봉인(seal)해 넣는 절차가 정해질 것. 커밋 `chore: restore sealed database Secret manifests`도 이 맥락.
+  - ☐ **SSO(MS Entra ID) 연동 in ops-gateway (미완)** — **인증은 앱 코드가 아니라 ops-gateway 계층에서 MS Entra ID(사내 Microsoft 계정)로 처리하는 방향**. decisions §2의 "SSO 우선 검토 — 인증 후 헤더의 이메일로 관리자 판별" 구도와 일치. 우리 앱은 게이트웨이가 넘겨주는 사용자 헤더를 읽는 쪽으로 준비하면 됨 (현행 HMAC 게이트는 그 전까지 유지).
+  - ☐ 수평 전개 (하위 KIC-QA·KIC-OP 체크 표시로 보임) — 단 README(08-22 캡처)는 "kic-op은 ApplicationSet 미등록"이라 명시. **OP 환경 실가동 여부는 박현정 책임에게 확인 필요** (CSR redirect 신청 시점과 직결).
+- 관련 문서로 "김건우 | ThinQ Real 방문 예약 관리 시스템 TCN 입점 검토", "260706 사내 인프라 이관 방안 논의" 링크됨. extapps 자체는 "비 서버 전문 팀 주도 서비스를 위한 TCN 입점 모델".
