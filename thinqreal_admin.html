@@ -5106,13 +5106,24 @@ function openLedgerModal(id, mode) {
       const est = ledgerEstimate(l);
       ledgerTarget.est = est;
       document.getElementById('lmBasisEst').disabled = !est;
-      document.getElementById('lmBasisEstLabel').style.opacity = est ? '' : '0.45';
-      document.getElementById('lmEstHint').textContent = est
-        ? '추정 근거: 예상 규모 ' + (l.expected_scale || '-') + ' 하한 × 기여도 ' + l.attribution_pct + '% = '
-          + est.toLocaleString() + '만원 (추정 선택 시 계산값 고정 — 임의 조정 불가)'
-        : '자동 추정 불가 — 예상 규모(' + (l.expected_scale || '없음') + ') · 기여도('
-          + (l.attribution_pct !== '' && l.attribution_pct != null ? l.attribution_pct + '%' : '없음')
-          + ') 기준값이 부족합니다. 실측 입력 또는 금액을 비워 「미상」으로 확정하세요.';
+      const estLabel = document.getElementById('lmBasisEstLabel');
+      estLabel.style.opacity = est ? '' : '0.45';
+      estLabel.style.cursor = est ? '' : 'not-allowed';
+      // 추정 불가 사유는 경고 콜아웃으로 강조 — 비활성 라디오가 고장처럼 보이는 것 방지 (2026-08-24 UX)
+      const hintEl = document.getElementById('lmEstHint');
+      if (est) {
+        hintEl.style.cssText = 'font-size:12px; color:var(--c-label-3); margin-bottom:8px;';
+        hintEl.textContent = '추정 근거: 예상 규모 ' + (l.expected_scale || '-') + ' 하한 × 기여도 '
+          + l.attribution_pct + '% = ' + est.toLocaleString() + '만원 (추정 선택 시 계산값 고정 — 임의 조정 불가)';
+      } else {
+        hintEl.style.cssText = 'font-size:12px; color:#C2540A; background:var(--c-orange-light); '
+          + 'border-radius:8px; padding:10px 12px; line-height:1.65; margin-bottom:8px;';
+        hintEl.innerHTML = '⚠ <strong>자동 추정 불가</strong> — 예상 규모(' + escapeHtml(l.expected_scale || '없음')
+          + ') · 기여도(' + (l.attribution_pct !== '' && l.attribution_pct != null ? escapeHtml(String(l.attribution_pct)) + '%' : '없음')
+          + ')로는 하한 × 기여도 계산이 안 됩니다.<br>'
+          + '규모를 가늠할 수 있다면 <strong>[수정]</strong> 버튼에서 예상 규모를 구간 값(1~10억 / 10~50억 / 50억 이상)으로 '
+          + '입력하세요 — 저장 후 다시 [확정]을 열면 추정이 활성화됩니다. 모르면 실측 입력 또는 금액을 비워 「미상」으로 확정하세요.';
+      }
       // 기본 선택: 기존 추정 확정 → 추정 / 기존 실측 금액 → 실측 / 금액 없고 추정 가능 → 추정 / 그 외 실측
       const hasAmt = l.confirmed_amount !== '' && l.confirmed_amount != null;
       const basis = (l.amount_basis === '추정' && est) ? '추정' : (hasAmt ? '실측' : (est ? '추정' : '실측'));
