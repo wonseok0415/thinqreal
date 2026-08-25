@@ -11,6 +11,10 @@ export function telegramConfigured() {
 
 export async function sendTelegramMessage(text) {
   try {
+    if (config.outboundSuppressed) {
+      console.log(`[telegram] ENVIRONMENT=${config.environment} 비운영 환경 → 발송 억제`);
+      return { ok: false, reason: 'suppressed_env' };
+    }
     if (!telegramConfigured()) {
       console.log('[telegram] skip — token or chat_id not set');
       return { ok: false, reason: 'not_configured' };

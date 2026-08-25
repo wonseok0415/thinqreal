@@ -2,14 +2,15 @@
 // 데이터 원본이 아닌 동기화용 엑스트라 (decisions §2-⑥). CALENDAR_ID 미설정 시 silent skip.
 // 서비스 계정에 대상 캘린더 "변경 권한" 공유 필요.
 // 표기 범위: 운영 정보만 — 방문자 명단·연락처(전화·이메일) 제외 (개인정보 노출 최소화, 변경 금지).
-import { google } from 'googleapis';
 import { config, loadServiceAccount } from '../config.js';
 import { SLOT_TIMES, SLOT_LABEL_TEXT } from '../lib/constants.js';
 import { normalizeDate } from '../lib/dates.js';
 
 let calendarApi = null;
 
-function getCalendarApi() {
+// googleapis는 동적 import — CALENDAR_ID 미설정 배포(ST 등)에서 무거운 라이브러리를 로드하지
+// 않아 K8s 메모리 limit(256Mi) 안에서 여유 확보 (store/index.js의 sheets 지연 로드와 동일 원칙).
+async function getCalendarApi() {
   if (!config.calendarId) return null;
   if (calendarApi) return calendarApi;
   const sa = loadServiceAccount();
@@ -17,6 +18,7 @@ function getCalendarApi() {
     console.warn('[calendar] 서비스 계정 미설정 — 캘린더 동기화 skip');
     return null;
   }
+  const { google } = await import('googleapis');
   const auth = new google.auth.JWT({
     email: sa.client_email,
     key: sa.private_key,
@@ -97,7 +99,7 @@ async function safeDelete(api, eid) {
 
 /** 확정 예약 등록/갱신 — delete+recreate, 생성 id 배열을 시트에 write-back */
 export async function syncCalendarUpsert(store, id) {
-  const api = getCalendarApi();
+  const api = await getCalendarApi();
   if (!api) return;
   const booking = await store.bookings.getById(id);
   if (!booking) return;
@@ -119,7 +121,7 @@ export async function syncCalendarUpsert(store, id) {
 
 /** 예약의 캘린더 이벤트 전부 제거 + eventId 비움 */
 export async function syncCalendarDelete(store, id) {
-  const api = getCalendarApi();
+  const api = await getCalendarApi();
   if (!api) return;
   const booking = await store.bookings.getById(id);
   if (!booking) return;
@@ -139,7 +141,7 @@ export async function calendarTest() {
   if (!config.calendarId) {
     return { ok: false, reason: 'not_configured', hint: 'env CALENDAR_ID 미설정. 대상 캘린더 ID를 등록하세요.' };
   }
-  const api = getCalendarApi();
+  const api = await getCalendarApi();
   if (!api) {
     return { ok: false, reason: 'no_access', calendarId: config.calendarId, hint: '서비스 계정 자격증명이 없거나 잘못되었습니다.' };
   }

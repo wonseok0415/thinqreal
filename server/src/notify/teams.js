@@ -9,6 +9,10 @@ export function teamsConfigured() {
 
 async function postCard(card) {
   try {
+    if (config.outboundSuppressed) {
+      console.log(`[teams] ENVIRONMENT=${config.environment} 비운영 환경 → 발송 억제`);
+      return { ok: false, reason: 'suppressed_env' };
+    }
     if (!teamsConfigured()) {
       console.log('[teams] skip — TEAMS_WEBHOOK_URL not set');
       return { ok: false, reason: 'not_configured' };

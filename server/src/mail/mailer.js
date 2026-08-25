@@ -8,7 +8,12 @@ let mode = null; // 'smtp' | 'console'
 
 function getTransporter() {
   if (transporter) return transporter;
-  if (config.smtp.host) {
+  if (config.outboundSuppressed) {
+    // 비운영 환경(kic-st/kic-qa) — 실발송 억제, 본문은 콘솔(LENS 로그)로만 (config.outboundSuppressed)
+    mode = 'console';
+    transporter = nodemailer.createTransport({ jsonTransport: true });
+    console.warn(`[mail] ENVIRONMENT=${config.environment} 비운영 환경 → 메일 실발송 억제 (콘솔 모드, OUTBOUND_FORCE_SEND=true로 해제)`);
+  } else if (config.smtp.host) {
     mode = 'smtp';
     transporter = nodemailer.createTransport({
       host: config.smtp.host,

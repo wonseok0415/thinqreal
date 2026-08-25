@@ -44,6 +44,7 @@ function registerKoreanFont(GlobalFonts) {
     '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',  // Debian fonts-noto-cjk
     '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
     '/usr/share/fonts/opentype/noto/NotoSansCJKkr-Regular.otf',
+    '/usr/share/fonts/noto/NotoSansCJK-Regular.ttc',           // Alpine font-noto-cjk (사내 이미지)
   ].filter(Boolean);
 
   for (const p of candidates) {

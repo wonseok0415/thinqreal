@@ -22,7 +22,7 @@ export async function handleAuthRequest(email) {
   if (!isAllowedAuthEmail(email)) {
     return { ok: false, error: 'invalid_email', message: 'LG 임직원 메일(@lge.com)만 입력 가능합니다.' };
   }
-  const code = issueCode(email, 'auth');
+  const code = await issueCode(email, 'auth');
   if (!code) return { ok: false, error: 'cooldown', message: '잠시 후 다시 시도해 주세요. (60초)' };
 
   const sent = await sendCodeMail(email, code, false);
@@ -36,7 +36,7 @@ export async function handleAuthVerify(email, code) {
   if (!isAllowedAuthEmail(email)) return { ok: false, error: 'invalid_email' };
   if (!/^\d{6}$/.test(code)) return { ok: false, error: 'invalid_code', message: '인증 코드는 6자리 숫자입니다.' };
 
-  const v = verifyCode(email, code, 'auth');
+  const v = await verifyCode(email, code, 'auth');
   if (!v.ok) return v;
 
   const exp = Date.now() + AUTH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;
@@ -48,7 +48,7 @@ export async function handleAdminAuthRequest(email) {
   if (!isAdminEmail(email)) {
     return { ok: false, error: 'not_admin', message: '관리자 권한이 없는 계정입니다. 운영 담당자에게 문의해 주세요.' };
   }
-  const code = issueCode(email, 'admin');
+  const code = await issueCode(email, 'admin');
   if (!code) return { ok: false, error: 'cooldown', message: '잠시 후 다시 시도해 주세요. (60초)' };
 
   const sent = await sendCodeMail(email, code, true);
@@ -62,7 +62,7 @@ export async function handleAdminAuthVerify(email, code) {
   if (!isAdminEmail(email)) return { ok: false, error: 'not_admin' };
   if (!/^\d{6}$/.test(code)) return { ok: false, error: 'invalid_code', message: '인증 코드는 6자리 숫자입니다.' };
 
-  const v = verifyCode(email, code, 'admin');
+  const v = await verifyCode(email, code, 'admin');
   if (!v.ok) return v;
 
   const exp = Date.now() + AUTH_ADMIN_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000;

@@ -19,7 +19,7 @@ const monthArg = (args.find((a) => a.startsWith('--month=')) || '').split('=')[1
 async function main() {
   const now = new Date();
   const monthKey = monthArg || formatMonthLocal(now);
-  const store = getStore();
+  const store = await getStore();
 
   if (!force) {
     if (!isLastFridayOfMonth(now)) {

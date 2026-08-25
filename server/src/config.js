@@ -15,15 +15,19 @@ const env = (key, fallback = '') => (process.env[key] ?? fallback).trim();
 const isProd = env('NODE_ENV') === 'production';
 
 // AUTH_SECRET — 자동 생성 제거(재시작마다 토큰 전체 무효화 방지): production은 필수 주입.
+// 예외: KVSTORE_ADDR(Valkey)가 있으면 부트 시 전 레플리카가 공유하는 키를 Valkey에서
+// get-or-create 한다 (auth/secret.js — 사내 SealedSecret 절차 확정 전 임시 경로).
 // 로컬 dev는 임시 생성 허용(경고) — 재시작 시 발급 토큰이 무효화됨을 감수.
 let authSecret = env('AUTH_SECRET');
 if (!authSecret) {
-  if (isProd) {
-    console.error('[config] AUTH_SECRET 미설정 — production에서는 필수입니다. 기동을 중단합니다.');
+  if (isProd && !env('KVSTORE_ADDR')) {
+    console.error('[config] AUTH_SECRET 미설정 — production에서는 필수입니다 (KVSTORE_ADDR 공유 경로도 없음). 기동을 중단합니다.');
     process.exit(1);
   }
   authSecret = crypto.randomUUID() + '_' + crypto.randomUUID();
-  console.warn('[config] AUTH_SECRET 미설정 → 임시 키 생성 (재시작 시 발급 토큰 전부 무효화됨. dev 전용)');
+  if (!env('KVSTORE_ADDR')) {
+    console.warn('[config] AUTH_SECRET 미설정 → 임시 키 생성 (재시작 시 발급 토큰 전부 무효화됨. dev 전용)');
+  }
 }
 
 // 정적 프론트 디렉토리: env 우선 → server/public(도커) → 리포 루트(로컬 dev)
@@ -43,6 +47,23 @@ export const config = {
 
   storeBackend: env('STORE_BACKEND', 'memory'), // memory | sheets | dynamo(2단계)
   storeSeed: env('STORE_SEED'),
+
+  // ── 사내 K8s(TCN) 배포 환경 — gitea-repo-contract.md §4의 기본 제공 env ──
+  // ENVIRONMENT: kic-st(개발)/kic-qa(검증)/kic-op(운영). 미설정 = 로컬/독립 컨테이너.
+  environment: env('ENVIRONMENT'),
+  // Valkey(KVStore) — HPA 멀티 레플리카(min 2)에서 인증 코드·공유 상태를 레플리카 간 공유.
+  // 미설정 시 프로세스 메모리 폴백(단일 인스턴스 전용). 키는 반드시 `${prefix}:` 접두.
+  kvstore: {
+    addr: env('KVSTORE_ADDR'),
+    prefix: env('KVSTORE_PREFIX', 'thinq-real'),
+  },
+  // 비운영 환경(kic-st/kic-qa)에서는 실제 외부 발송(메일·텔레그램·Teams)을 억제 — kic-op만 실발송.
+  // ENVIRONMENT 미설정(로컬)은 억제하지 않음(SMTP 미설정이면 어차피 콘솔 모드). OUTBOUND_FORCE_SEND=true로 해제.
+  outboundSuppressed: (() => {
+    const e = env('ENVIRONMENT');
+    if (!e || e === 'kic-op') return false;
+    return env('OUTBOUND_FORCE_SEND') !== 'true';
+  })(),
 
   authSecret,
 
