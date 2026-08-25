@@ -114,6 +114,12 @@
 - 관찰 사항 (FieldCheck 세션 판단 위임): `?type=health_checks` GET 조회가 현재 무인증 — 점검 이력(시나리오·STT 텍스트)이 URL만 알면 조회됨. 관리자 토큰 게이트 적용 검토 권장.
 - 현황: `FC_TEST_MODE = true` (메일 CC_EMAIL만·텔레그램 미발송), 일일 요약 07:40 목표(트리거 ±15분), 건별 즉시 알림 꺼짐.
 
+## 사내 이관 트랙 (⚠ 전용 세션 — 이 섹션은 세션 간 동기화용)
+- **소유권**: 사내 인프라 이관(Gitea `extapps/thinq-real` + TCN K8s)은 **별도 이관 전용 세션**(브랜치 `claude/magical-babbage-y98vkf`)에서 진행. 운영 세션은 `server/`·`docs/migration/`을 건드리지 않는다 (역방향도 동일 — 이관 세션은 라이브 파일을 건드리지 않고 main을 주기적으로 재병합만 한다).
+- **문서 단일 소스**: `docs/migration/decisions-2026-07-06.md`(방향·인프라 현황) · `gitea-repo-contract.md`(사내 저장소 규칙·원본 검수) · `stage1-container-design.md`(컨테이너 설계·구현) · `handoff-to-internal-claude.md`(사내 Claude 인수인계) · `migration-log.md`(이관 세션 로그 — 이관 관련 기록은 history.md가 아니라 여기에 append).
+- **상태 (2026-08-25)**: Apps Script 대체 Node 컨테이너(`server/`) 구현·검증 완료 + 멀티 레플리카(Valkey) 대응 완료. 사내 Gitea에 문서·코드 반입 완료, 과제 A(샘플 교체 배포) 키트 전달됨 — 사내 Claude 한도 복귀(9/1) 후 적용 예정. ST/QA 가동 중, OP·SealedSecret·SSO는 BE팀 진행 대기.
+- **⚠ 운영 세션 협조 요청**: Apps Script에 **새 엔드포인트/시트 컬럼을 추가하면 api-contract.md·data-schema.md에 반영**해 줄 것(기존 기록 규칙대로) — 이관 세션이 그 문서를 보고 컨테이너에 동기 이식한다. 라이브가 컨테이너보다 앞서가는 건 정상(전환 전 재병합으로 따라잡음).
+
 ## 자동화·연동 현황 (활성)
 | 항목 | 상태 |
 |---|---|
