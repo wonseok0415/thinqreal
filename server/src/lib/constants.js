@@ -7,7 +7,7 @@ export const ARTICLES_SHEET_NAME = 'monthly_articles';
 export const SLOT_BLOCKS_SHEET_NAME = 'slot_blocks';
 export const STATE_SHEET_NAME = 'app_state'; // Script Properties의 상태값 대체 (신규)
 
-// bookings 24컬럼 — getOrCreateHeaders의 HEADERS 배열 그대로 (단일 소스)
+// bookings 25컬럼 — getOrCreateHeaders의 HEADERS 배열 그대로 (단일 소스)
 export const BOOKING_HEADERS = [
   'id', 'timestamp', 'date', 'slots', 'slot', 'slotLabel',
   'name', 'org', 'phone', 'email',
@@ -16,6 +16,8 @@ export const BOOKING_HEADERS = [
   'privacyConsent',
   'calendarEventId',
   'division', 'department',
+  // 2026-07 방문 후기 설문 요청 메일 발송 기록 (배치 재실행 시 중복 발송 방지)
+  'surveyInviteSentAt',
 ];
 export const ROI_HEADERS = ['id', 'timestamp', 'label', 'author', 'inputs', 'outputs'];
 export const ARTICLES_HEADERS = ['month', 'title', 'url', 'source', 'summary', 'published_at', 'thumbnail'];
@@ -30,9 +32,47 @@ export const ISSUE_SHEET_NAME = 'iot_issue_log';
 
 // ⚠ 새 컬럼은 반드시 배열 "끝"에만 추가할 것 — 제출이 이 순서대로 append하므로
 //   중간 삽입 시 기존 시트 컬럼과 어긋난다 (기존 시트엔 누락 헤더 끝 자동 append).
-export const SURVEY_HEADERS = ['response_id', 'submitted_at', 'visit_date', 'dept', 'name', 'client', 'visit_count', 'track', 'purpose', 'deal_stage', 'deal_size', 'deal_area', 'reaction', 'attr', 'media_work', 'media_days', 'media_alt', 'media_cost', 'media_link', 'media_link_name', 'media_link_size', 'media_link_attr', 'etc_work', 'etc_days', 'etc_alt', 'iot_defect', 'iot_defect_detail', 'etc_link', 'etc_link_name', 'etc_link_size', 'etc_link_attr', 'satisfaction', 'feedback', 'raw_json', 'deal_amount'];
-export const LEDGER_HEADERS = ['ledger_id', 'response_id', 'category', 'project_name', 'expected_scale', 'attribution_text', 'attribution_pct', 'visit_date', 'respondent', 'dept', 'status', 'confirmed_amount', 'confirmed_date', 'confirmed_note', 'roi_included'];
+// 42컬럼 (2026-07~08 확장: deal_amount + 설문 8번 블록 7종)
+export const SURVEY_HEADERS = ['response_id', 'submitted_at', 'visit_date', 'dept', 'name', 'client', 'visit_count', 'track', 'purpose', 'deal_stage', 'deal_size', 'deal_area', 'reaction', 'attr', 'media_work', 'media_days', 'media_alt', 'media_cost', 'media_link', 'media_link_name', 'media_link_size', 'media_link_attr', 'etc_work', 'etc_days', 'etc_alt', 'iot_defect', 'iot_defect_detail', 'etc_link', 'etc_link_name', 'etc_link_size', 'etc_link_attr', 'satisfaction', 'feedback', 'raw_json', 'deal_amount', 'impressive_modes', 'desired_solutions', 'impressive_reasons', 'adopt_pick', 'voice_space', 'iot_connect', 'ai_barrier'];
+export const LEDGER_HEADERS = ['ledger_id', 'response_id', 'category', 'project_name', 'expected_scale', 'attribution_text', 'attribution_pct', 'visit_date', 'respondent', 'dept', 'status', 'confirmed_amount', 'confirmed_date', 'confirmed_note', 'roi_included', 'amount_basis'];
 export const ISSUE_HEADERS = ['issue_id', 'response_id', 'device', 'symptom', 'severity', 'channel', 'q_ship', 'status', 'est_value'];
+
+// ── 방문자 현장 설문 (§8-5 — 퇴장 직전 QR 익명 응답, 파생 없음·ROI 미산입) ──
+export const VISITOR_SHEET_NAME = 'visitor_responses';
+export const VISITOR_HEADERS = ['response_id', 'submitted_at', 'lang', 'satisfaction', 'impressive_modes', 'adopt_pick', 'voice_space', 'iot_connect', 'ai_barrier', 'feedback', 'raw_json'];
+
+// ── 월간 리포트 큐레이션 (§8-7 5·6) — type: 'insight'(핵심 인사이트) | 'quote'(인상 깊은 한마디) ──
+export const INSIGHTS_SHEET_NAME = 'monthly_insights';
+export const INSIGHTS_HEADERS = ['id', 'month', 'seq', 'type', 'text', 'source', 'created_at'];
+
+// ── 베스트 리뷰어 사은품 발송 (2026-08-22) — 축하 메일만, 기프티콘은 별도 채널 ──
+export const BEST_SHEET_NAME = 'best_reviewers';
+export const BEST_HEADERS = ['id', 'month', 'response_id', 'name', 'dept', 'email', 'visit_date', 'product', 'sent_at', 'sent_by'];
+export const BEST_MONTHLY_LIMIT = 3;   // 월 발송 한도 — 공지 문구('세 분')와 세트
+export const BEST_DEFAULT_PRODUCT = '스타벅스 아이스 카페 아메리카노 T 2잔'; // 계절별 변경은 발송 화면 입력값으로
+
+// ── CSV 내보내기 감사 로그 (개인정보보호팀 요구 — 사유·시각·행 수만, 파일 비밀번호 미기록) ──
+export const EXPORT_LOG_SHEET_NAME = 'export_log';
+export const EXPORT_LOG_HEADERS = ['id', 'timestamp', 'email', 'reason', 'rowCount'];
+
+// ── FieldCheck 자동 점검 (health_checks — 점검 장비가 POST, 관리자 페이지가 GET) ──
+export const HEALTH_SHEET_NAME = 'health_checks';
+export const HEALTH_HEADERS = ['id', 'timestamp', 'level', 'scenario_id', 'scenario_label',
+  'result', 'latency_ms', 'detail', 'stt_text', 'expected', 'media_ref', 'note'];
+// 알림 정책 — 테스트 단계: 메일은 운영자(CC)에게만, 텔레그램 미발송. 정식 운영 전환 시 false
+export const FC_TEST_MODE = true;
+export const FC_IMMEDIATE_ALERT = false; // 건별 실패 즉시 알림 — 테스트 단계에선 끔 (일일 요약만)
+export const FC_LEVEL_LABELS = {
+  L1: 'L1 응답 감지 — 말을 했는가',
+  L2: 'L2 내용 판정 — 질문에 맞는 답을 했는가 (응답한 건 중)',
+  L3: 'L3 가전 동작 — 실제로 제어되었는가',
+};
+export const FC_LATENCY_NOTE = '응답 시작 = 점검 질문을 다 말한 순간부터 ThinQ ON이 답을 시작하기까지 걸린 시간입니다. 답변을 끝내기까지의 길이는 포함하지 않습니다.';
+
+// ── FieldVoice 현장 인사이트 (voc_reports — 가명화 1페이지 요약만, 원본 음성·전사 금지) ──
+export const VOC_SHEET_NAME = 'voc_reports';
+export const VOC_HEADERS = ['id', 'timestamp', 'visit_date', 'session_id', 'purpose',
+  'one_liner', 'report_md', 'consent', 'author'];
 
 // 이슈 est_value 계산 — severity 라벨 → 발생 확률 (참고용, ROI 미산입)
 export const SEVERITY_PCT = { '높음': 0.5, '가끔': 0.1, '드묾': 0.01 };
@@ -54,6 +94,7 @@ export const AUTH_ADMIN_EMAILS = [
   'moonsu.seo@lge.com',    // 서문수 선임
   'hj8462.kim@lge.com',    // 김현진 선임
   'kwangsoo.park@lge.com', // 박광수 책임
+  'jason.kwon@lge.com',    // 권영섭 (2026-08-18 추가 — 관리자 페이지 접근용, 담당자 알림 미수신)
 ];
 
 // 임시 관리자 — 이메일(소문자) → 만료일 'YYYY-MM-DD' (KST 23:59:59까지 유효)
@@ -91,14 +132,27 @@ export const PURPOSE_COLORS = {
 
 // ROI 가치 항목 — ThinQ_Real_ROI_Tool.html collectOutputs 키와 동기화
 export const ROI_VALUE_LABELS = {
-  vRnD: { label: 'R&D 효율화', color: '#3a5035' },
-  vSalesInfra: { label: '영업 지원 (인프라)', color: '#8fa889' },
-  vSalesContrib: { label: '영업 지원 (기여이익)', color: '#ff9500' },
-  vPR: { label: 'PR 가치', color: '#af52de' },
+  vRnD: { label: 'R&D 기여 가치', color: '#3a5035' },
+  vSalesInfra: { label: '영업 기여 가치', color: '#8fa889' },
+  vSalesContrib: { label: '수주 기여 이익', color: '#ff9500' },
+  vPR: { label: '홍보 노출 가치', color: '#af52de' },
+  vQuality: { label: '품질 개선 가치', color: '#1b6ca8' },
 };
 
-export const MONTHLY_REPORT_QUERY = 'LG전자 ThinQ Real';
+export const MONTHLY_REPORT_QUERY = 'LG전자 ThinQ Real'; // 2026-08-04 팀장 리뷰 — ThinQ Real 직접 관련 기사만
 export const STATE_LAST_SENT_KEY = 'monthly_report_last_sent_month';
+// 리포트 기사 상한 — 수동 큐레이션 우선 배치, 미달분만 자동 수집으로 보충 (2026-08-03 렌더 리뷰)
+export const REPORT_ARTICLE_LIMIT = 5;
+
+// ROI 확정 기준 수치 (2026-08 확정 — 저장 시나리오 의존 폐기, 고정 표기)
+// ※ 총액 요약·지표만 커밋 가능 — 항목별 실집행 단가는 커밋 금지 (§6.5)
+export const ROI_FIXED = {
+  capex: '2.8억원', opexYr: '0.1억원/년', totalCost: '2.9억원',
+  bep: '1.31년 (약 1년 4개월)', roi3: '+122.4%', roi5: '+270.7%',
+};
+// 리포트 ROI 동적 반영 pin (2026-08-24) — .gs Script Property를 app_state 키로 이식.
+// ⚠ roi_snapshot 저장은 공개 경로라 「최신 스냅샷 자동 참조」 금지 — 지정·해제는 관리자 토큰 POST로만.
+export const STATE_ROI_PIN_KEY = 'roi_report_snapshot_id';
 
 // R&D 연구 목적 예약자에게 함께 보내는 구비 가전 리스트 (총 45개)
 // [구분, 제품명, 모델명, 제조사] — PDF 슬라이드 7 순서 유지 (재정렬 금지)

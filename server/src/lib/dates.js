@@ -43,11 +43,22 @@ export function formatPublishedDate(v) {
   return normalizeDate(v) || String(v).slice(0, 10);
 }
 
-/** 로컬(KST) 기준 오늘이 이번 달의 마지막 금요일인지 */
+/** 로컬(KST) 기준 오늘이 이번 달의 마지막 금요일인지 (구 발송 기준 — 2026-07-29부로 미사용) */
 export function isLastFridayOfMonth(d) {
   if (d.getDay() !== 5) return false; // 5 = Friday
   const next = new Date(d.getTime() + 7 * 24 * 60 * 60 * 1000);
   return next.getMonth() !== d.getMonth();
+}
+
+/** 로컬(KST) 기준 오늘이 이번 달의 첫째 수요일인지 (2026-07-29 — 월간 리포트는 첫째 수요일에 전월분 발송) */
+export function isFirstWednesdayOfMonth(d) {
+  return d.getDay() === 3 && d.getDate() <= 7; // 3 = Wednesday, 1~7일 사이
+}
+
+/** 전월 yyyy-MM (로컬 KST) */
+export function prevMonthLocal(d = new Date()) {
+  const y = d.getFullYear(), m = d.getMonth() + 1;
+  return (m === 1 ? y - 1 : y) + '-' + pad2(m === 1 ? 12 : m - 1);
 }
 
 /** 'YYYY-MM-DD HH:mm:ss' (KST) — 로그·텔레그램 스탬프용 */

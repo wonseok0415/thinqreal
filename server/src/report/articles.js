@@ -75,8 +75,44 @@ function parseMetaTags(html) {
   return result;
 }
 
-async function enrichArticleFromUrl(item) {
-  const meta = await fetchUrlMeta(item.link);
+// 자동 수집 기사 필터 — ThinQ Real 직접 관련 기사만 (2026-08-04 팀장 리뷰: 무관 기사 제외, 없으면 0건)
+export function filterThinqRealItems(items) {
+  const re = /(thinq\s*real|씽큐\s*리얼)/i;
+  return (items || []).filter((it) => re.test(String(it.title || '') + ' ' + String(it.snippet || '')));
+}
+
+// YouTube URL은 페이지 스크랩 시 영상 정보가 아니라 사이트 일반 소개("YouTube"/"동영상 공유")가
+// 잡히므로(SPA·동의 화면), 공개 oEmbed API(제목·채널)와 i.ytimg 공식 썸네일로 우회
+function youtubeVideoId(url) {
+  const m = String(url || '').match(/(?:youtube\.com\/(?:watch\?[^#]*v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+  return m ? m[1] : '';
+}
+
+async function fetchYoutubeMeta(url) {
+  const id = youtubeVideoId(url);
+  if (!id) return null;
+  let title = '', author = '';
+  try {
+    const res = await fetch(
+      'https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + id),
+      { signal: AbortSignal.timeout(10000) });
+    if (res.status === 200) {
+      const j = await res.json();
+      title = String(j.title || '');
+      author = String(j.author_name || '');
+    }
+  } catch (e) { console.warn('[articles] fetchYoutubeMeta fail: ' + e.message); }
+  return {
+    title,
+    description: '',
+    source: author ? 'YouTube · ' + author : 'YouTube',
+    publishedAt: '',
+    image: 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg',
+  };
+}
+
+export async function enrichArticleFromUrl(item) {
+  const meta = (await fetchYoutubeMeta(item.link)) || (await fetchUrlMeta(item.link));
   if (!meta) {
     return { ...item, title: item.title || item.link, source: item.source || extractDomain(item.link) };
   }

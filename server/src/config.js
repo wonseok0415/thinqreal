@@ -82,6 +82,11 @@ export const config = {
   adminAlertTo: env('ADMIN_ALERT_TO', 'ch275.lee@lge.com, moonsu.seo@lge.com, hj8462.kim@lge.com'),
   adminAlertCc: env('ADMIN_ALERT_CC', 'kang.wonseok@lge.com'),
   monthlyReportTo: env('MONTHLY_REPORT_TO'),
+  // 월간 리포트 "나에게만 테스트 발송" 수신자 (§8-6 2단계 발송 — 미설정 시 테스트 버튼 안내만)
+  monthlyReportTestTo: env('MONTHLY_REPORT_TEST_TO'),
+  // 베스트 리뷰어 축하 메일 숨은 참조 — 담당자 3명 + 팀장 + 운영자 (2026-08-22 운영자 결정)
+  bestReviewerBcc: env('BEST_REVIEWER_BCC',
+    'ch275.lee@lge.com, moonsu.seo@lge.com, hj8462.kim@lge.com, jhs.kim@lge.com, kang.wonseok@lge.com'),
 
   // 확정 메일 민감 정보 — 코드/리포에 두지 않는다 (.gs 하드코딩에서 env로 이동)
   wifi: {
@@ -104,8 +109,14 @@ export const config = {
   // 형식: {"원격":N,"내방":N,"출장":N} (원 단위). 미설정 시 est_value 공란 (참고용·ROI 미산입이라 무해).
   surveyCasJson: env('SURVEY_CAS_JSON'),
 
+  // FieldCheck 점검 장비 인증 키 — .gs Script Property FC_API_KEY 이식. 미설정 시 접수 전부 거부 (fail-closed)
+  fcApiKey: env('FC_API_KEY'),
+  // FieldVoice 업로드 인증 키 — 동일 원칙 (fail-closed)
+  fvApiKey: env('FV_API_KEY'),
+
   guideUrl: env('GUIDE_URL', 'https://thinqreal.com/#page-guide'),
   adminPageUrl: env('ADMIN_PAGE_URL', 'https://thinqreal.com/thinqreal_admin.html'),
+  surveyFormUrl: env('SURVEY_FORM_URL', 'https://thinqreal.com/ThinQ_Real_Visit_Survey.html'),
 };
 
 // 서비스 계정 JSON 로드 (경로 또는 인라인 JSON). sheets 백엔드·캘린더에서 사용.

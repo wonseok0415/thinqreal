@@ -5,6 +5,9 @@ import {
   BOOKING_HEADERS, ROI_HEADERS, ARTICLES_HEADERS, SLOT_BLOCKS_HEADERS, STATE_HEADERS,
   SURVEY_SHEET_NAME, LEDGER_SHEET_NAME, ISSUE_SHEET_NAME,
   SURVEY_HEADERS, LEDGER_HEADERS, ISSUE_HEADERS,
+  VISITOR_SHEET_NAME, VISITOR_HEADERS, INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS,
+  BEST_SHEET_NAME, BEST_HEADERS, EXPORT_LOG_SHEET_NAME, EXPORT_LOG_HEADERS,
+  HEALTH_SHEET_NAME, HEALTH_HEADERS, VOC_SHEET_NAME, VOC_HEADERS,
 } from '../../lib/constants.js';
 import { normalizeDate, normalizeMonth, formatPublishedDate } from '../../lib/dates.js';
 import { SheetsClient } from './client.js';
@@ -51,6 +54,45 @@ export function createSheetsStore({ serviceAccount, sheetId }) {
     const { headers, records } = await readTable(title, HEADERS);
     const found = records.find((r) => String(r.id) === String(id)) || null;
     return { headers, found };
+  }
+
+  // idField 일치 행 전부 삭제 — 아래→위 순서 (행 인덱스 어긋남 방지, .gs deleteRowsByValue 이식)
+  async function removeRowsByValue(title, HEADERS, field, value) {
+    const { records } = await readTable(title, HEADERS);
+    const matches = records
+      .filter((r) => String(r[field]) === String(value))
+      .sort((a, b) => b._rowNum - a._rowNum);
+    for (const m of matches) await client.deleteRow(title, m._rowNum);
+    return matches.length;
+  }
+
+  // 신규 탭 공용 팩토리 — idField 기준 list/append/update/remove (TableStore 계약).
+  // month/visit_date류 정규화는 핸들러 책임 (appendRow가 RAW라 GAS식 날짜 자동 변환 미발생 —
+  // 단 기존에 GAS가 만든 행의 변환값은 남아 있으므로 읽기 정규화는 유지 필요).
+  function makeTable(title, HEADERS, idField) {
+    return {
+      async list() {
+        const { records } = await readTable(title, HEADERS);
+        return records.filter((r) => String(r[idField] ?? '').trim()).map(strip);
+      },
+      async append(record) {
+        const headers = await client.ensureHeaders(title, HEADERS);
+        await client.appendRow(title, objToRow(headers, record));
+      },
+      async update(id, fields) {
+        const { headers, records } = await readTable(title, HEADERS);
+        const found = records.find((r) => String(r[idField]) === String(id)) || null;
+        if (!found) return null;
+        const updates = [];
+        for (const [k, v] of Object.entries(fields)) {
+          const col = headers.indexOf(k);
+          if (col >= 0) updates.push({ rowNum: found._rowNum, colIndex: col, value: v == null ? '' : v });
+        }
+        await client.updateCells(title, updates);
+        return strip({ ...found, ...fields });
+      },
+      async remove(id) { return removeRowsByValue(title, HEADERS, idField, id); },
+    };
   }
 
   return {
@@ -164,7 +206,56 @@ export function createSheetsStore({ serviceAccount, sheetId }) {
         }
         await client.updateCells(ARTICLES_SHEET_NAME, updates);
       },
+      // 관리자 큐레이션 UI용 — 전 행 조회 (month/published_at 정규화, .gs readArticleRows 이식)
+      async listAll() {
+        const { records } = await readTable(ARTICLES_SHEET_NAME, ARTICLES_HEADERS);
+        return records
+          .filter((r) => String(r.url || '').trim())
+          .map((r) => ({
+            month: normalizeMonth(r.month),
+            title: String(r.title || '').trim(),
+            url: String(r.url || '').trim(),
+            source: String(r.source || '').trim(),
+            published_at: formatPublishedDate(r.published_at),
+          }));
+      },
+      async append(record) {
+        const headers = await client.ensureHeaders(ARTICLES_SHEET_NAME, ARTICLES_HEADERS);
+        await client.appendRow(ARTICLES_SHEET_NAME, objToRow(headers, record));
+      },
+      async remove(month, url) {
+        const { records } = await readTable(ARTICLES_SHEET_NAME, ARTICLES_HEADERS);
+        const found = records.slice().reverse().find((r) =>
+          normalizeMonth(r.month) === month && String(r.url || '').trim() === url);
+        if (!found) return false;
+        await client.deleteRow(ARTICLES_SHEET_NAME, found._rowNum);
+        return true;
+      },
+      // 같은 달 이웃 행과 값 전체 교환 (.gs handleArticleMove — 순서 컬럼 없이 물리 행 순서로 관리)
+      async move(month, url, dir) {
+        const { headers, records } = await readTable(ARTICLES_SHEET_NAME, ARTICLES_HEADERS);
+        const monthRows = records.filter((r) => normalizeMonth(r.month) === month && String(r.url || '').trim());
+        const pos = monthRows.findIndex((r) => String(r.url).trim() === url);
+        if (pos < 0) return { ok: false, error: 'not_found' };
+        const npos = pos + (dir === 'up' ? -1 : 1);
+        if (npos < 0 || npos >= monthRows.length) return { ok: false, error: 'edge' };
+        const a = monthRows[pos], b = monthRows[npos];
+        const updates = [];
+        headers.forEach((h, col) => {
+          updates.push({ rowNum: a._rowNum, colIndex: col, value: b[h] == null ? '' : b[h] });
+          updates.push({ rowNum: b._rowNum, colIndex: col, value: a[h] == null ? '' : a[h] });
+        });
+        await client.updateCells(ARTICLES_SHEET_NAME, updates);
+        return { ok: true };
+      },
     },
+
+    visitors: makeTable(VISITOR_SHEET_NAME, VISITOR_HEADERS, 'response_id'),
+    insights: makeTable(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS, 'id'),
+    best: makeTable(BEST_SHEET_NAME, BEST_HEADERS, 'id'),
+    exportLog: makeTable(EXPORT_LOG_SHEET_NAME, EXPORT_LOG_HEADERS, 'id'),
+    health: makeTable(HEALTH_SHEET_NAME, HEALTH_HEADERS, 'id'),
+    voc: makeTable(VOC_SHEET_NAME, VOC_HEADERS, 'id'),
 
     // 설문 파이프라인 탭 3종 — 행 삭제 연산 없음 (드롭·기각도 상태 전환만, 명세 §3)
     survey: (() => {
@@ -206,6 +297,12 @@ export function createSheetsStore({ serviceAccount, sheetId }) {
         updateResponse: (id, fields) => updateIn(SURVEY_SHEET_NAME, SURVEY_HEADERS, 'response_id', id, fields),
         updateLedger: (id, fields) => updateIn(LEDGER_SHEET_NAME, LEDGER_HEADERS, 'ledger_id', id, fields),
         updateIssue: (id, fields) => updateIn(ISSUE_SHEET_NAME, ISSUE_HEADERS, 'issue_id', id, fields),
+        // 삭제 — 테스트·실수 데이터 정리 전용 (.gs deleteRowsByValue 이식)
+        removeResponse: (id) => removeRowsByValue(SURVEY_SHEET_NAME, SURVEY_HEADERS, 'response_id', id),
+        removeLedgerByResponse: (rid) => removeRowsByValue(LEDGER_SHEET_NAME, LEDGER_HEADERS, 'response_id', rid),
+        removeIssueByResponse: (rid) => removeRowsByValue(ISSUE_SHEET_NAME, ISSUE_HEADERS, 'response_id', rid),
+        removeLedger: (id) => removeRowsByValue(LEDGER_SHEET_NAME, LEDGER_HEADERS, 'ledger_id', id),
+        removeIssue: (id) => removeRowsByValue(ISSUE_SHEET_NAME, ISSUE_HEADERS, 'issue_id', id),
       };
     })(),
 

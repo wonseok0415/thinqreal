@@ -8,6 +8,8 @@
   "scripts": {
     "start": "node src/index.js",
     "report": "node src/jobs/monthlyReport.js",
+    "survey-invite": "node src/jobs/surveyInvite.js",
+    "fieldcheck-summary": "node src/jobs/fieldcheckSummary.js",
     "check": "node --check src/index.js"
   },
   "engines": {

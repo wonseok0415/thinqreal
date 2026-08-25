@@ -3,9 +3,11 @@
 //
 //  - 제출(survey_submit)은 공개 경로 (예약 booking과 동일 — 토큰 불요)
 //  - 조회(survey_data)·수정(survey_update)·상태 전환(ledger_update/issue_update)은 관리자 토큰 필수
-//  - 행 삭제 핸들러는 만들지 않는다 — 드롭·기각도 상태 전환으로만 (명세 §3, 감사 추적 보존)
+//  - 삭제(survey/ledger/issue_delete)는 테스트·실수 데이터 정리 전용 (2026-07 추가) —
+//    실제 성과 기록은 드롭/기각 상태 전환으로 보존이 원칙. survey_delete는 파생 행 cascade.
 import { config } from '../config.js';
 import { SURVEY_HEADERS, LEDGER_HEADERS, ISSUE_HEADERS, SEVERITY_PCT } from '../lib/constants.js';
+import { normalizeMonth } from '../lib/dates.js';
 import { verifyAdminToken } from '../auth/token.js';
 import { notifySurvey } from '../notify/index.js';
 
@@ -83,18 +85,25 @@ export async function handleSurveySubmit(store, data) {
   return { ok: true, response_id: responseId };
 }
 
-// ── 설문·대장·이슈 통합 조회 (관리자 토큰 필수) ─────────────
+// ── 설문·대장·이슈 + 방문자·큐레이션·베스트 리뷰어 통합 조회 (관리자 토큰 필수) ──
 export async function handleGetSurveyData(store, token) {
   const admin = verifyAdminToken(token);
   if (!admin.ok) {
     return { error: 'unauthorized', reason: admin.reason || 'invalid_token' };
   }
-  const [responses, ledger, issues] = await Promise.all([
+  const [responses, ledger, issues, visitors, insightsRaw, articles, bestRaw] = await Promise.all([
     store.survey.listResponses(),
     store.survey.listLedger(),
     store.survey.listIssues(),
+    store.visitors.list(),           // 방문자 현장 설문 (§8-5, 조회 전용)
+    store.insights.list(),           // 월간 리포트 큐레이션 (§8-7 5·6)
+    store.articles.listAll(),        // 관련 기사 큐레이션
+    store.best.list(),               // 베스트 리뷰어 발송 이력 (2026-08-22)
   ]);
-  return { responses, ledger, issues };
+  // month 셀 날짜 자동 변환 잔재 흡수 (.gs insightMonthKey와 동일 목적)
+  const insights = insightsRaw.map((r) => ({ ...r, month: normalizeMonth(r.month) }));
+  const bestReviewers = bestRaw.map((r) => ({ ...r, month: normalizeMonth(r.month) }));
+  return { responses, ledger, issues, visitors, insights, articles, bestReviewers };
 }
 
 // data에서 편집 가능 필드만 추출 (undefined 필드는 건너뜀 — 현행 setValue 조건과 동일)
@@ -122,11 +131,32 @@ export async function handleSurveyUpdate(store, data) {
 // 내용 필드(category~dept)는 오탈자 정정용. attribution_text(라디오 원문)·response_id는 증빙으로 불변.
 const LEDGER_EDITABLE = ['status', 'confirmed_amount', 'confirmed_date', 'confirmed_note', 'roi_included',
   'category', 'project_name', 'expected_scale', 'attribution_pct',
-  'visit_date', 'respondent', 'dept'];
+  'visit_date', 'respondent', 'dept', 'amount_basis'];
 
 export async function handleLedgerUpdate(store, data) {
   const updated = await store.survey.updateLedger(data.id, pickFields(data, LEDGER_EDITABLE));
   return updated ? { ok: true } : { ok: false, error: 'not_found' };
+}
+
+// ── 설문·대장·이슈 영구 삭제 (관리자 토큰 게이트 — 테스트·실수 데이터 정리용) ──
+// survey_delete는 응답의 파생 행(대장·이슈, response_id 연결)도 함께 삭제해 고아 행을 막는다.
+// 예약 booking_delete와 동일하게 알림(메일·텔레그램)은 발송하지 않는다.
+export async function handleSurveyDelete(store, data) {
+  const n = await store.survey.removeResponse(data.id);
+  if (!n) return { ok: false, error: 'not_found' };
+  const ledgerN = await store.survey.removeLedgerByResponse(data.id);
+  const issueN = await store.survey.removeIssueByResponse(data.id);
+  return { ok: true, deleted: { response: n, ledger: ledgerN, issues: issueN } };
+}
+
+export async function handleLedgerDelete(store, data) {
+  const n = await store.survey.removeLedger(data.id);
+  return n ? { ok: true } : { ok: false, error: 'not_found' };
+}
+
+export async function handleIssueDelete(store, data) {
+  const n = await store.survey.removeIssue(data.id);
+  return n ? { ok: true } : { ok: false, error: 'not_found' };
 }
 
 // ── IoT 이슈 상태·속성 부여 (관리자 토큰 게이트) ─────────────

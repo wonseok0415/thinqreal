@@ -21,7 +21,7 @@ RUN npm install --omit=dev && npm cache clean --force
 COPY server/src ./src
 
 # 정적 프론트 (리포 루트에서) — 컨테이너가 함께 서빙
-COPY index.html thinqreal_admin.html ThinQ_Real_ROI_Tool.html ThinQ_Real_Visit_Survey.html privacy.html ./public/
+COPY index.html thinqreal_admin.html ThinQ_Real_ROI_Tool.html ThinQ_Real_Visit_Survey.html ThinQ_Real_Visitor_Survey.html privacy.html ./public/
 COPY CNAME .nojekyll ./public/
 COPY images ./public/images
 
@@ -33,6 +33,8 @@ ENV NODE_ENV=production \
 
 EXPOSE 8080
 
-# 월간 리포트 CronJob은 같은 이미지에 command만 오버라이드:
-#   command: ["node", "src/jobs/monthlyReport.js"]
+# 예약 작업(CronJob)은 같은 이미지에 command만 오버라이드:
+#   월간 리포트(매일 08:30, 첫째 수요일 전월분): ["node", "src/jobs/monthlyReport.js"]
+#   설문 초대 자동 발송(매일 08:30)          : ["node", "src/jobs/surveyInvite.js"]
+#   FieldCheck 일일 요약(매일 07:40)          : ["node", "src/jobs/fieldcheckSummary.js"]
 CMD ["node", "src/index.js"]

@@ -13,7 +13,7 @@
 
 ## 2. 현재 상태 (2026-08-25 기준)
 
-**완료** — Apps Script 전체(3,400줄, 예약·인증·메일·리포트·설문 파이프라인)를 대체하는 **Node.js 22 + Express 컨테이너가 이미 구현·검증 완료**됐다. 코드는 `server/` 디렉토리 (GET 16종 + POST 13종, 현행 API 계약 100% 호환). memory store + 콘솔 메일 모드로 전 엔드포인트 curl 검증 및 `docker run` 기동 검증까지 끝났다. **너의 일은 처음부터 만드는 게 아니라, 이 완성된 코드를 Gitea 저장소 규칙에 맞춰 이식하고 PostgreSQL을 연결하는 것이다.**
+**완료** — Apps Script 전체(5,052줄, 예약·인증·메일·리포트·설문·FieldCheck/FieldVoice·큐레이션 파이프라인)를 대체하는 **Node.js 22 + Express 컨테이너가 이미 구현·검증 완료**됐다. 코드는 `server/` 디렉토리 (**GET 19종 + POST 29종**, 현행 API 계약 100% 호환 — 2026-08-25 main 재병합으로 방문자 설문·FieldCheck·FieldVoice·리포트 큐레이션·베스트 리뷰어·설문 초대 자동 발송·월간 리포트 §8-7 개편판까지 전부 이식됨). memory store + 콘솔 메일 모드로 전 엔드포인트 curl 검증 및 `docker run` 기동 검증까지 끝났다. **너의 일은 처음부터 만드는 게 아니라, 이 완성된 코드를 Gitea 저장소 규칙에 맞춰 이식하고 PostgreSQL을 연결하는 것이다.**
 
 **BE팀(박현정 책임)이 준비해 둔 것**: Gitea 저장소 + push 자동배포 CI/CD + ST/QA 환경 가동(샘플 앱 동작 중) + PostgreSQL·Valkey 연동 + LENS 관찰성. 미완: SealedSecret 설정, SSO(MS Entra ID) in ops-gateway, OP 환경.
 
@@ -36,7 +36,7 @@
 2. **코드 변경 = Dockerfile 실행 설정 + `.gitea/workflows/release.yml` 테스트 명령 동반 수정.**
 3. **커밋 메시지는 conventional commits** (`feat:` `fix:` `perf:` / `docs:` `chore:`는 버전 안 올림) — 형식 안 지키면 이미지·버전이 안 만들어진다.
 4. **비밀값 커밋 금지** — 전부 env 주입. DB는 인프라 제공(`DB_*` 6종), 앱 커스텀 비밀값(AUTH_SECRET 등)은 SealedSecret 절차 확정 대기(§6 질문 1). 커밋 전 민감 단가 grep: `grep -rnE "6,220|34,220|114,220|108,000|659원|16,126|Hi-Teleservice|헤이홈"` → 0건 확인.
-5. **설문·대장·이슈에 행 삭제 기능 금지** (드롭/기각 상태 전환만). 설문 응답 불변 필드 7종(`response_id/submitted_at/track/raw_json/media_link/etc_link/iot_defect`) 유지.
+5. **설문·대장·이슈 삭제는 "테스트·실수 데이터 정리 전용"** — `survey_delete`(파생 행 cascade)·`ledger_delete`·`issue_delete`가 2026-07부로 존재하지만 전부 관리자 토큰 게이트이며, **실제 성과 기록은 여전히 드롭/기각 상태 전환으로만 보존**한다. 설문 응답 불변 필드 7종(`response_id/submitted_at/track/raw_json/media_link/etc_link/iot_defect`) 유지.
 6. Valkey 키는 `thinq-real:<key>` 형식. 코드에 Pod 주소 하드코딩 금지.
 7. **`original-code/` 수정 금지** (참고용 사본), 라이브 사이트 관련 판단은 외부 트랙에 넘길 것.
 
@@ -44,17 +44,17 @@
 
 **과제 A — server/ 코드를 Gitea 저장소에 이식** (읽을 것: `gitea-repo-contract.md` §1·§2·§8 + 저장소의 실제 Dockerfile·release.yml·src/server.js)
 - `src/server.js`(샘플) 제거 → `server/src/*`를 `src/`로 이동. `server/package.json` 병합(pg 의존성은 샘플 것 유지).
-- 정적 프론트(HTML 5종 + images/)도 이미지에 COPY — 원본은 `original-code/`에 있음 (이식 시점에 최신본인지 외부 트랙에 확인).
+- 정적 프론트(HTML 6종 — index/admin/ROI/Visit_Survey/Visitor_Survey/privacy + images/)도 이미지에 COPY — **키트의 public/이 최신본** (`original-code/`는 7월 초 구버전이라 쓰지 말 것. 이식 시점에 외부 트랙에 최신 여부 재확인).
 - Dockerfile: 샘플의 실행 패턴 유지하되 의존성(express·googleapis·nodemailer·iconv-lite·@napi-rs/canvas·chart.js·chartjs-plugin-datalabels) + **fonts-noto-cjk**(차트 한글 필수) 추가, `CMD ["node","src/index.js"]`.
 - release.yml 테스트 명령 → `node --check src/index.js`.
 - 검증: `ENVIRONMENT` 없이도 기동(memory store) → push → ST 자동 배포 → `https://kic-st-thinq-real.thinqcloud.link/healthz` 및 `/` (index.html) 확인.
 - ⚠ 함정 예방: chartjs-plugin-datalabels는 반드시 ESM 빌드 직접 import (이미 코드에 반영돼 있음 — 바꾸지 말 것). 날짜 처리에 `toISOString()` 금지(KST 규칙, lib/dates.js 사용).
 
 **과제 B — PostgreSQL store 어댑터 구현** (읽을 것: `server/src/store/types.js`·`memory.js`·`sheets/index.js` + 저장소 샘플의 PostgreSQL CRUD 코드 + `data-schema.md`)
-- `server/src/store/dynamo/`(스텁) → `postgres/`로 교체. 인터페이스 6종(bookings/roi/slotBlocks/articles/state/survey)은 그대로 구현만 바꾼다.
-- env `DB_HOST/PORT/NAME/USER/PASSWORD/SSLMODE` 사용 (config.js에 추가). 테이블은 시트 탭 구조를 따르되 컬럼명 유지 (bookings 24컬럼 + roi + slot_blocks + monthly_articles + app_state + 설문 3탭).
+- `server/src/store/dynamo/`(스텁) → `postgres/`로 교체. 인터페이스(bookings/roi/slotBlocks/articles/state/survey + 신규 TableStore 6종: visitors/insights/best/exportLog/health/voc — `store/types.js`가 계약)는 그대로 구현만 바꾼다.
+- env `DB_HOST/PORT/NAME/USER/PASSWORD/SSLMODE` 사용 (config.js에 추가). 테이블은 시트 탭 구조를 따르되 컬럼명 유지 (bookings **25컬럼**(+surveyInviteSentAt) + roi + slot_blocks + monthly_articles + app_state + 설문 3탭 + visitor_responses·monthly_insights·best_reviewers·export_log·health_checks·voc_reports — `data-schema.md`가 단일 소스).
 - `STORE_BACKEND=postgres`로 ST에서 검증. **당분간 운영 데이터 원본은 여전히 구글 시트** — 데이터 이행(시트→PG)은 별도 과제 D.
-- 설문·대장·이슈 store에는 delete 연산을 만들지 말 것 (§4-5).
+- 설문 3탭의 remove 연산은 memory/sheets 구현과 동일한 의미(테스트 정리 전용, §4-5)로만 구현할 것.
 
 **과제 C — ENVIRONMENT 분기 + 알림/메일 스위치** (읽을 것: `server/src/config.js`·`mail/mailer.js`)
 - `ENVIRONMENT` env 읽기 추가. `kic-st`/`kic-qa`에서는 메일 실발송 억제(콘솔 모드)·텔레그램/Teams 스킵, OP에서만 실발송.

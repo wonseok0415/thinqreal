@@ -35,7 +35,7 @@ export function mailMode() {
 }
 
 /**
- * @param {{to:string, cc?:string, subject:string, text:string, html?:string, attachments?:object[]}} msg
+ * @param {{to:string, cc?:string, bcc?:string, subject:string, text:string, html?:string, attachments?:object[]}} msg
  * @returns {Promise<{ok:boolean, mode:string, error?:string}>}
  */
 export async function sendMail(msg) {
@@ -45,6 +45,7 @@ export async function sendMail(msg) {
       from: { name: 'ThinQ Real', address: config.smtp.from },
       to: msg.to,
       cc: msg.cc || undefined,
+      bcc: msg.bcc || undefined,
       subject: msg.subject,
       text: msg.text,
       html: msg.html || undefined,

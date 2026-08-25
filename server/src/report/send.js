@@ -7,32 +7,27 @@ import { formatMonthLocal } from '../lib/dates.js';
 import { sendMail } from '../mail/mailer.js';
 import { buildMonthlyReportText, buildMonthlyReportHtml } from '../mail/templates/monthlyReport.js';
 import { collectMonthlyData } from './collect.js';
-import { renderPurposeDoughnut, renderRoiValueDoughnut, renderCumulativeLine } from './charts.js';
+import { renderPurposeDoughnut } from './charts.js';
 
-/** 데이터 수집 + 차트 렌더링 → { d, charts: {name: Buffer} } */
+/** 데이터 수집 + 차트 렌더링 → { d, charts: {name: Buffer} }
+ *  §8-7 개편: 목적 분포 도넛만 사용 (ROI 그래프·가치 도넛은 확정 수치 표기로 대체 폐기).
+ *  렌더 실패 시 charts.purpose 없음 → 템플릿이 막대 폴백. */
 async function buildReportData(store, month) {
   const d = await collectMonthlyData(store, month);
   const charts = {};
-
-  const purposeTotal = Object.values(d.purposeCounts).reduce((s, v) => s + v, 0);
-  if (purposeTotal > 0) {
-    const buf = await renderPurposeDoughnut(d.purposeCounts);
-    if (buf) charts.purpose = buf;
-  }
-  if (d.roiLatest) {
-    const o = d.roiLatest.outputs || {};
-    const annualValue = Number(o.annualValue) || 0;
-    const totalCost = Number(o.totalCost) || (annualValue * 3 - (Number(o.profit3) || 0));
-    const vBuf = await renderRoiValueDoughnut(o);
-    if (vBuf) charts.roiValue = vBuf;
-    const cBuf = await renderCumulativeLine(totalCost, annualValue);
-    if (cBuf) charts.cumulative = cBuf;
-  }
+  try {
+    const purposeTotal = Object.values(d.purposeCounts).reduce((s, v) => s + v, 0);
+    if (purposeTotal > 0) {
+      const buf = await renderPurposeDoughnut(d.purposeCounts);
+      if (buf) charts.purpose = buf;
+    }
+  } catch (e) { console.warn('[report] donut render fail → bar fallback: ' + e.message); }
   return { d, charts };
 }
 
 /**
- * options: { month?: 'YYYY-MM', dryRun?: bool, to?: string }
+ * options: { month?: 'YYYY-MM', dryRun?: bool, to?: string, subjectPrefix?: string, noCc?: bool }
+ * subjectPrefix('[테스트] ')·noCc는 §8-6 수동/테스트 발송 전용 — 자동 트리거 경로는 옵션 미전달.
  * dryRun이면 발송 없이 { subject, html(text) } 반환 — 미리보기는 data: URI 임베드.
  */
 export async function sendMonthlyReport(store, options = {}) {
@@ -64,8 +59,12 @@ export async function sendMonthlyReport(store, options = {}) {
   }));
   const html = buildMonthlyReportHtml(d, (name) => (charts[name] ? `cid:chart-${name}@thinqreal` : null));
 
-  const result = await sendMail({ to, cc: config.adminAlertCc, subject, text, html, attachments });
-  if (!result.ok) return { subject, sentTo: '', error: result.error };
+  const finalSubject = (options.subjectPrefix || '') + subject;
+  const result = await sendMail({
+    to, cc: options.noCc ? undefined : config.adminAlertCc,
+    subject: finalSubject, text, html, attachments,
+  });
+  if (!result.ok) return { subject: finalSubject, sentTo: '', error: result.error };
   console.log(`[report] sent → ${to} (${month})`);
-  return { subject, sentTo: to };
+  return { subject: finalSubject, sentTo: to };
 }

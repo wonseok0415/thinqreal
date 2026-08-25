@@ -306,3 +306,26 @@ Gitea 저장소 원본 검수에서 **HPA min 2 레플리카**가 확인되어(�
 검증: 인증 플로우(발급→오코드 실패카운트→정코드→토큰→쿨다운) 회귀 통과(메모리 경로), ENVIRONMENT=kic-st 부팅 시 억제 로그 3종 확인, 키트 레이아웃(STATIC_DIR=public)으로 기동해 정적 5종·API 서빙 확인. Valkey 실연결은 ST에서 확인(로컬에 Valkey 없음).
 
 **과제 A 키트**: Gitea 원본(Dockerfile·release.yml·deploy) 기준의 적용 완성본 `thinq-real_kit_A.zip` 제작·전달 — alpine Dockerfile(+font), release.yml 테스트 명령 1줄 교체, 병합 package.json(+pg·redis), src 44파일, public/(최신 정적 — original-code는 구버전), KIT-INSTRUCTIONS.md(절차·검증표·ST 동작 특성). 사내 반입 후 절차대로 반영만 하면 됨.
+
+### 8-7. main 재병합 + 신규 기능 전체 이식 (2026-08-25)
+
+라이브 트랙(main)이 병합 기준점(3c8ed88) 이후 126커밋 진행되어 .gs가 3,400→**5,052줄**로 커진 것을 확인 — 문서화된 규칙("전달 전 main 재병합")에 따라 재병합(병합 커밋 e3794e2, CLAUDE.md는 main 신구조 채택 + 이관 로그를 `migration-log.md`로 이전 보존)한 뒤, 신규 ~1,600줄을 컨테이너에 전량 이식했다. 컨테이너 API는 이제 **GET 19종 + POST 29종**.
+
+**이식된 기능 (전부 memory store + 콘솔 메일 모드로 curl 검증 완료)**
+- **방문자 현장 설문**: `visitor_submit`(공개·익명)/`visitor_delete` + `visitor_responses` 11컬럼. 정적 6번째 HTML `ThinQ_Real_Visitor_Survey.html` Dockerfile COPY 추가.
+- **FieldCheck**: `health_check`(POST, env `FC_API_KEY` fail-closed)/`health_checks`(GET 무인증) + 즉시 알림(FC_IMMEDIATE_ALERT, 현재 꺼짐) + **일일 요약 CronJob** `jobs/fieldcheckSummary.js`(매일 07:40, HTML+평문, 측정 구간 도식 포함).
+- **FieldVoice**: `voc_report`(POST, env `FV_API_KEY`, 20KB 상한)/`voc_reports`(GET 관리자 토큰).
+- **리포트 큐레이션**: `insight_add/delete/move`(quote 중복 가드·seq 재정렬), `article_add/delete/move`(OG 자동 추출·물리 순서 교환) — ArticlesStore에 listAll/append/remove/move 연산 추가.
+- **설문 확장**: SURVEY_HEADERS 42컬럼·LEDGER +`amount_basis`, `survey_delete`(파생 cascade)/`ledger_delete`/`issue_delete`(테스트 정리 전용), `survey_data` 통합 응답 확장(visitors/insights/articles/bestReviewers).
+- **베스트 리뷰어**: `best_reviewer_send`(월 3명 한도·재발송 차단·@lge.com 한정·BCC env `BEST_REVIEWER_BCC`, 발송 성공 후 기록) + `best_reviewers` 탭.
+- **감사 로그**: `export_log`(이메일은 토큰 payload에서) + `export_log` 탭.
+- **ROI pin**: `roi_report_pin` + `roi_snapshots` 응답에 `reportPinnedId` — pin은 app_state 키(`roi_report_snapshot_id`), 지정 없으면 `ROI_FIXED` 폴백.
+- **월간 리포트 §8-7 개편판**: 매일 08:30 CronJob이 **첫째 수요일에 전월분** 발송(`isFirstWednesdayOfMonth`+`prevMonthLocal`), 본문 = Executive 3카드(당월+26년 누적+NPS)·사업부별 현황·인사이트/한마디(mdBold)·목적 도넛(내부 렌더 + 막대 폴백)·기사 병합(수동 우선+자동 보충 상한 5, `filterThinqRealItems`, YouTube oEmbed)·ROI 확정 수치. 만족도는 `classifySatisfaction`이 신 0~10 NPS/구 5단계를 **절대 혼합하지 않고** 분리 집계.
+- **§8-6 2단계 수동 발송**: 확인 화면 → 일회용 토큰(10분, app_state 저장 — 멀티 레플리카 공유) → 실발송/테스트 발송(`MONTHLY_REPORT_TEST_TO`). 레거시 `confirm=YES`는 발송 없이 안내 화면. `monthly_report_send` 응답이 JSON→**HTML**로 변경됨.
+- **설문 초대 자동 발송 CronJob** `jobs/surveyInvite.js`(매일 08:30): 확정+방문일 경과+@lge.com+미발송 → 이메일당 최근 방문 1통, `surveyInviteSentAt`(bookings 25번째 컬럼) 마커로 멱등. `--preview`/`--batch` 모드.
+- 신규 탭 store: TableStore 공용 팩토리(memory `makeMemTable` / sheets `makeTable`) — visitors/insights/best/exportLog/health/voc 6종.
+
+**.gs와 의도적으로 다른 점**
+- .gs의 자체 PNG 도넛 렌더러(GLYPHS 비트맵·encodePngBytes ~600줄)는 이식하지 않음 — 컨테이너는 기존 chart.js(@napi-rs/canvas) 렌더러 재사용 (같은 목적의 상위 구현).
+- Script Properties(발송 토큰·수동 발송 이력·ROI pin) → app_state(store.state)로 — 멀티 레플리카에서도 공유됨.
+- `FC_API_KEY`/`FV_API_KEY`/`MONTHLY_REPORT_TEST_TO`/`BEST_REVIEWER_BCC`/`SURVEY_FORM_URL` → env (.env.example 갱신). 도어락 PIN 변경(509067)은 env `DOORLOCK_PIN` 값 교체 사항 — 코드 무관.

@@ -30,13 +30,19 @@
  *
  * @typedef {object} ArticlesStore
  * @property {(month: string) => Promise<object[]>} listByMonth       각 행에 rowRef 포함 (write-back용)
+ * @property {() => Promise<object[]>} listAll                        관리자 큐레이션 UI용 (month/title/url/source/published_at)
  * @property {(rowRef: any, fields: object) => Promise<void>} update  빈 칸 write-back
+ * @property {(record: object) => Promise<void>} append               article_add (관리자 큐레이션)
+ * @property {(month: string, url: string) => Promise<boolean>} remove       article_delete
+ * @property {(month: string, url: string, dir: 'up'|'down') => Promise<{ok:boolean, error?:string}>} move  같은 달 이웃 행과 순서 교환
  *
  * @typedef {object} StateStore — Script Properties 상태값 대체 (monthly_report_last_sent_month 등)
  * @property {(key: string) => Promise<string>} get
  * @property {(key: string, value: string) => Promise<void>} set
  *
- * @typedef {object} SurveyStore — 설문 파이프라인 탭 3종 (행 삭제 연산은 의도적으로 없음 — 명세 §3)
+ * @typedef {object} SurveyStore — 설문 파이프라인 탭 3종
+ * 삭제 연산은 테스트·실수 데이터 정리 전용 (2026-07 추가 — .gs survey/ledger/issue_delete와 동일 계약).
+ * 실제 성과 기록은 드롭/기각 상태 전환으로 보존이 원칙.
  * @property {() => Promise<object[]>} listResponses
  * @property {() => Promise<object[]>} listLedger
  * @property {() => Promise<object[]>} listIssues
@@ -46,6 +52,17 @@
  * @property {(id: string, fields: object) => Promise<object|null>} updateResponse  id = response_id, 갱신 후 레코드
  * @property {(id: string, fields: object) => Promise<object|null>} updateLedger    id = ledger_id
  * @property {(id: string, fields: object) => Promise<object|null>} updateIssue     id = issue_id (est_value 재계산용으로 갱신 레코드 필요)
+ * @property {(id: string) => Promise<number>} removeResponse    response_id 일치 행 삭제 (건수 반환 — cascade는 핸들러 책임)
+ * @property {(responseId: string) => Promise<number>} removeLedgerByResponse   response_id 연결 대장 행 삭제
+ * @property {(responseId: string) => Promise<number>} removeIssueByResponse    response_id 연결 이슈 행 삭제
+ * @property {(id: string) => Promise<number>} removeLedger      ledger_id 일치 행 삭제
+ * @property {(id: string) => Promise<number>} removeIssue       issue_id 일치 행 삭제
+ *
+ * @typedef {object} TableStore — 신규 탭 공용 인터페이스 (visitor/insights/best/exportLog/health/voc)
+ * @property {() => Promise<object[]>} list
+ * @property {(record: object) => Promise<void>} append
+ * @property {(id: string, fields: object) => Promise<object|null>} update  idField 기준
+ * @property {(id: string) => Promise<number>} remove                       idField 일치 행 삭제 (건수)
  *
  * @typedef {object} Store
  * @property {BookingsStore} bookings
@@ -54,6 +71,12 @@
  * @property {ArticlesStore} articles
  * @property {StateStore} state
  * @property {SurveyStore} survey
+ * @property {TableStore} visitors   방문자 현장 설문 (visitor_responses)
+ * @property {TableStore} insights   월간 리포트 큐레이션 (monthly_insights)
+ * @property {TableStore} best       베스트 리뷰어 발송 이력 (best_reviewers)
+ * @property {TableStore} exportLog  CSV 내보내기 감사 로그 (export_log)
+ * @property {TableStore} health     FieldCheck 점검 이력 (health_checks)
+ * @property {TableStore} voc        FieldVoice 리포트 (voc_reports)
  * @property {string} backend
  */
 
