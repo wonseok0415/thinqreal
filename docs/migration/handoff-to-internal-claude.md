@@ -84,7 +84,7 @@
 ## 9. 세션 시작 프롬프트 모음 (담당자용 — 복사해서 사용)
 
 ### 반입 후 준비 (사내 Claude 호출 전, 담당자가 1회 수행)
-반입한 zip에서 ① `docs/migration/*` 전체를 Gitea 저장소의 `docs/migration/`에 **교체** ② `server/` 폴더를 저장소 루트에 **추가** ③ (Claude Code인 경우) `docs/migration/CLAUDE-gitea.md`를 저장소 **루트에 `CLAUDE.md`로 복사** — 세션마다 자동 로드되는 상시 지침 ④ 커밋 메시지 `chore: 이관 문서·컨테이너 코드 반입` 으로 push (`chore:`는 버전·배포를 발동시키지 않음). 사내 Claude가 Claude Code(저장소 직접 접근)라면 이 단계도 첫 세션에서 시키면 된다.
+반입한 zip에서 ① Gitea 저장소 루트에 `docs/migration/` 폴더를 **새로 만들고** zip의 `docs/migration/*` 전체를 넣는다 (현재 저장소에 docs/ 없음 — 7/16 반입분은 보일러플레이트 재구성 때 빠진 것으로 보이며, 있더라도 이번 것이 최신본이므로 덮어쓴다) ② `server/` 폴더를 저장소 루트에 **추가** ③ (Claude Code인 경우) `docs/migration/CLAUDE-gitea.md`를 저장소 **루트에 `CLAUDE.md`로 복사** — 세션마다 자동 로드되는 상시 지침 ④ 커밋 메시지 `chore: 이관 문서·컨테이너 코드 반입` 으로 push (`chore:`는 버전·배포를 발동시키지 않음). 사내 Claude가 Claude Code(저장소 직접 접근)라면 이 단계도 첫 세션에서 시키면 된다. (선택) `.dockerignore`에 `docs/`·`server/`를 추가하면 이미지 빌드 컨텍스트가 가벼워진다 — 필수는 아님(Dockerfile이 COPY하지 않는 폴더는 이미지에 안 들어감).
 
 ### 프롬프트 1 — 첫 세션 (온보딩 + 과제 A 착수)
 ```
