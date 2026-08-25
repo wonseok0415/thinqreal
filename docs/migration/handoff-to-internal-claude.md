@@ -80,3 +80,41 @@
 - §5가 지정한 파일 외에는 열지 말 것. 특히 `CLAUDE.md`(루트)와 `original-code/`는 기본적으로 읽지 않는다.
 - 대화로 길게 논의하지 말고 바로 구현 → 검증 → worklog 기록 → 종료.
 - 막히면 추측으로 소진하지 말고 worklog에 "막힌 지점"으로 기록 후 종료 — 외부 트랙이 받아 검토한다.
+
+## 9. 세션 시작 프롬프트 모음 (담당자용 — 복사해서 사용)
+
+### 반입 후 준비 (사내 Claude 호출 전, 담당자가 1회 수행)
+반입한 zip에서 ① `docs/migration/*` 전체를 Gitea 저장소의 `docs/migration/`에 **교체** ② `server/` 폴더를 저장소 루트에 **추가** ③ 커밋 메시지 `chore: 이관 문서·컨테이너 코드 반입` 으로 push (`chore:`는 버전·배포를 발동시키지 않음). 사내 Claude가 Claude Code(저장소 직접 접근)라면 이 단계도 첫 세션에서 시키면 된다.
+
+### 프롬프트 1 — 첫 세션 (온보딩 + 과제 A 착수)
+```
+너는 ThinQ Real 사내 인프라 이관 작업을 전담하는 개발 어시스턴트다.
+
+[맥락]
+- 전체 맥락은 저장소의 docs/migration/handoff-to-internal-claude.md(인수인계 브리핑)에 있다. 이 파일을 먼저 정독해라.
+- 외부에서 완성·검증된 컨테이너 코드(server/)를 이 Gitea 저장소의 샘플 자리(src/server.js)에 이식하는 것이 너의 임무다.
+- 채팅 기록은 인수인계되지 않았다. 브리핑과 docs/migration/ 문서가 유일한 맥락이다. 문서에 없는 것은 추측하지 말고 물어봐라.
+
+[오늘 할 일]
+1. 브리핑을 읽고, 이해한 내용을 10줄 이내로 요약해라 (프로젝트 목표 / 현재 상태 / 과제 A~D / 절대 규칙 7). 내가 확인하고 잘못된 부분을 바로잡겠다.
+2. 확인 후 과제 A(server/ 코드 이식)를 브리핑 §5 절차대로 진행해라. 이 저장소의 현재 Dockerfile·.gitea/workflows/release.yml·src/server.js·README.md를 먼저 읽고, §4 절대 규칙을 지키며 교체해라.
+3. 아직 push하지 마라 — 변경 요약을 내게 보여주고, 승인받은 뒤 conventional commits 형식(feat: ...)으로 커밋·push해라.
+4. 세션을 마치기 전에 docs/migration/internal-worklog.md에 오늘 작업을 기록해라 (없으면 생성).
+
+[제약]
+- 사용 한도가 작다. 불필요한 파일 탐색과 긴 설명 없이 작업 중심으로.
+- original-code/는 참고용 — 절대 수정 금지.
+- 막히면 추측으로 소진하지 말고, 막힌 지점을 worklog에 기록하고 멈춰라.
+```
+
+### 프롬프트 2 — 이후 세션 표준형
+```
+docs/migration/handoff-to-internal-claude.md와 docs/migration/internal-worklog.md의 마지막 기록을 확인한 뒤, 과제 <B/C/D 중 하나>를 이어서 진행해라. push 전에 변경 요약을 보여주고 승인받아라. 끝나면 worklog에 기록해라.
+```
+
+### (챗 전용) Projects 설정 — 사내 Claude가 Claude Code가 아니라 일반 채팅이면
+프로젝트 "ThinQ Real 이관"을 만들고 `docs/migration/` md 파일들을 프로젝트 지식에 업로드한 뒤, 프로젝트 지침에 아래를 등록:
+```
+이 프로젝트는 ThinQ Real 사내 이관 작업 전용이다. 프로젝트 지식의 handoff-to-internal-claude.md가 진입점이며, 모든 작업은 그 문서의 규칙(§4)과 과제 순서(§5)를 따른다. 답변은 간결하게, 작업 중심으로 한다. 세션 결과는 internal-worklog.md 형식으로 정리해 준다.
+```
+채팅에는 저장소 파일 접근이 없으므로, 과제 A는 "필요한 파일(현재 Dockerfile·release.yml 등)을 대화에 첨부받아 → 수정본을 통째로 출력받아 → 담당자가 Gitea에 반영"하는 방식으로 진행한다.
