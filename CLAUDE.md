@@ -1302,3 +1302,11 @@ BE팀이 사내 클라우드에 ThinQ Real 인프라 구축 진행 — **상세�
 ## 작업 내역 (2026-08-25 — Gitea 저장소 README 계약 전사)
 
 담당자가 Gitea `extapps/thinq-real` README 캡처 6장을 제공 — 세션에서 사내 Gitea 접근 불가(프록시 403)하므로 **`docs/migration/gitea-repo-contract.md`(신규)에 전사**해 이식 작업 기준 사본으로 확보. 요지: `/healthz` 유지 필수 / 코드 변경 시 Dockerfile·release.yml 테스트 명령 동반 수정 / conventional commits(`feat:`/`fix:`) 안 지키면 배포 안 됨 / DB_* 6종·KVSTORE_* env 제공 / 샘플 `src/server.js` 교체가 공식 절차 / kic-op 미등록 상태. 이식 체크리스트 10항목 §8에 정리 — 다음 이관 세션은 **저장소 zip 업로드받아** §8 순서로 진행. 미결: 앱 커스텀 비밀값(AUTH_SECRET 등) 주입 절차 BE팀 확인 필요.
+
+## 작업 내역 (2026-08-25 후속 — 사내 Claude 인수인계 체계 수립)
+
+담당자의 개인 Claude(외부)와 사내 엔터프라이즈 Claude(한도 작음, Gitea 접근 가능) 간 공유가 보안 결재 필요로 제한됨에 따라, **이관 실작업을 사내 Claude로 넘기는 인수인계 체계**를 수립.
+
+- **`docs/migration/handoff-to-internal-claude.md` 신설** — 사내 Claude의 진입 문서. 30초 요약 / 파일 지도(질문별 읽을 파일) / 절대 규칙 7 / 과제 A~D(이식→postgres 어댑터→ENVIRONMENT 분기→데이터 이행) / BE팀 미결 질문 4 / worklog 프로토콜 / 토큰 절약 수칙.
+- **역할 분담 확정**: 현행 사이트 운영·수정 = 외부(이 리포, GitHub) / 이관 실작업 = 사내 Claude(Gitea). 사내→외부 전달은 `docs/migration/internal-worklog.md`(사내 Claude가 append) 파일 하나만 반출 — 결재 부담 최소화.
+- 전달 패키지 = **최신 브랜치 zip 1개** (server/ + docs/migration/ 전체 + 이 브리핑 포함, 비밀값 0). 사내 반입 후 Gitea 저장소의 docs/migration/을 최신본으로 교체하면 사내 Claude가 저장소에서 직접 읽음.
