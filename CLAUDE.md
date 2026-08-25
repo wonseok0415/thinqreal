@@ -1310,3 +1310,12 @@ BE팀이 사내 클라우드에 ThinQ Real 인프라 구축 진행 — **상세�
 - **`docs/migration/handoff-to-internal-claude.md` 신설** — 사내 Claude의 진입 문서. 30초 요약 / 파일 지도(질문별 읽을 파일) / 절대 규칙 7 / 과제 A~D(이식→postgres 어댑터→ENVIRONMENT 분기→데이터 이행) / BE팀 미결 질문 4 / worklog 프로토콜 / 토큰 절약 수칙.
 - **역할 분담 확정**: 현행 사이트 운영·수정 = 외부(이 리포, GitHub) / 이관 실작업 = 사내 Claude(Gitea). 사내→외부 전달은 `docs/migration/internal-worklog.md`(사내 Claude가 append) 파일 하나만 반출 — 결재 부담 최소화.
 - 전달 패키지 = **최신 브랜치 zip 1개** (server/ + docs/migration/ 전체 + 이 브리핑 포함, 비밀값 0). 사내 반입 후 Gitea 저장소의 docs/migration/을 최신본으로 교체하면 사내 Claude가 저장소에서 직접 읽음.
+
+## 작업 내역 (2026-08-25 후속 — Gitea 원본 검수 + 멀티 레플리카 대응 + 과제 A 키트)
+
+담당자가 Gitea 저장소를 드라이브(`thinq-real_gitea`)로 반출 → 커넥터로 원문 검수 완료. **상세는 gitea-repo-contract.md §10 + stage1-container-design.md §8-6이 단일 소스.**
+
+- **핵심 발견**: HPA min 2(멀티 레플리카 확정) / alpine·non-root·readOnlyRootFilesystem / memory limit 256Mi / original-code는 7월 초 구버전(설문 폼 없음) / Valkey는 클러스터 모드.
+- **server/ 보강 (커밋 `c117295`)**: Valkey 공유 캐시(kvcache.js — 인증 코드·쿨다운·잠금), AUTH_SECRET Valkey 공유(auth/secret.js, SealedSecret 전 임시), ENVIRONMENT=kic-st/qa 실발송 자동 억제, googleapis 지연 로드, alpine 폰트 경로.
+- **과제 A 키트 전달** (`thinq-real_kit_A.zip`, 스크래치 산출물 — 리포 미커밋): alpine Dockerfile + release.yml(테스트 명령 1줄 교체) + 병합 package.json + src 44파일 + public/(최신 정적) + KIT-INSTRUCTIONS.md. 사내에서 절차대로 반영→`feat:` push→ST 자동 배포→검증표 확인.
+- ⚠ ECR 계정 ID·클러스터 내부 주소는 퍼블릭 리포에 기재 금지 — 키트·스냅샷(스크래치)에만.

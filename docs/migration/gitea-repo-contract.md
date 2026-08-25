@@ -93,3 +93,19 @@ main에 push → release workflow가 커밋 메시지로 새 버전 결정 → m
   - ☐ **SSO(MS Entra ID) 연동 in ops-gateway (미완)** — **인증은 앱 코드가 아니라 ops-gateway 계층에서 MS Entra ID(사내 Microsoft 계정)로 처리하는 방향**. decisions §2의 "SSO 우선 검토 — 인증 후 헤더의 이메일로 관리자 판별" 구도와 일치. 우리 앱은 게이트웨이가 넘겨주는 사용자 헤더를 읽는 쪽으로 준비하면 됨 (현행 HMAC 게이트는 그 전까지 유지).
   - ☐ 수평 전개 (하위 KIC-QA·KIC-OP 체크 표시로 보임) — 단 README(08-22 캡처)는 "kic-op은 ApplicationSet 미등록"이라 명시. **OP 환경 실가동 여부는 박현정 책임에게 확인 필요** (CSR redirect 신청 시점과 직결).
 - 관련 문서로 "김건우 | ThinQ Real 방문 예약 관리 시스템 TCN 입점 검토", "260706 사내 인프라 이관 방안 논의" 링크됨. extapps 자체는 "비 서버 전문 팀 주도 서비스를 위한 TCN 입점 모델".
+
+## 10. 저장소 원본 확인 (2026-08-25 — 드라이브 반출본 `thinq-real_gitea` 검수)
+
+캡처가 아닌 **파일 원문**으로 확인한 사실 (README 전사본 §1~§7과 규칙 일치 확인됨):
+
+- **Dockerfile**: `node:22-alpine` + `USER 1000:1000`(non-root) + `COPY src ./src` + `CMD ["node","src/server.js"]`. → 키트도 alpine 유지, 폰트는 `apk add font-noto-cjk`.
+- **deployment.yaml**: `replicas: 2`, `readOnlyRootFilesystem: true`, capabilities drop ALL, probe 2종=/healthz, `envFrom`: base configmap(KVSTORE_*) + env overlay configmap(ENVIRONMENT) + DB secret. resources **limit cpu 500m / memory 256Mi**. nodepool arm64 (멀티아치 빌드가 커버).
+- **hpa.yaml**: **min 2 / max 10** (CPU 70%·MEM 80%) — ⚠ **멀티 레플리카 확정**. 단일 레플리카 전제(인메모리 인증 코드)가 깨짐 → server/에 Valkey 공유 캐시 구현으로 대응 (stage1-container-design §8-6).
+- **release.yml**: main push 트리거(`paths-ignore: deploy/**`), 버전은 deployment.yaml의 `version:` 라벨 기준 + conventional commit 파싱으로 bump 결정, 테스트는 `node --check src/server.js` 한 줄, 멀티아치(amd64+arm64) 빌드 → ECR 3리전 push → deploy yaml 갱신 → bot이 `chore: release ...` 커밋+태그 push. conventional 형식 미준수 시 "No release-worthy commit" 으로 조기 종료(빌드 없음).
+- **샘플 server.js**: Valkey는 `redis.createCluster` — **클러스터 모드** 접속. pg Pool은 `DB_SSLMODE==='disable'`이면 ssl off, 아니면 `rejectUnauthorized:false`.
+- **original-code/**: 7월 초 버전 (ThinQ_Real_Visit_Survey.html 없음 — 설문 개편 전) → **정적 프론트 원본으로 쓰면 안 됨**. 키트는 최신본을 `public/`으로 신설.
+- ECR 계정 ID·클러스터 내부 주소 등 식별자는 이 퍼블릭 리포에 기재하지 않음 — 키트(반입용 zip)와 저장소 원본에만 존재.
+
+### §8 체크리스트 갱신 (키트 반영 후)
+- 1(zip)·2(src 교체)·3(Dockerfile)·4(release.yml)·5(/healthz)는 **과제 A 키트(`thinq-real_kit_A.zip`)로 해결** — 적용 절차는 키트의 KIT-INSTRUCTIONS.md.
+- 6(postgres 어댑터)·9(커스텀 secret 절차)·10(노출=ops-gateway 확정)은 잔여. **신규**: HPA 멀티 레플리카 대응은 server/ 코드에 선반영됨(Valkey 공유 캐시·AUTH_SECRET 공유·ENVIRONMENT 발송 억제).

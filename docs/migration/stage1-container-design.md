@@ -289,3 +289,20 @@ CMD ["node", "src/index.js"]
 | 정적 서빙 | `Dockerfile` COPY에 `ThinQ_Real_Visit_Survey.html` 추가 | 컨테이너가 설문 폼도 함께 서빙 |
 
 검증(memory store): 트랙 3종 제출 → 파생 행(대장 2건 % 파싱 50/25·이슈 1건) / 무토큰 차단 / 불변 필드(track) 변경 무시 / 대장 확정(만원) / est_value 더미 단가 계산(0.1×100,000×3,000=30,000,000 정확) / 리포트 📋 섹션 기대값 전부 일치(응답 3·재방문 33%·산입액 3,500만원·이슈 1) / 예약·정적 서빙 회귀 통과.
+
+### 8-6. 사내 K8s 멀티 레플리카 대응 (2026-08-25 — Gitea 원본 확인 후)
+
+Gitea 저장소 원본 검수에서 **HPA min 2 레플리카**가 확인되어(§gitea-repo-contract §10) 단일 레플리카 전제를 코드로 해소:
+
+| 변경 | 파일 | 내용 |
+|---|---|---|
+| 공유 캐시 | `lib/kvcache.js` (신규) | KVSTORE_ADDR 있으면 Valkey Cluster(`redis` 클라이언트), 없으면 기존 ttlCache 폴백. 키는 `${KVSTORE_PREFIX}:` 접두. 연결 실패 시 경고 후 메모리 강등 |
+| 인증 코드 | `auth/codes.js` async 전환 | 발급 pod ≠ 검증 pod여도 동작. 쿨다운·실패 카운트도 공유 |
+| 서명 키 공유 | `auth/secret.js` (신규) | AUTH_SECRET env 미주입 시 Valkey get-or-create 공유 키 (SealedSecret 도입 전 임시). env 주입이 항상 우선 |
+| 발송 억제 | config `outboundSuppressed` | ENVIRONMENT=kic-st/kic-qa면 메일·텔레그램·Teams 실발송 자동 억제(콘솔/스킵). `OUTBOUND_FORCE_SEND=true`로 해제. kic-op·로컬은 비억제 |
+| 메모리 절감 | store/index.js·calendar/google.js | googleapis **동적 import** — memory 백엔드·CALENDAR_ID 미설정 시 미로드 (K8s limit 256Mi 대응) |
+| 폰트 | report/charts.js | Alpine `font-noto-cjk` 경로 후보 추가 |
+
+검증: 인증 플로우(발급→오코드 실패카운트→정코드→토큰→쿨다운) 회귀 통과(메모리 경로), ENVIRONMENT=kic-st 부팅 시 억제 로그 3종 확인, 키트 레이아웃(STATIC_DIR=public)으로 기동해 정적 5종·API 서빙 확인. Valkey 실연결은 ST에서 확인(로컬에 Valkey 없음).
+
+**과제 A 키트**: Gitea 원본(Dockerfile·release.yml·deploy) 기준의 적용 완성본 `thinq-real_kit_A.zip` 제작·전달 — alpine Dockerfile(+font), release.yml 테스트 명령 1줄 교체, 병합 package.json(+pg·redis), src 44파일, public/(최신 정적 — original-code는 구버전), KIT-INSTRUCTIONS.md(절차·검증표·ST 동작 특성). 사내 반입 후 절차대로 반영만 하면 됨.
