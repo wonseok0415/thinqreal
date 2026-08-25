@@ -25,7 +25,7 @@
 
 | 서비스 | 용도 | 호출 방향 | 차단 시 영향·대안 |
 |---|---|---|---|
-| QuickChart.io | 월간 리포트 차트 PNG | **수신자 메일 클라이언트**가 `<img>` 로드 (서버 호출 아님) | 사내 PC에서 외부 이미지 차단 시 차트 미표시 → 서버 사이드 차트 렌더(예: 차트 라이브러리로 PNG 생성 후 첨부/인라인 cid)로 대체 |
+| ~~QuickChart.io~~ | ~~월간 리포트 차트 PNG~~ | **폐기 (2026-08-04)** — 도넛을 Apps Script 내부 렌더링 PNG(cid 인라인 첨부)로 대체, 외부 이미지·서비스 의존 제거 (decisions §⑦ 선반영). 이관 시 동일 로직 이식만 하면 됨 | — |
 | Serper.dev | 월간 리포트 기사 검색 | 서버 → 외부 | 차단 시 `monthly_articles` 시트 수동 큐레이션만으로 운영 (이미 우선순위 1순위라 영향 적음) |
 | Telegram Bot API | 예약 알림 보조 채널 | 서버 → 외부 | 차단 시 silent skip 설계라 무해. 사내 메신저 웹훅으로 대체 검토 |
 | Google Calendar | 팀 일정 동기화 | 서버 → Google | 사내 캘린더로 대체 또는 보류 |
@@ -36,7 +36,7 @@
 | 항목 | 내용 | 이전 시 |
 |---|---|---|
 | 호스팅 | GitHub Pages (리포 루트 = 사이트 루트, CNAME `thinqreal.com`, Cloudflare DNS) | 사내 웹서버로 정적 파일 복사. `thinqreal.lge.com` DNS + 사내 CA 인증서 |
-| `SCRIPT_URL` 상수 | index.html · thinqreal_admin.html · ThinQ_Real_ROI_Tool.html 각 1곳 | 사내 API 서버 URL로 교체 (3곳) |
+| `SCRIPT_URL` 상수 | index.html · thinqreal_admin.html · ThinQ_Real_ROI_Tool.html · ThinQ_Real_Visit_Survey.html · ThinQ_Real_Visitor_Survey.html 각 1곳 | 사내 API 서버 URL로 교체 (5곳 — 기존 문서의 "3곳"은 설문 폼 누락이었음, 2026-07-27 보정) |
 | `mode:'no-cors'` POST | Apps Script CORS 제약 우회용 | 사내 API가 CORS 허용하면 정상 fetch로 개선 가능 (응답 확인 가능해짐) |
 | 빌드 도구 | 없음 (순수 정적) | 그대로 이동 |
 | 외부 리소스 | 없음 (폰트 Inter도 시스템 폴백, 이미지 전부 상대경로) | 그대로 이동 |

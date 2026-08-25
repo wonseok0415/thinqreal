@@ -3,7 +3,7 @@
 > 현재 저장소: Google Sheets (ID는 CLAUDE.md 참조). 사내 DB 이전 시 테이블 설계 기준.
 > 헤더의 단일 소스: `ThinQReal_AppScript.gs`의 `getOrCreateHeaders()` `HEADERS` 배열.
 
-## 1. `bookings` 탭 (예약 — 메인 테이블, 24컬럼)
+## 1. `bookings` 탭 (예약 — 메인 테이블, 25컬럼)
 
 | # | 컬럼 | 타입 | 설명 |
 |---|---|---|---|
@@ -13,9 +13,9 @@
 | 4 | `slots` | JSON string | 회차 배열 예 `"[2,3]"` |
 | 5 | `slot` | number | 첫 회차 (구형 호환) |
 | 6 | `slotLabel` | string | 예 `2회차 13:00~14:30 · 3회차 15:00~16:30` |
-| 7 | `name` | string | 책임자/담당자 이름 |
+| 7 | `name` | string | 신청자 "이름 직급" (2026-07-20부터 — 설문 작성자 프리필과 맵핑). 이전 행은 책임자/담당자 이름 |
 | 8 | `org` | string | subject 미러 (관리자 표 표시용, 구형 호환) |
-| 9 | `phone` | string | 대표 연락처 (하이픈 포함 최대 15자) |
+| 9 | `phone` | string | 대표 연락처 — **2026-07-20부터 수집 중단** (신규 행 공란, 과거 행만 값 보유) |
 | 10 | `email` | string | 신청자 이메일 (확정/거절 메일 수신) |
 | 11 | `purpose` | string | 한국어 라벨 (통계 기준) — 아래 enum |
 | 12 | `count` | number | 총 방문 인원 |
@@ -31,6 +31,7 @@
 | 22 | `calendarEventId` | JSON string | 캘린더 이벤트 id 배열 (회차마다 개별 일정). 레거시 단일 문자열도 파싱됨 |
 | 23 | `division` | string | 신청자 소속 본부 (드롭다운 10종). 2026-07 이전 행 공란 |
 | 24 | `department` | string | 신청자 소속 부서 (자유 입력) |
+| 25 | `surveyInviteSentAt` | ISO string | 방문 후기 설문 요청 메일 발송 시각 (배치 재실행 시 중복 발송 방지 마커). 미발송 행 공란 |
 
 ### `purpose` / `purposeKey` enum (2026-07-05 개편)
 | purposeKey | purpose (라벨) |
@@ -76,16 +77,54 @@
 
 ## 4.5 설문 파이프라인 탭 3종 (2026-07-09 추가 — 이관 범위 포함 필수)
 
-### `survey_responses` (설문 응답 원본, 35컬럼)
-`response_id`(=`Date.now()` 문자열) · `submitted_at`(ISO) · `visit_date/dept/name/client/visit_count` · `track`(sales/media/etc) · `purpose` · Track A(`deal_stage/deal_size/deal_area/reaction/attr`) · Track B(`media_work/media_days/media_alt/media_cost/media_link/media_link_name/media_link_size/media_link_attr`) · Track C(`etc_work/etc_days/etc_alt/iot_defect/iot_defect_detail/etc_link/etc_link_name/etc_link_size/etc_link_attr`) · `satisfaction/feedback` · `raw_json`(페이로드 원본 — 스키마 진화 대비) · `deal_amount`(계약 체결 딜 실제 계약 금액 — 2026-07 S9 추가, 선택 입력. 시트 끝 컬럼 — 신규 컬럼은 상수 끝에만 추가하는 규칙)
+### `survey_responses` (설문 응답 원본, 42컬럼)
+`response_id`(=`Date.now()` 문자열) · `submitted_at`(ISO) · `visit_date/dept/name/client/visit_count` · `track`(sales/media/etc) · `purpose` · Track A(`deal_stage/deal_size/deal_area/reaction/attr`) · Track B(`media_work/media_days/media_alt/media_cost/media_link/media_link_name/media_link_size/media_link_attr`) · Track C(`etc_work/etc_days/etc_alt/iot_defect/iot_defect_detail/etc_link/etc_link_name/etc_link_size/etc_link_attr`) · `satisfaction/feedback` · `raw_json`(페이로드 원본 — 스키마 진화 대비) · `deal_amount`(계약 체결 딜 실제 계약 금액 — 2026-07 S9 추가, 선택 입력. 시트 끝 컬럼 — 신규 컬럼은 상수 끝에만 추가하는 규칙) · `impressive_modes`(인상 깊었던 솔루션 복수 선택, 콤마 구분 — 2026-07 추가) · `desired_solutions`(추가 필요·체험 희망 솔루션 주관식, 선택 입력 — 2026-07 추가) · `impressive_reasons`(모드별 인상 깊었던 이유, "모드명 — 이유; ..." 직렬화 — 2026-07 추가) · **8번 블록 확장 4종** `adopt_pick`(도입 의향 1픽) · `voice_space`(음성 제어 공간) · `iot_connect`(연결 우선 IoT 제품, 콤마 구분 최대 3개 — 최대치는 클라이언트 검증, 서버는 관대 수용) · `ai_barrier`(도입 걸림돌) — 2026-07-24 추가, **파생 없음·ROI 미산입** (상품기획·엔지니어링 인사이트 전용)
 
-### `performance_ledger` (성과 추적 대장, 15컬럼)
-`ledger_id`(`{response_id}-L{n}`) · `response_id` · `category`(홍보·광고 마케팅 / 신규 Task·기타) · `project_name/expected_scale` · `attribution_text/attribution_pct`(원문 괄호 `(N%)` 파싱) · `visit_date/respondent/dept` · `status`(**후보→확정/드롭** — 행 삭제 없음) · `confirmed_amount`(**만원 단위**)/`confirmed_date/confirmed_note` · `roi_included`(Y/'')
+### `performance_ledger` (성과 추적 대장, 16컬럼 — 2026-08-24 amount_basis 추가)
+`ledger_id`(`{response_id}-L{n}`) · `response_id` · `category`(홍보·광고 마케팅 / 신규 Task·기타) · `project_name/expected_scale` · `attribution_text/attribution_pct`(원문 괄호 `(N%)` 파싱) · `visit_date/respondent/dept` · `status`(**후보→확정/드롭** — 행 삭제 없음) · `confirmed_amount`(**만원 단위**)/`confirmed_date/confirmed_note` · `roi_included`(Y/'') · `amount_basis`(`실측`/`추정`/`미상` — 2026-08-24. 공란=실측 취급(구 데이터). 추정 = 예상 규모 구간 **하한** × 기여도(보수 원칙, 클라이언트 `SCALE_FLOOR_MANWON` 계산·계산값 고정) — '1억 미만'·'모름'류는 자동 추정 불가. 금액 미상 확정 허용. ROI 반영 체크는 금액 있는 확정만)
 
 ### `iot_issue_log` (IoT 품질 이슈, 9컬럼)
 `issue_id`(`{response_id}-I1`) · `response_id` · `device/symptom` · `severity`(높음50%/가끔10%/드묾1%) · `channel`(원격/내방/출장) · `q_ship` · `status`(등록→검토→반영/기각) · `est_value`(서버 계산 — 참고용, ROI 미산입)
 
 컬럼 단일 소스: `ThinQReal_AppScript.gs`의 `SURVEY_HEADERS`/`LEDGER_HEADERS`/`ISSUE_HEADERS` 상수. 세 탭 모두 첫 호출 시 자동 생성.
+
+### `visitor_responses` (방문자 현장 설문, 11컬럼 — 2026-07-27 §8-5 추가)
+`response_id`(=`Date.now()` 문자열) · `submitted_at`(ISO) · `lang`(`KO`/`EN` — 응답 언어) · `satisfaction`(운영 설문과 동일 value + `1 - 매우 미흡` 확장) · `impressive_modes` · `adopt_pick` · `voice_space` · `iot_connect` · `ai_barrier`(전부 운영 설문 8번 블록과 **value 문자열 동일** — 격차 분석 전제) · `feedback`(선택) · `raw_json`
+
+완전 익명(성명·소속 미수집) · 파생 없음 · ROI 미산입. 컬럼 단일 소스: `VISITOR_HEADERS` 상수. 첫 호출 시 자동 생성. 관리자 영구 삭제 가능(`visitor_delete` — 테스트 정리용), **수정은 불가** (익명 응답 원문 보존 원칙).
+
+### `monthly_insights` (월간 리포트 큐레이션, 7컬럼 — 2026-08-03 §8-7 추가)
+`id`(`Date.now()` 문자열) · `month`(YYYY-MM — 리포트 대상 월) · `seq`(월·타입별 자동 증가, 렌더 순서) · `type`(`insight` 핵심 인사이트 / `quote` 인상 깊은 한마디) · `text` · `source`(quote만: `인솔자`\|`방문자` — 리포트 출처 라벨 직결) · `created_at`(ISO)
+
+행이 없는 월은 리포트에서 해당 블록 자동 생략. 입력은 관리자 설문·대장 탭 큐레이션 UI(`insight_add`/`insight_delete`).
+
+### `best_reviewers` (베스트 리뷰어 발송 이력, 10컬럼 — 2026-08-22 추가)
+`id`(`Date.now()` 문자열) · `month`(YYYY-MM — 선정 월, 텍스트 강제) · `response_id`(선정된 설문 응답 — 재발송 차단 키) · `name` · `dept` · `email`(수신자 — @lge.com 한정) · `visit_date` · `product`(사은품 문구 — 발송 화면 입력, 계절별 변경) · `sent_at`(ISO) · `sent_by`(발송 관리자 — 검증된 토큰 payload에서 추출)
+
+설문 초대 메일의 「매월 베스트 리뷰어 세 분」 공지 이행. 같은 `response_id` 재발송·월 3명(`BEST_MONTHLY_LIMIT`) 초과는 서버가 차단. **축하 메일만 발송 — 기프티콘(모바일 쿠폰)은 별도 채널 전달(시스템 미경유, 쿠폰 코드·바코드 미저장)**. 컬럼 단일 소스: `BEST_HEADERS` 상수, 첫 호출 시 자동 생성. 발송 이력이므로 행 삭제 기능 없음.
+
+### 만족도 척도 변경 (2026-08-03 — survey_responses·visitor_responses 공통)
+`satisfaction` 저장값: **신 0~10 정수 문자열**("0"~"10", NPS 추천 의향형). 2026-08-03 이전 행은 구 5단계("N - 라벨") — **혼재 시 절대 섞어 평균 금지**, 척도 판별·분리 집계는 `classifySatisfaction()` 단일 소스.
+
+## 4.6 `export_log` 탭 (CSV 내보내기 감사 로그 — 2026-07-20 추가)
+
+개인정보보호팀 요구로 CSV 다운로드 시 사유를 기록. 첫 호출 시 자동 생성.
+
+| 컬럼 | 설명 |
+|---|---|
+| `id` | `Date.now()` 문자열 |
+| `timestamp` | 다운로드 시각 (ISO) |
+| `email` | 다운로드한 관리자 — **검증된 토큰 payload에서 추출** (클라이언트 입력 불신) |
+| `reason` | 다운로드 사유 (최대 500자) |
+| `rowCount` | 내보낸 행 수 |
+
+파일 비밀번호는 기록하지 않는다. 감사 로그이므로 행 삭제 기능 없음.
+
+## 4.7 `health_checks` 탭 (FieldCheck 자동 점검 이력 — ⚠ 전용 세션 소관, 존재만 등재)
+`id` · `timestamp` · `level` · `scenario_id` · `scenario_label` · `result` · `latency_ms` · `detail` · `stt_text` · `expected` · `media_ref` · `note` (12컬럼). 스키마 상세·이관 설계는 FieldCheck 전용 세션이 관리.
+
+## 4.8 `voc_reports` 탭 (FieldVoice 현장 인사이트 리포트 — ⚠ 아이디어 트랙 소관, 존재만 등재)
+`id` · `timestamp` · `visit_date` · `session_id` · `purpose` · `one_liner` · `report_md` · `consent` · `author` (9컬럼, 2026-08-19). 가명화된 1페이지 요약만 저장 — 원본 음성·전사는 현장 장비 로컬에만 존재(시트 미저장). 스키마 상세·이관 설계는 `wonseok-lab/thinqreal/fieldvoice/`(DESIGN.md §8·OPERATIONS.md)가 관리.
 
 ## 5. 런타임 상태 (Script Properties — 이전 시 설정 저장소/환경변수로)
 
@@ -94,11 +133,14 @@
 | `AUTH_SECRET` | HMAC 서명 비밀키 (없으면 최초 1회 자동 생성) |
 | `MONTHLY_REPORT_TO` | 리포트 수신자 (콤마 구분, 현재 20명) |
 | `monthly_report_last_sent_month` | 자동 발송 중복 가드 (`YYYY-MM`) — 상태값 |
+| `roi_report_snapshot_id` | 리포트 ROI 블록에 반영할 지정 스냅샷 id (2026-08-24 — 미설정 시 `ROI_FIXED` 고정 수치. 지정·해제는 `roi_report_pin` 관리자 토큰) |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | 텔레그램 알림 |
 | `CALENDAR_ID` | 팀 공유 캘린더 |
 | `SERPER_API_KEY` | 뉴스 검색 (우선) |
 | `GOOGLE_CSE_ID` / `GOOGLE_CSE_KEY` | 뉴스 검색 (폴백, 현재 계정 정책으로 차단 상태) |
 | `SURVEY_CAS_JSON` | IoT 이슈 est_value용 채널 단가 `{"원격":N,"내방":N,"출장":N}` — **민감 단가라 코드·리포 미기재**, 이 Property가 유일한 위치 |
+| `FC_API_KEY` | FieldCheck 점검 결과 접수 인증 키 (미설정 시 fail-closed — 상세는 FieldCheck 전용 세션 소관) |
+| `FV_API_KEY` | FieldVoice 리포트 업로드 인증 키 (2026-08-19, FC_API_KEY와 동일 원칙 — 미설정 시 fail-closed) |
 
 ## 6. 휘발성 캐시 (CacheService — 이전 시 Redis/TTL 테이블로)
 
@@ -116,10 +158,11 @@
 | `thinqreal_admin_token` | 관리자 토큰 (7일) |
 | `thinqreal_bookings_v1` | 관리자 stale-while-revalidate 캐시 (TTL 30분) |
 | `thinqreal_admin_sidebar_collapsed` | 사이드바 상태 |
+| `thinqreal_admin_sv_subtab` | 설문·대장 탭 마지막 서브탭 (main/visitor/best/report — 2026-08-22) |
 
 ## 8. 데이터 취급 규칙 (이전 후에도 유지)
 
 - 개인정보 보유: **방문일로부터 3년** (privacy.html §3와 동기화)
 - Wi-Fi·도어락 등 민감 정보는 확정 메일에만 — DB/페이지 노출 금지
 - 캘린더 일정에는 방문자 명단·연락처 미표기
-- 백필/직접 입력 시 24컬럼 순서 엄수 (`slots`·`slot`·`slotLabel` 3종 모두 필수)
+- 백필/직접 입력 시 25컬럼 순서 엄수 (`slots`·`slot`·`slotLabel` 3종 모두 필수, `surveyInviteSentAt` 공란 허용)

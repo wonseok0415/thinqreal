@@ -236,6 +236,7 @@ body {
 .roi-card-tag.tag-teal   { background:var(--c-accent-light); color:var(--c-accent); }
 .roi-card-tag.tag-orange { background:#fff4e5; color:#cc7000; }
 .roi-card-tag.tag-purple { background:#eeedfe; color:#7f51e4; }
+.roi-card-tag.tag-blue   { background:#e5f1fb; color:#1b6ca8; }
 .roi-card-desc {
   font-size:var(--t-footnote); color:var(--c-label-2);
   line-height:1.6; margin-bottom:var(--sp-12);
@@ -340,6 +341,79 @@ body {
 .kpi-num.orange { color:var(--c-orange); }
 .kpi-num.red    { color:var(--c-red); }
 .kpi-card-sub { font-size:var(--t-caption); color:var(--c-label-3); margin-top:var(--sp-4); letter-spacing:-0.008em; }
+
+/* ── 자동 점검 (FieldCheck) ── */
+/* 전역 --c-red(#ff3b30)는 예약 상태 배지 등에서 쓰이는 강한 경고색이라
+   매일 보는 운영 지표에 그대로 쓰면 피로하다. 브랜드 올리브와 어울리는
+   차분한 색으로 이 탭에서만 별도 정의한다. */
+.hc-scope {
+  --hc-ok:      #3a5035;
+  --hc-warn:    #a8803a;
+  --hc-bad:     #9c4a40;
+  --hc-bad-bg:  #faf3f2;
+  --hc-none:    #d8d8dd;
+}
+.hc-chips { display:flex; gap:var(--sp-8); flex-wrap:wrap; }
+.hc-chip { padding:6px 14px; border-radius:980px; border:1px solid var(--c-separator);
+  background:var(--c-bg); font-size:var(--t-footnote); font-weight:500; color:var(--c-label-2);
+  cursor:pointer; transition:all 0.2s var(--ease); }
+.hc-chip:hover { border-color:var(--c-accent-mid); }
+.hc-chip.active { background:var(--c-accent); color:#fff; border-color:var(--c-accent); }
+.hc-section { margin-bottom:var(--sp-32); }
+.hc-row { display:grid; grid-template-columns:minmax(0,1fr) 110px 92px 76px; gap:var(--sp-12);
+  align-items:center; padding:var(--sp-12) 0; border-bottom:1px solid var(--c-separator); }
+.hc-row-head { padding-bottom:var(--sp-8); border-bottom:1px solid var(--c-separator);
+  font-size:var(--t-caption); color:var(--c-label-3); }
+.hc-name { font-size:var(--t-subhead); color:var(--c-label); overflow:hidden; text-overflow:ellipsis; }
+.hc-bar { height:6px; border-radius:3px; background:var(--c-fill-2); overflow:hidden; }
+.hc-bar-fill { height:100%; border-radius:3px; transition:width 0.4s var(--ease); }
+.hc-rate { text-align:right; font-size:var(--t-subhead); font-weight:600; white-space:nowrap; }
+.hc-rate span { font-weight:400; font-size:var(--t-caption); color:var(--c-label-3); }
+.hc-lat { text-align:right; font-size:var(--t-footnote); color:var(--c-label-2); }
+.hc-fail { border-left:3px solid var(--hc-bad); background:var(--hc-bad-bg);
+  border-radius:var(--radius-sm); padding:var(--sp-12) var(--sp-16); margin-bottom:var(--sp-8); }
+.hc-fail-head { font-size:var(--t-footnote); color:var(--c-label); }
+.hc-fail-said { font-size:var(--t-footnote); color:var(--c-label); margin-top:5px; }
+.hc-fail-note { font-size:var(--t-caption); color:var(--hc-bad); margin-top:5px; }
+.hc-fail-media { font-size:11px; color:var(--c-label-3); margin-top:5px;
+  font-family:Consolas,Menlo,monospace; word-break:break-all; }
+.hc-lv-badge { display:inline-block; padding:1px 6px; border-radius:4px; font-size:11px;
+  font-weight:600; color:#fff; background:var(--hc-bad); opacity:0.9; }
+.hc-spark { display:flex; gap:4px; align-items:flex-end; height:96px; margin-top:var(--sp-16); }
+.hc-spark-col { flex:1; display:flex; flex-direction:column; justify-content:flex-end;
+  align-items:center; gap:5px; min-width:0; }
+.hc-spark-bar { width:100%; border-radius:3px 3px 0 0; min-height:3px; }
+.hc-spark-val { font-size:11px; font-weight:600; white-space:nowrap; letter-spacing:-0.01em; }
+.hc-spark-label { font-size:10px; color:var(--c-label-3); white-space:nowrap; }
+.hc-note { font-size:var(--t-caption); color:var(--c-label-3); line-height:1.7; margin-top:var(--sp-12);
+  padding:var(--sp-12) var(--sp-16); background:var(--c-fill); border-radius:var(--radius-sm); }
+
+/* ── 현장 인사이트 (FieldVoice) ── */
+.voc-row { display:flex; gap:var(--sp-16); padding:var(--sp-16); border:1px solid var(--c-separator);
+  border-radius:var(--radius-sm); margin-bottom:var(--sp-8); cursor:pointer; transition:all 0.2s var(--ease); }
+.voc-row:hover { border-color:var(--c-accent-mid); background:var(--c-fill); }
+.voc-row-date { font-size:var(--t-subhead); font-weight:600; color:var(--c-accent); white-space:nowrap; }
+.voc-row-main { min-width:0; }
+.voc-row-one { font-size:var(--t-subhead); color:var(--c-label); }
+.voc-row-sub { font-size:var(--t-caption); color:var(--c-label-3); margin-top:4px; }
+.voc-card { border:1px solid var(--c-separator); border-radius:var(--radius-sm);
+  padding:var(--sp-24); margin-top:var(--sp-12); }
+.voc-meta { font-size:var(--t-caption); color:var(--c-label-3); margin-bottom:var(--sp-12); }
+.voc-body { font-size:var(--t-subhead); line-height:1.75; color:var(--c-label); }
+.voc-body h3 { margin:var(--sp-16) 0 var(--sp-8); color:var(--c-accent); font-size:16px; }
+.voc-body h4 { margin:var(--sp-12) 0 var(--sp-8); font-size:14px; }
+.voc-p { margin:6px 0; }
+.voc-ul { margin:6px 0 6px 20px; }
+.voc-quote { border-left:3px solid var(--c-accent); padding-left:12px; color:var(--c-label-2); margin:6px 0; }
+.voc-hr { border:0; border-top:1px solid var(--c-separator); margin:var(--sp-16) 0; }
+.voc-table { border-collapse:collapse; margin:8px 0; width:100%; }
+.voc-table th, .voc-table td { border:1px solid var(--c-separator); padding:6px 10px;
+  font-size:var(--t-footnote); text-align:left; vertical-align:top; }
+.voc-table th { background:var(--c-fill); }
+@media (max-width:640px) {
+  .hc-row { grid-template-columns:minmax(0,1fr) 76px 64px; }
+  .hc-lat { display:none; }
+}
 
 /* ── Toolbar ── */
 .toolbar { display:flex; gap:var(--sp-12); align-items:center; margin-bottom:var(--sp-16); flex-wrap:wrap; }
@@ -502,6 +576,7 @@ body {
 .modal {
   background:var(--c-bg); border-radius:var(--radius-lg); padding:var(--sp-32);
   width:min(520px,calc(100vw - 48px)); box-shadow:0 24px 80px rgba(0,0,0,0.2);
+  max-height:calc(100vh - 48px); overflow-y:auto;   /* 긴 상세(설문 응답 등) 스크롤 — 잘림 방지 */
   animation:modalIn .25s var(--ease-spring) both;
 }
 @keyframes modalIn { from{opacity:0;transform:scale(.95) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
@@ -901,6 +976,15 @@ body {
 }
 /* ── 설문·대장 탭 ── */
 .sv-section-title { font-size:15px; font-weight:600; color:var(--c-label); margin:var(--sp-24) 0 var(--sp-12); }
+/* 설문·대장 서브탭 세그먼트 (A안 2026-08-22) — 워크플로 3분할, KPI는 공통 상단 */
+.sv-seg { display:flex; gap:2px; background:var(--c-fill-2); border-radius:9px; padding:2px; }
+.sv-seg-btn {
+  border:none; background:transparent; font-family:inherit; font-size:var(--t-footnote);
+  font-weight:600; color:var(--c-label-2); padding:6px 14px; border-radius:7px;
+  cursor:pointer; min-height:32px; transition:all 0.15s; white-space:nowrap;
+}
+.sv-seg-btn.active { background:#ffffff; color:var(--c-label); box-shadow:0 1px 2px rgba(0,0,0,0.10); }
+.sv-view-hidden { display:none; }
 .sv-section-desc { font-size:12px; color:var(--c-label-3); margin:-4px 0 var(--sp-12); }
 .sv-badge { display:inline-block; padding:2px 10px; border-radius:980px; font-size:11px; font-weight:600; white-space:nowrap; }
 .sv-badge.cand { background:var(--c-orange-light); color:#C2540A; }
@@ -992,6 +1076,12 @@ body {
     </div>
     <div class="nav-item" id="nav-survey" onclick="switchTab('survey')">
       <span class="nav-item-icon">📝</span>설문·대장
+    </div>
+    <div class="nav-item" id="nav-health" onclick="switchTab('health')">
+      <span class="nav-item-icon">🩺</span>자동 점검
+    </div>
+    <div class="nav-item" id="nav-voc" onclick="switchTab('voc')">
+      <span class="nav-item-icon">🎙</span>현장 인사이트
     </div>
     <span class="nav-section-label" style="margin-top:var(--sp-8);">도구</span>
     <div class="nav-item" onclick="loadData()">
@@ -1860,6 +1950,22 @@ body {
         <iframe id="roiFrame" class="roi-frame" title="ThinQ Real ROI 분석툴" loading="lazy"></iframe>
       </div>
 
+      <!-- 리포트 반영 시나리오 지정 (2026-08-24) — 지정된 시나리오 수치가 월간 리포트 ROI 블록에 실림.
+           미지정 시 고정 수치(ROI_FIXED). roi_snapshot 저장은 공개 경로라 "최신 자동 참조"는 금지 — 지정은 관리자 토큰 -->
+      <div class="table-card" style="padding:16px 18px; margin-top:14px;">
+        <div style="font-size:var(--t-subhead); font-weight:600; margin-bottom:4px;">📌 월간 리포트 반영 시나리오</div>
+        <p style="font-size:var(--t-caption); color:var(--c-label-3); margin-bottom:10px;">
+          지정한 시나리오의 수치(총 투자·BEP·3/5년 ROI)가 월간 리포트 ROI 블록에 실립니다.
+          지정이 없으면 고정 수치로 표기됩니다. 대장 「확정 가치 누적」을 툴에 반영·저장한 시나리오를 지정하세요.
+        </p>
+        <p id="roiPinStatus" style="font-size:var(--t-footnote); font-weight:600; margin-bottom:10px;">—</p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <select class="toolbar-select" id="roiPinSelect" style="flex:1; min-width:220px;"></select>
+          <button class="sv-save-btn" onclick="roiPinSave()">리포트 반영 지정</button>
+          <button class="sv-save-btn" style="border-color:rgba(0,0,0,0.2); color:var(--c-label-3);" onclick="roiPinClear()">지정 해제 (고정 수치)</button>
+        </div>
+      </div>
+
       <!-- ROI 동작 원리 설명 -->
       <section class="roi-explain">
         <header class="roi-explain-header">
@@ -1869,7 +1975,7 @@ body {
 
         <div class="roi-explain-formula">
           <div class="roi-formula-line"><span class="roi-formula-label">BEP (손익분기 회수기간)</span><span class="roi-formula-expr">=  C<sub>Invest</sub>  /  연간 창출 가치</span></div>
-          <div class="roi-formula-line"><span class="roi-formula-label">연간 창출 가치</span><span class="roi-formula-expr">=  V<sub>R&amp;D</sub>  +  V<sub>Sales (A)</sub>  +  V<sub>Sales (B)</sub>  +  V<sub>PR</sub></span></div>
+          <div class="roi-formula-line"><span class="roi-formula-label">연간 창출 가치</span><span class="roi-formula-expr">=  V<sub>R&amp;D</sub>  +  V<sub>Sales (A)</sub>  +  V<sub>Sales (B)</sub>  +  V<sub>PR</sub>  +  V<sub>Quality</sub></span></div>
           <div class="roi-formula-line"><span class="roi-formula-label">N년 ROI</span><span class="roi-formula-expr">=  ( 연간가치 × N − (C<sub>Invest</sub> + C<sub>Oper</sub>) )  /  (C<sub>Invest</sub> + C<sub>Oper</sub>)  × 100</span></div>
         </div>
 
@@ -1885,7 +1991,7 @@ body {
           </article>
 
           <article class="roi-explain-card">
-            <header><span class="roi-card-tag tag-teal">V_R&amp;D</span><h3>R&D 효율화</h3></header>
+            <header><span class="roi-card-tag tag-teal">V_R&amp;D</span><h3>R&D 기여 가치</h3></header>
             <p class="roi-card-desc">외부 스튜디오 임차료를 자사 공간 활용으로 방어한 가치.</p>
             <div class="roi-card-eq">V<sub>R&amp;D</sub> = C<sub>ext_lab</sub> × D<sub>test</sub></div>
             <ul>
@@ -1895,7 +2001,7 @@ body {
           </article>
 
           <article class="roi-explain-card">
-            <header><span class="roi-card-tag tag-teal">V_Sales (A)</span><h3>영업 지원 — 인프라 효용</h3></header>
+            <header><span class="roi-card-tag tag-teal">V_Sales (A)</span><h3>영업 기여 가치</h3></header>
             <p class="roi-card-desc">외부 응대 공간 구축·운영의 기회비용을 절감한 가치.</p>
             <div class="roi-card-eq">V<sub>Sales(A)</sub> = C<sub>venue</sub> × N<sub>visit</sub> + C<sub>agency</sub></div>
             <ul>
@@ -1906,7 +2012,7 @@ body {
           </article>
 
           <article class="roi-explain-card">
-            <header><span class="roi-card-tag tag-orange">V_Sales (B)</span><h3>영업 지원 — 기여 영업이익</h3></header>
+            <header><span class="roi-card-tag tag-orange">V_Sales (B)</span><h3>수주 기여 이익</h3></header>
             <p class="roi-card-desc">방문 응대를 통해 실제 수주에 기여한 정도를 카테고리별로 가산.</p>
             <div class="roi-card-eq">V<sub>Sales(B)</sub> = Σ ( 수주금액 × 이익률 × 기여도 )</div>
             <ul>
@@ -1916,13 +2022,25 @@ body {
           </article>
 
           <article class="roi-explain-card">
-            <header><span class="roi-card-tag tag-purple">V_PR</span><h3>PR 가치 (AVE 기반)</h3></header>
+            <header><span class="roi-card-tag tag-purple">V_PR</span><h3>홍보 노출 가치 (AVE 기반)</h3></header>
             <p class="roi-card-desc">Press Tour의 광고환산가치(AVE)를 보수적으로 산정.</p>
-            <div class="roi-card-eq">V<sub>PR</sub> = N<sub>press</sub> × R<sub>media</sub> × K<sub>adj</sub></div>
+            <div class="roi-card-eq">V<sub>PR</sub> = N<sub>press</sub> × R<sub>media</sub> × K<sub>adj</sub> × W<sub>PR</sub></div>
             <ul>
               <li><strong>N<sub>press</sub></strong> · Press Tour 건수</li>
               <li><strong>R<sub>media</sub></strong> · 건당 매체 광고 정가</li>
-              <li><strong>K<sub>adj</sub></strong> · 보수 계수 (0–1) — 광고가 대비 PR 가치 보정</li>
+              <li><strong>K<sub>adj</sub></strong> · 보수 계수 (0–1) — 광고가 대비 홍보 노출 가치 보정</li>
+              <li><strong>W<sub>PR</sub></strong> · 기여도 — AI홈·ThinQ Real 보도 100% / 가전 중심 보도 50%</li>
+            </ul>
+          </article>
+
+          <article class="roi-explain-card">
+            <header><span class="roi-card-tag tag-blue">V_Quality</span><h3>품질 개선 가치 (검증 대체비용)</h3></header>
+            <p class="roi-card-desc">발견한 IoT 결함의 외부 검증 대체비용 — V<sub>R&amp;D</sub>와 동일한 대체 비용 구조.</p>
+            <div class="roi-card-eq">V<sub>Quality</sub> = Σ ( N<sub>edge</sub> × D<sub>verify</sub> × C<sub>tester</sub> )</div>
+            <ul>
+              <li><strong>N<sub>edge</sub></strong> · 발견 결함 건수 — 이슈 로그에서 전기</li>
+              <li><strong>D<sub>verify</sub></strong> · 건당 검증 투입 일수 — 실측 입력 (하한 1일)</li>
+              <li><strong>C<sub>tester</sub></strong> · IT테스터 일평균임금 197,714원 (KOSA 공표, 고정)</li>
             </ul>
           </article>
 
@@ -1931,7 +2049,7 @@ body {
             <ul>
               <li><strong>BEP</strong> ≤ 3년이면 통상 ROI 관점에서 충분히 매력적</li>
               <li><strong>3년 ROI ≥ 0</strong> 시점부터 누적 손익이 흑자 전환</li>
-              <li>R&amp;D·Sales(A)·PR은 기본값으로도 산입되지만, Sales(B)는 부서 입력이 있어야 가산되어 보수적 추정에 유리</li>
+              <li>R&amp;D·Sales(A)·PR은 기본값으로도 산입되지만, Sales(B)·Quality는 부서 입력·이슈 로그가 있어야 가산되어 보수적 추정에 유리</li>
               <li>시점별 시나리오는 하단 "저장된 시나리오"에 기록해 변경 이력 비교</li>
             </ul>
           </article>
@@ -1959,7 +2077,7 @@ body {
       <div class="kpi-grid">
         <div class="kpi-card">
           <div class="kpi-card-header">
-            <span class="kpi-card-label">설문 응답</span>
+            <span class="kpi-card-label">설문 응답 · 인솔자</span>
             <div class="kpi-icon" style="background:var(--c-accent-light);">📝</div>
           </div>
           <div class="kpi-num accent" id="kpiSvTotal">0</div>
@@ -1967,7 +2085,7 @@ body {
         </div>
         <div class="kpi-card">
           <div class="kpi-card-header">
-            <span class="kpi-card-label">재방문 응답률</span>
+            <span class="kpi-card-label">재방문 응답률 · 인솔자</span>
             <div class="kpi-icon" style="background:var(--c-accent-light);">🔁</div>
           </div>
           <div class="kpi-num accent" id="kpiSvRevisit">—</div>
@@ -1989,9 +2107,26 @@ body {
           <div class="kpi-num red" id="kpiSvIssues">0</div>
           <div class="kpi-card-sub">품질 이슈 리포트 누적</div>
         </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">방문자 설문 · 익명</span>
+            <div class="kpi-icon" style="background:var(--c-accent-light);">🙋</div>
+          </div>
+          <div class="kpi-num accent" id="kpiSvVisitor">0</div>
+          <div class="kpi-card-sub" id="kpiSvVisitorDist">평균 만족도 — · KO 0 · EN 0</div>
+        </div>
       </div>
 
+      <!-- 서브탭 (A안 2026-08-22): 워크플로 3분할 — ① 응답·대장·이슈(파생 관계 세트) ② 방문자 ③ 리포트 준비.
+           렌더는 항상 전 섹션 수행(renderSurveyTab 무변경) — 여기서는 표시만 전환. 마지막 뷰는 localStorage 기억 -->
       <div class="toolbar">
+        <div class="sv-seg" role="tablist">
+          <button type="button" id="svSeg-main" class="sv-seg-btn active" onclick="svSubTab('main')">📝 응답·대장·이슈</button>
+          <button type="button" id="svSeg-visitor" class="sv-seg-btn" onclick="svSubTab('visitor')">🙋 방문자</button>
+          <button type="button" id="svSeg-best" class="sv-seg-btn" onclick="svSubTab('best')">🏆 베스트 리뷰어</button>
+          <button type="button" id="svSeg-report" class="sv-seg-btn" onclick="svSubTab('report')">📑 리포트 준비</button>
+        </div>
+        <span class="toolbar-spacer"></span>
         <select class="toolbar-select" id="svTrackFilter" onchange="renderSurveyTab()">
           <option value="">전체 트랙</option>
           <option value="sales">B2B 영업</option>
@@ -1999,11 +2134,11 @@ body {
           <option value="etc">R&D·내부·기타</option>
         </select>
         <input type="month" class="toolbar-input" id="svMonthFilter" onchange="renderSurveyTab()">
-        <span class="toolbar-spacer"></span>
         <button class="toolbar-btn" onclick="loadSurveyData(true)">↺ 새로고침</button>
       </div>
 
-      <h2 class="sv-section-title">📝 설문 응답</h2>
+      <div id="svView-main">
+      <h2 class="sv-section-title">📝 설문 응답 (인솔자 — 방문 후기 설문)</h2>
       <p class="sv-section-desc">행을 클릭하면 상세 내용을 확인하고, 상세 화면의 수정 버튼으로 오탈자·내용을 정정할 수 있습니다.</p>
       <div class="table-card">
         <table class="booking-table" style="min-width:780px;">
@@ -2017,9 +2152,10 @@ body {
       </div>
 
       <h2 class="sv-section-title">📒 성과 추적 대장</h2>
-      <p class="sv-section-desc">설문의 성과 연결 응답에서 자동 생성됩니다. 후보 → 확정(실제 금액 입력) / 드롭 — 행 삭제 없이 상태로만 관리하며, 수정 버튼으로 과제명·기여도 등 내용을 정정할 수 있습니다.</p>
+      <p class="sv-section-desc">설문의 성과 연결 응답에서 자동 생성됩니다. 후보 → 확정(실측 금액 또는 규모 하한×기여도 추정) / 드롭 — 행 삭제 없이 상태로만 관리하며, 수정 버튼으로 과제명·기여도 등 내용을 정정할 수 있습니다.</p>
+      <p class="sv-section-desc" id="ledgerSumLine" style="font-weight:600; color:var(--c-label-2);"></p>
       <div class="table-card">
-        <table class="booking-table" style="min-width:920px;">
+        <table class="booking-table" style="min-width:960px;">
           <thead>
             <tr><th>상태</th><th>카테고리</th><th>과제명</th><th>예상 규모</th><th>기여도</th><th>확정 금액</th><th>ROI 반영</th><th>처리</th></tr>
           </thead>
@@ -2032,7 +2168,7 @@ body {
       <h2 class="sv-section-title">⚠ IoT 이슈 로그</h2>
       <p class="sv-section-desc">심각도·채널·목표 수량을 부여하면 예상 가치가 서버에서 계산됩니다 (참고용 — ROI 미산입). 단가는 Script Property로만 관리됩니다.</p>
       <div class="table-card">
-        <table class="booking-table" style="min-width:940px;">
+        <table class="booking-table" style="min-width:1000px;">
           <thead>
             <tr><th>ID</th><th>기기</th><th>증상</th><th>심각도</th><th>채널</th><th>목표 수량</th><th>상태</th><th>예상 가치</th><th></th></tr>
           </thead>
@@ -2040,6 +2176,197 @@ body {
             <tr><td colspan="9"><div class="empty-state"><div class="empty-state-text">—</div></div></td></tr>
           </tbody>
         </table>
+      </div>
+      </div><!-- /svView-main -->
+
+      <div id="svView-visitor" class="sv-view-hidden">
+      <h2 class="sv-section-title">🙋 방문자 설문 (익명)</h2>
+      <p class="sv-section-desc">퇴장 전 현장 QR로 수집되는 방문객 익명 응답입니다 (파생·ROI 미산입). 상단 월 필터가 함께 적용되며, 행을 클릭하면 상세 확인·영구 삭제(테스트 정리용)가 가능합니다. 익명 응답 원문 보존을 위해 수정 기능은 없습니다.</p>
+      <div class="toolbar">
+        <select class="toolbar-select" id="svVisitorLangFilter" onchange="renderSurveyTab()">
+          <option value="">전체 언어</option>
+          <option value="KO">한국어</option>
+          <option value="EN">English</option>
+        </select>
+        <span class="toolbar-spacer"></span>
+        <a class="toolbar-btn" style="text-decoration:none;" href="ThinQ_Real_Visitor_Survey.html" target="_blank" rel="noopener">방문자 폼 새 창에서 열기 ↗</a>
+      </div>
+      <div class="table-card">
+        <table class="booking-table" style="min-width:880px;">
+          <thead>
+            <tr><th>제출 시각</th><th>언어</th><th>만족도</th><th>인상 깊었던 솔루션</th><th>도입 1픽</th><th>걸림돌</th><th>의견</th></tr>
+          </thead>
+          <tbody id="svVisitorBody">
+            <tr><td colspan="7"><div class="empty-state"><div class="empty-state-text">—</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      </div><!-- /svView-visitor -->
+
+      <div id="svView-best" class="sv-view-hidden">
+      <h2 class="sv-section-title">🏆 베스트 리뷰어</h2>
+      <p class="sv-section-desc">설문 초대 메일에 공지된 「매월 베스트 리뷰어 세 분」 사은품 발송을 관리합니다. 축하 메일만 발송되며, 기프티콘(모바일 쿠폰)은 별도로 전달하세요. 후보 행을 클릭하면 응답 전문을 확인할 수 있습니다.</p>
+      <div class="toolbar">
+        <input type="month" class="toolbar-input" id="bestTabMonth" onchange="renderSurveyTab()">
+        <span id="bestTabStat" style="font-size:var(--t-footnote); font-weight:600; color:var(--c-label-2); align-self:center;"></span>
+        <span class="toolbar-spacer"></span>
+      </div>
+      <h2 class="sv-section-title">📮 발송 이력</h2>
+      <div class="table-card">
+        <table class="booking-table" style="min-width:820px;">
+          <thead>
+            <tr><th>발송 시각</th><th>이름</th><th>부서</th><th>방문일</th><th>사은품</th><th>발송자</th></tr>
+          </thead>
+          <tbody id="bestHistBody">
+            <tr><td colspan="6"><div class="empty-state"><div class="empty-state-text">—</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h2 class="sv-section-title">📝 당월 후보 (설문 응답)</h2>
+      <div class="table-card">
+        <table class="booking-table" style="min-width:880px;">
+          <thead>
+            <tr><th>방문일</th><th>트랙</th><th>작성자</th><th>부서</th><th>만족도</th><th>자유 의견</th><th>처리</th></tr>
+          </thead>
+          <tbody id="bestCandBody">
+            <tr><td colspan="7"><div class="empty-state"><div class="empty-state-text">—</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      </div><!-- /svView-best -->
+
+      <div id="svView-report" class="sv-view-hidden">
+      <h2 class="sv-section-title">📑 월간 리포트 큐레이션</h2>
+      <p class="sv-section-desc">월간 리포트의 「핵심 인사이트」(직접 입력, 월 3~5줄 권장)와 「인상 깊은 한마디」(당월 자유 의견 20자 이상 후보 중 체크 선택)를 준비합니다. 행이 없는 블록은 리포트에서 자동 생략됩니다.</p>
+      <div class="toolbar">
+        <input type="month" class="toolbar-input" id="svInsightMonth" onchange="renderSurveyTab()">
+        <span class="toolbar-spacer"></span>
+        <button type="button" class="toolbar-btn" onclick="openReportPreview()">📄 리포트 미리보기 ↗</button>
+      </div>
+      <div class="table-card" style="padding:16px 18px;">
+        <div style="font-size:var(--t-subhead); font-weight:600; margin-bottom:10px;">💡 핵심 인사이트</div>
+        <div id="insightList"></div>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <input class="finput" id="insightNewText" placeholder="예: ○○사 **30명 벤치마킹** — 도입 검토 의사 표명 (**별표 두 개**로 감싸면 굵게)" style="flex:1; min-width:0;" onkeydown="if(event.key==='Enter')insightAdd()">
+          <button class="sv-save-btn" onclick="insightAdd()">추가</button>
+        </div>
+      </div>
+      <div class="table-card" style="padding:16px 18px; margin-top:12px;">
+        <div style="font-size:var(--t-subhead); font-weight:600; margin-bottom:10px;">💬 인상 깊은 한마디</div>
+        <div style="font-size:var(--t-caption); color:var(--c-label-3); margin-bottom:6px;">선택됨 — 리포트에 실리는 순서 (중복·출처 없는 행은 여기서 삭제)</div>
+        <div id="quoteSelected"></div>
+        <div style="font-size:var(--t-caption); color:var(--c-label-3); margin:14px 0 6px;">후보 — 당월 설문 자유 의견(20자 이상), 체크하면 위 목록에 추가</div>
+        <div id="quoteCandidates"></div>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <input class="finput" id="quoteNewText" placeholder="직접 입력 — 후보에 없는 한마디" style="flex:2; min-width:0;" onkeydown="if(event.key==='Enter')quoteAdd()">
+          <input class="finput" id="quoteNewSource" placeholder="출처 (예: HS사업본부 ○○팀)" style="flex:1; min-width:0;" onkeydown="if(event.key==='Enter')quoteAdd()">
+          <button class="sv-save-btn" onclick="quoteAdd()">추가</button>
+        </div>
+      </div>
+      <div class="table-card" style="padding:16px 18px; margin-top:12px;">
+        <div style="font-size:var(--t-subhead); font-weight:600; margin-bottom:10px;">📰 관련 기사 큐레이션 <span style="font-weight:400; color:var(--c-label-3); font-size:var(--t-caption);">— 넣은 링크가 먼저 실리고, 5건 미달분은 자동 수집 기사로 보충</span></div>
+        <div id="articleList"></div>
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <input class="finput" id="articleNewUrl" placeholder="기사 URL 붙여넣기 — 제목·출처·썸네일은 자동 추출" style="flex:1; min-width:0;" onkeydown="if(event.key==='Enter')articleAdd()">
+          <button class="sv-save-btn" onclick="articleAdd()">추가</button>
+        </div>
+      </div>
+      </div><!-- /svView-report -->
+    </div>
+
+    <!-- 자동 점검 (FieldCheck) -->
+    <div class="tab-panel hc-scope" id="tab-health">
+      <div class="page-header">
+        <h1>자동 점검</h1>
+        <p>점검 장비가 ThinQ ON에게 주기적으로 말을 걸어 응답을 자동 판정한 결과입니다.</p>
+      </div>
+
+      <div class="toolbar">
+        <div class="hc-chips">
+          <button class="hc-chip active" data-days="7"  onclick="setHealthRange(7)">최근 7일</button>
+          <button class="hc-chip" data-days="14" onclick="setHealthRange(14)">14일</button>
+          <button class="hc-chip" data-days="30" onclick="setHealthRange(30)">30일</button>
+        </div>
+        <button class="toolbar-btn" onclick="loadHealthChecks(true)">↺ 새로고침</button>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">오늘 상태</span>
+            <div class="kpi-icon" id="hcStatusIcon" style="background:var(--c-fill);">🩺</div>
+          </div>
+          <div class="kpi-num" id="hcStatus" style="font-size:26px;">—</div>
+          <div class="kpi-card-sub" id="hcStatusSub">불러오는 중…</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">L1 응답 감지</span>
+            <div class="kpi-icon" style="background:var(--c-accent-light);">🔊</div>
+          </div>
+          <div class="kpi-num accent" id="hcL1">—</div>
+          <div class="kpi-card-sub" id="hcL1Sub">말을 했는가</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">L2 내용 판정</span>
+            <div class="kpi-icon" style="background:var(--c-accent-light);">💬</div>
+          </div>
+          <div class="kpi-num accent" id="hcL2">—</div>
+          <div class="kpi-card-sub" id="hcL2Sub">응답한 건 중 내용이 맞았는가</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-card-header">
+            <span class="kpi-card-label">평균 응답 시작</span>
+            <div class="kpi-icon" style="background:var(--c-fill);">⏱</div>
+          </div>
+          <div class="kpi-num" id="hcLatency">—</div>
+          <div class="kpi-card-sub">질문 후 답을 시작하기까지</div>
+        </div>
+      </div>
+
+      <div class="hc-section">
+        <h2 class="sv-section-title">일자별 성공률</h2>
+        <p class="sv-section-desc">막대가 없는 날은 점검이 실행되지 않은 날입니다 (점검 장비 꺼짐 또는 전송 실패).</p>
+        <div class="hc-spark" id="hcSpark"></div>
+      </div>
+
+      <div class="hc-section" id="hcLevels"></div>
+
+      <div class="hc-section">
+        <h2 class="sv-section-title">최근 실패</h2>
+        <p class="sv-section-desc">최대 20건까지 표시합니다. 녹음 파일은 점검 장비의 recordings 폴더에 있습니다.</p>
+        <div id="hcFails"></div>
+      </div>
+
+      <div class="hc-note" id="hcFootnote">
+        <strong>응답 시작</strong> = 점검 질문을 다 말한 순간부터 ThinQ ON이 답을 시작하기까지 걸린 시간입니다.
+        답변을 끝내기까지의 길이는 포함하지 않으며, 기동어 &ldquo;띵&rdquo; 시점 기준도 아닙니다.<br>
+        <strong>L2는 L1을 통과한 건에 대해서만</strong> 판정합니다 — 응답 자체가 없으면 판정할 말이 없기 때문입니다.
+        따라서 L2 성공률은 &ldquo;응답한 것 중 내용까지 맞은 비율&rdquo;로 읽으면 됩니다.<br>
+        <strong>&ldquo;마이크 무입력&rdquo;</strong>으로 표시된 실패는 점검 장비 쪽 문제이며 ThinQ ON 장애가 아닙니다.
+      </div>
+    </div>
+
+    <!-- 현장 인사이트 (FieldVoice) -->
+    <div class="tab-panel voc-scope" id="tab-voc">
+      <div class="page-header">
+        <h1>현장 인사이트</h1>
+        <p>방문 인터뷰 녹음을 분석한 1페이지 리포트가 회차별로 쌓입니다. 가명화된 요약만 저장되며, 원본 녹음·전사는 현장 장비에만 있습니다.</p>
+      </div>
+
+      <div class="toolbar">
+        <button class="toolbar-btn" onclick="loadVocReports(true)">↺ 새로고침</button>
+      </div>
+
+      <div id="vocList"></div>
+
+      <div id="vocDetail" style="display:none;">
+        <button class="toolbar-btn" onclick="renderVocList(vocRecords || [])">← 목록으로</button>
+        <div class="voc-card">
+          <div class="voc-meta" id="vocDetailMeta"></div>
+          <div class="voc-body" id="vocDetailBody"></div>
+        </div>
       </div>
     </div>
 
@@ -2188,8 +2515,106 @@ body {
     </div>
     <div class="detail-grid" id="surveyModalGrid"></div>
     <div class="modal-actions">
+      <button class="modal-btn-danger" onclick="openSvDelete('response', surveyModalTarget)">영구 삭제</button>
+      <button class="modal-btn-edit" id="bestSendBtn" onclick="openBestModal(surveyModalTarget)">🏆 베스트 발송</button>
       <button class="modal-btn-edit" onclick="openSurveyEdit(surveyModalTarget)">수정</button>
       <button class="modal-btn-close" onclick="closeSurveyModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 베스트 리뷰어 발송 모달 (입력 폼 — 백드롭 닫기 미바인딩 원칙).
+     설문 초대 메일의 「매월 베스트 리뷰어 세 분」 공지 이행 — 축하 메일만 발송, 기프티콘(모바일 쿠폰)은 별도 전달 -->
+<div class="modal-backdrop" id="bestBg">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h2 class="modal-title">🏆 베스트 리뷰어 발송</h2>
+      <button class="modal-close" onclick="closeBestModal()">✕</button>
+    </div>
+    <p class="modal-delete-summary" id="bestMeta"></p>
+    <div class="ffield" style="margin-bottom:var(--sp-12);">
+      <label class="ffield-label">선정 월 <span class="req">*</span> <span id="bestMonthStat" style="font-weight:400;"></span></label>
+      <input class="finput" type="month" id="bestMonth" onchange="updateBestMonthStat()">
+    </div>
+    <div class="ffield" style="margin-bottom:var(--sp-12);">
+      <label class="ffield-label">수신 이메일 <span class="req">*</span> <span style="font-weight:400;">— @lge.com 한정</span></label>
+      <input class="finput" type="email" id="bestEmail" placeholder="name@lge.com" autocomplete="off">
+      <span id="bestEmailHint" style="font-size:var(--t-caption); color:var(--c-label-3);"></span>
+    </div>
+    <div class="ffield">
+      <label class="ffield-label">사은품 <span class="req">*</span> <span style="font-weight:400;">— 계절에 따라 문구 수정 가능</span></label>
+      <input class="finput" type="text" id="bestProduct" autocomplete="off">
+    </div>
+    <p style="font-size:var(--t-caption); color:var(--c-label-3); margin-top:var(--sp-12); line-height:1.6;">
+      축하 메일만 발송됩니다 — 기프티콘(모바일 쿠폰)은 별도로 전달하세요.<br>
+      숨은 참조: 담당자 3명 + 팀장 + 운영자. 같은 응답 재발송·월 3명 초과는 서버가 차단합니다.
+    </p>
+    <div class="modal-delete-actions">
+      <button class="modal-btn-close" onclick="closeBestModal()">취소</button>
+      <button class="modal-btn-confirm" id="bestSendConfirm" onclick="doBestSend()">축하 메일 발송</button>
+    </div>
+  </div>
+</div>
+
+<!-- 설문·대장·이슈 영구 삭제 확인 모달 ("삭제" 타이핑 게이트 — 예약 삭제와 동일 패턴, 백드롭 미바인딩) -->
+<div class="modal-backdrop" id="svDelBg">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h2 class="modal-title">영구 삭제</h2>
+      <button class="modal-close" onclick="closeSvDelete()">✕</button>
+    </div>
+    <p class="modal-delete-warn" id="svDelWarn"></p>
+    <p class="modal-delete-summary" id="svDelSummary"></p>
+    <label class="modal-delete-label">확인을 위해 <strong>삭제</strong> 를 입력하세요</label>
+    <input type="text" class="modal-delete-input" id="svDelInput" placeholder="삭제" autocomplete="off"
+           oninput="document.getElementById('svDelBtn').disabled = this.value.trim() !== '삭제'"
+           onkeydown="if(event.key==='Enter')confirmSvDelete()">
+    <div class="modal-delete-actions">
+      <button class="modal-btn-close" onclick="closeSvDelete()">취소</button>
+      <button class="modal-btn-delete-confirm" id="svDelBtn" onclick="confirmSvDelete()" disabled>영구 삭제</button>
+    </div>
+  </div>
+</div>
+
+<!-- CSV 내보내기 모달 (입력 폼 — 백드롭 닫기 미바인딩 원칙).
+     개인정보보호팀 요구: 다운로드 사유 기록(export_log) + 비밀번호 ZIP으로만 다운로드 -->
+<div class="modal-backdrop" id="exportBg">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h2 class="modal-title">CSV 내보내기</h2>
+      <button class="modal-close" onclick="closeExportModal()">✕</button>
+    </div>
+    <p class="modal-delete-summary">개인정보 보호를 위해 다운로드 사유가 기록되며, 파일은 비밀번호가 설정된 ZIP으로 저장됩니다.</p>
+    <div class="ffield" style="margin-bottom:var(--sp-12);">
+      <label class="ffield-label">다운로드 사유 <span class="req">*</span></label>
+      <textarea class="ftextarea" id="exReason" placeholder="예: 7월 월간 보고용 방문 이력 정리"></textarea>
+    </div>
+    <div class="ffield">
+      <label class="ffield-label">파일 비밀번호 <span class="req">*</span> <span style="font-weight:400;">— 8자 이상, 공백 없는 영문·숫자·기호</span></label>
+      <div style="display:flex; gap:8px;">
+        <input class="finput" type="text" id="exPassword" autocomplete="off" style="flex:1; min-width:0;">
+        <button type="button" class="fbtn-mini" style="align-self:stretch;" onclick="genExportPassword()">자동 생성</button>
+      </div>
+      <span style="font-size:var(--t-caption); color:var(--c-label-3);">비밀번호는 저장·기록되지 않습니다. 압축 해제 시 필요하니 잊지 마세요.</span>
+    </div>
+    <div class="modal-delete-actions">
+      <button class="modal-btn-close" onclick="closeExportModal()">취소</button>
+      <button class="modal-btn-confirm" onclick="doExportCSV()">내보내기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 방문자 설문 상세 모달 (조회용 — 백드롭 클릭 닫기 허용) -->
+<div class="modal-backdrop" id="visitorModalBg">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">방문자 설문 상세</h2>
+      <button class="modal-close" onclick="closeVisitorModal()">✕</button>
+    </div>
+    <div class="detail-grid" id="visitorModalGrid"></div>
+    <div class="modal-actions">
+      <button class="modal-btn-danger" onclick="openSvDelete('visitor', visitorModalTarget)">영구 삭제</button>
+      <button class="modal-btn-close" onclick="closeVisitorModal()">닫기</button>
     </div>
   </div>
 </div>
@@ -2253,7 +2678,13 @@ body {
         </div>
       </div>
       <div id="lmAmountWrap">
-        <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;">확정 금액 (만원)</label>
+        <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;">금액 산정 방식</label>
+        <div style="display:flex; gap:16px; margin-bottom:6px; font-size:13px;">
+          <label style="display:flex; align-items:center; gap:5px; cursor:pointer;"><input type="radio" name="lmBasis" value="실측" onchange="lmBasisChange()"> 실측 (실제 금액)</label>
+          <label style="display:flex; align-items:center; gap:5px; cursor:pointer;" id="lmBasisEstLabel"><input type="radio" name="lmBasis" value="추정" id="lmBasisEst" onchange="lmBasisChange()"> 추정 (규모 하한 × 기여도)</label>
+        </div>
+        <div id="lmEstHint" style="font-size:12px; color:var(--c-label-3); margin-bottom:8px;"></div>
+        <label style="display:block; font-size:12px; font-weight:600; color:var(--c-label-3); margin-bottom:4px;">확정 금액 (만원) <span style="font-weight:400;">— 비워두면 「금액 미상」으로 확정</span></label>
         <input type="number" class="toolbar-input" id="lmAmount" min="0" style="width:100%;" placeholder="예: 3000">
       </div>
       <div id="lmDateWrap">
@@ -2409,7 +2840,7 @@ window.addEventListener('resize', () => {
 })();
 
 // ROI 툴 캐시 무력화 토큰 (ROI 툴을 갱신할 때마다 이 숫자를 올리세요)
-const ROI_BUILD = '20260715a';
+const ROI_BUILD = '20260805c';
 
 // "새 창에서 열기" 링크에도 동일 토큰 부착
 (function attachRoiBuild() {
@@ -2426,12 +2857,340 @@ function switchTab(id) {
   if (id === 'slots') initSlotTab();
   if (id === 'appliances') renderAppliances();
   if (id === 'survey') loadSurveyData();
+  if (id === 'health') loadHealthChecks();
+  if (id === 'voc') loadVocReports();
   if (id === 'roi') {
     const f = document.getElementById('roiFrame');
     // 캐시 무력화: 빌드 토큰을 쿼리로 부착해 GitHub Pages/iframe 캐시 우회
     if (!f.getAttribute('src')) f.setAttribute('src', 'ThinQ_Real_ROI_Tool.html?v=' + ROI_BUILD);
+    loadRoiPin();
   }
   if (isMobileLayout()) closeSidebar();
+}
+
+// ── 월간 리포트 반영 시나리오 지정 (2026-08-24) ─────────────
+// 지정된 스냅샷 수치가 리포트 ROI 블록에 실림. 미지정 = 고정 수치(ROI_FIXED).
+// roi_snapshot 저장은 공개 경로라 "최신 자동 참조" 금지 — 지정/해제는 관리자 토큰 POST(roi_report_pin).
+let roiPinData = null;   // { records, reportPinnedId }
+
+async function loadRoiPin() {
+  try {
+    const res = await fetch(SCRIPT_URL + '?type=roi_snapshots');
+    roiPinData = await res.json();
+  } catch (e) { document.getElementById('roiPinStatus').textContent = '시나리오 목록을 불러오지 못했습니다.'; return; }
+  const recs = roiPinData.records || [];
+  const pinned = String(roiPinData.reportPinnedId || '');
+  const fmtLabel = r => {
+    const label = /^\d{4}-\d{2}-\d{2}T/.test(String(r.label)) ? String(r.label).slice(0, 10) + ' 시나리오' : (r.label || '무제');
+    return label + ' — ' + String(r.timestamp).slice(0, 10) + (r.author ? ' · ' + r.author : '');
+  };
+  document.getElementById('roiPinSelect').innerHTML = recs.length
+    ? recs.map(r => '<option value="' + escapeHtml(String(r.id)) + '"' + (String(r.id) === pinned ? ' selected' : '') + '>'
+        + escapeHtml(fmtLabel(r)) + '</option>').join('')
+    : '<option value="">저장된 시나리오 없음 — ROI 툴에서 먼저 저장하세요</option>';
+  const st = document.getElementById('roiPinStatus');
+  const cur = recs.find(r => String(r.id) === pinned);
+  st.textContent = cur ? '현재 지정: ' + fmtLabel(cur) + ' → 리포트에 이 수치가 실립니다.'
+                       : '현재 지정 없음 — 리포트는 고정 수치(팀장 확정)로 표기됩니다.';
+  st.style.color = cur ? 'var(--c-accent)' : 'var(--c-label-3)';
+}
+
+async function roiPinSave() {
+  const id = document.getElementById('roiPinSelect').value;
+  if (!id) { toast('지정할 시나리오가 없습니다.'); return; }
+  if (await svPost({ type: 'roi_report_pin', id })) {
+    await loadRoiPin();   // no-cors라 응답을 못 읽음 — 재조회로 지정 성공 확인
+    toast(String(roiPinData?.reportPinnedId || '') === String(id)
+      ? '📌 리포트 반영 시나리오를 지정했습니다. 다음 리포트부터 이 수치가 실립니다.'
+      : '지정이 확인되지 않습니다 — 재배포 여부를 확인하세요.');
+  }
+}
+
+async function roiPinClear() {
+  if (await svPost({ type: 'roi_report_pin', id: '' })) {
+    await loadRoiPin();
+    toast(!roiPinData?.reportPinnedId
+      ? '지정을 해제했습니다. 리포트는 고정 수치로 표기됩니다.'
+      : '해제가 확인되지 않습니다 — 재배포 여부를 확인하세요.');
+  }
+}
+
+// ── 현장 인사이트 (FieldVoice) ──────────────────────────────
+// ?type=voc_reports — 방문객 발화 인용이 포함되므로 관리자 토큰 필수.
+// 파이프라인(현장 노트북)이 업로드한 1페이지 리포트를 목록·상세로 열람한다.
+let vocRecords = null;
+
+async function loadVocReports(force) {
+  const list = document.getElementById('vocList');
+  if (!force && vocRecords) { renderVocList(vocRecords); return; }
+  document.getElementById('vocDetail').style.display = 'none';
+  list.style.display = 'block';
+  list.innerHTML = '<div class="empty-state"><div class="empty-state-text">불러오는 중…</div></div>';
+  try {
+    const res = await fetch(SCRIPT_URL + '?type=voc_reports&days=365&token=' + encodeURIComponent(adminToken()));
+    const json = await res.json();
+    if (!json.records) throw new Error(json.reason || json.error || '응답 형식 오류');
+    vocRecords = json.records;
+    renderVocList(vocRecords);
+  } catch (e) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-state-text">리포트를 불러오지 못했습니다 — ' +
+      vocEsc(e.message || e) + '</div></div>';
+  }
+}
+
+function renderVocList(records) {
+  document.getElementById('vocDetail').style.display = 'none';
+  const wrap = document.getElementById('vocList');
+  wrap.style.display = 'block';
+  if (!records.length) {
+    wrap.innerHTML = '<div class="empty-state"><div class="empty-state-text">아직 업로드된 리포트가 없습니다.<br>' +
+      '분석 후 파이프라인 웹 UI에서 [관리자 페이지로 업로드]를 누르면 여기에 쌓입니다.</div></div>';
+    return;
+  }
+  wrap.innerHTML = records.map(r =>
+    '<div class="voc-row" onclick="openVocReport(\'' + vocEsc(String(r.id)) + '\')">' +
+      '<div class="voc-row-date">' + vocEsc(r.visit_date || String(r.timestamp).slice(0, 10)) + '</div>' +
+      '<div class="voc-row-main">' +
+        '<div class="voc-row-one">' + vocEsc(r.one_liner || '(한 줄 결론 없음)') + '</div>' +
+        '<div class="voc-row-sub">' + vocEsc(r.purpose || '목적 미기재') +
+          (r.author ? ' · ' + vocEsc(r.author) : '') +
+          (r.consent ? ' · 동의: ' + vocEsc(r.consent) : '') + '</div>' +
+      '</div>' +
+    '</div>').join('');
+}
+
+function openVocReport(id) {
+  const r = (vocRecords || []).find(x => String(x.id) === String(id));
+  if (!r) return;
+  document.getElementById('vocList').style.display = 'none';
+  const d = document.getElementById('vocDetail');
+  d.style.display = 'block';
+  document.getElementById('vocDetailMeta').textContent =
+    (r.visit_date || '') + (r.purpose ? ' · ' + r.purpose : '') + (r.author ? ' · ' + r.author : '') +
+    (r.consent ? ' · 동의: ' + r.consent : '');
+  document.getElementById('vocDetailBody').innerHTML = vocMd(r.report_md);
+  d.scrollIntoView({ behavior: 'smooth' });
+}
+
+// 1페이지 리포트(마크다운) 최소 렌더러 — 외부 라이브러리 없이 제목/표/인용/목록/굵게만 지원
+function vocEsc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function vocInline(s) {
+  return s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+function vocMd(md) {
+  const lines = String(md || '').split(/\r?\n/);
+  let html = '', i = 0, inList = false;
+  const closeList = () => { if (inList) { html += '</ul>'; inList = false; } };
+  while (i < lines.length) {
+    const raw = lines[i];
+    const line = vocEsc(raw);
+    if (/^\s*\|/.test(raw) && i + 1 < lines.length && /^\s*\|[\s:|-]+\|?\s*$/.test(lines[i + 1])) {
+      closeList();
+      const cellsOf = s => s.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|')
+                            .map(c => vocInline(vocEsc(c.trim())));
+      html += '<table class="voc-table"><thead><tr>' +
+        cellsOf(raw).map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
+      i += 2;
+      while (i < lines.length && /^\s*\|/.test(lines[i])) {
+        html += '<tr>' + cellsOf(lines[i]).map(c => '<td>' + c + '</td>').join('') + '</tr>';
+        i++;
+      }
+      html += '</tbody></table>';
+      continue;
+    }
+    if (/^###\s/.test(raw))            { closeList(); html += '<h4>' + vocInline(line.replace(/^###\s*/, '')) + '</h4>'; }
+    else if (/^##\s/.test(raw))        { closeList(); html += '<h3>' + vocInline(line.replace(/^##\s*/, '')) + '</h3>'; }
+    else if (/^#\s/.test(raw))         { closeList(); html += '<h3>' + vocInline(line.replace(/^#\s*/, '')) + '</h3>'; }
+    else if (/^\s*-{3,}\s*$/.test(raw)) { closeList(); html += '<hr class="voc-hr">'; }
+    else if (/^\s*>/.test(raw))        { closeList(); html += '<blockquote class="voc-quote">' + vocInline(line.replace(/^\s*&gt;\s*/, '')) + '</blockquote>'; }
+    else if (/^\s*[-*]\s+/.test(raw))  { if (!inList) { html += '<ul class="voc-ul">'; inList = true; } html += '<li>' + vocInline(line.replace(/^\s*[-*]\s+/, '')) + '</li>'; }
+    else if (/^\s*\d+\.\s+/.test(raw)) { if (!inList) { html += '<ul class="voc-ul">'; inList = true; } html += '<li>' + vocInline(line.replace(/^\s*\d+\.\s+/, '')) + '</li>'; }
+    else if (raw.trim() === '')        { closeList(); }
+    else                               { closeList(); html += '<p class="voc-p">' + vocInline(line) + '</p>'; }
+    i++;
+  }
+  closeList();
+  return html;
+}
+
+// ── 자동 점검 (FieldCheck) ─────────────────────────────────
+// Apps Script의 ?type=health_checks&days=N 을 그대로 사용한다.
+// 개인정보가 없는 운영 지표라 관리자 토큰 없이 조회한다(엔드포인트 설계와 동일).
+const HC_LEVELS = {
+  L1: { title: 'L1 응답 감지 — 말을 했는가', lat: true },
+  L2: { title: 'L2 내용 판정 — 질문에 맞는 답을 했는가 (응답한 건 중)', lat: false },
+  L3: { title: 'L3 가전 동작 — 실제로 제어되었는가', lat: false },
+};
+let hcDays = 7;
+let hcCache = {};   // days → records (탭을 오갈 때 재조회하지 않도록)
+
+function setHealthRange(days) {
+  hcDays = days;
+  document.querySelectorAll('.hc-chip').forEach(c => {
+    c.classList.toggle('active', Number(c.dataset.days) === days);
+  });
+  loadHealthChecks();
+}
+
+// 성공률 색상 — 100%가 아니면 전부 빨강으로 칠하면 경고가 무뎌진다.
+// 완전 정상 / 주의 / 이상 세 단계로 구분한다.
+function hcColor(v) {
+  if (v === null) return 'var(--c-label-3)';
+  if (v === 100)  return 'var(--hc-ok)';
+  if (v >= 80)    return 'var(--hc-warn)';
+  return 'var(--hc-bad)';
+}
+
+// 초기 버전이 '리그'로 기록한 사유를 현재 용어로 표시 (요약 메일과 동일한 처리)
+function hcNote(v) { return String(v || '').trim().replace(/리그/g, '점검 장비'); }
+
+async function loadHealthChecks(force) {
+  const fails = document.getElementById('hcFails');
+  if (!force && hcCache[hcDays]) { renderHealth(hcCache[hcDays]); return; }
+
+  document.getElementById('hcStatusSub').textContent = '불러오는 중…';
+  fails.innerHTML = '<div class="empty-state"><div class="empty-state-text">불러오는 중…</div></div>';
+  try {
+    const res  = await fetch(SCRIPT_URL + '?type=health_checks&days=' + hcDays);
+    const json = await res.json();
+    if (!json.records) throw new Error(json.error || '응답 형식 오류');
+    hcCache[hcDays] = json.records;
+    renderHealth(json.records);
+  } catch (e) {
+    document.getElementById('hcStatus').textContent = '조회 실패';
+    document.getElementById('hcStatusSub').textContent = String(e.message || e);
+    fails.innerHTML = '<div class="empty-state"><div class="empty-state-text">점검 이력을 불러오지 못했습니다.</div></div>';
+  }
+}
+
+function renderHealth(records) {
+  const pass = r => r.result === 'pass';
+  const dayKey = ts => String(ts).slice(0, 10);
+  const today  = new Date().toISOString().slice(0, 10);
+
+  // ── 오늘 상태 (점검 장비 생존 확인이 첫 번째 목적) ──
+  const todays  = records.filter(r => dayKey(r.timestamp) === today);
+  const tFail   = todays.filter(r => !pass(r)).length;
+  const statusEl = document.getElementById('hcStatus');
+  const iconEl   = document.getElementById('hcStatusIcon');
+  const subEl    = document.getElementById('hcStatusSub');
+  if (!todays.length) {
+    statusEl.textContent = '기록 없음';
+    statusEl.style.color = 'var(--hc-warn)';
+    iconEl.style.background = 'var(--c-fill)'; iconEl.textContent = '⚠';
+    const last = records[0];
+    subEl.textContent = last
+      ? '마지막 점검 ' + String(last.timestamp).replace('T', ' ').slice(5, 16) + ' — 점검 장비 확인 필요'
+      : '점검 이력이 없습니다';
+  } else if (tFail === 0) {
+    statusEl.textContent = '전체 정상';
+    statusEl.style.color = 'var(--hc-ok)';
+    iconEl.style.background = 'var(--c-accent-light)'; iconEl.textContent = '✓';
+    subEl.textContent = '오늘 ' + todays.length + '건 판정 · 실패 0건';
+  } else {
+    statusEl.textContent = '실패 ' + tFail + '건';
+    statusEl.style.color = 'var(--hc-bad)';
+    iconEl.style.background = 'var(--hc-bad-bg)'; iconEl.textContent = '⚠';
+    subEl.textContent = '오늘 ' + todays.length + '건 판정';
+  }
+
+  // ── 단계별 KPI ──
+  const rate = arr => arr.length ? Math.round(arr.filter(pass).length / arr.length * 100) : null;
+  const byLv = lv => records.filter(r => String(r.level).toUpperCase() === lv);
+  const l1 = byLv('L1'), l2 = byLv('L2');
+  const put = (id, sub, arr) => {
+    const v = rate(arr);
+    const el = document.getElementById(id);
+    el.textContent = v === null ? '—' : v + '%';
+    el.style.color = hcColor(v);
+    if (arr.length) document.getElementById(sub).textContent =
+      arr.filter(pass).length + '/' + arr.length + '건 · 최근 ' + hcDays + '일';
+  };
+  put('hcL1', 'hcL1Sub', l1);
+  put('hcL2', 'hcL2Sub', l2);
+
+  const lats = l1.map(r => Number(r.latency_ms)).filter(n => n > 0);
+  document.getElementById('hcLatency').textContent =
+    lats.length ? Math.round(lats.reduce((a, b) => a + b, 0) / lats.length) + 'ms' : '—';
+
+  // ── 일자별 성공률 (점검이 없는 날은 빈 칸으로 남겨 '안 돌았음'을 드러낸다) ──
+  const days = [];
+  for (let i = hcDays - 1; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+  document.getElementById('hcSpark').innerHTML = days.map(d => {
+    const rs = records.filter(r => dayKey(r.timestamp) === d);
+    const v  = rate(rs);
+    // 0%도 막대가 보이도록 최소 높이를 두되, 수치는 라벨로 정확히 읽히게 한다
+    const h  = v === null ? 3 : Math.max(4, Math.round(v * 0.55));
+    const bg = v === null ? 'var(--hc-none)' : hcColor(v);
+    const val = v === null
+      ? '<span class="hc-spark-val" style="color:var(--c-label-3);">–</span>'
+      : '<span class="hc-spark-val" style="color:' + bg + ';">' + v + '%</span>';
+    return '<div class="hc-spark-col" title="' + d + (v === null ? ' · 점검 없음' : ' · ' + v + '% (' + rs.length + '건)') + '">'
+         + val
+         + '<div class="hc-spark-bar" style="height:' + h + 'px;background:' + bg + ';"></div>'
+         + '<span class="hc-spark-label">' + d.slice(5).replace('-', '/') + '</span></div>';
+  }).join('');
+
+  // ── 단계 · 시나리오별 표 ──
+  document.getElementById('hcLevels').innerHTML = Object.keys(HC_LEVELS).map(lv => {
+    const rs = byLv(lv);
+    if (!rs.length) return '';
+    const meta = HC_LEVELS[lv];
+    // 최신순 데이터라 등장 순서대로 두면 시나리오가 역순으로 보인다.
+    // 점검 실행 순서와 맞도록 scenario_id로 정렬한다.
+    const names = [];
+    rs.slice().sort((a, b) => String(a.scenario_id).localeCompare(String(b.scenario_id)))
+      .forEach(r => { const k = r.scenario_label || r.scenario_id; if (names.indexOf(k) < 0) names.push(k); });
+    const rows = names.map(name => {
+      const g = rs.filter(r => (r.scenario_label || r.scenario_id) === name);
+      const v = rate(g);
+      const gl = g.map(r => Number(r.latency_ms)).filter(n => n > 0);
+      const avg = gl.length ? Math.round(gl.reduce((a, b) => a + b, 0) / gl.length) + 'ms' : '';
+      const col = hcColor(v);
+      return '<div class="hc-row">'
+        + '<div class="hc-name">' + escapeHtmlAdmin(name) + '</div>'
+        + '<div class="hc-bar"><div class="hc-bar-fill" style="width:' + v + '%;background:' + col + ';"></div></div>'
+        + '<div class="hc-rate" style="color:' + col + ';">' + v + '%<span> ' + g.filter(pass).length + '/' + g.length + '</span></div>'
+        + '<div class="hc-lat">' + (meta.lat ? avg : '') + '</div>'
+      + '</div>';
+    }).join('');
+    return '<div style="margin-bottom:var(--sp-32);">'
+      + '<h2 class="sv-section-title">' + meta.title + '</h2>'
+      + '<div class="hc-row hc-row-head"><div>시나리오</div><div></div>'
+      + '<div style="text-align:right;">성공률</div><div style="text-align:right;">'
+      + (meta.lat ? '응답 시작' : '') + '</div></div>'
+      + rows + '</div>';
+  }).join('');
+
+  // ── 최근 실패 ──
+  const failed = records.filter(r => !pass(r)).slice(0, 20);
+  document.getElementById('hcFails').innerHTML = failed.length
+    ? failed.map(r => {
+        const ts = String(r.timestamp).replace('T', ' ').slice(5, 16);
+        const said = String(r.stt_text || '').trim();
+        const note = hcNote(r.note);
+        return '<div class="hc-fail">'
+          + '<div class="hc-fail-head"><span style="color:var(--c-label-2);">' + ts + '</span>&nbsp;&nbsp;'
+          + '<span class="hc-lv-badge">' + escapeHtmlAdmin(String(r.level || 'L1').toUpperCase()) + '</span>&nbsp;'
+          + '<strong>' + escapeHtmlAdmin(r.scenario_label || r.scenario_id || '') + '</strong></div>'
+          + (said ? '<div class="hc-fail-said">인식: &ldquo;' + escapeHtmlAdmin(said) + '&rdquo;</div>' : '')
+          + (note ? '<div class="hc-fail-note">⚠ ' + escapeHtmlAdmin(note) + '</div>' : '')
+          + (r.media_ref ? '<div class="hc-fail-media">' + escapeHtmlAdmin(r.media_ref) + '</div>' : '')
+        + '</div>';
+      }).join('')
+    : '<div class="empty-state"><div class="empty-state-text">최근 ' + hcDays + '일간 실패가 없습니다 ✅</div></div>';
+}
+
+function escapeHtmlAdmin(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 // 구비 가전 — Apps Script의 APPLIANCES 상수를 단일 소스로 사용한다.
@@ -3238,7 +3997,26 @@ function renderStats() {
     : '<p style="color:var(--c-label-3);font-size:var(--t-subhead);">데이터 없음</p>';
 }
 
+// ── CSV 내보내기 — 개인정보보호팀 요구: 다운로드 사유 기록 + 비밀번호 ZIP ──
+// 즉시 다운로드 대신 모달에서 사유·비밀번호를 받고, 사유를 export_log에 기록한 뒤
+// 표준 ZIP 암호화(ZipCrypto)로 감싸 내려받는다. 기록 실패 시 파일도 내려받지 않음.
 function exportCSV() {
+  if (!allBookings.length) { toast('내보낼 데이터가 없습니다.'); return; }
+  document.getElementById('exReason').value = '';
+  document.getElementById('exPassword').value = '';
+  document.getElementById('exportBg').classList.add('open');
+}
+function closeExportModal() { document.getElementById('exportBg').classList.remove('open'); }
+
+function genExportPassword() {
+  // 헷갈리는 문자(O/0, l/1) 제외한 랜덤 12자
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+  const rnd = new Uint32Array(12);
+  crypto.getRandomValues(rnd);
+  document.getElementById('exPassword').value = [...rnd].map(n => chars[n % chars.length]).join('');
+}
+
+function buildBookingsCsv() {
   const headers = ['날짜','회차','목적','주제','책임자','소속본부','소속부서','연락처','이메일','인원','방문자명단','활용방안','기대효과','상태','신청일시'];
   const rows = allBookings.map(b => {
     let visitorSummary = '';
@@ -3255,12 +4033,110 @@ function exportCSV() {
   });
   // CSV 셀 안 큰따옴표 이스케이프 + 줄바꿈 보존
   const esc = c => '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"';
-  const csv = [headers, ...rows].map(r => r.map(esc).join(',')).join('\n');
+  return [headers, ...rows].map(r => r.map(esc).join(',')).join('\n');
+}
+
+async function doExportCSV() {
+  const reason = document.getElementById('exReason').value.trim();
+  const password = document.getElementById('exPassword').value;
+  if (reason.length < 5) { toast('다운로드 사유를 5자 이상 입력해 주세요.'); return; }
+  if (!/^[\x21-\x7E]{8,}$/.test(password)) {
+    toast('비밀번호는 공백 없는 영문·숫자·기호 8자 이상이어야 합니다. (한글 불가 — 압축 프로그램 호환)'); return;
+  }
+
+  // 사유 기록이 먼저 — 기록 실패(토큰 만료·네트워크)면 파일도 내려받지 않는다
+  const logged = await svPost({ type: 'export_log', reason, rowCount: allBookings.length });
+  if (!logged) return;
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  const csvBytes = new TextEncoder().encode('\ufeff' + buildBookingsCsv());
+  const zip = makeEncryptedZip('thinqreal_' + stamp + '.csv', csvBytes, password);
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));
-  a.download = 'thinqreal_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.href = URL.createObjectURL(new Blob([zip], { type: 'application/zip' }));
+  a.download = 'thinqreal_' + stamp + '.zip';
   a.click();
-  toast('CSV 파일이 다운로드됩니다.');
+  closeExportModal();
+  toast('비밀번호 ZIP으로 다운로드됩니다. 다운로드 사유가 기록되었습니다.');
+}
+
+// ── 표준 ZIP 암호화 (ZipCrypto) — 외부 라이브러리 없이 비밀번호 ZIP 생성 ──
+// Windows 탐색기·알집·반디집·7-Zip에서 비밀번호 입력으로 해제 가능.
+// (AES-256이 아닌 전통 방식 — 개인정보보호팀 요구인 "비밀번호 설정" 충족 목적)
+const ZIP_CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+
+function zipCrc32(u8) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < u8.length; i++) c = ZIP_CRC_TABLE[(c ^ u8[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function makeEncryptedZip(fileName, data, password) {
+  // PKWARE 전통 암호화 키 스트림 (APPNOTE 6.1)
+  let k0 = 0x12345678, k1 = 0x23456789, k2 = 0x34567890;
+  const crcByte = (crc, b) => (ZIP_CRC_TABLE[(crc ^ b) & 0xFF] ^ (crc >>> 8)) >>> 0;
+  const update = b => {
+    k0 = crcByte(k0, b);
+    k1 = (Math.imul((k1 + (k0 & 0xFF)) >>> 0, 134775813) + 1) >>> 0;
+    k2 = crcByte(k2, k1 >>> 24);
+  };
+  const keyByte = () => {
+    const t = (k2 | 2) & 0xFFFF;
+    return (Math.imul(t, t ^ 1) >>> 8) & 0xFF;
+  };
+  for (let i = 0; i < password.length; i++) update(password.charCodeAt(i) & 0xFF);
+
+  const crc = zipCrc32(data);
+  // 12바이트 암호화 헤더 — 마지막 바이트 = CRC 상위 바이트 (해제 시 비밀번호 검증용)
+  const head = new Uint8Array(12);
+  crypto.getRandomValues(head);
+  head[11] = (crc >>> 24) & 0xFF;
+  const enc = new Uint8Array(12 + data.length);
+  let p = 0;
+  const encByte = plain => { const c = plain ^ keyByte(); update(plain); enc[p++] = c; };
+  head.forEach(encByte);
+  data.forEach(encByte);
+
+  const nameBytes = new TextEncoder().encode(fileName); // 파일명은 ASCII 유지
+  const now = new Date();
+  const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+  const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  const flag = 0x0001;          // bit0 = 암호화
+  const method = 0;             // stored — CSV가 작아 압축 생략 (해제 호환성 최우선)
+  const le16 = n => [n & 0xFF, (n >>> 8) & 0xFF];
+  const le32 = n => [n & 0xFF, (n >>> 8) & 0xFF, (n >>> 16) & 0xFF, (n >>> 24) & 0xFF];
+
+  const local = [
+    ...le32(0x04034B50), ...le16(20), ...le16(flag), ...le16(method),
+    ...le16(dosTime), ...le16(dosDate), ...le32(crc),
+    ...le32(enc.length), ...le32(data.length),
+    ...le16(nameBytes.length), ...le16(0),
+  ];
+  const central = [
+    ...le32(0x02014B50), ...le16(20), ...le16(20), ...le16(flag), ...le16(method),
+    ...le16(dosTime), ...le16(dosDate), ...le32(crc),
+    ...le32(enc.length), ...le32(data.length),
+    ...le16(nameBytes.length), ...le16(0), ...le16(0),
+    ...le16(0), ...le16(0), ...le32(0), ...le32(0),   // 로컬 헤더 오프셋 0 (단일 파일)
+  ];
+  const centralOffset = local.length + nameBytes.length + enc.length;
+  const centralSize = central.length + nameBytes.length;
+  const eocd = [
+    ...le32(0x06054B50), ...le16(0), ...le16(0), ...le16(1), ...le16(1),
+    ...le32(centralSize), ...le32(centralOffset), ...le16(0),
+  ];
+  const out = new Uint8Array(centralOffset + centralSize + eocd.length);
+  let q = 0;
+  [new Uint8Array(local), nameBytes, enc, new Uint8Array(central), nameBytes, new Uint8Array(eocd)]
+    .forEach(part => { out.set(part, q); q += part.length; });
+  return out;
 }
 
 function toast(msg, ms=3000) {
@@ -3471,6 +4347,27 @@ function copySurveyLink() {
     : toast(SURVEY_URL);
 }
 
+// ── 서브탭 (A안 2026-08-22, 🏆 별도 뷰 분리로 4분할): 표시 전환만 담당 — renderSurveyTab은 항상 전 섹션 렌더 ──
+// 필터 스코프 동기: 트랙=응답 전용(main만) / 월=응답·대장·이슈·방문자 공용
+// (best·report 제외 — 각자 자체 월 선택기: bestTabMonth / svInsightMonth)
+const SV_SUBTAB_KEY = 'thinqreal_admin_sv_subtab';
+const SV_SUBTAB_VIEWS = ['main', 'visitor', 'best', 'report'];
+function svSubTab(view) {
+  if (!SV_SUBTAB_VIEWS.includes(view)) view = 'main';
+  SV_SUBTAB_VIEWS.forEach(v => {
+    document.getElementById('svView-' + v).classList.toggle('sv-view-hidden', v !== view);
+    document.getElementById('svSeg-' + v).classList.toggle('active', v === view);
+  });
+  document.getElementById('svTrackFilter').style.display = view === 'main' ? '' : 'none';
+  document.getElementById('svMonthFilter').style.display = (view === 'report' || view === 'best') ? 'none' : '';
+  try { localStorage.setItem(SV_SUBTAB_KEY, view); } catch (e) {}
+}
+(function () {
+  let v = 'main';
+  try { v = localStorage.getItem(SV_SUBTAB_KEY) || 'main'; } catch (e) {}
+  svSubTab(v);
+})();
+
 async function loadSurveyData(force, quiet) {
   if (surveyData && !force) { renderSurveyTab(); return; }
   if (!adminTokenValid()) { adminSessionExpired(); return; }
@@ -3490,9 +4387,20 @@ async function loadSurveyData(force, quiet) {
   }
 }
 
+// submitted_at은 toISOString() 저장이라 UTC — 표시·월 매칭 시 브라우저 로컬 시각으로 변환
+// (날짜 규칙: toISOString 역방향 사용 금지, 로컬 getter 조합)
+function fmtLocalDateTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return String(iso);
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
 function svMonthMatch(r, m) {
   if (!m) return true;
-  return String(r.visit_date || '').slice(0, 7) === m || String(r.submitted_at || '').slice(0, 7) === m;
+  if (String(r.visit_date || '').slice(0, 7) === m) return true;
+  return r.submitted_at ? fmtLocalDateTime(r.submitted_at).slice(0, 7) === m : false;
 }
 
 function renderSurveyTab() {
@@ -3526,16 +4434,18 @@ function renderSurveyTab() {
   let rs = all.slice().filter(r => (!track || r.track === track) && svMonthMatch(r, month));
   rs.sort((a, b) => String(b.response_id).localeCompare(String(a.response_id)));
   const respBody = document.getElementById('svRespBody');
+  const bestSent = bestSentSet();   // 베스트 리뷰어 발송 완료 표시 (🏆)
   respBody.innerHTML = rs.length ? rs.map(r => {
-    const linked = (r.media_link === '특정 캠페인·프로모션과 연결됨' || r.etc_link === '신규 Task·과제') ? '📒' :
-                   (r.iot_defect === '발견함' ? '⚠' : '');
+    const linked = (bestSent.has(String(r.response_id)) ? '🏆' : '') +
+                   ((r.media_link === '특정 캠페인·프로모션과 연결됨' || r.etc_link === '신규 Task·과제') ? '📒' :
+                   (r.iot_defect === '발견함' ? '⚠' : ''));
     return '<tr class="sv-row-click" onclick="openSurveyModal(\'' + escapeHtml(String(r.response_id)) + '\')">'
-      + '<td>' + escapeHtml(r.visit_date || '-') + '</td>'
+      + '<td style="white-space:nowrap;">' + escapeHtml(r.visit_date || '-') + '</td>'
       + '<td><span class="sv-badge ' + (SV_TRACK_CLS[r.track] || '') + '">' + escapeHtml(SV_TRACK_LABEL[r.track] || r.track) + '</span></td>'
-      + '<td>' + escapeHtml(r.name || '-') + '</td>'
+      + '<td style="white-space:nowrap;">' + escapeHtml(r.name || '-') + '</td>'
       + '<td>' + escapeHtml(r.dept || '-') + '</td>'
       + '<td>' + escapeHtml(r.client || '-') + '</td>'
-      + '<td>' + escapeHtml(r.visit_count || '-') + '</td>'
+      + '<td style="white-space:nowrap;">' + escapeHtml(r.visit_count || '-') + '</td>'
       + '<td>' + escapeHtml(String(r.satisfaction || '-').split(' ')[0]) + '</td>'
       + '<td>' + linked + '</td></tr>';
   }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="empty-state-text">조건에 맞는 응답이 없습니다.</div></div></td></tr>';
@@ -3544,11 +4454,27 @@ function renderSurveyTab() {
   let ls = ledger.slice().filter(l => svMonthMatch(l, month));
   ls.sort((a, b) => String(b.ledger_id).localeCompare(String(a.ledger_id)));
   const badgeCls = { '후보': 'cand', '확정': 'conf', '드롭': 'drop' };
+  // 확정 가치 누적 (전체 — 월 필터 무관): ROI 툴 수주 기여 이익 수동 반영의 참조 숫자
+  const confAll = ledger.filter(x => x.status === '확정');
+  const sumBy = f => confAll.filter(f).reduce((s, x) => s + (Number(x.confirmed_amount) || 0), 0);
+  const estSum = sumBy(x => x.amount_basis === '추정');
+  const measSum = sumBy(x => x.amount_basis !== '추정');   // 공란(구 데이터)은 실측 취급
+  const unknownN = confAll.filter(x => x.confirmed_amount === '' || x.confirmed_amount == null).length;
+  document.getElementById('ledgerSumLine').textContent = confAll.length
+    ? '확정 가치 누적: 실측 ' + measSum.toLocaleString() + '만원 + 추정 ' + estSum.toLocaleString() + '만원 = '
+      + (measSum + estSum).toLocaleString() + '만원 (≈ ' + ((measSum + estSum) / 100).toFixed(1)
+      + '백만원 — ROI 툴 「수주 기여 이익」 입력 참조'
+      + (unknownN ? ' · 금액 미상 ' + unknownN + '건 제외' : '') + ')'
+    : '';
+
   document.getElementById('svLedgerBody').innerHTML = ls.length ? ls.map(l => {
+    const basisTag = l.amount_basis === '추정' ? ' <span style="font-size:11px; color:var(--c-label-3);">(추정)</span>' : '';
     const amt = l.confirmed_amount !== '' && l.confirmed_amount != null
-      ? Number(l.confirmed_amount).toLocaleString() + '만원' : '-';
+      ? Number(l.confirmed_amount).toLocaleString() + '만원' + basisTag
+      : (l.status === '확정' ? '<span style="color:var(--c-label-3);">미상</span>' : '-');
+    // ROI 반영 체크는 금액 있는 확정 건만 — 미상(0원) 건이 반영 완료로 표시되는 혼선 방지
     const roiChk = '<input type="checkbox" ' + (l.roi_included === 'Y' ? 'checked' : '')
-      + (l.status === '확정' ? '' : ' disabled')
+      + (l.status === '확정' && Number(l.confirmed_amount) > 0 ? '' : ' disabled')
       + ' onchange="toggleRoiIncluded(\'' + escapeHtml(String(l.ledger_id)) + '\', this.checked)">';
     return '<tr>'
       + '<td><span class="sv-badge ' + (badgeCls[l.status] || 'cand') + '">' + escapeHtml(l.status || '후보') + '</span></td>'
@@ -3561,7 +4487,8 @@ function renderSurveyTab() {
       + '<td style="white-space:nowrap;">'
       + '<button class="sv-save-btn" onclick="openLedgerModal(\'' + escapeHtml(String(l.ledger_id)) + '\', \'수정\')">수정</button> '
       + '<button class="sv-save-btn" onclick="openLedgerModal(\'' + escapeHtml(String(l.ledger_id)) + '\', \'확정\')">확정</button> '
-      + '<button class="sv-save-btn" style="border-color:rgba(0,0,0,0.2); color:var(--c-label-3);" onclick="openLedgerModal(\'' + escapeHtml(String(l.ledger_id)) + '\', \'드롭\')">드롭</button>'
+      + '<button class="sv-save-btn" style="border-color:rgba(0,0,0,0.2); color:var(--c-label-3);" onclick="openLedgerModal(\'' + escapeHtml(String(l.ledger_id)) + '\', \'드롭\')">드롭</button> '
+      + '<button class="sv-save-btn" style="border-color:var(--c-red); color:var(--c-red);" onclick="openSvDelete(\'ledger\', \'' + escapeHtml(String(l.ledger_id)) + '\')">삭제</button>'
       + '</td></tr>';
   }).join('') : '<tr><td colspan="8"><div class="empty-state"><div class="empty-state-text">대장 항목이 없습니다. 설문의 성과 연결 응답에서 자동 생성됩니다.</div></div></td></tr>';
 
@@ -3585,9 +4512,322 @@ function renderSurveyTab() {
       + '<td><input class="sv-mini-input" data-f="q_ship" type="number" min="0" value="' + escapeHtml(String(x.q_ship || '')) + '"></td>'
       + '<td><select class="sv-mini-select" data-f="status">' + opt(stOpts, x.status || '등록') + '</select></td>'
       + '<td>' + est + '</td>'
-      + '<td><button class="sv-save-btn" onclick="saveIssueRow(\'' + id + '\')">저장</button></td></tr>';
+      + '<td style="white-space:nowrap;"><button class="sv-save-btn" onclick="saveIssueRow(\'' + id + '\')">저장</button> '
+      + '<button class="sv-save-btn" style="border-color:var(--c-red); color:var(--c-red);" onclick="openSvDelete(\'issue\', \'' + id + '\')">삭제</button></td></tr>';
   }).join('') : '<tr><td colspan="9"><div class="empty-state"><div class="empty-state-text">등록된 이슈가 없습니다. R&D 트랙 설문의 결함 리포트에서 자동 생성됩니다.</div></div></td></tr>';
+
+  renderVisitorSection(month);
+  renderBestSection(bestSent);
+  renderCurationSection();
 }
+
+// ── 🏆 베스트 리뷰어 뷰 (자체 월 선택 — 상단 공용 월 필터와 독립) ──
+function renderBestSection(bestSent) {
+  const bmEl = document.getElementById('bestTabMonth');
+  if (!bmEl.value) {
+    const now = new Date();   // 로컬 getter 조합 (toISOString 금지 규칙)
+    bmEl.value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  }
+  const bm = bmEl.value;
+
+  // 발송 이력 (선택 월)
+  const hist = bestMonthRows(bm).slice()
+    .sort((a, b) => String(b.sent_at || '').localeCompare(String(a.sent_at || '')));
+  const stat = document.getElementById('bestTabStat');
+  stat.textContent = '이 달 발송 ' + hist.length + '/' + BEST_MONTHLY_LIMIT;
+  stat.style.color = hist.length >= BEST_MONTHLY_LIMIT ? 'var(--c-red)' : '';
+  document.getElementById('bestHistBody').innerHTML = hist.length ? hist.map(h =>
+    '<tr>'
+    + '<td style="white-space:nowrap;">' + escapeHtml(fmtLocalDateTime(h.sent_at)) + '</td>'
+    + '<td style="white-space:nowrap;">🏆 ' + escapeHtml(h.name || '-') + '</td>'
+    + '<td>' + escapeHtml(h.dept || '-') + '</td>'
+    + '<td style="white-space:nowrap;">' + escapeHtml(h.visit_date || '-') + '</td>'
+    + '<td>' + escapeHtml(h.product || '-') + '</td>'
+    + '<td style="font-size:12px; color:var(--c-label-3);">' + escapeHtml(h.sent_by || '-') + '</td>'
+    + '</tr>').join('')
+    : '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-text">' + escapeHtml(bm) + ' 발송 이력이 없습니다.</div></div></td></tr>';
+
+  // 당월 후보 = 그 달 설문 응답 (행 클릭 → 응답 전문, 처리 버튼 → 발송 모달)
+  const cands = (surveyData.responses || []).slice()
+    .filter(r => svMonthMatch(r, bm))
+    .sort((a, b) => String(b.response_id).localeCompare(String(a.response_id)));
+  document.getElementById('bestCandBody').innerHTML = cands.length ? cands.map(r => {
+    const id = escapeHtml(String(r.response_id));
+    const sent = bestSent.has(String(r.response_id));
+    const fb = String(r.feedback || '');
+    const fbShort = fb.length > 42 ? fb.slice(0, 42) + '…' : (fb || '-');
+    return '<tr class="sv-row-click" onclick="openSurveyModal(\'' + id + '\')">'
+      + '<td style="white-space:nowrap;">' + escapeHtml(r.visit_date || '-') + '</td>'
+      + '<td><span class="sv-badge ' + (SV_TRACK_CLS[r.track] || '') + '">' + escapeHtml(SV_TRACK_LABEL[r.track] || r.track) + '</span></td>'
+      + '<td style="white-space:nowrap;">' + escapeHtml(r.name || '-') + '</td>'
+      + '<td>' + escapeHtml(r.dept || '-') + '</td>'
+      + '<td>' + escapeHtml(String(r.satisfaction || '-').split(' ')[0]) + '</td>'
+      + '<td title="' + escapeHtml(fb) + '">' + escapeHtml(fbShort) + '</td>'
+      + '<td style="white-space:nowrap;">'
+      + (sent ? '<span class="sv-badge conf">🏆 발송 완료</span>'
+              : '<button class="sv-save-btn" onclick="event.stopPropagation(); openBestModal(\'' + id + '\')">🏆 선정·발송</button>')
+      + '</td></tr>';
+  }).join('')
+    : '<tr><td colspan="7"><div class="empty-state"><div class="empty-state-text">' + escapeHtml(bm) + ' 설문 응답이 없습니다.</div></div></td></tr>';
+}
+
+// ── 월간 리포트 큐레이션 (§8-7 5·6 — monthly_insights 탭) ──
+let quoteCandidateList = [];   // 렌더 시점의 후보 배열 (인덱스로 토글 — 텍스트 이스케이프 문제 회피)
+let articleRowList = [];       // 렌더 시점의 기사 행 배열 (인덱스로 삭제 — URL 이스케이프 문제 회피)
+
+// **굵게** 마크다운 → <strong> (escapeHtml 이후 적용 — 리포트 빌더 mdBold와 동일 문법)
+function svMdBold(escaped) { return String(escaped).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>'); }
+
+// ▲▼ 순서 버튼 쌍 — callPrefix 예: "insightMove('123'" / "articleMove(0"
+function svMoveBtns(callPrefix, i, len) {
+  const b = (dir, dis) =>
+    '<button class="sv-save-btn" style="padding:4px 8px;' + (dis ? 'opacity:0.35;pointer-events:none;' : '') + '" onclick="' + callPrefix + ', \'' + dir + '\')">' + (dir === 'up' ? '▲' : '▼') + '</button>';
+  return b('up', i === 0) + b('down', i === len - 1);
+}
+
+async function insightMove(id, dir) {
+  // 낙관적 반영: 같은 월·타입 그룹에서 이웃과 seq 교환 (서버는 그룹 seq를 1..n 재기록)
+  const target = (surveyData.insights || []).find(r => String(r.id) === String(id));
+  if (target) {
+    const month = document.getElementById('svInsightMonth').value;
+    const isQuote = String(target.type) === 'quote';
+    const group = (surveyData.insights || []).filter(r => String(r.month) === month &&
+      (String(r.type) === 'quote') === isQuote)
+      .sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0));
+    const idx = group.findIndex(r => String(r.id) === String(id));
+    const nb = group[idx + (dir === 'up' ? -1 : 1)];
+    if (nb) { const s = target.seq; target.seq = nb.seq; nb.seq = s; renderSurveyTab(); }
+  }
+  if (await svPost({ type: 'insight_move', id: String(id), dir })) loadSurveyData(true, true);
+}
+
+async function articleMove(i, dir) {
+  const r = articleRowList[i];
+  const other = articleRowList[i + (dir === 'up' ? -1 : 1)];
+  if (!r || !other) return;
+  const arr = surveyData.articles || [];
+  const ai = arr.indexOf(r), bi = arr.indexOf(other);
+  if (ai >= 0 && bi >= 0) { arr[ai] = other; arr[bi] = r; renderSurveyTab(); }
+  if (await svPost({ type: 'article_move', month: r.month, url: r.url, dir })) loadSurveyData(true, true);
+}
+
+function svPrevMonthKey() {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');   // 로컬 getter (toISOString 금지 규칙)
+}
+
+function renderCurationSection() {
+  const mEl = document.getElementById('svInsightMonth');
+  if (!mEl.value) mEl.value = svPrevMonthKey();   // 기본값 = 전월 (리포트 대상 월)
+  const month = mEl.value;
+  const rows = (surveyData.insights || []).filter(r => String(r.month) === month);
+
+  // 핵심 인사이트 (직접 입력 목록 — **굵게** 렌더 + ▲▼ 순서 조정)
+  const ins = rows.filter(r => String(r.type || 'insight') !== 'quote')
+    .sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0));
+  document.getElementById('insightList').innerHTML = ins.length ? ins.map((r, i) =>
+    '<div style="display:flex; align-items:flex-start; gap:6px; padding:8px 0; border-bottom:1px solid var(--c-separator);">' +
+      '<span style="flex:1; font-size:var(--t-footnote); line-height:1.6;">' + svMdBold(escapeHtml(r.text)) + '</span>' +
+      svMoveBtns("insightMove('" + escapeHtml(String(r.id)) + "'", i, ins.length) +
+      '<button class="sv-save-btn" style="border-color:var(--c-red); color:var(--c-red);" onclick="insightDelete(\'' + escapeHtml(String(r.id)) + '\')">삭제</button>' +
+    '</div>').join('')
+    : '<div style="font-size:var(--t-footnote); color:var(--c-label-3);">아직 입력된 인사이트가 없습니다 — 이 달 리포트에서 블록이 생략됩니다.</div>';
+
+  // 인상 깊은 한마디 후보 (당월 인솔자·방문자 자유 의견 20자 이상)
+  // 출처는 인솔자의 소속(dept)을 저장·표기 (2026-08-04 팀장 리뷰 — '인솔자 후기' 워딩 삭제). 방문자는 익명 유지.
+  const respMonth = r => String(r.visit_date || r.submitted_at || '').slice(0, 7);
+  quoteCandidateList = [];
+  (surveyData.responses || []).forEach(r => {
+    const t = String(r.feedback || '').trim();
+    if (t.length >= 20 && respMonth(r) === month) {
+      quoteCandidateList.push({ text: t, source: String(r.dept || '').trim() || '인솔자' });
+    }
+  });
+  (surveyData.visitors || []).forEach(v => {
+    const t = String(v.feedback || '').trim();
+    if (t.length >= 20 && String(v.submitted_at || '').slice(0, 7) === month) quoteCandidateList.push({ text: t, source: '방문자' });
+  });
+  const quotes = rows.filter(r => String(r.type) === 'quote')
+    .sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0));
+
+  // 선택된 한마디 — 시트 저장 행 그대로 나열 (중복·구형 행이 눈에 보이고 삭제 가능 — 2026-08-04 버그 수정)
+  document.getElementById('quoteSelected').innerHTML = quotes.length ? quotes.map((q, i) => {
+    const label = q.source === '방문자' ? '방문자 (익명)'
+      : (q.source && q.source !== '인솔자' ? String(q.source) : '');
+    const isTmp = String(q.id).indexOf('tmp') === 0;
+    return '<div style="display:flex; align-items:flex-start; gap:6px; padding:8px 0; border-bottom:1px solid var(--c-separator);">' +
+      '<span style="flex:1; font-size:var(--t-footnote); line-height:1.6;">' + svMdBold(escapeHtml(q.text)) +
+        ' <span style="color:var(--c-label-3);">— ' + (label ? escapeHtml(label) : '(출처 없음 — 삭제 후 재선택하면 소속이 저장됩니다)') + '</span></span>' +
+      (isTmp ? '' : svMoveBtns("insightMove('" + escapeHtml(String(q.id)) + "'", i, quotes.length)) +
+      '<button class="sv-save-btn" style="border-color:var(--c-red); color:var(--c-red);" onclick="insightDelete(\'' + escapeHtml(String(q.id)) + '\')">삭제</button>' +
+    '</div>';
+  }).join('')
+    : '<div style="font-size:var(--t-footnote); color:var(--c-label-3);">선택된 한마디가 없습니다 — 아래 후보를 체크하거나 직접 입력해 주세요.</div>';
+
+  document.getElementById('quoteCandidates').innerHTML = quoteCandidateList.length ? quoteCandidateList.map((c, i) => {
+    // 선택 여부는 텍스트로 대조 (source가 구 '인솔자' 저장분이어도 체크 상태 유지)
+    const selRow = quotes.find(q => String(q.text) === c.text);
+    const srcLabel = c.source === '방문자' ? '방문자 (익명)' : c.source;
+    return '<label style="display:flex; align-items:flex-start; gap:10px; padding:9px 0; border-bottom:1px solid var(--c-separator); cursor:pointer;">' +
+      '<input type="checkbox" ' + (selRow ? 'checked' : '') + ' onchange="quoteToggle(' + i + ', this)" style="margin-top:3px;">' +
+      '<span style="flex:1; font-size:var(--t-footnote); line-height:1.6;">' + svMdBold(escapeHtml(c.text)) +
+        ' <span style="color:var(--c-label-3);">— ' + escapeHtml(srcLabel) + '</span></span>' +
+    '</label>';
+  }).join('')
+    : '<div style="font-size:var(--t-footnote); color:var(--c-label-3);">후보가 없습니다 — 당월 설문 자유 의견(20자 이상)이 후보로 올라옵니다.</div>';
+
+  // 관련 기사 큐레이션 (수동 링크 — 리포트 우선 배치, 5건 미달분은 자동 수집 보충)
+  articleRowList = (surveyData.articles || []).filter(r => String(r.month) === month);
+  document.getElementById('articleList').innerHTML = articleRowList.length ? articleRowList.map((r, i) =>
+    '<div style="display:flex; align-items:flex-start; gap:6px; padding:8px 0; border-bottom:1px solid var(--c-separator);">' +
+      '<span style="flex:1; font-size:var(--t-footnote); line-height:1.6; min-width:0; overflow-wrap:anywhere;">' +
+        '<a href="' + escapeHtml(r.url) + '" target="_blank" rel="noopener" style="color:var(--c-accent);">' + escapeHtml(r.title || r.url) + '</a>' +
+        ((r.source || r.published_at) ? ' <span style="color:var(--c-label-3);">— ' + escapeHtml([r.source, r.published_at].filter(Boolean).join(' · ')) + '</span>' : '') +
+      '</span>' +
+      svMoveBtns('articleMove(' + i, i, articleRowList.length) +
+      '<button class="sv-save-btn" style="border-color:var(--c-red); color:var(--c-red);" onclick="articleDelete(' + i + ')">삭제</button>' +
+    '</div>').join('')
+    : '<div style="font-size:var(--t-footnote); color:var(--c-label-3);">등록된 링크가 없습니다 — 이 달 기사는 자동 수집으로만 채워집니다.</div>';
+}
+
+function openReportPreview() {
+  const m = document.getElementById('svInsightMonth').value;
+  window.open(SCRIPT_URL + '?type=monthly_report_preview' + (m ? '&month=' + encodeURIComponent(m) : ''), '_blank', 'noopener');
+}
+
+async function articleAdd() {
+  const input = document.getElementById('articleNewUrl');
+  const url = input.value.trim();
+  const month = document.getElementById('svInsightMonth').value;
+  if (!/^https?:\/\//i.test(url)) { toast('http(s):// 로 시작하는 기사 URL을 붙여넣어 주세요.'); return; }
+  input.value = '';
+  // 낙관적 로컬 반영 (제목은 서버가 메타 태그에서 추출 — 재동기화로 채워짐)
+  surveyData.articles = (surveyData.articles || []).concat([{ month, title: '', url, source: '', published_at: '' }]);
+  renderSurveyTab();
+  if (await svPost({ type: 'article_add', month, url })) loadSurveyData(true, true);
+}
+
+async function articleDelete(i) {
+  const r = articleRowList[i];
+  if (!r) return;
+  surveyData.articles = (surveyData.articles || []).filter(x => x !== r);
+  renderSurveyTab();
+  if (await svPost({ type: 'article_delete', month: r.month, url: r.url })) toast('삭제했습니다.');
+  else loadSurveyData(true, true);
+}
+
+async function insightAdd() {
+  const input = document.getElementById('insightNewText');
+  const text = input.value.trim();
+  const month = document.getElementById('svInsightMonth').value;
+  if (!text) { toast('인사이트 내용을 입력해 주세요.'); return; }
+  input.value = '';
+  // 낙관적 로컬 반영 (id는 서버 생성 — 백그라운드 재동기화로 정합)
+  surveyData.insights = (surveyData.insights || []).concat([{ id: 'tmp' + Date.now(), month, seq: 999, type: 'insight', text, source: '' }]);
+  renderSurveyTab();
+  if (await svPost({ type: 'insight_add', month, text, rowType: 'insight' })) loadSurveyData(true, true);
+}
+
+async function insightDelete(id) {
+  surveyData.insights = (surveyData.insights || []).filter(r => String(r.id) !== String(id));
+  renderSurveyTab();
+  if (String(id).indexOf('tmp') === 0) { loadSurveyData(true, true); return; }
+  if (await svPost({ type: 'insight_delete', id })) toast('삭제했습니다.');
+  else loadSurveyData(true, true);
+}
+
+async function quoteAdd() {
+  const tEl = document.getElementById('quoteNewText');
+  const sEl = document.getElementById('quoteNewSource');
+  const text = tEl.value.trim();
+  const source = sEl.value.trim();
+  const month = document.getElementById('svInsightMonth').value;
+  if (text.length < 5) { toast('한마디 내용을 입력해 주세요.'); return; }
+  tEl.value = ''; sEl.value = '';
+  surveyData.insights = (surveyData.insights || []).concat([{ id: 'tmp' + Date.now(), month, seq: 999, type: 'quote', text, source }]);
+  renderSurveyTab();
+  if (await svPost({ type: 'insight_add', month, text, source, rowType: 'quote' })) loadSurveyData(true, true);
+}
+
+async function quoteToggle(i, cb) {
+  const month = document.getElementById('svInsightMonth').value;
+  const c = quoteCandidateList[i];
+  if (!c) return;
+  if (cb.checked) {
+    surveyData.insights = (surveyData.insights || []).concat([{ id: 'tmp' + Date.now(), month, seq: 999, type: 'quote', text: c.text, source: c.source }]);
+    if (await svPost({ type: 'insight_add', month, text: c.text, source: c.source, rowType: 'quote' })) loadSurveyData(true, true);
+  } else {
+    // 텍스트로만 대조 — 구 '인솔자' source 저장분도 해제 가능
+    const row = (surveyData.insights || []).find(r =>
+      String(r.month) === month && String(r.type) === 'quote' && String(r.text) === c.text);
+    surveyData.insights = (surveyData.insights || []).filter(r => r !== row);
+    if (row && String(row.id).indexOf('tmp') !== 0) await svPost({ type: 'insight_delete', id: row.id });
+    else loadSurveyData(true, true);
+  }
+}
+
+// ── 방문자 현장 설문 (§8-5) — 조회 전용 (수정·상태 전환·삭제 없음) ──
+const VISITOR_FIELD_LABELS = [
+  ['submitted_at', '제출 시각'], ['lang', '언어'], ['satisfaction', '만족도'],
+  ['impressive_modes', '인상 깊었던 솔루션'], ['adopt_pick', '가장 도입하고 싶은 솔루션'],
+  ['voice_space', '음성 제어 공간'], ['iot_connect', '우선 연결 IoT 제품'],
+  ['ai_barrier', 'AI홈 도입 걸림돌'], ['feedback', '자유 의견']
+];
+
+function renderVisitorSection(month) {
+  const all = surveyData.visitors || [];
+  // KPI — 기존 관례대로 필터 무관 전체 기준 (응답 수·만족도·언어 분포)
+  // 척도 혼재 대응 (2026-08-03 NPS 전환): 신 0~10 정수와 구 5단계("N - 라벨")를 절대 섞어 평균하지 않음
+  const neu = [], oldS = [];
+  all.forEach(v => {
+    const s = String(v.satisfaction || '').trim();
+    if (/^(10|[0-9])$/.test(s)) neu.push(Number(s));
+    else { const m = s.match(/^([1-5])\s*-/); if (m) oldS.push(Number(m[1])); }
+  });
+  const avgOf = a => (a.reduce((x, y) => x + y, 0) / a.length).toFixed(1);
+  const satTxt = neu.length
+    ? '평균 ' + avgOf(neu) + '/10' + (oldS.length ? ' · 구 ' + avgOf(oldS) + '/5' : '')
+    : (oldS.length ? '평균 ' + avgOf(oldS) + '/5 (구 척도)' : '평균 —');
+  const ko = all.filter(v => v.lang === 'KO').length;
+  const en = all.filter(v => v.lang === 'EN').length;
+  document.getElementById('kpiSvVisitor').textContent = all.length;
+  document.getElementById('kpiSvVisitorDist').textContent = satTxt + ' · KO ' + ko + ' · EN ' + en;
+
+  const langF = document.getElementById('svVisitorLangFilter').value;
+  const vs = all.filter(v => (!langF || v.lang === langF) && svMonthMatch(v, month))
+    .sort((a, b) => String(b.response_id).localeCompare(String(a.response_id)));
+  document.getElementById('svVisitorBody').innerHTML = vs.length ? vs.map(v => {
+    const t = fmtLocalDateTime(v.submitted_at);
+    return '<tr class="sv-row-click" onclick="openVisitorModal(\'' + escapeHtml(String(v.response_id)) + '\')">'
+      + '<td style="white-space:nowrap;">' + escapeHtml(t) + '</td>'
+      + '<td>' + escapeHtml(v.lang || '-') + '</td>'
+      + '<td style="white-space:nowrap;">' + escapeHtml(String(v.satisfaction || '-').split(' ')[0]) + '</td>'
+      + '<td>' + escapeHtml(v.impressive_modes || '-') + '</td>'
+      + '<td style="white-space:nowrap;">' + escapeHtml(v.adopt_pick || '-') + '</td>'
+      + '<td style="white-space:nowrap;">' + escapeHtml(v.ai_barrier || '-') + '</td>'
+      + '<td>' + (v.feedback ? '💬' : '') + '</td></tr>';
+  }).join('') : '<tr><td colspan="7"><div class="empty-state"><div class="empty-state-text">조건에 맞는 방문자 응답이 없습니다.</div></div></td></tr>';
+}
+
+let visitorModalTarget = null;   // 상세 모달에서 '영구 삭제'로 넘어갈 때 사용
+
+function openVisitorModal(id) {
+  const v = (surveyData?.visitors || []).find(x => String(x.response_id) === String(id));
+  if (!v) return;
+  visitorModalTarget = String(id);
+  let html = '';
+  VISITOR_FIELD_LABELS.forEach(([k, label]) => {
+    const val = v[k];
+    if (val == null || val === '') return;
+    const shown = k === 'submitted_at' ? fmtLocalDateTime(val) : String(val);
+    html += '<span class="detail-label">' + escapeHtml(label) + '</span><span class="detail-value">' + fmtMultiline(shown) + '</span>';
+  });
+  document.getElementById('visitorModalGrid').innerHTML = html;
+  document.getElementById('visitorModalBg').classList.add('open');
+}
+function closeVisitorModal() { document.getElementById('visitorModalBg').classList.remove('open'); }
+bindBackdropClose('visitorModalBg', closeVisitorModal);
 
 // ── 관리자 쓰기 공통 (no-cors POST — 백엔드 verifyAdminToken이 게이트) ──
 async function svPost(payload) {
@@ -3616,6 +4856,9 @@ const SV_FIELD_LABELS = [
   ['iot_defect', 'IoT 품질 이슈'], ['iot_defect_detail', '이슈 상세'],
   ['etc_link', '성과 연결'], ['etc_link_name', '과제·기획명'], ['etc_link_size', '예상 규모'],
   ['etc_link_attr', '기여 수준(과제)'],
+  ['impressive_modes', '인상 깊었던 솔루션'], ['impressive_reasons', '인상 깊었던 이유'], ['desired_solutions', '추가 희망 솔루션'],
+  ['adopt_pick', '가장 도입하고 싶은 솔루션'], ['voice_space', '음성 제어 공간'],
+  ['iot_connect', '우선 연결 IoT 제품'], ['ai_barrier', 'AI홈 도입 걸림돌'],
   ['satisfaction', '만족도'], ['feedback', '자유 의견']
 ];
 
@@ -3629,15 +4872,96 @@ function openSurveyModal(id) {
   SV_FIELD_LABELS.forEach(([k, label]) => {
     const v = r[k];
     if (v == null || v === '') return;
-    const shown = k === 'submitted_at' ? String(v).slice(0, 16).replace('T', ' ') : String(v);
+    const shown = k === 'submitted_at' ? fmtLocalDateTime(v) : String(v);
     html += '<span class="detail-label">' + escapeHtml(label) + '</span><span class="detail-value">' + fmtMultiline(shown) + '</span>';
   });
   document.getElementById('surveyModalGrid').innerHTML = html;
+  const bb = document.getElementById('bestSendBtn');
+  const sent = bestSentSet().has(String(id));
+  bb.disabled = sent;
+  bb.textContent = sent ? '🏆 발송 완료' : '🏆 베스트 발송';
   document.getElementById('surveyModalBg').classList.add('open');
 }
 function closeSurveyModal() { document.getElementById('surveyModalBg').classList.remove('open'); }
 bindBackdropClose('surveyModalBg', closeSurveyModal);
-// ledgerModalBg·surveyEditBg는 입력 폼 성격 — 백드롭 닫기 미바인딩 원칙 (✕/취소로만 닫음)
+// ledgerModalBg·surveyEditBg·bestBg는 입력 폼 성격 — 백드롭 닫기 미바인딩 원칙 (✕/취소로만 닫음)
+
+// ── 베스트 리뷰어 발송 (매월 3명 사은품 — 설문 초대 메일 공지 이행, 2026-08-22) ──
+// 축하 메일만 발송 — 기프티콘(모바일 쿠폰)은 별도 전달. 서버(best_reviewer_send)가
+// 재발송·월 한도를 최종 차단하고, 클라이언트는 같은 가드를 사전 표시로 복제한다.
+const BEST_DEFAULT_PRODUCT = '스타벅스 아이스 카페 아메리카노 T 2잔';
+const BEST_MONTHLY_LIMIT = 3;
+let bestTarget = null;
+
+function bestSentSet() {
+  return new Set((surveyData?.bestReviewers || []).map(b => String(b.response_id)));
+}
+function bestMonthRows(m) {
+  return (surveyData?.bestReviewers || []).filter(b => String(b.month).slice(0, 7) === m);
+}
+
+function openBestModal(id) {
+  const r = (surveyData?.responses || []).find(x => String(x.response_id) === String(id));
+  if (!r) return;
+  if (bestSentSet().has(String(id))) { toast('이미 발송된 응답입니다.'); return; }
+  bestTarget = r;
+  document.getElementById('bestMeta').textContent =
+    (r.name || '(무명)') + (r.dept ? ' · ' + r.dept : '') + (r.visit_date ? ' · ' + r.visit_date + ' 방문' : '');
+  document.getElementById('bestMonth').value =
+    String(r.visit_date || '').slice(0, 7) || fmtLocalDateTime(r.submitted_at).slice(0, 7);
+  // 이메일 자동 매칭: 방문일+작성자명이 일치하는 예약의 신청자 이메일 (설문 프리필 경로의 역방향)
+  const hit = (allBookings || []).find(b =>
+    b.date === r.visit_date && String(b.name || '').trim() === String(r.name || '').trim());
+  document.getElementById('bestEmail').value = (hit && hit.email) || '';
+  document.getElementById('bestEmailHint').textContent = (hit && hit.email)
+    ? '예약 이력에서 자동 매칭됨 — 발송 전 확인하세요.'
+    : '예약 이력 자동 매칭 실패 — 직접 입력하세요.';
+  document.getElementById('bestProduct').value = BEST_DEFAULT_PRODUCT;
+  updateBestMonthStat();
+  document.getElementById('bestBg').classList.add('open');
+}
+
+function updateBestMonthStat() {
+  const m = document.getElementById('bestMonth').value;
+  const rows = bestMonthRows(m);
+  const el = document.getElementById('bestMonthStat');
+  el.textContent = m
+    ? '— 이 달 발송 ' + rows.length + '/' + BEST_MONTHLY_LIMIT +
+      (rows.length ? ' (' + rows.map(b => b.name).join(', ') + ')' : '')
+    : '';
+  el.style.color = rows.length >= BEST_MONTHLY_LIMIT ? 'var(--c-red)' : '';
+}
+
+function closeBestModal() { document.getElementById('bestBg').classList.remove('open'); }
+
+async function doBestSend() {
+  if (!bestTarget) return;
+  const month = document.getElementById('bestMonth').value;
+  const email = document.getElementById('bestEmail').value.trim().toLowerCase();
+  const product = document.getElementById('bestProduct').value.trim();
+  if (!month) { toast('선정 월을 선택하세요.'); return; }
+  if (!/^[a-z0-9._%+-]+@lge\.com$/.test(email)) { toast('수신 이메일은 @lge.com 주소여야 합니다.'); return; }
+  if (!product) { toast('사은품을 입력하세요.'); return; }
+  if (bestMonthRows(month).length >= BEST_MONTHLY_LIMIT) {
+    toast(month + '은 이미 ' + BEST_MONTHLY_LIMIT + '명에게 발송되었습니다.'); return;
+  }
+  const btn = document.getElementById('bestSendConfirm');
+  btn.disabled = true; btn.textContent = '발송 중…';
+  const ok = await svPost({
+    type: 'best_reviewer_send', responseId: String(bestTarget.response_id),
+    month, email, product,
+    name: bestTarget.name || '', dept: bestTarget.dept || '', visitDate: bestTarget.visit_date || ''
+  });
+  if (ok) {
+    // POST는 no-cors라 응답을 못 읽음 — 이력 재조회로 발송 성공을 확인 (서버 가드에 걸리면 행이 없음)
+    await loadSurveyData(true, true);
+    const sent = bestSentSet().has(String(bestTarget.response_id));
+    toast(sent ? '🏆 축하 메일을 발송했습니다. 기프티콘은 별도로 전달하세요.'
+               : '발송이 확인되지 않습니다 — 월 한도·중복·이메일을 확인하세요.');
+    if (sent) { closeBestModal(); closeSurveyModal(); }
+  }
+  btn.disabled = false; btn.textContent = '축하 메일 발송';
+}
 
 // ── 설문 응답 수정 (오탈자·내용 정정) ──
 // 제출 원문 증빙(submitted_at/track/raw_json)과 파생 트리거 3종(media_link/etc_link/iot_defect)은
@@ -3649,6 +4973,9 @@ const SV_EDIT_COMMON = [
   ['dept', '부서', 'text'],
   ['client', '고객사/대상', 'text'],
   ['purpose', '방문 목적', 'text'],
+  ['impressive_modes', '인상 깊었던 솔루션', 'text'],
+  ['impressive_reasons', '인상 깊었던 이유', 'textarea'],
+  ['desired_solutions', '추가 희망 솔루션', 'textarea'],
   ['satisfaction', '만족도', 'text'],
   ['feedback', '자유 의견', 'textarea']
 ];
@@ -3722,6 +5049,23 @@ async function saveSurveyEdit() {
 
 // ── 성과 대장: 확정/드롭/수정 ──
 let ledgerTarget = null;   // { id, mode } — mode: '확정' | '드롭' | '수정'
+// ── 확정 금액 추정 (2026-08-24): 예상 규모 구간 "하한" × 기여도 — 보수 원칙 (운영자 확정) ──
+// '1억 미만'은 하한이 0이라 자동 추정 불가(실측 입력 유도), '모름'류·기여도 없음도 불가.
+// 추정 선택 시 금액란은 계산값으로 고정(readonly) — 임의 상향 방지, 값을 바꾸려면 실측으로 전환.
+const SCALE_FLOOR_MANWON = { '1~10억': 10000, '10~50억': 100000, '50억 이상': 500000 };
+function ledgerEstimate(l) {
+  const floor = SCALE_FLOOR_MANWON[String(l.expected_scale || '').trim()];
+  const pct = Number(l.attribution_pct);
+  if (!floor || !isFinite(pct) || pct <= 0) return null;
+  return Math.round(floor * pct / 100);
+}
+function lmBasisChange() {
+  const est = ledgerTarget && ledgerTarget.est;
+  const amtEl = document.getElementById('lmAmount');
+  if (document.getElementById('lmBasisEst').checked && est) { amtEl.value = est; amtEl.readOnly = true; }
+  else amtEl.readOnly = false;
+}
+
 function openLedgerModal(id, mode) {
   const l = (surveyData?.ledger || []).find(x => String(x.ledger_id) === String(id));
   if (!l) return;
@@ -3753,8 +5097,39 @@ function openLedgerModal(id, mode) {
   } else {
     document.getElementById('lmNoteLabel').textContent = isConfirm ? '근거' : '드롭 사유';
     document.getElementById('lmAmount').value = l.confirmed_amount || '';
-    document.getElementById('lmDate').value = l.confirmed_date || new Date().toISOString().slice(0, 10);
+    // 확정 일자 기본값: 로컬 날짜 조합 (구 toISOString().slice(0,10)은 KST 오전 9시 이전 하루 밀림 — 날짜 규칙 위반 수정)
+    const now = new Date();
+    const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+    document.getElementById('lmDate').value = l.confirmed_date || today;
     document.getElementById('lmNote').value = l.confirmed_note || '';
+    if (isConfirm) {
+      const est = ledgerEstimate(l);
+      ledgerTarget.est = est;
+      document.getElementById('lmBasisEst').disabled = !est;
+      const estLabel = document.getElementById('lmBasisEstLabel');
+      estLabel.style.opacity = est ? '' : '0.45';
+      estLabel.style.cursor = est ? '' : 'not-allowed';
+      // 추정 불가 사유는 경고 콜아웃으로 강조 — 비활성 라디오가 고장처럼 보이는 것 방지 (2026-08-24 UX)
+      const hintEl = document.getElementById('lmEstHint');
+      if (est) {
+        hintEl.style.cssText = 'font-size:12px; color:var(--c-label-3); margin-bottom:8px;';
+        hintEl.textContent = '추정 근거: 예상 규모 ' + (l.expected_scale || '-') + ' 하한 × 기여도 '
+          + l.attribution_pct + '% = ' + est.toLocaleString() + '만원 (추정 선택 시 계산값 고정 — 임의 조정 불가)';
+      } else {
+        hintEl.style.cssText = 'font-size:12px; color:#C2540A; background:var(--c-orange-light); '
+          + 'border-radius:8px; padding:10px 12px; line-height:1.65; margin-bottom:8px;';
+        hintEl.innerHTML = '⚠ <strong>자동 추정 불가</strong> — 예상 규모(' + escapeHtml(l.expected_scale || '없음')
+          + ') · 기여도(' + (l.attribution_pct !== '' && l.attribution_pct != null ? escapeHtml(String(l.attribution_pct)) + '%' : '없음')
+          + ')로는 하한 × 기여도 계산이 안 됩니다.<br>'
+          + '규모를 가늠할 수 있다면 <strong>[수정]</strong> 버튼에서 예상 규모를 구간 값(1~10억 / 10~50억 / 50억 이상)으로 '
+          + '입력하세요 — 저장 후 다시 [확정]을 열면 추정이 활성화됩니다. 모르면 실측 입력 또는 금액을 비워 「미상」으로 확정하세요.';
+      }
+      // 기본 선택: 기존 추정 확정 → 추정 / 기존 실측 금액 → 실측 / 금액 없고 추정 가능 → 추정 / 그 외 실측
+      const hasAmt = l.confirmed_amount !== '' && l.confirmed_amount != null;
+      const basis = (l.amount_basis === '추정' && est) ? '추정' : (hasAmt ? '실측' : (est ? '추정' : '실측'));
+      document.querySelector('input[name="lmBasis"][value="' + basis + '"]').checked = true;
+      lmBasisChange();
+    }
   }
   document.getElementById('lmSaveBtn').textContent = isEdit ? '수정 저장' : (isConfirm ? '확정 저장' : '드롭 저장');
   document.getElementById('ledgerModalBg').classList.add('open');
@@ -3786,20 +5161,37 @@ async function saveLedgerModal() {
   }
 
   const payload = { type: 'ledger_update', id, status: mode, confirmed_note: document.getElementById('lmNote').value.trim() };
+  let unknownAmt = false;
   if (mode === '확정') {
     const amt = document.getElementById('lmAmount').value.trim();
-    if (!amt) { toast('확정 금액을 입력해 주세요.'); return; }
-    payload.confirmed_amount = Number(amt);
+    if (!amt) {
+      // 금액 미상 확정 허용 (2026-08-24) — 성사 사실의 확정과 금액의 확정을 분리
+      if (!confirm('확정 금액 없이 「금액 미상」으로 확정합니다.\n금액이 파악되면 [확정] 버튼으로 다시 열어 보완할 수 있습니다.')) return;
+      unknownAmt = true;
+      payload.confirmed_amount = '';
+      payload.amount_basis = '미상';
+    } else {
+      payload.confirmed_amount = Number(amt);
+      payload.amount_basis = document.getElementById('lmBasisEst').checked ? '추정' : '실측';
+    }
     payload.confirmed_date = document.getElementById('lmDate').value;
   }
   // 낙관적 로컬 반영
   if (l) {
     l.status = mode; l.confirmed_note = payload.confirmed_note;
-    if (mode === '확정') { l.confirmed_amount = payload.confirmed_amount; l.confirmed_date = payload.confirmed_date; }
+    if (mode === '확정') {
+      l.confirmed_amount = payload.confirmed_amount;
+      l.confirmed_date = payload.confirmed_date;
+      l.amount_basis = payload.amount_basis;
+    }
   }
   closeLedgerModal();
   renderSurveyTab();
-  if (await svPost(payload)) toast(mode === '확정' ? '확정 처리했습니다. ROI 툴에 수동 반영 후 "ROI 반영"을 체크하세요.' : '드롭 처리했습니다.');
+  if (await svPost(payload)) {
+    toast(mode !== '확정' ? '드롭 처리했습니다.'
+      : unknownAmt ? '금액 미상으로 확정했습니다. 금액 파악 시 [확정] 버튼으로 보완하세요.'
+      : '확정 처리했습니다. 상단 「확정 가치 누적」을 ROI 툴 수주 기여 이익에 반영 후 "ROI 반영"을 체크하세요.');
+  }
 }
 
 async function toggleRoiIncluded(id, checked) {
@@ -3807,6 +5199,73 @@ async function toggleRoiIncluded(id, checked) {
   if (l) l.roi_included = checked ? 'Y' : '';
   if (await svPost({ type: 'ledger_update', id, roi_included: checked ? 'Y' : '' })) {
     toast(checked ? 'ROI 반영 완료로 표시했습니다.' : 'ROI 반영 표시를 해제했습니다.');
+  }
+}
+
+// ── 설문·대장·이슈 영구 삭제 (테스트·실수 데이터 정리용) ──
+// "삭제" 타이핑 게이트 — 예약 삭제와 동일 패턴. 응답 삭제는 파생 행(대장·이슈)도 함께.
+// 실제 성과 기록은 드롭/기각 상태 전환으로 보존하는 것이 원칙.
+let svDeleteTarget = null;   // { kind: 'response' | 'ledger' | 'issue' | 'visitor', id }
+function openSvDelete(kind, id) {
+  const d = surveyData || {};
+  let summary = '';
+  let warn = '⚠️ 이 항목을 영구 삭제합니다. 되돌릴 수 없습니다.';
+  if (kind === 'response') {
+    const r = (d.responses || []).find(x => String(x.response_id) === String(id));
+    if (!r) return;
+    summary = [r.visit_date, SV_TRACK_LABEL[r.track] || r.track, r.name].filter(Boolean).join('  ·  ');
+    const nL = (d.ledger || []).filter(l => String(l.response_id) === String(id)).length;
+    const nI = (d.issues || []).filter(x => String(x.response_id) === String(id)).length;
+    if (nL || nI) warn = '⚠️ 이 응답에서 파생된 행(성과 대장 ' + nL + '건 · 이슈 ' + nI + '건)도 함께 영구 삭제됩니다. 되돌릴 수 없습니다.';
+    closeSurveyModal();
+  } else if (kind === 'ledger') {
+    const l = (d.ledger || []).find(x => String(x.ledger_id) === String(id));
+    if (!l) return;
+    summary = ['[' + (l.category || '') + ']', l.project_name || '(무명)', l.status || '후보'].filter(Boolean).join('  ·  ');
+  } else if (kind === 'visitor') {
+    const v = (d.visitors || []).find(x => String(x.response_id) === String(id));
+    if (!v) return;
+    summary = [fmtLocalDateTime(v.submitted_at), v.lang,
+               '만족도 ' + String(v.satisfaction || '-').split(' ')[0]].filter(Boolean).join('  ·  ');
+    closeVisitorModal();
+  } else {
+    const x = (d.issues || []).find(i => String(i.issue_id) === String(id));
+    if (!x) return;
+    summary = [x.device, String(x.symptom || '').slice(0, 30)].filter(Boolean).join('  ·  ') || String(id);
+  }
+  svDeleteTarget = { kind, id: String(id) };
+  document.getElementById('svDelWarn').textContent = warn;
+  document.getElementById('svDelSummary').textContent = summary;
+  const inp = document.getElementById('svDelInput');
+  inp.value = '';
+  document.getElementById('svDelBtn').disabled = true;
+  document.getElementById('svDelBg').classList.add('open');
+  inp.focus();
+}
+function closeSvDelete() { document.getElementById('svDelBg').classList.remove('open'); svDeleteTarget = null; }
+
+async function confirmSvDelete() {
+  if (!svDeleteTarget || document.getElementById('svDelInput').value.trim() !== '삭제') return;
+  const { kind, id } = svDeleteTarget;
+  closeSvDelete();
+  // 낙관적 로컬 제거 — 응답 삭제는 파생 행도 함께 (서버 cascade와 동일 규칙)
+  if (kind === 'response') {
+    surveyData.responses = (surveyData.responses || []).filter(x => String(x.response_id) !== id);
+    surveyData.ledger    = (surveyData.ledger || []).filter(x => String(x.response_id) !== id);
+    surveyData.issues    = (surveyData.issues || []).filter(x => String(x.response_id) !== id);
+  } else if (kind === 'ledger') {
+    surveyData.ledger = (surveyData.ledger || []).filter(x => String(x.ledger_id) !== id);
+  } else if (kind === 'visitor') {
+    surveyData.visitors = (surveyData.visitors || []).filter(x => String(x.response_id) !== id);
+  } else {
+    surveyData.issues = (surveyData.issues || []).filter(x => String(x.issue_id) !== id);
+  }
+  renderSurveyTab();
+  const type = { response: 'survey_delete', ledger: 'ledger_delete', issue: 'issue_delete', visitor: 'visitor_delete' }[kind];
+  if (await svPost({ type, id })) {
+    toast('✓ 영구 삭제됐습니다');
+  } else {
+    loadSurveyData(true, true);   // 전송 실패 시 서버 상태로 재동기화 (롤백)
   }
 }
 

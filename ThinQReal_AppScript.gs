@@ -17,6 +17,34 @@ const SHEET_NAME = 'bookings';               // 시트 탭 이름 (예약)
 const ROI_SHEET_NAME = 'roi_snapshots';      // 시트 탭 이름 (ROI 시나리오 이력)
 const ARTICLES_SHEET_NAME = 'monthly_articles'; // 시트 탭 이름 (월간 리포트 수동 큐레이션 기사)
 const SLOT_BLOCKS_SHEET_NAME = 'slot_blocks';   // 시트 탭 이름 (관리자 슬롯 차단)
+const HEALTH_SHEET_NAME = 'health_checks';      // 시트 탭 이름 (FieldCheck 자동 점검 이력)
+const VOC_SHEET_NAME = 'voc_reports';           // 시트 탭 이름 (FieldVoice 현장 인사이트 리포트)
+// FieldCheck 점검 장비 인증 키 — **Script Property 'FC_API_KEY'에만 둔다** (퍼블릭 리포라 코드 커밋 금지, 2026-07-30 이전).
+// 기존 하드코딩 값은 노출된 것으로 간주해 폐기 — Property에는 새 값을 등록하고 점검 장비(fieldcheck/rig config.json
+// api_key)와 동시 교체할 것. Property 미설정 시 health_check 접수는 전부 거부된다 (fail-closed).
+function getFcApiKey() {
+  return PropertiesService.getScriptProperties().getProperty('FC_API_KEY') || '';
+}
+// FieldVoice 업로드 인증 키 — FC_API_KEY와 동일 원칙: **Script Property 'FV_API_KEY'에만 둔다**
+// (코드·문서에 실제 키 기재 금지). 미설정 시 voc_report 접수는 전부 거부된다 (fail-closed).
+// 파이프라인 쪽 짝은 wonseok-lab/thinqreal/fieldvoice/pipeline config.json의 upload.api_key.
+function getFvApiKey() {
+  return PropertiesService.getScriptProperties().getProperty('FV_API_KEY') || '';
+}
+// FieldCheck 알림 정책
+const FC_TEST_MODE = true;        // 테스트 단계: 메일은 CC_EMAIL(강원석)에게만, 텔레그램 발송 안 함. 정식 운영 전환 시 false
+const FC_IMMEDIATE_ALERT = false; // 건별 실패 즉시 알림 — 테스트 단계에선 끔 (일일 요약만). 정식 운영 시 true 검토
+const FC_SUMMARY_HOUR = 7;        // 일일 요약 메일 발송 시각(시) — setupFieldCheckDailyTrigger() 참조
+const FC_SUMMARY_MINUTE = 40;     // 발송 목표 분 — nearMinute은 ±15분 오차(07:25~07:55). 07:00 점검 종료 후·사내 게이트웨이 지연 감안해도 09:00 시연 전 수신
+// 판정 단계 표기 (요약 메일에서 단계별로 나눠 집계할 때 사용)
+const FC_LEVEL_LABELS = {
+  L1: 'L1 응답 감지 — 말을 했는가',
+  L2: 'L2 내용 판정 — 질문에 맞는 답을 했는가 (응답한 건 중)',
+  L3: 'L3 가전 동작 — 실제로 제어되었는가',
+};
+// '응답 시작' 지표의 정의. 무엇을 재는 값인지 메일에 함께 싣지 않으면
+// 숫자만 보고는 의미를 알 수 없다 (총 답변 길이로 오해하기 쉬움).
+const FC_LATENCY_NOTE = '응답 시작 = 점검 질문을 다 말한 순간부터 ThinQ ON이 답을 시작하기까지 걸린 시간입니다. 답변을 끝내기까지의 길이는 포함하지 않습니다.';
 // 신규 예약 알림을 받는 담당자들 (콤마로 구분, MailApp이 다중 수신 처리)
 const ADMIN_EMAILS = 'ch275.lee@lge.com, moonsu.seo@lge.com, hj8462.kim@lge.com';
 const CC_EMAIL     = 'kang.wonseok@lge.com';  // 참조 수신자 (시스템 동작 모니터링)
@@ -45,7 +73,8 @@ const AUTH_ADMIN_EMAILS = [
   'ch275.lee@lge.com',     // 이철호 책임
   'moonsu.seo@lge.com',    // 서문수 선임
   'hj8462.kim@lge.com',    // 김현진 선임
-  'kwangsoo.park@lge.com'  // 박광수 책임
+  'kwangsoo.park@lge.com', // 박광수 책임
+  'jason.kwon@lge.com'     // 권영섭 (2026-08-18 추가 — 관리자 페이지 접근용, 담당자 알림 미수신)
 ];
 const AUTH_ADMIN_TOKEN_TTL_DAYS = 90;       // 관리자 토큰 유효 기간 (2026-07-07 7일→90일 연장)
 
@@ -182,6 +211,13 @@ function doGet(e) {
   }
   if (type === 'survey_data') {
     return handleGetSurveyData(e.parameter.token);
+  }
+  if (type === 'health_checks') {
+    return handleGetHealthChecks(e.parameter.days);
+  }
+  // voc_reports는 방문객 발화 인용이 포함되므로 health_checks와 달리 관리자 토큰 필수
+  if (type === 'voc_reports') {
+    return handleGetVocReports(e.parameter.token, e.parameter.days);
   }
 
   return jsonResponse({ error: 'Unknown type' });
@@ -320,17 +356,28 @@ function doPost(e) {
 
   if (data.type === 'booking') return handleNewBooking(data);
   if (data.type === 'survey_submit') return handleSurveySubmit(data);
+  if (data.type === 'visitor_submit') return handleVisitorSubmit(data);   // 방문자 현장 설문 (익명·공개, §8-5)
   if (data.type === 'roi_snapshot') return handleNewRoiSnapshot(data);
   // roi_delete는 ROI 툴(별창 포함)에서 호출돼 토큰 경로가 없어 게이트하지 않음 (저위험, §향후 검토)
   if (data.type === 'roi_delete')   return handleDeleteRoiSnapshot(data);
+  // health_check는 점검 장비(무인 기기)가 호출 — 관리자 토큰 대신 FC_API_KEY로 인증
+  if (data.type === 'health_check') return handleNewHealthCheck(data);
+  // voc_report는 FieldVoice 파이프라인(현장 노트북)이 호출 — FV_API_KEY로 인증
+  if (data.type === 'voc_report') return handleNewVocReport(data);
 
   // ── 관리자 토큰이 필요한 파괴적/운영 작업 ──
   // 클라이언트 화면을 우회해도 백엔드가 토큰을 검증하므로 명단 외 요청은 거부된다.
   if (data.type === 'update' || data.type === 'booking_delete' ||
       data.type === 'slot_block' || data.type === 'slot_unblock' ||
       data.type === 'admin_booking_create' || data.type === 'admin_booking_edit' ||
-      data.type === 'survey_update' ||
-      data.type === 'ledger_update' || data.type === 'issue_update') {
+      data.type === 'survey_update' || data.type === 'survey_delete' ||
+      data.type === 'ledger_update' || data.type === 'ledger_delete' ||
+      data.type === 'issue_update' || data.type === 'issue_delete' ||
+      data.type === 'visitor_delete' || data.type === 'export_log' ||
+      data.type === 'insight_add' || data.type === 'insight_delete' ||
+      data.type === 'article_add' || data.type === 'article_delete' ||
+      data.type === 'insight_move' || data.type === 'article_move' ||
+      data.type === 'best_reviewer_send' || data.type === 'roi_report_pin') {
     var admin = verifyAdminToken(data.token);
     if (!admin.ok) {
       return jsonResponse({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
@@ -342,8 +389,21 @@ function doPost(e) {
     if (data.type === 'admin_booking_create') return handleAdminCreateBooking(data, admin.email);
     if (data.type === 'admin_booking_edit')   return handleAdminEditBooking(data, admin.email);
     if (data.type === 'survey_update')        return handleSurveyUpdate(data);
+    if (data.type === 'survey_delete')        return handleSurveyDelete(data);
     if (data.type === 'ledger_update')        return handleLedgerUpdate(data);
+    if (data.type === 'ledger_delete')        return handleLedgerDelete(data);
     if (data.type === 'issue_update')         return handleIssueUpdate(data);
+    if (data.type === 'issue_delete')         return handleIssueDelete(data);
+    if (data.type === 'visitor_delete')       return handleVisitorDelete(data);
+    if (data.type === 'export_log')           return handleExportLog(data, admin.email);
+    if (data.type === 'insight_add')          return handleInsightAdd(data);
+    if (data.type === 'insight_delete')       return handleInsightDelete(data);
+    if (data.type === 'article_add')          return handleArticleAdd(data);
+    if (data.type === 'article_delete')       return handleArticleDelete(data);
+    if (data.type === 'insight_move')         return handleInsightMove(data);
+    if (data.type === 'article_move')         return handleArticleMove(data);
+    if (data.type === 'best_reviewer_send')   return handleBestReviewerSend(data, admin.email);
+    if (data.type === 'roi_report_pin')       return handleRoiReportPin(data);
   }
 
   return jsonResponse({ error: 'Unknown type' });
@@ -958,7 +1018,7 @@ function buildConfirmText(data) {
     `   비밀번호 : real2026`,
     ``,
     `🔐 도어락 비밀번호`,
-    `   56720275`,
+    `   509067`,
     ``,
     `🅿 주차 안내`,
     `   지하주차 : SP Portal (portal.lgsp.co.kr) → Support → 주차`,
@@ -1032,7 +1092,7 @@ function buildConfirmHtml(data) {
         '<tr><td style="padding:2px 16px 2px 0;color:#6e6e73;font-size:13px;">비밀번호</td><td style="padding:2px 0;font-family:Consolas,Menlo,monospace;font-size:13px;color:#1d1d1f;">real2026</td></tr>' +
       '</table>') +
     infoRow('🔐', '도어락 비밀번호',
-      '<div style="font-family:Consolas,Menlo,monospace;font-size:15px;color:#1d1d1f;letter-spacing:0.04em;">56720275</div>') +
+      '<div style="font-family:Consolas,Menlo,monospace;font-size:15px;color:#1d1d1f;letter-spacing:0.04em;">509067</div>') +
     infoRow('🅿', '주차',
       '<div><strong style="font-size:13px;">지하주차</strong> · SP Portal(portal.lgsp.co.kr) → Support → 주차 → 전용건물 방문자 주차에서 사전 신청</div>' +
       '<div style="margin-top:4px;"><strong style="font-size:13px;">지상주차 (VIP·프레스투어 등)</strong> · 방문 목적·고객을 명시한 신청 양식을 마곡주차관리자 <a href="mailto:mgparking@lge.com" style="color:#3a5035;text-decoration:none;">mgparking@lge.com</a> 으로 메일 신청</div>' +
@@ -1130,9 +1190,9 @@ function buildRejectHtml(data) {
 }
 
 // ============================================================
-//  월간 운영 리포트 (매월 마지막 금요일 08:30 KST 자동 발송)
+//  월간 운영 리포트 (매월 첫째 주 수요일 08:30 KST에 전월 리포트 자동 발송 — 2026-07-29 변경)
 //  - 트리거 설치는 1회: 스크립트 에디터에서 installMonthlyReportTrigger() 실행
-//  - 매일 08:30 시간 트리거가 동작 → 함수 내부에서 "오늘이 이번 달 마지막 금요일인가" 체크
+//  - 매일 08:30 시간 트리거가 동작 → 함수 내부에서 "오늘이 이번 달 첫째 수요일인가" 체크 후 전월 리포트 발송
 //  - 수신자/검색 키는 Script Properties에서 관리 (코드에 키 미노출)
 //      MONTHLY_REPORT_TO   : 콤마 구분 수신자 (없으면 발송 스킵)
 //      SERPER_API_KEY      : Serper.dev API Key (Google 결과 우회) [1순위]
@@ -1142,7 +1202,10 @@ function buildRejectHtml(data) {
 //  - 수동 발송    : GET ?type=monthly_report_send&month=YYYY-MM&confirm=YES
 // ============================================================
 
-const MONTHLY_REPORT_QUERY = 'LG전자 ThinQ Real';
+// 기사 자동 수집 키워드 — "ThinQ Real" 정확 문구는 보도가 드물어 사실상 LG전자 일반 기사로
+// 흘렀던 것을, AI홈 동향 수집 의도를 명확히 하는 키워드로 변경 (2026-07-20).
+// 변경 시 기사 섹션 설명문(descArticles·평문)이 이 상수를 참조하므로 자동 동기화됨.
+const MONTHLY_REPORT_QUERY = 'LG전자 ThinQ Real';   // 2026-08-04 팀장 리뷰 — ThinQ Real 직접 관련 기사만 (구 'LG전자 AI홈')
 const PROP_LAST_SENT_KEY   = 'monthly_report_last_sent_month';
 
 // 방문 목적별 카테고리 색상 — 관리자 페이지 PURPOSE_COLORS와 동기화 (thinqreal_admin.html)
@@ -1158,39 +1221,12 @@ const PURPOSE_COLORS = {
 
 // ROI 가치 항목별 색상/라벨 — ROI 툴(ThinQ_Real_ROI_Tool.html line 1723-1726)과 동기화
 const ROI_VALUE_LABELS = {
-  vRnD:          { label: 'R&D 효율화',          color: '#3a5035' },
-  vSalesInfra:   { label: '영업 지원 (인프라)',   color: '#8fa889' },
-  vSalesContrib: { label: '영업 지원 (기여이익)', color: '#ff9500' },
-  vPR:           { label: 'PR 가치',             color: '#af52de' },
+  vRnD:          { label: 'R&D 기여 가치',   color: '#3a5035' },
+  vSalesInfra:   { label: '영업 기여 가치',  color: '#8fa889' },
+  vSalesContrib: { label: '수주 기여 이익',  color: '#ff9500' },
+  vPR:           { label: '홍보 노출 가치',  color: '#af52de' },
+  vQuality:      { label: '품질 개선 가치',  color: '#1b6ca8' },
 };
-
-// QuickChart.io 차트 이미지 URL 생성 — 이메일 클라이언트 호환을 위해 외부 PNG로 렌더
-// 함수(formatter 등)는 JSON.stringify가 제거하므로 토큰으로 치환 후 원본 함수 소스로 복원 (JSON5 형식)
-function quickChartUrl(config, opts) {
-  opts = opts || {};
-  const w = opts.w || 600;
-  const h = opts.h || 320;
-  const bkg = opts.bkg || 'white';
-
-  let counter = 0;
-  const fnMap = {};
-  const json = JSON.stringify(config, function(key, value) {
-    if (typeof value === 'function') {
-      const token = '___FN_' + (counter++) + '___';
-      fnMap[token] = value.toString();
-      return token;
-    }
-    return value;
-  });
-  // split+join으로 치환 — replace의 두 번째 인자가 함수 소스 내 $/ 같은 특수 시퀀스로 해석될 위험 차단
-  let out = json;
-  Object.keys(fnMap).forEach(function(token) {
-    out = out.split('"' + token + '"').join(fnMap[token]);
-  });
-
-  return 'https://quickchart.io/chart?w=' + w + '&h=' + h + '&bkg=' + encodeURIComponent(bkg) +
-    '&c=' + encodeURIComponent(out);
-}
 
 function installMonthlyReportTrigger() {
   ScriptApp.getProjectTriggers().forEach(t => {
@@ -1207,10 +1243,14 @@ function installMonthlyReportTrigger() {
 
 function monthlyReportTrigger() {
   const now = new Date();
-  if (!isLastFridayOfMonth(now)) return;
-  const monthKey = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM');
+  if (!isFirstWednesdayOfMonth(now)) return;
+  const tz = Session.getScriptTimeZone();
+  // 전월 리포트 발송 — 문자열 산술로 TZ 안전하게 전월 yyyy-MM 계산
+  const y = Number(Utilities.formatDate(now, tz, 'yyyy'));
+  const m = Number(Utilities.formatDate(now, tz, 'M'));
+  const monthKey = (m === 1 ? (y - 1) : y) + '-' + ('0' + (m === 1 ? 12 : m - 1)).slice(-2);
   const props = PropertiesService.getScriptProperties();
-  if (props.getProperty(PROP_LAST_SENT_KEY) === monthKey) return; // 이번 달 중복 발송 방지
+  if (props.getProperty(PROP_LAST_SENT_KEY) === monthKey) return; // 해당 월 중복 발송 방지
   try {
     const result = sendMonthlyReport({ month: monthKey });
     if (result.sentTo) props.setProperty(PROP_LAST_SENT_KEY, monthKey);
@@ -1219,15 +1259,13 @@ function monthlyReportTrigger() {
   }
 }
 
-// 스크립트 TZ 기준 오늘이 이번 달의 마지막 금요일인지 판정
-function isLastFridayOfMonth(d) {
+// 스크립트 TZ 기준 오늘이 이번 달의 첫째 수요일인지 판정 (2026-07-29 — 기존 마지막 금요일에서 변경.
+// 전월 데이터가 확정된 뒤 발송하는 구조라 리포트 대상은 전월)
+function isFirstWednesdayOfMonth(d) {
   const tz = Session.getScriptTimeZone();
   const dow = Number(Utilities.formatDate(d, tz, 'u')); // 1=Mon ... 7=Sun
-  if (dow !== 5) return false;
-  const next = new Date(d.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const thisMonth = Utilities.formatDate(d,    tz, 'MM');
-  const nextMonth = Utilities.formatDate(next, tz, 'MM');
-  return nextMonth !== thisMonth;
+  if (dow !== 3) return false;                          // 수요일
+  return Number(Utilities.formatDate(d, tz, 'd')) <= 7; // 1~7일 사이의 수요일 = 첫째 수요일
 }
 
 // options: { month?: 'YYYY-MM', dryRun?: bool, to?: 'override@a, override@b' }
@@ -1239,33 +1277,161 @@ function sendMonthlyReport(options) {
   const to    = options.to    || props.getProperty('MONTHLY_REPORT_TO') || '';
 
   const data = collectMonthlyData(month);
+  // 목적 도넛 내부 렌더링 — 실패해도 발송은 막지 않음 (막대 폴백)
+  let donutBytes = null;
+  try {
+    donutBytes = renderPurposeDonutBytes(data);
+    if (donutBytes) data.donutCid = 'purposeDonut';
+  } catch (err) { Logger.log('[monthly] donut render fail → bar fallback: ' + err); }
   const text = buildMonthlyReportText(data);
   const html = buildMonthlyReportHtml(data);
   const subject = `[ThinQ Real] ${data.year}년 ${data.monthNum}월 운영 리포트`;
 
-  if (options.dryRun) return { subject, html, text, data, sentTo: '' };
+  if (options.dryRun) {
+    // 미리보기는 cid를 못 쓰므로 data URI로 치환
+    const previewHtml = donutBytes
+      ? html.replace(/cid:purposeDonut/g, 'data:image/png;base64,' + Utilities.base64Encode(donutBytes))
+      : html;
+    return { subject, html: previewHtml, text, data, sentTo: '' };
+  }
   if (!to) {
     Logger.log('Monthly report skipped: MONTHLY_REPORT_TO 미설정');
     return { subject, sentTo: '', skipped: 'no recipients' };
   }
-  MailApp.sendEmail({
-    to: to, cc: CC_EMAIL, subject: subject,
+  // subjectPrefix('[테스트] ')·noCc는 §8-6 수동/테스트 발송 전용 옵션 — 자동 트리거 경로는 옵션 미전달로 기존 동작 그대로
+  const finalSubject = (options.subjectPrefix || '') + subject;
+  const mail = {
+    to: to, subject: finalSubject,
     body: text, htmlBody: html,
     name: 'ThinQ Real',
-  });
+  };
+  if (donutBytes) mail.inlineImages = { purposeDonut: Utilities.newBlob(donutBytes, 'image/png', 'purpose-donut.png') };
+  if (!options.noCc) mail.cc = CC_EMAIL;
+  MailApp.sendEmail(mail);
   Logger.log('Monthly report sent → ' + to + ' (' + month + ')');
   return { subject, sentTo: to };
 }
+
+// ============================================================
+//  §8-7 리포트 개편 (2026-08-03) — 상수·집계 헬퍼
+// ============================================================
+
+// 사업부(본부) 고정 목록 — 예약 폼 #fDivision 드롭다운과 동기화 (건수 있는 본부만 표시, 목록 외/공란은 '기타')
+// 리포트 기사 상한 — 스크랩 결과 중 상위 N건만 썸네일과 함께 배치 (2026-08-03 렌더 리뷰)
+const REPORT_ARTICLE_LIMIT = 5;
+
+// ROI 확정 기준 수치 (2026-08 확정 — 저장 시나리오 의존 폐기, 고정 표기)
+// 표기는 소수 1자리 억원 통일 (2026-08-04 팀장 리뷰). ※ 총액 요약·지표만 커밋 가능 — 항목별 실집행 단가는 커밋 금지
+const ROI_FIXED = {
+  capex: '2.8억원', opexYr: '0.1억원/년', totalCost: '2.9억원',
+  bep: '1.31년 (약 1년 4개월)', roi3: '+122.4%', roi5: '+270.7%',
+};
+
+// ── 리포트 ROI 동적 반영 (2026-08-24 운영자 결정 — 지정 시에만 활성) ──
+// 관리자가 지정(pin)한 ROI 시나리오의 수치로 리포트 ROI 블록을 렌더한다.
+// 지정 없음·조회 실패·필드 결손 시 ROI_FIXED 폴백 → 지정 전까지는 기존 고정 표기와 완전 동일.
+// ⚠ roi_snapshot 저장은 공개 경로(토큰 없음)라 「최신 스냅샷 자동 참조」는 금지 —
+//    지정·해제는 관리자 토큰 POST(roi_report_pin)로만. (구 '최신값 자동 참조' 설계로의 회귀 아님)
+const PROP_ROI_PIN_KEY = 'roi_report_snapshot_id';
+
+function toEokStr(millionWon) {   // 백만원 → '2.8억원' (억원 소수 1자리 반올림)
+  return (Math.round(millionWon / 10) / 10).toFixed(1) + '억원';
+}
+
+function bepTextFromYears(y) {    // 1.31 → '1.31년 (약 1년 4개월)'
+  if (!(y > 0)) return null;
+  const months = Math.round(y * 12);
+  if (!months) return y.toFixed(2) + '년';
+  const yy = Math.floor(months / 12), mm = months % 12;
+  const approx = (yy ? yy + '년' : '') + (yy && mm ? ' ' : '') + (mm ? mm + '개월' : '');
+  return y.toFixed(2) + '년 (약 ' + approx + ')';
+}
+
+// 지정 스냅샷 → ROI_FIXED 형 객체 (+basis 출처 라벨). 어떤 실패든 null 반환 → 고정 수치 폴백.
+function resolveReportRoi(allRoi) {
+  try {
+    const id = PropertiesService.getScriptProperties().getProperty(PROP_ROI_PIN_KEY);
+    if (!id) return null;
+    const snap = (allRoi || []).find(function(r) { return String(r.id) === String(id); });
+    if (!snap) return null;
+    const inp = snap.inputs || {}, out = snap.outputs || {};
+    const capexM = Number(inp.capex), opexM = Number(inp.opex);
+    const roi3 = Number(out.roi3), roi5 = Number(out.roi5);
+    const bep = bepTextFromYears(Number(out.bepYears));
+    if (!isFinite(capexM) || !isFinite(opexM) || !isFinite(roi3) || !isFinite(roi5) || !bep) return null;
+    const pct = function(v) { return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; };
+    return {
+      capex: toEokStr(capexM), opexYr: toEokStr(opexM) + '/년', totalCost: toEokStr(capexM + opexM),
+      bep: bep, roi3: pct(roi3), roi5: pct(roi5),
+      basis: '기준: ROI 시나리오 「' + String(snap.label || '무제') + '」 (' + String(snap.timestamp).slice(0, 10) + ' 저장)'
+    };
+  } catch (err) { Logger.log('resolveReportRoi fail: ' + err); return null; }
+}
+
+// 리포트 반영 시나리오 지정/해제 (관리자 토큰) — id 공란이면 해제(고정 수치 복귀)
+function handleRoiReportPin(data) {
+  const props = PropertiesService.getScriptProperties();
+  const id = String(data.id || '').trim();
+  if (!id) { props.deleteProperty(PROP_ROI_PIN_KEY); return jsonResponse({ ok: true, pinned: '' }); }
+  const sheet = getRoiSheet();
+  getOrCreateRoiHeaders(sheet);
+  const rows = sheet.getDataRange().getValues();
+  const idIdx = rows[0].indexOf('id');
+  const exists = rows.slice(1).some(function(r) { return String(r[idIdx]) === id; });
+  if (!exists) return jsonResponse({ ok: false, error: 'not_found' });
+  props.setProperty(PROP_ROI_PIN_KEY, id);
+  return jsonResponse({ ok: true, pinned: id });
+}
+
+// 월간 인사이트·한마디 큐레이션 탭 (§8-7 5·6)
+// type: 'insight'(핵심 인사이트) | 'quote'(인상 깊은 한마디 — source: '인솔자'|'방문자')
+const INSIGHTS_SHEET_NAME = 'monthly_insights';
+const INSIGHTS_HEADERS = ['id', 'month', 'seq', 'type', 'text', 'source', 'created_at'];
+
+// 만족도 척도 판별·집계 (§8-7 3-3) — 구 5단계("N - 라벨")와 신 0~10 정수를 **절대 섞어 평균하지 않는다**
+function classifySatisfaction(values) {
+  const neu = [], old = [];
+  (values || []).forEach(v => {
+    const s = String(v == null ? '' : v).trim();
+    if (!s) return;
+    if (/^(10|[0-9])$/.test(s)) neu.push(Number(s));
+    else {
+      const m = s.match(/^([1-5])\s*-/);
+      if (m) old.push(Number(m[1]));
+    }
+  });
+  const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+  let nps = null;
+  if (neu.length) {
+    const promoters = neu.filter(n => n >= 9).length;
+    const detractors = neu.filter(n => n <= 6).length;
+    nps = Math.round((promoters - detractors) / neu.length * 100);
+  }
+  return { newCount: neu.length, newAvg: avg(neu), nps, oldCount: old.length, oldAvg: avg(old) };
+}
+
+// 만족도/NPS 표기 문자열 — 혼재 월은 두 줄 병기, 소표본(10건 미만)은 참고치 표기
+function satDisplay(sat) {
+  if (!sat || (!sat.newCount && !sat.oldCount)) return '—';
+  const parts = [];
+  if (sat.newCount) {
+    const npsTxt = 'NPS ' + (sat.nps >= 0 ? '+' : '') + sat.nps + ' · 평균 ' + sat.newAvg.toFixed(1) + '/10';
+    parts.push(sat.newCount < 10 ? npsTxt + ' (응답 ' + sat.newCount + '건 · 참고치)' : npsTxt + ' · 응답 ' + sat.newCount + '건');
+  }
+  if (sat.oldCount) parts.push('평균 만족도 ' + sat.oldAvg.toFixed(1) + '/5 (구 척도 · ' + sat.oldCount + '건)');
+  return parts.join(' / ');
+}
+
 
 function collectMonthlyData(month) {
   const [yStr, mStr] = month.split('-');
   const year = Number(yStr), monthNum = Number(mStr);
 
-  // 1) 예약 (date 컬럼이 해당 월에 속하는 모든 건)
+  // 1) 예약 — 전 행을 객체화한 뒤 당월/전월/YTD로 나눠 쓴다 (§8-7 Executive·사업부 집계)
   const bookingsSheet = getSheet();
   const brows = bookingsSheet.getDataRange().getValues();
   const bheaders = brows[0];
-  const bookings = brows.slice(1).map((row, i) => {
+  const allBookings = brows.slice(1).map((row, i) => {
     const obj = { _row: i + 2 };
     bheaders.forEach((h, j) => {
       let v = row[j];
@@ -1275,7 +1441,8 @@ function collectMonthlyData(month) {
       obj[h] = v == null ? '' : v;
     });
     return obj;
-  }).filter(b => b.date && String(b.date).slice(0, 7) === month);
+  }).filter(b => b.date);
+  const bookings = allBookings.filter(b => String(b.date).slice(0, 7) === month);
 
   const confirmed = bookings.filter(b => b.status === '확정');
   const rejected  = bookings.filter(b => b.status === '거절');
@@ -1322,21 +1489,81 @@ function collectMonthlyData(month) {
     .sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
   const roiLatest = eligibleRoi[0] || null;
 
-  // 3) 관련 기사 — 수동 큐레이션 우선, 없으면 Google Custom Search
-  const manualItems = getManualArticles(month);
+  // 3) 관련 기사 — 수동 큐레이션 우선 배치, 상한(5건) 미달분만 자동 수집으로 보충
+  //    (2026-08-03 렌더 리뷰 후속 — 종전 "수동 행 있으면 자동 미호출"에서 병합 방식으로 변경)
+  const manualItems = getManualArticles(month).slice(0, REPORT_ARTICLE_LIMIT);
   let articles;
-  if (manualItems.length > 0) {
-    articles = { items: manualItems, skipReason: '', source: 'manual' };
+  if (manualItems.length >= REPORT_ARTICLE_LIMIT) {
+    articles = { items: manualItems, skipReason: '', source: 'manual', manualCount: manualItems.length, autoCount: 0 };
+  } else if (manualItems.length > 0) {
+    let fill = [];
+    try {
+      const seen = {};
+      manualItems.forEach(it => { seen[it.link] = true; });
+      fill = filterThinqRealItems(fetchThinqRealArticles().items).filter(it => !seen[it.link])
+        .slice(0, REPORT_ARTICLE_LIMIT - manualItems.length);
+    } catch (err) { Logger.log('[monthly] article fill fail: ' + err); }
+    articles = { items: manualItems.concat(fill), skipReason: '',
+                 source: fill.length ? 'mixed' : 'manual',
+                 manualCount: manualItems.length, autoCount: fill.length };
   } else {
     articles = fetchThinqRealArticles();
     articles.source = articles.provider || 'auto';
+    articles.items = filterThinqRealItems(articles.items).slice(0, REPORT_ARTICLE_LIMIT);
+    articles.manualCount = 0;
+    articles.autoCount = articles.items.length;
+    if (!articles.items.length && !articles.skipReason) articles.skipReason = '이번 달 ThinQ Real 관련 보도 없음';
   }
 
-  // 4) 설문·성과 지표 (Phase 5 — 설문 파이프라인 월간 집계)
+  // 4) 설문·성과 지표 (Phase 5 — 설문 파이프라인 월간 집계 + §8-7 만족도/NPS·방문자 지표)
   //    집계 실패가 리포트 발송 자체를 막지 않도록 격리 (텔레그램·캘린더와 동일 원칙)
   let survey = null;
   try { survey = collectMonthlySurvey(month); }
   catch (err) { Logger.log('[monthly] survey metrics fail: ' + err); }
+
+  // 6) 26년 누적(YTD) — 1월~보고월 확정 기준 건수·인원 + R&D 사용일수 (§8-7 2·8)
+  let ytd = null;
+  try {
+    const ytdConfirmed = allBookings.filter(b => {
+      const d7 = String(b.date).slice(0, 7);
+      return d7.slice(0, 4) === yStr && d7 <= month && b.status === '확정';
+    });
+    const rdDates = {};
+    ytdConfirmed.filter(b => b.purposeKey === 'rd').forEach(b => { rdDates[String(b.date)] = true; });
+    ytd = {
+      confirmed: ytdConfirmed.length,
+      visitors: ytdConfirmed.reduce((s, b) => s + (Number(b.count) || 0), 0),
+      rdDays: Object.keys(rdDates).length,
+    };
+  } catch (err) { Logger.log('[monthly] ytd metrics fail: ' + err); }
+
+  // 7) 사업부별 활용 현황 — 확정 기준 건수/인원, 실제 저장된 본부 값 그대로 그룹핑 (건수 내림차순)
+  //    (2026-08-04 팀장 리뷰 — 고정 6본부 목록 폐기: 고객가치혁신부문·홍보담당 등 목록 외 조직이 '기타'로 뭉치던 문제)
+  let divisions = null;
+  try {
+    const map = {};
+    confirmed.forEach(b => {
+      const dv = String(b.division || '').trim() || '기타';
+      if (!map[dv]) map[dv] = { name: dv, count: 0, people: 0 };
+      map[dv].count += 1;
+      map[dv].people += Number(b.count) || 0;
+    });
+    divisions = Object.keys(map).map(k => map[k])
+      .sort((a, b) => (b.count - a.count) || (b.people - a.people));
+    const etcIdx = divisions.findIndex(d => d.name === '기타');
+    if (etcIdx >= 0) divisions.push(divisions.splice(etcIdx, 1)[0]);   // '기타'(본부 공란)는 항상 맨 뒤
+  } catch (err) { Logger.log('[monthly] division metrics fail: ' + err); }
+
+  // 8) 핵심 인사이트·인상 깊은 한마디 (monthly_insights 큐레이션 — §8-7 5·6). 행 없으면 블록 생략
+  let insights = [], quotes = [];
+  try {
+    const rowsIns = readSheetRecords(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS)
+      .filter(r => insightMonthKey(r.month) === month)
+      .sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0));
+    insights = rowsIns.filter(r => String(r.type || 'insight') !== 'quote').map(r => String(r.text || '')).filter(Boolean);
+    quotes = rowsIns.filter(r => String(r.type) === 'quote')
+      .map(r => ({ text: String(r.text || ''), source: String(r.source || '') })).filter(q => q.text);
+  } catch (err) { Logger.log('[monthly] insights fail: ' + err); }
 
   return {
     month, year, monthNum,
@@ -1353,6 +1580,9 @@ function collectMonthlyData(month) {
     roiLatest,
     articles,
     survey,
+    ytd, divisions, insights, quotes,
+    // 관리자가 지정한 시나리오가 있으면 그 수치, 없으면 고정 수치 (2026-08-24 — resolveReportRoi 참조)
+    roiFixed: resolveReportRoi(allRoi) || ROI_FIXED,
   };
 }
 
@@ -1453,10 +1683,306 @@ function getManualArticles(month) {
   return items;
 }
 
+// 자동 수집 기사 필터 — ThinQ Real 직접 관련 기사만 (2026-08-04 팀장 리뷰: 무관 기사 제외, 없으면 0건)
+function filterThinqRealItems(items) {
+  const re = /(thinq\s*real|씽큐\s*리얼)/i;
+  return (items || []).filter(it => re.test(String(it.title || '') + ' ' + String(it.snippet || '')));
+}
+
+// YouTube URL은 페이지 스크랩 시 영상 정보가 아니라 사이트 일반 소개("YouTube"/"동영상 공유")가
+// 잡히므로(SPA·동의 화면), 공개 oEmbed API(제목·채널)와 i.ytimg 공식 썸네일로 우회
+function youtubeVideoId(url) {
+  const m = String(url || '').match(/(?:youtube\.com\/(?:watch\?[^#]*v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+  return m ? m[1] : '';
+}
+
+function fetchYoutubeMeta(url) {
+  const id = youtubeVideoId(url);
+  if (!id) return null;
+  let title = '', author = '';
+  try {
+    const resp = UrlFetchApp.fetch(
+      'https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + id),
+      { muteHttpExceptions: true });
+    if (resp.getResponseCode() === 200) {
+      const j = JSON.parse(resp.getContentText());
+      title = String(j.title || '');
+      author = String(j.author_name || '');
+    }
+  } catch (err) { Logger.log('fetchYoutubeMeta fail: ' + err); }
+  return {
+    title: title,
+    description: '',
+    source: author ? 'YouTube · ' + author : 'YouTube',
+    publishedAt: '',
+    image: 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg',
+  };
+}
+
+// **굵게** 마크다운을 <strong>으로 — 인사이트·한마디 강조용 (escapeHtml 이후 적용 전제)
+function mdBold(escapedText) {
+  return String(escapedText).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+}
+
+// ── 목적 분포 도넛 — 내부 렌더링 (2026-08-04) ─────────────────────
+// 이관 결정(decisions-2026-07-06 §⑦ "차트는 내부 렌더링") 준수: 외부 차트 서비스 없이
+// Apps Script 안에서 PNG를 직접 생성해 메일에 cid 인라인 첨부 (수신자 측 외부 이미지 로드 없음
+// → 차단망·Outlook 기본 차단에서도 표시). 렌더 실패 시 막대 차트 폴백.
+
+// 목적별 분포 목록 — 도넛 슬라이스·범례·막대 폴백이 공유하는 단일 소스 (건수 내림차순, 0건 제외)
+function purposeDist(d) {
+  const total = Object.keys(d.purposeCounts).reduce((s, k) => s + (d.purposeCounts[k] || 0), 0);
+  if (!total) return [];
+  return Object.keys(d.purposeCounts).map(k => [k, d.purposeCounts[k] || 0])
+    .filter(p => p[1] > 0).sort((a, b) => b[1] - a[1])
+    .map(p => ({ label: p[0], count: p[1], pct: Math.round(p[1] / total * 100),
+                 color: PURPOSE_COLORS[p[0]] || '#5e7858' }));
+}
+
+function hexToRgb(hex) {
+  const m = String(hex).replace('#', '');
+  return [parseInt(m.slice(0, 2), 16), parseInt(m.slice(2, 4), 16), parseInt(m.slice(4, 6), 16)];
+}
+
+// 도넛 PNG 바이트 생성 (GAS 서명 바이트 배열 -128..127 — base64Encode/newBlob에 그대로 사용)
+function renderPurposeDonutBytes(d) {
+  const dist = purposeDist(d);
+  if (!dist.length) return null;
+  // "레티나" 방식: PNG는 표시 크기(180px)의 ~2.7배(480px)로 생성 — 메일 클라이언트가 축소하며
+  // 추가 안티앨리어싱이 생겨 곡선·숫자가 매끈해짐 (2026-08-04 리뷰: 표시 축소 + 폰트 해상도 개선)
+  const W = 480, SS = 2;                 // 출력 480x480, 2x 슈퍼샘플링
+  const w = W * SS, cx = w / 2, cy = w / 2;
+  const R = w * 0.485, r = w * 0.30;
+  const total = dist.reduce((s, x) => s + x.count, 0);
+  let acc = 0;
+  const bounds = dist.map(x => { acc += x.count / total; return acc; });
+  const rgbs = dist.map(x => hexToRgb(x.color));
+  const px = new Array(w * w * 3).fill(255);   // 흰 배경
+  for (let y = 0; y < w; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = x + 0.5 - cx, dy = y + 0.5 - cy;
+      const dist2 = Math.sqrt(dx * dx + dy * dy);
+      if (dist2 < r || dist2 > R) continue;
+      let ang = Math.atan2(dx, -dy) / (2 * Math.PI);   // 12시 시작, 시계 방향 0..1
+      if (ang < 0) ang += 1;
+      let si = 0;
+      while (si < bounds.length - 1 && ang >= bounds[si]) si++;
+      const c = rgbs[si];
+      const o = (y * w + x) * 3;
+      px[o] = c[0]; px[o + 1] = c[1]; px[o + 2] = c[2];
+    }
+  }
+  // 슬라이스 위 "N건" 라벨 — 흰색 비트맵 폰트 직접 래스터 (5% 미만 슬라이스는 생략, 범례가 보완)
+  drawSliceLabels(px, w, cx, cy, (R + r) / 2, dist, total);
+
+  // 다운샘플(SSxSS 평균) → PNG 스캔라인 (행마다 filter 0)
+  const raw = [];
+  for (let Y = 0; Y < W; Y++) {
+    raw.push(0);
+    for (let X = 0; X < W; X++) {
+      let rs = 0, gs = 0, bs = 0;
+      for (let sy = 0; sy < SS; sy++) {
+        for (let sx = 0; sx < SS; sx++) {
+          const o = ((Y * SS + sy) * w + (X * SS + sx)) * 3;
+          rs += px[o]; gs += px[o + 1]; bs += px[o + 2];
+        }
+      }
+      const n = SS * SS;
+      raw.push(Math.round(rs / n), Math.round(gs / n), Math.round(bs / n));
+    }
+  }
+  return encodePngBytes(raw, W, W);
+}
+
+// 도넛 슬라이스 중앙에 건수 숫자 흰색 라벨 — DejaVu Sans Bold를 미리 래스터한 16단계 알파맵을
+// 픽셀별 블렌딩으로 찍는다 (구 5x7 비트맵 폰트는 글자꼴 자체가 각져 레티나 축소로도 한계 — 2026-08-04 교체).
+// ('건' 글자는 소형 래스터 품질이 떨어져 숫자만 표기 — 단위는 범례("N건")가 담당)
+function drawSliceLabels(px, w, cx, cy, midR, dist, total) {
+  // DejaVu Sans Bold 숫자 알파맵 (높이 35px·PNG 스케일, 16단계 hex) — 스크립트 생성 데이터
+  const GLYPHS = {
+    '0': { w: 28, h: 35, d: '00000000159ceffec9510000000000000018effffffffffe81000000000003dffffffffffffffd30000000004effffff' +
+           'ffffffffffe400000003effffffffffffffffffe3000000cffffffffffffffffffffc000006ffffffffb4114bfffffff' +
+           'f60000efffffffb000000bfffffffe0005ffffffff20000002ffffffff500afffffffb00000000bfffffffa00fffffff' +
+           'f7000000007ffffffff03ffffffff4000000004ffffffff36ffffffff1000000002ffffffff68ffffffff0000000000f' +
+           'fffffff89fffffffe0000000000efffffffaafffffffd0000000000dfffffffabfffffffd0000000000dfffffffbcfff' +
+           'ffffd0000000000dfffffffcbfffffffd0000000000dfffffffbafffffffd0000000000efffffffa9fffffffe0000000' +
+           '000efffffffa8ffffffff0000000000ffffffff86ffffffff2000000002ffffffff63ffffffff4000000004ffffffff3' +
+           '0ffffffff7000000007ffffffff00afffffffb00000000bfffffffb005ffffffff20000002ffffffff5000efffffffb0' +
+           '00000bfffffffe00006ffffffffc4114cffffffff700000cffffffffffffffffffffc0000003effffffffffffffffffe' +
+           '300000004ffffffffffffffffff40000000003dffffffffffffffd30000000000018effffffffffe8100000000000000' +
+           '159ceffec95100000000' },
+    '1': { w: 24, h: 35, d: '0000000000000000000000000000259dffffffff30000000159dffffffffffff30000000cfffffffffffffff30000000' +
+           'cfffffffffffffff30000000cfffffffffffffff30000000cfffffffffffffff30000000cfffea62ffffffff30000000' +
+           'ba620000ffffffff3000000000000000ffffffff3000000000000000ffffffff3000000000000000ffffffff30000000' +
+           '00000000ffffffff3000000000000000ffffffff3000000000000000ffffffff3000000000000000ffffffff30000000' +
+           '00000000ffffffff3000000000000000ffffffff3000000000000000ffffffff3000000000000000ffffffff30000000' +
+           '00000000ffffffff3000000000000000ffffffff3000000000000000ffffffff3000000000000000ffffffff30000000' +
+           '00000000ffffffff3000000000000000ffffffff3000000000000000ffffffff3000000000000000ffffffff30000000' +
+           '00000000ffffffff300000009ffffffffffffffffffffffd9ffffffffffffffffffffffd9ffffffffffffffffffffffd' +
+           '9ffffffffffffffffffffffd9ffffffffffffffffffffffd9ffffffffffffffffffffffd' },
+    '2': { w: 26, h: 35, d: '00001479bdeffedb8400000000038cffffffffffffffd70000004fffffffffffffffffffd300004fffffffffffffffff' +
+           'fffe30004fffffffffffffffffffffe2004ffffffffffffffffffffffa004ffffd9521025cffffffffff104ffa400000' +
+           '00008fffffffff60492000000000000affffffff900000000000000003ffffffffb00000000000000000ffffffffb000' +
+           '00000000000000efffffffb00000000000000001ffffffff800000000000000006ffffffff40000000000000000cffff' +
+           'fffd00000000000000008ffffffff60000000000000006ffffffffc0000000000000006ffffffffe2000000000000006' +
+           'ffffffffe3000000000000007ffffffffe4000000000000007ffffffffe4000000000000008ffffffffe300000000000' +
+           '0009ffffffffe3000000000000009ffffffffd200000000000000affffffffd200000000000000affffffffc10000000' +
+           '0000001bffffffffc100000000000001bffffffffc100000000000001cffffffffb1000000000000005fffffffffffff' +
+           'fffffffffff05ffffffffffffffffffffffff05ffffffffffffffffffffffff05ffffffffffffffffffffffff05fffff' +
+           'fffffffffffffffffff05ffffffffffffffffffffffff0' },
+    '3': { w: 26, h: 35, d: '0000037acdefeedb9610000000015aeffffffffffffffb40000007fffffffffffffffffffa100007ffffffffffffffff' +
+           'ffffc00007fffffffffffffffffffff80007fffffffffffffffffffffe0007ffd963100249ffffffffff400793000000' +
+           '00003effffffff700000000000000006ffffffff800000000000000002ffffffff800000000000000002ffffffff5000' +
+           '00000000000006ffffffff20000000000000003efffffffa0000000000001259ffffffffd100000003ffffffffffffff' +
+           'fc2000000003fffffffffffffc500000000003ffffffffffffd8200000000003fffffffffffffff91000000003ffffff' +
+           'ffffffffffc100000003fffffffffffffffffc0000000000001259efffffffff60000000000000001affffffffc00000' +
+           '000000000000cffffffff100000000000000007ffffffff400000000000000005ffffffff500000000000000007fffff' +
+           'fff40000000000000000cffffffff2c72000000000001affffffffe0effd9642101248efffffffff90efffffffffffff' +
+           'ffffffffff30effffffffffffffffffffff700efffffffffffffffffffff8000efffffffffffffffffffe50000efffff' +
+           'ffffffffffffc71000001358abcdeefeedb96200000000' },
+    '4': { w: 28, h: 35, d: '00000000000000000000000000000000000000000cfffffffff200000000000000007ffffffffff20000000000000003' +
+           'fffffffffff2000000000000000cfffffffffff2000000000000007ffffffffffff200000000000002fffffffffffff2' +
+           '0000000000000bfffffffffffff20000000000007fffffdffffffff2000000000002efffff4ffffffff200000000000b' +
+           'fffff91ffffffff200000000006fffffd11ffffffff20000000002efffff401ffffffff2000000000bfffff9001fffff' +
+           'fff2000000006fffffe1001ffffffff200000001efffff50001ffffffff20000000afffffa00001ffffffff20000005f' +
+           'ffffe100001ffffffff2000001efffff6000001ffffffff200000afffffb0000001ffffffff200005fffffe20000001f' +
+           'fffffff20000dfffff600000001ffffffff20000effffc000000001ffffffff20000effffffffffffffffffffffffffd' +
+           'effffffffffffffffffffffffffdeffffffffffffffffffffffffffdeffffffffffffffffffffffffffdefffffffffff' +
+           'fffffffffffffffdeffffffffffffffffffffffffffd000000000000001ffffffff20000000000000000001ffffffff2' +
+           '0000000000000000001ffffffff20000000000000000001ffffffff20000000000000000001ffffffff2000000000000' +
+           '0000001ffffffff20000' },
+    '5': { w: 26, h: 35, d: '0000000000000000000000000002fffffffffffffffffffff60002fffffffffffffffffffff60002ffffffffffffffff' +
+           'fffff60002fffffffffffffffffffff60002fffffffffffffffffffff60002fffffffffffffffffffff60002ffffffc0' +
+           '000000000000000002ffffffc0000000000000000002ffffffc0000000000000000002ffffffc0000000000000000002' +
+           'ffffffc0000000000000000002ffffffd9cefedca62000000002fffffffffffffffffb40000002ffffffffffffffffff' +
+           'f9000002ffffffffffffffffffffb00002fffffffffffffffffffffa0002ffffffffffffffffffffff4002fffb752101' +
+           '37dfffffffffc002c610000000001afffffffff30000000000000000bffffffff700000000000000003ffffffff90000' +
+           '0000000000000efffffffb00000000000000000dfffffffc00000000000000000efffffffb00000000000000004fffff' +
+           'fff96810000000000000bffffffff67fe930000000001afffffffff27ffffd95210137dfffffffffb07fffffffffffff' +
+           'ffffffffff307ffffffffffffffffffffff7007fffffffffffffffffffff80007fffffffffffffffffffe50000059eff' +
+           'ffffffffffffd81000000000269aceefedda7400000000' },
+    '6': { w: 28, h: 35, d: '0000000000058bdefedb951000000000000018effffffffffffb500000000006effffffffffffffff5000000009fffff' +
+           'fffffffffffff50000000afffffffffffffffffff50000008ffffffffffffffffffff5000003fffffffffd73101259df' +
+           'f500000cffffffff600000000003a500005ffffffff5000000000000000000bfffffff80000000000000000002ffffff' +
+           'fe10000000000000000006fffffffa00000000000000000009fffffff6017bdefdc8400000000cfffffff48fffffffff' +
+           'fd5000000efffffffefffffffffffffa10001fffffffffffffffffffffffb0001ffffffffffffffffffffffff9002fff' +
+           'ffffffffffffffffffffff302ffffffffffe72015cffffffffa01ffffffffff3000001dffffffff10fffffffff900000' +
+           '005ffffffff40effffffff500000000ffffffff60cffffffff200000000dfffffff709ffffffff200000000cfffffff7' +
+           '06ffffffff200000000dfffffff602ffffffff500000000ffffffff400bfffffff900000005ffffffff1005ffffffff3' +
+           '000001dfffffffb0000dfffffffe72015cffffffff500004fffffffffffffffffffffc0000009fffffffffffffffffff' +
+           'e20000000afffffffffffffffffe30000000008fffffffffffffffc2000000000003bfffffffffffd600000000000000' +
+           '037bdefedb8400000000' },
+    '7': { w: 26, h: 35, d: '00000000000000000000000000effffffffffffffffffffffff5effffffffffffffffffffffff5efffffffffffffffff' +
+           'fffffff5effffffffffffffffffffffff5effffffffffffffffffffffff5effffffffffffffffffffffff20000000000' +
+           '000001efffffffa00000000000000006ffffffff30000000000000000dfffffffb00000000000000005ffffffff40000' +
+           '000000000000bfffffffd00000000000000003ffffffff60000000000000000afffffffe00000000000000002fffffff' +
+           'f700000000000000008fffffffe10000000000000001efffffff900000000000000006ffffffff20000000000000000d' +
+           'fffffffa00000000000000004ffffffff40000000000000000bfffffffc00000000000000003ffffffff500000000000' +
+           '000009fffffffd00000000000000001ffffffff700000000000000008fffffffe10000000000000000efffffff800000' +
+           '000000000006ffffffff20000000000000000dfffffffa00000000000000004ffffffff30000000000000000bfffffff' +
+           'b00000000000000003ffffffff500000000000000009fffffffd00000000000000001ffffffff600000000000000007f' +
+           'ffffffe10000000000000000efffffff80000000000000' },
+    '8': { w: 28, h: 35, d: '0000000269bdeffedb9620000000000004bffffffffffffffb4000000000affffffffffffffffff90000000bffffffff' +
+           'ffffffffffffb000007ffffffffffffffffffffff60000dffffffffffffffffffffffd0003fffffffff931139fffffff' +
+           'ff3005ffffffff50000005ffffffff5007fffffffd00000000efffffff6006fffffffb00000000cfffffff5003ffffff' +
+           'fd00000000efffffff2000dfffffff50000006fffffffc00005ffffffff931139ffffffff4000008ffffffffffffffff' +
+           'ffff700000005effffffffffffffffe500000000016dffffffffffffc6000000000004bffffffffffffffb4000000001' +
+           'bffffffffffffffffffa1000001dffffffffffffffffffffd10000bfffffffe831137efffffffb0005fffffffe300000' +
+           '03efffffff400bfffffff7000000008fffffffa00efffffff2000000003fffffffe02ffffffff0000000001ffffffff1' +
+           '3ffffffff0000000001ffffffff22ffffffff2000000003ffffffff10ffffffff7000000008ffffffff00cfffffffe30' +
+           '000003efffffffc008ffffffffe730027effffffff8002ffffffffffffffffffffffff20008fffffffffffffffffffff' +
+           'f800000affffffffffffffffffffa00000009ffffffffffffffffff90000000003affffffffffffffa30000000000001' +
+           '69bdeffedb9610000000' },
+    '9': { w: 28, h: 35, d: '0000000048cdefeda720000000000000017efffffffffffa3000000000003dfffffffffffffff70000000005ffffffff' +
+           'ffffffffff900000003efffffffffffffffffff7000000dfffffffffffffffffffff200006ffffffffc41027ffffffff' +
+           'c0000dfffffffc0000004ffffffff4002ffffffff40000000afffffffa006fffffffe000000006ffffffff108fffffff' +
+           'c000000003ffffffff409fffffffb000000003ffffffff709fffffffc000000003ffffffffa08fffffffe000000006ff' +
+           'ffffffd06ffffffff30000000affffffffe02ffffffffc0000004ffffffffff00cffffffffc41027effffffffff005ff' +
+           'fffffffffffffffffffffff100bffffffffffffffffffffffff0001cffffffffffffffffffffffe00001bfffffffffff' +
+           'ffdfffffffd0000006dfffffffffe75fffffffb0000000059cefeda6107fffffff80000000000000000000bfffffff40' +
+           '000000000000000002ffffffff10000000000000000009fffffffa0000000000000000006ffffffff400005930000000' +
+           '0007ffffffffb000006ffd85210137dfffffffff2000006ffffffffffffffffffff60000006fffffffffffffffffff90' +
+           '0000006ffffffffffffffffff8000000006ffffffffffffffffe500000000006cffffffffffffe810000000000000269' +
+           'ceefedb8400000000000' },
+  };
+  const S = 2;   // 알파맵은 PNG(480) 스케일 — 슈퍼샘플 버퍼(960)엔 2x2 블록으로 찍으면 다운샘플이 원본 알파를 그대로 복원
+  const stamp = (g, x0, y0) => {
+    for (let gy = 0; gy < g.h; gy++) {
+      for (let gx = 0; gx < g.w; gx++) {
+        const a = parseInt(g.d[gy * g.w + gx], 16) / 15;
+        if (!a) continue;
+        for (let sy = 0; sy < S; sy++) {
+          for (let sx = 0; sx < S; sx++) {
+            const X = x0 + gx * S + sx, Y = y0 + gy * S + sy;
+            if (X < 0 || Y < 0 || X >= w || Y >= w) continue;
+            const o = (Y * w + X) * 3;
+            px[o] += Math.round((255 - px[o]) * a);
+            px[o + 1] += Math.round((255 - px[o + 1]) * a);
+            px[o + 2] += Math.round((255 - px[o + 2]) * a);
+          }
+        }
+      }
+    }
+  };
+  const SP = 2 * S;   // 자간 (PNG 스케일 2px)
+  let acc = 0;
+  dist.forEach(sl => {
+    const frac = sl.count / total;
+    const mid = (acc + frac / 2) * 2 * Math.PI;
+    acc += frac;
+    if (frac < 0.05) return;   // 좁은 슬라이스는 생략 — 수치는 범례에 있음
+    const lx = cx + Math.sin(mid) * midR;
+    const ly = cy - Math.cos(mid) * midR;
+    const glyphs = String(sl.count).split('').map(ch => GLYPHS[ch]);
+    const wAll = glyphs.reduce((s2, g) => s2 + g.w * S, 0) + (glyphs.length - 1) * SP;
+    let x = Math.round(lx - wAll / 2);
+    const y = Math.round(ly - glyphs[0].h * S / 2);
+    glyphs.forEach(g => { stamp(g, x, y); x += g.w * S + SP; });
+  });
+}
+// 순수 GAS PNG 인코더 — GAS에 deflate API가 없어 zlib 스트림은 Utilities.gzip의
+// deflate 페이로드를 추출해 zlib 헤더+adler32로 재포장한다 (gzip 헤더는 FLG 비트별 가변 파싱)
+function encodePngBytes(raw, width, height) {
+  const toSigned = v => (v > 127 ? v - 256 : v);
+  const be32 = v => [(v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255];
+  const crcTable = [];
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    crcTable.push(c >>> 0);
+  }
+  const crc32 = bytes => {
+    let c = 0xffffffff;
+    for (let i = 0; i < bytes.length; i++) c = crcTable[(c ^ bytes[i]) & 255] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+  let a = 1, b = 0;
+  for (let i = 0; i < raw.length; i++) { a = (a + raw[i]) % 65521; b = (b + a) % 65521; }
+  const adler = ((b << 16) | a) >>> 0;
+
+  const gz = Utilities.gzip(Utilities.newBlob(raw.map(toSigned))).getBytes().map(v => v & 255);
+  let p = 10;
+  const flg = gz[3];
+  if (flg & 4) { const xlen = gz[p] | (gz[p + 1] << 8); p += 2 + xlen; }
+  if (flg & 8) { while (gz[p++] !== 0) {} }
+  if (flg & 16) { while (gz[p++] !== 0) {} }
+  if (flg & 2) p += 2;
+  const zlibStream = [0x78, 0x9c].concat(gz.slice(p, gz.length - 8), be32(adler));
+
+  const chunk = (type, data) => {
+    const t = [type.charCodeAt(0), type.charCodeAt(1), type.charCodeAt(2), type.charCodeAt(3)];
+    return be32(data.length).concat(t, data, be32(crc32(t.concat(data))));
+  };
+  const ihdr = be32(width).concat(be32(height), [8, 2, 0, 0, 0]);   // 8bit RGB
+  const png = [137, 80, 78, 71, 13, 10, 26, 10]
+    .concat(chunk('IHDR', ihdr), chunk('IDAT', zlibStream), chunk('IEND', []));
+  return png.map(toSigned);
+}
+
 // URL의 HTML을 fetch해서 OpenGraph 메타 태그로 빈 필드 자동 채우기
 // 담당자가 이미 채워둔 필드는 보존, 비어 있는 필드만 자동으로 채움
 function enrichArticleFromUrl(item) {
-  const meta = fetchUrlMeta(item.link);
+  const meta = fetchYoutubeMeta(item.link) || fetchUrlMeta(item.link);
   if (!meta) {
     // fetch 실패 시 도메인이라도 source로 (마지막 안전망)
     return Object.assign({}, item, {
@@ -1587,7 +2113,7 @@ function normalizeMonth(v) {
   if (Object.prototype.toString.call(v) === '[object Date]') {
     return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM');
   }
-  return String(v).slice(0, 7);
+  return String(v).replace(/^'+/, '').slice(0, 7);   // 텍스트 강제용 아포스트로피가 값에 남는 환경 흡수
 }
 
 function formatPublishedDate(v) {
@@ -1712,45 +2238,7 @@ function prettyRoiLabel(label) {
 
 // ── 임원 요약 한 줄 빌더 (HTML/Text 공용) ──
 // asHtml: true → <strong> 강조 포함, false → 평문
-function buildExecSummary(d, asHtml) {
-  const m = d.monthNum + '월';
-  const strong = (s) => asHtml ? '<strong>' + s + '</strong>' : s;
-  const esc = (s) => asHtml ? escapeHtml(s) : s;
-
-  // 방문 부분
-  let visitPart;
-  if (d.kpi.confirmed > 0) {
-    visitPart = m + '에는 ' + strong(d.kpi.confirmed + '건의 방문') +
-                '(총 ' + strong(d.kpi.visitors + '명') + ')이 진행되었습니다.';
-  } else {
-    visitPart = m + '에는 확정된 방문이 없었습니다.';
-  }
-
-  // ROI 부분 (시나리오 있을 때만)
-  let roiPart = '';
-  if (d.roiLatest) {
-    const o = d.roiLatest.outputs || {};
-    const roi5 = Number(o.roi5);
-    const bep = o.bepText;
-    if (isFinite(roi5)) {
-      const sign = roi5 >= 0 ? '+' : '';
-      const roi5Txt = sign + roi5.toFixed(1) + '%';
-      if (bep) {
-        roiPart = ' 최신 시나리오 기준 5년 누적 ROI는 ' + strong(roi5Txt) +
-                  ', 회수 기간은 ' + strong(esc(bep)) + '입니다.';
-      } else {
-        roiPart = ' 최신 시나리오 기준 5년 누적 ROI는 ' + strong(roi5Txt) + '입니다.';
-      }
-    }
-  }
-
-  // 둘 다 없을 때만 전용 안내
-  if (d.kpi.confirmed === 0 && !roiPart) {
-    return m + '에는 ThinQ Real 운영 활동이 기록되지 않았습니다.';
-  }
-  return visitPart + roiPart;
-}
-
+// Executive 3줄 요약 (§8-7 2) — ① 당월 핵심 수치(+MoM) ② 특기 사항(인사이트 첫 줄 재사용) ③ ROI 진척(확정 기준 고정)
 // ── 텍스트 빌더 ────────────────────────────
 function buildMonthlyReportText(d) {
   const L = [];
@@ -1759,17 +2247,48 @@ function buildMonthlyReportText(d) {
   L.push('이번 달 ThinQ Real의 운영 현황과 누적 성과를 안내드립니다.');
   L.push('');
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push('▶ 요약');
+  L.push('📊 Executive 요약');
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push('   ' + buildExecSummary(d, false));
+  L.push(`   당월 방문 건수   ${d.kpi.confirmed}건` + (d.ytd ? `  (26년 누적 ${d.ytd.confirmed}건)` : ''));
+  L.push(`   당월 방문 인원   ${d.kpi.visitors}명` + (d.ytd ? `  (26년 누적 ${d.ytd.visitors}명)` : ''));
+  L.push(`   만족도(NPS)      ${d.survey ? satDisplay(d.survey.satAll) : '—'}`);
   L.push('');
-  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push('📊 핵심 지표');
-  L.push('   이번 달 운영 성과의 핵심 지표');
-  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push(`   확정 방문        ${d.kpi.confirmed}건`);
-  L.push(`   총 방문 인원     ${d.kpi.visitors}명`);
-  L.push('');
+
+  // 사업부별 활용 현황 — 확정 기준, 건수 있는 본부만 (2026-08-03 렌더 리뷰)
+  if (d.divisions && d.divisions.length) {
+    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    L.push('🏢 사업부별 활용 현황');
+    L.push('   확정 방문 기준 본부별 건수·인원');
+    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    const top = d.divisions.reduce((a, c) => (c.count > (a ? a.count : 0) ? c : a), null);
+    d.divisions.forEach(dv => {
+      const mark = (top && top.count > 0 && dv.name === top.name) ? ' ★' : '';
+      L.push(`   ${dv.name}  —  ${dv.count}건 · ${dv.people}명${mark}`);
+    });
+    L.push('');
+  }
+
+  // 핵심 인사이트 — 큐레이션 행 없으면 블록 생략
+  if (d.insights && d.insights.length) {
+    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    L.push('💡 핵심 인사이트');
+    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    d.insights.forEach(t => L.push('   • ' + String(t).replace(/\*\*/g, '')));
+    L.push('');
+  }
+
+  // 인상 깊은 한마디 — 선택 건 없으면 블록 생략
+  if (d.quotes && d.quotes.length) {
+    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    L.push('💬 인상 깊은 한마디');
+    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    d.quotes.forEach(q => {
+      L.push('   "' + String(q.text).replace(/\*\*/g, '') + '"');
+      const label = q.source === '방문자' ? '방문자 (익명)' : (q.source && q.source !== '인솔자' ? q.source : '');
+      if (label) L.push('     — ' + label);
+      L.push('');
+    });
+  }
 
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   L.push('🎯 방문 목적별 분포');
@@ -1785,74 +2304,13 @@ function buildMonthlyReportText(d) {
   });
   L.push('');
 
-  // 임원 가독성: 핵심 이력(B2B 영업·홍보)만 상세 표시, 나머지는 건수로만 요약 (2026-07-05 결정)
-  const keyVisitsT = d.confirmed.filter(b => /(B2B|홍보)/.test(String(b.purpose || '')));
-  const otherCountT = d.confirmed.length - keyVisitsT.length;
-  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push('📅 방문 이력');
-  L.push(`   이번 달 확정 방문 중 핵심 이력(B2B 영업 · 홍보) ${keyVisitsT.length}건`);
-  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  if (!keyVisitsT.length) {
-    L.push('   (이번 달 B2B 영업·홍보 방문 없음' + (otherCountT ? ` — 그 외 목적 ${otherCountT}건` : '') + ')');
-  } else {
-    // 카테고리별 그룹 표시 (고정 순서: B2B 영업 → 홍보)
-    [['B2B 영업', /B2B/], ['홍보 (프레스투어/마케팅)', /홍보/]].forEach(pair => {
-      const rows = keyVisitsT.filter(b => pair[1].test(String(b.purpose || '')));
-      if (!rows.length) return;
-      L.push(`   ■ ${pair[0]}  —  ${rows.length}건`);
-      rows.forEach(b => {
-        // b2b는 subject=clientCompany로 저장되므로 중복 제거 후 표시
-        const subj = [...new Set([b.subject, b.clientCompany].filter(Boolean))].join(' · ');
-        L.push(`     ${b.date}  ·  ${subj || '-'}`);
-      });
-      L.push('');
-    });
-    if (otherCountT) {
-      L.push(`   ※ 그 외 목적(R&D·콘텐츠 제작·내부 커뮤니케이션 등) ${otherCountT}건은 생략`);
-      L.push('     (전체 내역은 관리자 페이지에서 확인 가능)');
-    }
-  }
-
-  // 설문·성과 지표 (Phase 5)
-  if (d.survey) {
-    const s = d.survey;
-    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    L.push('📋 설문·성과 지표');
-    L.push('   방문 후기 설문 기반 지표 (확정 산입액 = 이번 달 대장 확정 합계)');
-    L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    L.push(`   설문 응답        ${s.count}건 (영업 ${s.tracks.sales} · 콘텐츠 ${s.tracks.media} · 기타 ${s.tracks.etc})`);
-    L.push(`   재방문 응답률    ${s.revisitPct == null ? '—' : s.revisitPct + '%'}`);
-    L.push(`   성과 추적 대장   신규 ${s.ledgerNew}건 · 확정 ${s.ledgerConfirmed}건 · 드롭 ${s.ledgerDropped}건`);
-    L.push(`   월 확정 산입액   ${Number(s.confirmedSum).toLocaleString()}만원`);
-    L.push(`   IoT 이슈 등록    ${s.issueCount}건`);
-    L.push('');
-  }
-
-  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push(`💰 ${d.monthNum}월 ROI 누적 분석 결과`);
-  L.push('   저장된 시나리오 기반의 실시간 산출 결과');
-  L.push('   (영업 지원·기여 영업 이익은 실제 영업 진행에 따라 매월 갱신됨)');
-  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  if (!d.roiLatest) {
-    L.push('   (저장된 ROI 시나리오가 없습니다)');
-  } else {
-    const o = d.roiLatest.outputs || {};
-    const annualValue = Number(o.annualValue) || 0;
-    if (annualValue) L.push(`   연간 창출 가치    ${fmtKRWReport(annualValue)}`);
-    if (o.bepText)   L.push(`   회수 기간 (BEP)   ${o.bepText}`);
-    else if (isFinite(o.bepYears)) L.push(`   회수 기간 (BEP)   ${Number(o.bepYears).toFixed(2)}년`);
-    if (isFinite(o.roi3)) L.push(`   3년 누적 ROI      ${(o.roi3 >= 0 ? '+' : '') + Number(o.roi3).toFixed(1)}%  (${fmtKRWReport(o.profit3 || 0)})`);
-    if (isFinite(o.roi5)) L.push(`   5년 누적 ROI      ${(o.roi5 >= 0 ? '+' : '') + Number(o.roi5).toFixed(1)}%  (${fmtKRWReport(o.profit5 || 0)})`);
-    L.push('');
-    L.push(`   기준 시나리오: ${prettyRoiLabel(d.roiLatest.label)}` +
-           (d.roiLatest.author ? ` · 작성자 ${d.roiLatest.author}` : ''));
-  }
-
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   L.push('📰 관련 기사');
   L.push(d.articles.source === 'manual'
     ? '   담당자가 큐레이션한 이번 달 ThinQ Real 관련 보도 ' + d.articles.items.length + '건'
-    : '   Google 검색 결과 기준의 최근 1개월 ThinQ Real 관련 보도');
+    : d.articles.source === 'mixed'
+    ? '   담당자 큐레이션 ' + d.articles.manualCount + '건 + "' + MONTHLY_REPORT_QUERY + '" 자동 수집 ' + d.articles.autoCount + '건'
+    : '   "' + MONTHLY_REPORT_QUERY + '" 키워드로 자동 수집한 최근 1개월 언론 보도 (AI홈 시장 동향 포함)');
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   if (!d.articles.items.length) {
     L.push('   (' + (d.articles.skipReason || '검색 결과 없음') + ')');
@@ -1869,6 +2327,15 @@ function buildMonthlyReportText(d) {
     });
   }
 
+  // ROI 스냅샷 — 최하단, 확정 기준 고정 수치 (§8-7 8. 그래프·저장 시나리오 의존 폐기)
+  const rf = d.roiFixed || ROI_FIXED;
+  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  L.push('💰 투자 대비 성과 (ROI) — 확정 기준');
+  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  L.push(`   총 투자 ${rf.totalCost} (구축 ${rf.capex} + 운영 ${rf.opexYr})`);
+  L.push(`   BEP ${rf.bep} · 3년 ROI ${rf.roi3} · 5년 ROI ${rf.roi5}`);
+  if (rf.basis) L.push(`   ${rf.basis}`);
+  L.push('');
   L.push('');
   L.push('감사합니다.');
   L.push('HS플랫폼사업센터 AI홈솔루션엔지니어링팀');
@@ -1886,16 +2353,6 @@ function buildMonthlyReportHtml(d) {
       '</div>' +
     '</td></tr>';
 
-  // ── 임원 요약 한 줄 (헤더 직후, 30초 안에 운영 상황 파악) ──
-  const execSummaryText = buildExecSummary(d, true);
-  const execSummaryRow =
-    '<tr><td style="padding:18px 28px 0;">' +
-      '<div style="background:#f5f7f4;border-left:4px solid #3a5035;padding:18px 22px;border-radius:0 6px 6px 0;">' +
-        '<div style="font-size:11px;font-weight:600;color:#3a5035;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">요약</div>' +
-        '<div style="font-size:15px;color:#1d1d1f;line-height:1.75;">' + execSummaryText + '</div>' +
-      '</div>' +
-    '</td></tr>';
-
   // ── 섹션 헤더 (큰 제목 + 한 줄 설명) ──
   const sectionHeader = (icon, title, description) =>
     '<tr><td style="padding:32px 28px 6px;">' +
@@ -1903,27 +2360,96 @@ function buildMonthlyReportHtml(d) {
       (description ? '<div style="font-size:13.5px;color:#6e6e73;margin-top:8px;line-height:1.55;">' + escapeHtml(description) + '</div>' : '') +
     '</td></tr>';
 
-  // ── 1) 핵심 지표 (확정 건수 + 방문 인원만, 폰트는 ROI KPI 카드와 통일) ──
-  const kpiCell = (label, value, unit, accent) =>
-    '<td valign="top" align="center" style="padding:18px 10px;background:#f5f5f7;border-radius:10px;">' +
-      '<div style="line-height:1.1;">' +
-        '<span style="font-size:22px;font-weight:700;color:' + (accent || '#1d1d1f') + ';">' + escapeHtml(String(value)) + '</span>' +
-        '<span style="font-size:13px;font-weight:500;color:' + (accent || '#1d1d1f') + ';margin-left:4px;">' + escapeHtml(unit) + '</span>' +
+  // ── 1) Executive 요약 — KPI 3카드 (당월 건수·인원 + MoM / NPS)
+  //    (§8-7 2의 26년 누적 카드·요약 3줄은 2026-08-03 렌더 리뷰로 삭제 — 누적 진척은 ROI 스냅샷이 단일 위치)
+  // Executive 카드 셀 — 라벨(상) → 값(중) → 보조 줄(하: 누적) (2026-08-04 팀장 리뷰 — MoM 표기 대신 26년 누적)
+  const execCell = (label, value, unit, sub) =>
+    '<td valign="top" align="center" style="padding:16px 8px;background:#f5f5f7;border-radius:10px;">' +
+      '<div style="font-size:12px;color:#6e6e73;font-weight:500;">' + escapeHtml(label) + '</div>' +
+      '<div style="line-height:1.1;margin-top:7px;">' +
+        '<span style="font-size:21px;font-weight:700;color:#3a5035;">' + escapeHtml(String(value)) + '</span>' +
+        (unit ? '<span style="font-size:12px;font-weight:500;color:#3a5035;margin-left:3px;">' + escapeHtml(unit) + '</span>' : '') +
       '</div>' +
-      '<div style="font-size:12px;color:#6e6e73;margin-top:8px;font-weight:500;">' + escapeHtml(label) + '</div>' +
+      (sub ? '<div style="font-size:11px;color:#6e6e73;margin-top:6px;line-height:1.4;">' + escapeHtml(sub) + '</div>' : '') +
     '</td>';
-
+  // 만족도 카드 — NPS(-100~+100)는 부호 병기가 관례라 양수도 '+' 표기. 구 척도만 있는 월은 라벨 자체를 전환
+  const satAll = d.survey ? d.survey.satAll : null;
+  let satCardValue = '—', satCardUnit = '', satCardSub = '', satCardLabel = 'NPS (추천 지수)';
+  if (satAll && satAll.newCount) {
+    satCardValue = (satAll.nps >= 0 ? '+' : '') + satAll.nps;
+    satCardSub = '평균 ' + satAll.newAvg.toFixed(1) + '/10 · ' + satAll.newCount + '건' + (satAll.newCount < 10 ? ' (참고치)' : '');
+  } else if (satAll && satAll.oldCount) {
+    satCardValue = satAll.oldAvg.toFixed(1);
+    satCardUnit = '/5';
+    satCardLabel = '만족도 (구 척도)';
+    satCardSub = '응답 ' + satAll.oldCount + '건';
+  }
+  const rfx = d.roiFixed || ROI_FIXED;
   const kpiTable =
     '<tr><td style="padding:0 28px 16px;">' +
-      '<table role="presentation" cellspacing="14" cellpadding="0" border="0" style="border-collapse:separate;width:100%;">' +
+      '<table role="presentation" cellspacing="10" cellpadding="0" border="0" style="border-collapse:separate;width:100%;">' +
         '<tr>' +
-          kpiCell('확정 방문', d.kpi.confirmed, '건', '#3a5035') +
-          kpiCell('총 방문 인원', d.kpi.visitors, '명', '#3a5035') +
+          execCell('당월 방문 건수', d.kpi.confirmed, '건', d.ytd ? '26년 누적 ' + d.ytd.confirmed + '건' : '') +
+          execCell('당월 방문 인원', d.kpi.visitors, '명', d.ytd ? '26년 누적 ' + d.ytd.visitors + '명' : '') +
+          execCell(satCardLabel, satCardValue, satCardUnit, satCardSub) +
         '</tr>' +
       '</table>' +
     '</td></tr>';
 
-  // ── 2) 방문 목적별 분포 (도넛 차트) ──
+  // ── 2) 사업부별 활용 현황 — 확정 기준, 건수 있는 본부만 표시, 상위 본부 강조 ──
+  let divisionsRow = '';
+  if (d.divisions && d.divisions.length) {
+    const top = d.divisions.reduce((a, c) => (c.count > (a ? a.count : 0) ? c : a), null);
+    const divRows = d.divisions.map(dv => {
+      const isTop = top && top.count > 0 && dv.name === top.name;
+      return '<tr>' +
+        '<td style="padding:9px 12px;font-size:13.5px;color:#1d1d1f;border-bottom:1px solid #f2f2f2;' + (isTop ? 'font-weight:700;' : '') + '">' +
+          (isTop ? '★ ' : '') + escapeHtml(dv.name) + '</td>' +
+        '<td align="right" style="padding:9px 12px;font-size:13.5px;color:' + (dv.count ? '#1d1d1f' : '#aeaeb2') + ';border-bottom:1px solid #f2f2f2;' + (isTop ? 'font-weight:700;' : '') + '">' +
+          dv.count + '건</td>' +
+        '<td align="right" style="padding:9px 12px;font-size:13.5px;color:' + (dv.people ? '#1d1d1f' : '#aeaeb2') + ';border-bottom:1px solid #f2f2f2;' + (isTop ? 'font-weight:700;' : '') + '">' +
+          dv.people + '명</td>' +
+      '</tr>';
+    }).join('');
+    divisionsRow =
+      '<tr><td style="padding:0 28px 16px;">' +
+        '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' +
+          '<thead><tr>' +
+            '<th align="left" style="font-size:12px;color:#6e6e73;font-weight:600;padding:8px 12px;border-bottom:1px solid #e0e0e0;background:#fafafa;">본부</th>' +
+            '<th align="right" style="font-size:12px;color:#6e6e73;font-weight:600;padding:8px 12px;border-bottom:1px solid #e0e0e0;background:#fafafa;">건수</th>' +
+            '<th align="right" style="font-size:12px;color:#6e6e73;font-weight:600;padding:8px 12px;border-bottom:1px solid #e0e0e0;background:#fafafa;">인원</th>' +
+          '</tr></thead><tbody>' + divRows + '</tbody>' +
+        '</table>' +
+      '</td></tr>';
+  }
+
+  // ── 3) 핵심 인사이트 · 인상 깊은 한마디 (§8-7 5·6) — 큐레이션 없으면 블록 전체 생략 ──
+  let insightsRow = '';
+  if (d.insights && d.insights.length) {
+    insightsRow =
+      '<tr><td style="padding:0 28px 16px;">' +
+        d.insights.map(t =>
+          '<div style="padding:10px 14px;margin-bottom:8px;background:#f5f7f4;border-left:3px solid #3a5035;border-radius:0 6px 6px 0;font-size:14px;color:#1d1d1f;line-height:1.6;">' +
+            mdBold(escapeHtml(t)) + '</div>').join('') +
+      '</td></tr>';
+  }
+  let quotesRow = '';
+  if (d.quotes && d.quotes.length) {
+    quotesRow =
+      '<tr><td style="padding:0 28px 16px;">' +
+        d.quotes.map(q => {
+          // 출처: 방문자→익명 표기, 사업부/부서(선택 시 dept 저장)→그대로. 구 '인솔자' 저장분은 라벨 생략 (2026-08-04 팀장 리뷰)
+          const label = q.source === '방문자' ? '방문자 (익명)' : (q.source && q.source !== '인솔자' ? q.source : '');
+          // 타이포·텍스트 폭은 인사이트 카드와 동일 (14px/1.6, 텍스트 시작 17px = 인사이트 border 3px+패딩 14px — 2026-08-04 통일)
+          return '<div style="padding:12px 17px;margin-bottom:8px;background:#fdf9f2;border-radius:8px;">' +
+            '<div style="font-size:14px;color:#1d1d1f;line-height:1.6;">&ldquo;' + mdBold(escapeHtml(q.text)) + '&rdquo;</div>' +
+            (label ? '<div style="font-size:12px;color:#8e8e93;margin-top:6px;">— ' + escapeHtml(label) + '</div>' : '') +
+          '</div>';
+        }).join('') +
+      '</td></tr>';
+  }
+
+  // ── 4) 방문 목적별 분포 (도넛 차트) ──
   // 6개 카테고리를 항상 모두 레전드에 표시 — 0건 카테고리도 존재함을 임원진이 즉시 인지할 수 있도록.
   // 0건 카테고리는 슬라이스 영역이 0이라 자동으로 안 그려지지만 범례 엔트리는 유지됨.
   let purposeBody;
@@ -1931,266 +2457,60 @@ function buildMonthlyReportHtml(d) {
   const purposeTotal = Object.keys(d.purposeCounts).reduce((s, k) => s + (d.purposeCounts[k] || 0), 0);
   if (purposeTotal === 0) {
     purposeBody = '<div style="font-size:14px;color:#aeaeb2;padding:8px 0;">해당 없음</div>';
-  } else {
-    const canonical = Object.keys(PURPOSE_COLORS);
-    const extras = purposeKeys.filter(k => !PURPOSE_COLORS[k] && d.purposeCounts[k] > 0);
-    const labels = canonical.concat(extras);
-    const values = canonical.map(k => d.purposeCounts[k] || 0).concat(extras.map(k => d.purposeCounts[k]));
-    const colors = canonical.map(k => PURPOSE_COLORS[k]).concat(extras.map(() => '#5e7858'));
-
-    const chartUrl = quickChartUrl({
-      type: 'doughnut',
-      data: {
-        labels: labels,
-        datasets: [{ data: values, backgroundColor: colors, borderWidth: 3, borderColor: '#ffffff' }]
-      },
-      options: {
-        cutoutPercentage: 60,
-        legend: {
-          position: 'bottom',
-          labels: { fontSize: 11, padding: 10, boxWidth: 10, usePointStyle: true }
-        },
-        plugins: {
-          datalabels: {
-            color: '#ffffff',
-            font: { size: 13, weight: 'bold' },
-            anchor: 'center',
-            align: 'center',
-            formatter: function(value) { return value > 0 ? value + '건' : ''; }
-          }
-        }
-      }
-    }, { w: 480, h: 240 });
-
+  } else if (d.donutCid) {
+    // 내부 렌더링 도넛 (cid 인라인 첨부 — 미리보기는 data URI로 치환됨) + HTML 범례
+    const dist = purposeDist(d);
+    const legend = dist.map(x =>
+      '<span style="display:inline-block;margin:3px 9px;font-size:12.5px;color:#3a3a3c;white-space:nowrap;">' +
+        '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + x.color + ';margin-right:5px;"></span>' +
+        escapeHtml(x.label) + ' <strong>' + x.count + '건</strong> <span style="color:#8e8e93;">(' + x.pct + '%)</span>' +
+      '</span>').join('');
     purposeBody =
       '<div style="text-align:center;">' +
-        '<img src="' + escapeHtml(chartUrl) + '" alt="방문 목적별 분포" style="max-width:100%;width:480px;height:auto;display:inline-block;" />' +
+        '<img src="cid:' + d.donutCid + '" width="180" alt="방문 목적별 분포" style="width:180px;height:auto;display:inline-block;" />' +
       '</div>' +
-      '<div style="font-size:13px;color:#6e6e73;text-align:center;margin-top:6px;">총 ' + purposeTotal + '건 (확정 기준)</div>';
-  }
-
-  // ── 3) 방문 이력 (일자 / 목적 / 주제·소속) ──
-  // 임원 가독성: 핵심 이력(B2B 영업·홍보)만 상세 표시, 나머지는 건수로만 요약 (2026-07-05 결정)
-  const keyVisits = d.confirmed.filter(b => /(B2B|홍보)/.test(String(b.purpose || '')));
-  const otherCount = d.confirmed.length - keyVisits.length;
-  let visitsBody;
-  if (!keyVisits.length) {
-    visitsBody = '<div style="font-size:14px;color:#aeaeb2;padding:8px 0;">이번 달 B2B 영업·홍보 방문 없음' +
-      (otherCount ? ' <span style="font-size:12px;">(그 외 목적 ' + otherCount + '건)</span>' : '') + '</div>';
+      '<div style="text-align:center;margin-top:6px;line-height:1.7;">' + legend + '</div>' +
+      '<div style="font-size:13px;color:#6e6e73;text-align:center;margin-top:5px;">총 ' + purposeTotal + '건 (확정 기준)</div>';
   } else {
-    const th = (txt) => '<th align="left" style="font-size:12px;color:#6e6e73;font-weight:600;letter-spacing:0.04em;padding:10px 12px;border-bottom:1px solid #e0e0e0;background:#fafafa;">' + escapeHtml(txt) + '</th>';
-    const td = (html, opts) => '<td style="padding:12px;font-size:14px;color:#1d1d1f;border-bottom:1px solid #f2f2f2;vertical-align:top;line-height:1.5;' + ((opts && opts.nowrap) ? 'white-space:nowrap;' : '') + '">' + html + '</td>';
-    // 카테고리별 그룹 표시 (고정 순서: B2B 영업 → 홍보) — 그룹 헤더 색상은 PURPOSE_COLORS와 동기화
-    // col: 카테고리별 주제 컬럼명 (예약 폼 subjectLabel과 동일 매핑 — b2b=고객사, pr=행사명)
-    const visitGroups = [
-      { label: 'B2B 영업', re: /B2B/, col: '고객사' },
-      { label: '홍보 (프레스투어/마케팅)', re: /홍보/, col: '행사명' },
-    ];
-    visitsBody = visitGroups.map((g, gi) => {
-      const rows = keyVisits.filter(b => g.re.test(String(b.purpose || '')));
-      if (!rows.length) return '';
-      const color = PURPOSE_COLORS[g.label] || '#8fa889';
-      return (
-        '<div style="margin:' + (gi === 0 ? '2px' : '18px') + ' 0 6px;font-size:14px;font-weight:600;color:#1d1d1f;">' +
-          '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + color + ';margin-right:7px;"></span>' +
-          escapeHtml(g.label) +
-          ' <span style="color:#8e8e93;font-weight:500;font-size:13px;">· ' + rows.length + '건</span>' +
-        '</div>' +
-        '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' +
-          '<thead><tr>' + th('일자') + th(g.col) + '</tr></thead>' +
-          '<tbody>' +
-            rows.map(b => {
-              // b2b는 subject=clientCompany로 저장되므로 중복 제거 후 표시
-              const subj = [...new Set([b.subject, b.clientCompany].filter(Boolean))].map(escapeHtml).join(' · ');
-              return '<tr>' +
-                td(escapeHtml(b.date), { nowrap: true }) +
-                td(subj || '<span style="color:#aeaeb2;">-</span>') +
-              '</tr>';
-            }).join('') +
-          '</tbody>' +
-        '</table>'
-      );
-    }).join('') +
-    (otherCount
-      ? '<div style="font-size:12px;color:#aeaeb2;margin-top:10px;">그 외 목적(R&amp;D · 콘텐츠 제작 · 내부 커뮤니케이션 등) ' + otherCount + '건은 생략 — 전체 내역은 관리자 페이지에서 확인할 수 있습니다.</div>'
-      : '');
+    // 막대 폴백 — 도넛 렌더 실패 시에도 분포는 항상 표시 (외부 의존 0 공통)
+    const dist = purposeDist(d);
+    const maxV = dist.length ? dist[0].count : 1;
+    const barRows = dist.map(x => {
+      const widthPct = Math.max(8, Math.round(x.count / maxV * 100));
+      return '<tr>' +
+        '<td style="padding:5px 10px 5px 0;font-size:12.5px;color:#3a3a3c;white-space:nowrap;text-align:right;width:168px;">' + escapeHtml(x.label) + '</td>' +
+        '<td style="padding:5px 0;">' +
+          '<div style="background:' + x.color + ';width:' + widthPct + '%;min-width:36px;border-radius:4px;color:#ffffff;font-size:11.5px;font-weight:700;padding:3px 8px;white-space:nowrap;box-sizing:border-box;">' + x.count + '건</div>' +
+        '</td>' +
+        '<td style="padding:5px 0 5px 8px;font-size:12px;color:#8e8e93;white-space:nowrap;width:40px;">' + x.pct + '%</td>' +
+      '</tr>';
+    }).join('');
+    purposeBody =
+      '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' + barRows + '</table>' +
+      '<div style="font-size:13px;color:#6e6e73;text-align:center;margin-top:8px;">총 ' + purposeTotal + '건 (확정 기준)</div>';
   }
 
-  // ── 4) ROI 누적 분석 결과 (최근 시나리오 기준) ──
-  let roiBody;
-  if (!d.roiLatest) {
-    roiBody = '<div style="font-size:14px;color:#aeaeb2;padding:8px 0;">저장된 ROI 시나리오가 없습니다. ROI 분석 툴에서 시나리오를 저장하면 다음 리포트부터 본 섹션에 분석 결과가 표시됩니다.</div>';
-  } else {
-    const o = d.roiLatest.outputs || {};
-    const annualValue = Number(o.annualValue) || 0;
-    const totalCost = Number(o.totalCost) || (annualValue * 3 - (Number(o.profit3) || 0));
-    const roi3 = Number(o.roi3);
-    const profit3 = Number(o.profit3);
+  // ── 6) ROI 스냅샷 (§8-7 8 — 최하단·확정 기준 고정 수치. 그래프·저장 시나리오 의존 폐기) ──
+  const roiBody =
+    '<div style="background:#f5f7f4;border-radius:10px;padding:18px 22px;font-size:14px;color:#1d1d1f;line-height:1.9;">' +
+      '<div>총 투자 <strong>' + rfx.totalCost + '</strong> (구축 ' + rfx.capex + ' + 운영 ' + rfx.opexYr + ')</div>' +
+      '<div>BEP <strong>' + rfx.bep + '</strong> · 3년 ROI <strong>' + rfx.roi3 + '</strong> · 5년 ROI <strong>' + rfx.roi5 + '</strong></div>' +
+      (rfx.basis ? '<div style="font-size:11.5px;color:#8e8e93;margin-top:6px;">' + escapeHtml(rfx.basis) + '</div>' : '') +
+    '</div>';
 
-    // ROI KPI 카드 (4개)
-    const roiKpi = (label, value, sub, color) =>
-      '<td valign="top" align="center" style="padding:18px 10px;background:#f5f5f7;border-radius:10px;">' +
-        '<div style="font-size:22px;font-weight:700;color:' + (color || '#3a5035') + ';line-height:1.1;">' + escapeHtml(value) + '</div>' +
-        (sub ? '<div style="font-size:11px;color:#6e6e73;margin-top:4px;">' + escapeHtml(sub) + '</div>' : '') +
-        '<div style="font-size:12px;color:#6e6e73;margin-top:8px;font-weight:500;">' + escapeHtml(label) + '</div>' +
-      '</td>';
-    const bepDisplay = o.bepText || (isFinite(o.bepYears) ? Number(o.bepYears).toFixed(2) + '년' : '—');
-    const roi3Display = isFinite(roi3) ? ((roi3 >= 0 ? '+' : '') + roi3.toFixed(1) + '%') : '—';
-    const roi5Display = isFinite(o.roi5) ? ((Number(o.roi5) >= 0 ? '+' : '') + Number(o.roi5).toFixed(1) + '%') : '—';
-    const roiKpiTable =
-      '<table role="presentation" cellspacing="10" cellpadding="0" border="0" style="border-collapse:separate;width:100%;">' +
-        '<tr>' +
-          roiKpi('연간 창출 가치', fmtKRWReport(annualValue), null, '#3a5035') +
-          roiKpi('회수 기간 (BEP)', bepDisplay, null, '#3a5035') +
-          roiKpi('3년 누적 ROI', roi3Display, isFinite(profit3) ? fmtKRWReport(profit3) : null, '#3a5035') +
-          roiKpi('5년 누적 ROI', roi5Display, isFinite(o.profit5) ? fmtKRWReport(Number(o.profit5)) : null, '#3a5035') +
-        '</tr>' +
-      '</table>';
-
-    // 가치 항목별 비중 도넛 — 4개 항목 모두 항상 표시 (0원인 항목도 레전드 노출)
-    // 색상·라벨은 ROI 툴 breakdownChart(ThinQ_Real_ROI_Tool.html line 1720+)와 동기화
-    const valItems = Object.keys(ROI_VALUE_LABELS).map(k => ({
-      key: k, value: Number(o[k]) || 0,
-      label: ROI_VALUE_LABELS[k].label, color: ROI_VALUE_LABELS[k].color
-    }));
-    const valTotal = valItems.reduce((s, it) => s + it.value, 0);
-    let valueCompChart = '';
-    if (valTotal > 0) {
-      const vUrl = quickChartUrl({
-        type: 'doughnut',
-        data: {
-          labels: valItems.map(it => it.label),
-          datasets: [{ data: valItems.map(it => it.value), backgroundColor: valItems.map(it => it.color), borderWidth: 3, borderColor: '#ffffff' }]
-        },
-        options: {
-          cutoutPercentage: 65,
-          legend: {
-            position: 'bottom',
-            labels: { fontSize: 11, padding: 10, boxWidth: 10, usePointStyle: true }
-          },
-          plugins: {
-            datalabels: {
-              color: '#ffffff',
-              font: { size: 12, weight: 'bold' },
-              anchor: 'center',
-              align: 'center',
-              formatter: function(value) {
-                if (!value || value <= 0) return '';
-                var a = Math.abs(value);
-                if (a >= 1e8) return (a/1e8).toFixed(1).replace(/\.0$/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '억';
-                if (a >= 1e4) return Math.round(a/1e4).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '만';
-                return a.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-              }
-            }
-          }
-        }
-      }, { w: 480, h: 240 });
-      valueCompChart = '<img src="' + escapeHtml(vUrl) + '" alt="가치 항목별 비중" style="max-width:100%;width:480px;height:auto;display:block;margin:0 auto;" />';
-    }
-
-    // 연도별 누적 손익 라인 차트 — ROI 툴 cumulativeChart(line 1641+) 스타일 그대로
-    // 두 시리즈: 누적 손익(채움 영역) + 손익분기선(점선)
-    const cumValues = [
-      -totalCost,
-      -totalCost + annualValue * 1,
-      -totalCost + annualValue * 2,
-      -totalCost + annualValue * 3,
-      -totalCost + annualValue * 4,
-      -totalCost + annualValue * 5,
-    ];
-    const cumUrl = quickChartUrl({
-      type: 'line',
-      data: {
-        labels: ['0년', '1년', '2년', '3년', '4년', '5년'],
-        datasets: [
-          {
-            label: '누적 손익',
-            data: cumValues,
-            borderColor: '#3a5035',
-            backgroundColor: 'rgba(58, 80, 53, 0.08)',
-            borderWidth: 2.5,
-            fill: true,
-            lineTension: 0.3,
-            pointRadius: 5,
-            pointBackgroundColor: '#3a5035',
-            pointBorderColor: 'white',
-            pointBorderWidth: 2.5,
-          },
-          {
-            label: '손익분기선',
-            data: [0, 0, 0, 0, 0, 0],
-            borderColor: '#ff9500',
-            borderWidth: 1.5,
-            borderDash: [6, 4],
-            fill: false,
-            pointRadius: 0,
-          },
-        ],
-      },
-      options: {
-        legend: {
-          position: 'bottom',
-          labels: { fontSize: 11, boxWidth: 12, padding: 16, usePointStyle: true }
-        },
-        plugins: {
-          datalabels: { display: false }      // 라인 차트엔 데이터 라벨 없음 (Y축으로 충분)
-        },
-        scales: {
-          yAxes: [{
-            ticks: {
-              fontSize: 10,
-              callback: function(v) {
-                if (v === 0) return '0';
-                var a = Math.abs(v);
-                var sign = v < 0 ? '-' : '';
-                if (a >= 1e8) return sign + (a/1e8).toFixed(1).replace(/\.0$/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '억';
-                if (a >= 1e4) return sign + Math.round(a/1e4).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '만';
-                return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-              }
-            },
-            gridLines: { color: 'rgba(0,0,0,0.04)' }
-          }],
-          xAxes: [{
-            ticks: { fontSize: 11 },
-            gridLines: { display: false }
-          }]
-        }
-      }
-    }, { w: 620, h: 280 });
-    const cumChart = '<img src="' + escapeHtml(cumUrl) + '" alt="연도별 누적 손익" style="max-width:100%;width:620px;height:auto;display:block;margin:0 auto;" />';
-
-    const scenarioLabel = prettyRoiLabel(d.roiLatest.label) +
-      (d.roiLatest.author ? ' · 작성자 ' + escapeHtml(String(d.roiLatest.author)) : '');
-
-    roiBody =
-      roiKpiTable +
-      '<div style="margin-top:24px;">' +
-        '<div style="font-size:14px;font-weight:600;color:#1d1d1f;">가치 항목별 비중</div>' +
-        '<div style="font-size:12.5px;color:#6e6e73;margin-top:4px;">연간 창출 가치가 어떤 항목에서 얼마만큼 나오는지를 보여줍니다.</div>' +
-      '</div>' +
-      '<div style="margin-top:10px;">' + valueCompChart + '</div>' +
-      '<div style="margin-top:24px;">' +
-        '<div style="font-size:14px;font-weight:600;color:#1d1d1f;">연도별 누적 손익</div>' +
-        '<div style="font-size:12.5px;color:#6e6e73;margin-top:4px;">투자 시점부터 5년간 누적 손익 추이입니다. 점선과 만나는 시점이 손익분기점(BEP)입니다.</div>' +
-      '</div>' +
-      '<div style="margin-top:10px;">' + cumChart + '</div>' +
-      '<div style="margin-top:16px;font-size:12px;color:#aeaeb2;text-align:right;">기준 시나리오: ' + scenarioLabel + '</div>';
-  }
-
-  // 기사
+  // ── 5) 관련 기사 — REPORT_ARTICLE_LIMIT(5)건, 썸네일 있는 건은 카드형 배치 ──
   let articlesBody;
   if (!d.articles.items.length) {
     articlesBody = '<div style="font-size:13px;color:#aeaeb2;">' + escapeHtml(d.articles.skipReason || '검색 결과 없음') + '</div>';
   } else {
-    const THUMB_LIMIT = 5; // 상위 N건만 썸네일 카드, 나머지는 텍스트만 (보도자료 사진 중복 방지·시선 집중)
-    articlesBody = d.articles.items.map((it, idx) => {
+    articlesBody = d.articles.items.map(it => {
       const meta = [it.source, it.publishedAt].filter(Boolean).map(escapeHtml).join(' · ');
       const snippetDisplay = truncate(it.snippet, 120); // 표시 시점에서도 한 번 더 컷
       const textCell =
         '<a href="' + escapeHtml(it.link) + '" target="_blank" rel="noopener" style="font-size:14px;color:#3a5035;text-decoration:underline;font-weight:600;">' + escapeHtml(it.title) + '</a>' +
         (meta ? '<div style="font-size:11px;color:#aeaeb2;margin-top:2px;">' + meta + '</div>' : '') +
         (snippetDisplay ? '<div style="font-size:13px;color:#3a3a3c;margin-top:4px;line-height:1.5;">' + escapeHtml(snippetDisplay) + '</div>' : '');
-      if (it.thumbnail && idx < THUMB_LIMIT) {
+      if (it.thumbnail) {
         // 썸네일 있는 경우 — 좌측 이미지 + 우측 텍스트 카드 레이아웃
         return (
           '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;padding:12px 0;border-bottom:1px solid #f2f2f2;">' +
@@ -2210,42 +2530,25 @@ function buildMonthlyReportHtml(d) {
     }).join('');
   }
 
-  // ── 3.5) 설문·성과 지표 (Phase 5 — 방문 후기 설문 파이프라인 월간 집계) ──
-  let surveyKpiRow = '', surveyChipsRow = '';
-  if (d.survey) {
-    const s = d.survey;
-    surveyKpiRow =
-      '<tr><td style="padding:0 28px 8px;">' +
-        '<table role="presentation" cellspacing="14" cellpadding="0" border="0" style="border-collapse:separate;width:100%;">' +
-          '<tr>' +
-            kpiCell('설문 응답', s.count, '건', '#3a5035') +
-            kpiCell('재방문 응답률', s.revisitPct == null ? '—' : s.revisitPct, s.revisitPct == null ? '' : '%', '#3a5035') +
-            kpiCell('월 확정 산입액', Number(s.confirmedSum).toLocaleString(), '만원', '#3a5035') +
-            kpiCell('IoT 이슈 등록', s.issueCount, '건', '#3a5035') +
-          '</tr>' +
-        '</table>' +
-      '</td></tr>';
-    surveyChipsRow =
-      '<tr><td style="padding:0 28px 16px;">' +
-        roiChip('트랙 분포', '영업 ' + s.tracks.sales + ' · 콘텐츠 ' + s.tracks.media + ' · 기타 ' + s.tracks.etc) +
-        roiChip('성과 대장', '신규 ' + s.ledgerNew + ' · 확정 ' + s.ledgerConfirmed + ' · 드롭 ' + s.ledgerDropped) +
-      '</td></tr>';
-  }
-
   // 섹션별 한 줄 설명 (임원진 가독성 우선 — 무엇을 보여주는지 즉시 이해)
-  const descKpi = '이번 달 운영 성과의 핵심 지표';
+  const descKpi = '이번 달 핵심 성과와 26년 누적';
+  const descDivisions = '확정 방문 기준 본부별 활용 현황 (★ 최다 활용)';
+  const descInsights = '이번 달 운영에서 주목할 핵심 사항';
+  const descQuotes = '이번 달 설문에서 수집된 방문 경험의 목소리';
   const descPurpose = '확정된 방문이 어떤 목적으로 진행되었는지의 비중';
-  const descVisits = '이번 달 확정 방문 중 핵심 이력(B2B 영업 · 홍보) ' + keyVisits.length + '건의 일자별 상세';
-  const descRoi = '저장된 시나리오 기반의 실시간 산출 결과입니다. ' +
-                  '특히 영업 지원 · 기여 영업 이익은 실제 영업 진행 상황에 따라 매월 갱신되므로, ' +
-                  '본 수치는 작성 시점의 시나리오를 기준으로 한 추정치입니다.';
+  const descRoi = '구축·운영 총투자와 회수 지표 (확정 기준)';
   const descArticles = d.articles.source === 'manual'
     ? '담당자가 큐레이션한 이번 달 ThinQ Real 관련 보도 ' + d.articles.items.length + '건'
-    : 'Google 검색 결과 기준의 최근 1개월 ThinQ Real 관련 보도';
-  const descSurvey = '방문 후기 설문 기반 지표 — 월 확정 산입액은 성과 추적 대장에서 이번 달 확정 처리된 금액의 합계입니다.';
+    : d.articles.source === 'mixed'
+    ? '담당자 큐레이션 ' + d.articles.manualCount + '건 + "' + MONTHLY_REPORT_QUERY + '" 키워드 자동 수집 ' + d.articles.autoCount + '건'
+    : '"' + MONTHLY_REPORT_QUERY + '" 키워드로 자동 수집한 최근 1개월 언론 보도 — ThinQ Real 직접 보도 외에 AI홈 시장 동향 기사가 포함될 수 있습니다.';
 
+  // 한글 가독성: Noto Sans KR 웹폰트 시도 (2026-07-15) — 브라우저 미리보기·Apple Mail 등
+  // 웹폰트 허용 환경에서만 적용되고, 차단 환경(PC Outlook·Gmail)은 맑은 고딕으로 폴백.
+  // "<style> 블록 금지" 규칙의 의도적 예외 — @import가 무시돼도 인라인 스타일이 그대로 살아있어 무해.
   return (
-    '<div style="background:#f5f5f7;padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,\'Helvetica Neue\',\'Apple SD Gothic Neo\',\'Malgun Gothic\',sans-serif;">' +
+    '<style>@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap");</style>' +
+    '<div style="background:#f5f5f7;padding:24px 12px;font-family:\'Noto Sans KR\',\'Malgun Gothic\',\'Apple SD Gothic Neo\',-apple-system,BlinkMacSystemFont,sans-serif;">' +
       '<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:collapse;max-width:760px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">' +
         '<tr><td style="background:#3a5035;color:#ffffff;padding:28px 28px 24px;">' +
           '<div style="font-size:13px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.75;">ThinQ Real</div>' +
@@ -2253,18 +2556,17 @@ function buildMonthlyReportHtml(d) {
           '<div style="font-size:14px;opacity:0.88;margin-top:8px;line-height:1.55;">이번 달 ThinQ Real의 운영 현황과 누적 성과를 안내드립니다.</div>' +
         '</td></tr>' +
         outlookHintRow +
-        execSummaryRow +
-        sectionHeader('📊', '핵심 지표', descKpi) +
+        sectionHeader('📊', 'Executive 요약', descKpi) +
         kpiTable +
+        (divisionsRow ? sectionHeader('🏢', '사업부별 활용 현황', descDivisions) + divisionsRow : '') +
+        (insightsRow ? sectionHeader('💡', '핵심 인사이트', descInsights) + insightsRow : '') +
+        (quotesRow ? sectionHeader('💬', '인상 깊은 한마디', descQuotes) + quotesRow : '') +
         sectionHeader('🎯', '방문 목적별 분포', descPurpose) +
         '<tr><td style="padding:0 28px 16px;">' + purposeBody + '</td></tr>' +
-        sectionHeader('📅', '방문 이력', descVisits) +
-        '<tr><td style="padding:0 28px 16px;">' + visitsBody + '</td></tr>' +
-        (d.survey ? sectionHeader('📋', '설문·성과 지표', descSurvey) + surveyKpiRow + surveyChipsRow : '') +
-        sectionHeader('💰', d.monthNum + '월 ROI 누적 분석 결과', descRoi) +
-        '<tr><td style="padding:0 28px 16px;">' + roiBody + '</td></tr>' +
         sectionHeader('📰', '관련 기사', descArticles) +
         '<tr><td style="padding:0 28px 24px;">' + articlesBody + '</td></tr>' +
+        sectionHeader('💰', '투자 대비 성과 (ROI)', descRoi) +
+        '<tr><td style="padding:0 28px 24px;">' + roiBody + '</td></tr>' +
         '<tr><td style="padding:28px;border-top:1px solid #eeeeee;font-size:15px;color:#3a3a3c;line-height:1.65;">' +
           '<div style="font-weight:600;color:#1d1d1f;margin-bottom:4px;">감사합니다.</div>' +
           '<div style="color:#6e6e73;">HS플랫폼사업센터 AI홈솔루션엔지니어링팀</div>' +
@@ -2274,30 +2576,160 @@ function buildMonthlyReportHtml(d) {
   );
 }
 
-function roiChip(label, value) {
-  return '<span style="display:inline-block;margin:0 8px 6px 0;padding:5px 10px;background:#f5f5f7;border-radius:999px;font-size:12px;color:#1d1d1f;">' +
-    '<span style="color:#6e6e73;">' + escapeHtml(label) + '</span>&nbsp;<strong>' + escapeHtml(String(value)) + '</strong>' +
-  '</span>';
+// ============================================================
+//  §8-6 발송 안전장치 (2026-08-03) — 수동 발송 2단계화 + 자동 발송 건너뛰기
+//  - URL 한 번으로 실발송되던 confirm=YES 설계 폐기 (2026-07-27 오클릭 사고 재발 방지)
+//  - 자동 발송(첫째 수요일·전월분)은 수동 이력과 무관하게 항상 진행 —
+//    monthlyReportTrigger는 변경 금지, 스킵 유도는 PROP_LAST_SENT_KEY 기록으로만 (§2-3 체크박스)
+// ============================================================
+
+// 전월 yyyy-MM (수동 발송 확인 화면의 기본 대상 월 — 새 발송 체제의 기본 대상과 일치)
+function prevMonthKey() {
+  const tz = Session.getScriptTimeZone();
+  const now = new Date();
+  const y = Number(Utilities.formatDate(now, tz, 'yyyy'));
+  const m = Number(Utilities.formatDate(now, tz, 'M'));
+  return (m === 1 ? (y - 1) : y) + '-' + ('0' + (m === 1 ? 12 : m - 1)).slice(-2);
 }
 
-// 미리보기 / 수동 발송 엔드포인트
+// 미리보기 — 상단 고정 배너 부착 (발송 아님을 명시)
 function handleMonthlyReportPreview(params) {
   const result = sendMonthlyReport({ month: params.month, dryRun: true });
-  return HtmlService.createHtmlOutput(result.html).setTitle(result.subject);
+  const banner =
+    '<div style="position:sticky;top:0;z-index:9;background:#fff3cd;border-bottom:2px solid #e0a800;' +
+    'padding:12px 20px;font-family:sans-serif;text-align:center;">' +
+      '<div style="font-size:15px;font-weight:700;color:#7a5a00;">📄 미리보기 — 이 화면은 발송되지 않습니다</div>' +
+      '<div style="font-size:12.5px;color:#7a5a00;margin-top:4px;">대상: ' + escapeHtml(result.data.year + '년 ' + result.data.monthNum + '월분') +
+      ' · 실제 발송은 매월 첫째 수요일 08:30 자동 진행 (전월분)</div>' +
+    '</div>';
+  return HtmlService.createHtmlOutput(banner + result.html).setTitle(result.subject);
+}
+
+// 발송 토큰 (일회용, 10분) — Script Properties에 "token|생성ms" 저장
+const SEND_TOKEN_TTL_MS = 10 * 60 * 1000;
+function issueSendToken(kind, month) {
+  const token = Utilities.getUuid().replace(/-/g, '');
+  PropertiesService.getScriptProperties().setProperty(kind + '_token_' + month, token + '|' + Date.now());
+  return token;
+}
+function consumeSendToken(kind, month, given) {
+  const props = PropertiesService.getScriptProperties();
+  const key = kind + '_token_' + month;
+  const stored = props.getProperty(key);
+  if (!stored) return false;
+  const [token, ts] = stored.split('|');
+  if (token !== String(given || '')) return false;
+  if (Date.now() - Number(ts) > SEND_TOKEN_TTL_MS) { props.deleteProperty(key); return false; }
+  props.deleteProperty(key);   // 성공 시 즉시 폐기 — 재사용 불가
+  return true;
+}
+
+function sendSafetyPage(title, bodyHtml) {
+  return HtmlService.createHtmlOutput(
+    '<div style="font-family:\'Malgun Gothic\',\'Apple SD Gothic Neo\',sans-serif;max-width:640px;margin:40px auto;padding:0 16px;">' +
+      '<div style="background:#ffffff;border:1px solid #e0e0e0;border-radius:12px;padding:28px;">' +
+        '<div style="font-size:19px;font-weight:700;color:#1d1d1f;margin-bottom:14px;">' + title + '</div>' +
+        bodyHtml +
+      '</div>' +
+      '<div style="font-size:11.5px;color:#aeaeb2;margin-top:12px;text-align:center;">ThinQ Real 월간 리포트 발송 안전장치</div>' +
+    '</div>'
+  ).setTitle('ThinQ Real 리포트 발송');
 }
 
 function handleMonthlyReportSend(params) {
-  if (params.confirm !== 'YES') {
-    // 확인 가드 — 실수 발송 방지
-    const result = sendMonthlyReport({ month: params.month, dryRun: true });
-    return jsonResponse({
-      success: false,
-      hint: '실제 발송하려면 동일 URL에 &confirm=YES 를 추가하세요.',
-      previewSubject: result.subject,
-    });
+  const props = PropertiesService.getScriptProperties();
+  const month = params.month || prevMonthKey();
+  const to = props.getProperty('MONTHLY_REPORT_TO') || '';
+  const selfUrl = ScriptApp.getService().getUrl() + '?type=monthly_report_send&month=' + month;
+
+  // ── 레거시 confirm=YES 폐기 — 발송하지 않고 안내 (구 북마크·공유 URL 전부 무해화) ──
+  if (params.confirm === 'YES') {
+    return sendSafetyPage('발송 방식이 변경되었습니다',
+      '<p style="font-size:14px;color:#3a3a3c;line-height:1.7;">confirm=YES 방식은 오클릭 사고 방지를 위해 폐기되었습니다.<br>' +
+      '아래 링크로 접속해 <strong>확인 화면</strong>을 거쳐 발송해 주세요.</p>' +
+      '<p><a href="' + selfUrl + '" target="_top" style="color:#3a5035;font-weight:600;">발송 확인 화면 열기 →</a></p>');
   }
-  const result = sendMonthlyReport({ month: params.month, to: params.to });
-  return jsonResponse({ success: true, subject: result.subject, sentTo: result.sentTo || '(skipped)' });
+
+  // ── Step 2: 전체 발송 실행 (일회용 토큰) ──
+  if (params.confirm) {
+    if (!consumeSendToken('send', month, params.confirm)) {
+      return sendSafetyPage('토큰이 유효하지 않습니다',
+        '<p style="font-size:14px;color:#3a3a3c;line-height:1.7;">발송 토큰이 만료(10분)됐거나 이미 사용되었습니다.<br>' +
+        '<a href="' + selfUrl + '" target="_top" style="color:#3a5035;font-weight:600;">확인 화면에서 다시 시도 →</a></p>');
+    }
+    const result = sendMonthlyReport({ month: month });
+    if (!result.sentTo) {
+      return sendSafetyPage('❌ 발송 실패', '<p style="font-size:14px;color:#c0392b;">' +
+        escapeHtml(result.skipped || '원인 미상') + ' — Script Properties의 MONTHLY_REPORT_TO를 확인하세요.</p>');
+    }
+    // 수동 발송 이력 (확인 화면 경고용) — PROP_LAST_SENT_KEY에는 기록하지 않음 (자동 정식본 발송 보장)
+    const mkey = 'manual_sent_' + month;
+    const prevLog = props.getProperty(mkey);
+    props.setProperty(mkey, (prevLog ? prevLog + ';' : '') + new Date().toISOString());
+    // §2-3 「이번 달 자동 발송 건너뛰기」 — 체크한 경우에만 예외적으로 가드 키 기록 → 자동 트리거가 해당 월 스킵
+    let skipNote;
+    if (params.skipauto === '1') {
+      props.setProperty(PROP_LAST_SENT_KEY, month);
+      skipNote = '이번 달(' + month + '분) <strong>자동 발송은 생략됩니다</strong> — 이 수동 발송본이 정식본이 됩니다.';
+    } else {
+      skipNote = '다음 달 첫째 수요일의 자동 발송은 정상 진행됩니다.';
+    }
+    return sendSafetyPage('✅ 발송 완료',
+      '<p style="font-size:14px;color:#3a3a3c;line-height:1.7;"><strong>' + escapeHtml(month) + '분</strong> 리포트를 발송했습니다.<br>' +
+      '수신: ' + escapeHtml(result.sentTo) + ' (+CC ' + escapeHtml(CC_EMAIL) + ')</p>' +
+      '<p style="font-size:13px;color:#6e6e73;line-height:1.7;">' + skipNote + '</p>');
+  }
+
+  // ── Step 2': 테스트 발송 실행 ("나만 보는 샘플" — 이력·가드 키 무기록) ──
+  if (params.test) {
+    if (!consumeSendToken('test', month, params.test)) {
+      return sendSafetyPage('토큰이 유효하지 않습니다',
+        '<p style="font-size:14px;color:#3a3a3c;line-height:1.7;">테스트 토큰이 만료(10분)됐거나 이미 사용되었습니다.<br>' +
+        '<a href="' + selfUrl + '" target="_top" style="color:#3a5035;font-weight:600;">확인 화면에서 다시 시도 →</a></p>');
+    }
+    const testTo = props.getProperty('MONTHLY_REPORT_TEST_TO') || '';
+    if (!testTo) {
+      return sendSafetyPage('테스트 수신자 미설정',
+        '<p style="font-size:14px;color:#3a3a3c;line-height:1.7;">Script Properties에 <strong>MONTHLY_REPORT_TEST_TO</strong>' +
+        '(테스트 수신 메일 주소)를 등록한 뒤 다시 시도해 주세요.</p>');
+    }
+    const result = sendMonthlyReport({ month: month, to: testTo, subjectPrefix: '[테스트] ', noCc: true });
+    return sendSafetyPage('✅ 테스트 발송 완료',
+      '<p style="font-size:14px;color:#3a3a3c;line-height:1.7;"><strong>' + escapeHtml(testTo) + '</strong>에게만 발송되었습니다 (CC 없음, 제목 [테스트]).<br>' +
+      '발송 이력에 기록되지 않으며 자동 발송에도 영향이 없습니다.</p>');
+  }
+
+  // ── Step 1: 발송 확인 화면 (여기까지는 발송 0건) ──
+  const sendToken = issueSendToken('send', month);
+  const testToken = issueSendToken('test', month);
+  const autoSent = props.getProperty(PROP_LAST_SENT_KEY) === month;
+  const manualLog = props.getProperty('manual_sent_' + month) || '';
+  let warn = '';
+  if (autoSent || manualLog) {
+    const times = [autoSent ? '자동 발송 완료' : '', manualLog ? '수동 ' + manualLog.split(';').map(t => t.slice(0, 16).replace('T', ' ')).join(', ') : '']
+      .filter(Boolean).join(' · ');
+    warn = '<div style="background:#fdecea;border:1px solid #e57373;border-radius:8px;padding:12px 14px;margin:14px 0;font-size:13.5px;color:#b71c1c;line-height:1.6;">' +
+      '⚠ <strong>이번 달 이미 발송됨</strong> (' + escapeHtml(times) + ') — 재발송 시 수신자에게 중복 수신됩니다.</div>';
+  }
+  const recipients = (to ? to : '(MONTHLY_REPORT_TO 미설정)') + ' · CC ' + CC_EMAIL;
+  const sendUrl = selfUrl + '&confirm=' + sendToken;
+  const testUrl = selfUrl + '&test=' + testToken;
+  return sendSafetyPage('📮 ' + month + '분 리포트 발송 확인',
+    '<p style="font-size:14px;color:#3a3a3c;line-height:1.7;"><strong>수신자</strong><br>' + escapeHtml(recipients) + '</p>' +
+    warn +
+    '<p style="font-size:13px;color:#6e6e73;line-height:1.7;">다음 달 첫째 수요일의 자동 발송은 이 수동 발송과 무관하게 정상 진행됩니다.</p>' +
+    '<label style="display:block;background:#f5f7f4;border:1px solid #d8ded6;border-radius:8px;padding:12px 14px;margin:14px 0;font-size:13.5px;color:#1d1d1f;cursor:pointer;">' +
+      '<input type="checkbox" id="skipauto" style="margin-right:8px;">이번 달 자동 발송 건너뛰기' +
+      '<div style="font-size:12px;color:#6e6e73;margin-top:4px;margin-left:22px;">체크하면 이번 달 자동 발송이 생략됩니다 (수동 발송본이 정식본이 됩니다).</div>' +
+    '</label>' +
+    '<div style="margin-top:18px;">' +
+      '<a id="sendBtn" href="' + sendUrl + '" target="_top" style="display:inline-block;background:#3a5035;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;">전체 발송하기</a>' +
+      '<a href="' + testUrl + '" target="_top" style="display:inline-block;margin-left:10px;background:#ffffff;color:#3a5035;border:1.5px solid #3a5035;padding:11px 20px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;">나에게만 테스트 발송</a>' +
+    '</div>' +
+    '<p style="font-size:11.5px;color:#aeaeb2;margin-top:14px;">발송 버튼은 10분간 유효한 일회용 링크입니다.</p>' +
+    '<script>document.getElementById("skipauto").addEventListener("change",function(){' +
+      'var a=document.getElementById("sendBtn");var base="' + sendUrl + '";a.href=this.checked?base+"&skipauto=1":base;});' +
+    '</scr' + 'ipt>');
 }
 
 // ============================================================
@@ -2387,7 +2819,10 @@ function handleGetRoiSnapshots() {
   }).filter(r => r.id);
   // 최신순 정렬 (timestamp 내림차순)
   records.sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
-  return jsonResponse({ records });
+  // 리포트 반영 지정 스냅샷 id (2026-08-24 — 관리자 화면 표시용, id 자체는 비민감)
+  let reportPinnedId = '';
+  try { reportPinnedId = PropertiesService.getScriptProperties().getProperty(PROP_ROI_PIN_KEY) || ''; } catch (err) {}
+  return jsonResponse({ records, reportPinnedId });
 }
 
 function handleNewRoiSnapshot(data) {
@@ -2432,7 +2867,9 @@ function getOrCreateHeaders(sheet) {
     // 2026-06 Google 캘린더 연동 — 확정 예약의 캘린더 이벤트 id (갱신·삭제 추적용)
     'calendarEventId',
     // 2026-07 B2E 전환 — 신청자 소속 (본부 드롭다운 / 부서 직접 입력)
-    'division', 'department'
+    'division', 'department',
+    // 2026-07 방문 후기 설문 요청 메일 발송 기록 (배치 재실행 시 중복 발송 방지)
+    'surveyInviteSentAt'
   ];
   const lastCol  = Math.max(sheet.getLastColumn(), 1);
   const firstRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
@@ -3107,9 +3544,24 @@ const ISSUE_SHEET_NAME  = 'iot_issue_log';
 // ⚠ 새 컬럼은 반드시 배열 "끝"에만 추가할 것 — handleSurveySubmit이 이 순서대로 appendRow하므로
 //   중간 삽입 시 기존 시트 컬럼과 어긋난다. 기존 시트에는 getNamedSheet가 누락 헤더를 끝에 자동 append.
 // deal_amount: 계약 체결 딜의 실제 계약 금액 (2026-07 S9 — 선택 입력, 무응답 정상)
-const SURVEY_HEADERS = ['response_id','submitted_at','visit_date','dept','name','client','visit_count','track','purpose','deal_stage','deal_size','deal_area','reaction','attr','media_work','media_days','media_alt','media_cost','media_link','media_link_name','media_link_size','media_link_attr','etc_work','etc_days','etc_alt','iot_defect','iot_defect_detail','etc_link','etc_link_name','etc_link_size','etc_link_attr','satisfaction','feedback','raw_json','deal_amount'];
-const LEDGER_HEADERS = ['ledger_id','response_id','category','project_name','expected_scale','attribution_text','attribution_pct','visit_date','respondent','dept','status','confirmed_amount','confirmed_date','confirmed_note','roi_included'];
+// impressive_modes: 인상 깊었던 솔루션 복수 선택 (2026-07 신규 — 콤마 구분 문자열, 공통 문항)
+// desired_solutions: 추가 필요·체험 희망 솔루션 주관식 (2026-07 신규 — 선택 입력)
+// impressive_reasons: 모드별 인상 깊었던 이유 ("모드명 — 이유; ..." 직렬화, 선택 입력)
+const SURVEY_HEADERS = ['response_id','submitted_at','visit_date','dept','name','client','visit_count','track','purpose','deal_stage','deal_size','deal_area','reaction','attr','media_work','media_days','media_alt','media_cost','media_link','media_link_name','media_link_size','media_link_attr','etc_work','etc_days','etc_alt','iot_defect','iot_defect_detail','etc_link','etc_link_name','etc_link_size','etc_link_attr','satisfaction','feedback','raw_json','deal_amount','impressive_modes','desired_solutions','impressive_reasons','adopt_pick','voice_space','iot_connect','ai_barrier'];
+const LEDGER_HEADERS = ['ledger_id','response_id','category','project_name','expected_scale','attribution_text','attribution_pct','visit_date','respondent','dept','status','confirmed_amount','confirmed_date','confirmed_note','roi_included','amount_basis'];
+// amount_basis (2026-08-24 확정 금액 추정 산입): '실측'(실제 금액) / '추정'(예상 규모 구간 하한 × 기여도 — 보수 원칙) / '미상'(금액 없이 확정).
+// 기존 행 공란 = 실측 취급 (2026-08-24 이전 확정은 전부 실측 입력이었음). 추정 계산은 클라이언트(SCALE_FLOOR_MANWON) 담당.
 const ISSUE_HEADERS  = ['issue_id','response_id','device','symptom','severity','channel','q_ship','status','est_value'];
+
+// ── 베스트 리뷰어 사은품 발송 (2026-08-22) ─────────────────
+// 설문 요청 메일의 「매월 베스트 리뷰어 세 분」 공지 이행 — 관리자 설문 탭에서 선정·발송.
+// 축하 메일만 발송하고 기프티콘(모바일 쿠폰)은 별도 채널로 전달한다 (금전 가치물은 시스템 미경유 — 운영자 결정).
+const BEST_SHEET_NAME = 'best_reviewers';
+const BEST_HEADERS = ['id','month','response_id','name','dept','email','visit_date','product','sent_at','sent_by'];
+const BEST_MONTHLY_LIMIT = 3;   // 월 발송 한도 — 공지 문구('세 분')와 세트
+const BEST_DEFAULT_PRODUCT = '스타벅스 아이스 카페 아메리카노 T 2잔';   // 계절별 변경은 발송 화면 입력값으로 (코드 수정 불필요)
+// 숨은 참조: 담당자 3명 + 팀장 + 운영자 (2026-08-22 운영자 결정) — 발송 사실 공유용, 수신자에게 미노출
+const BEST_REVIEWER_BCC = ADMIN_EMAILS + ', jhs.kim@lge.com, ' + CC_EMAIL;
 
 // 시트 확보 + 헤더 자동 생성 (getRoiSheet/getOrCreateRoiHeaders 패턴)
 // 기존 시트에 상수의 새 컬럼이 없으면 끝에 자동 append — bookings getOrCreateHeaders와 동일한 스키마 진화 방식
@@ -3209,6 +3661,40 @@ function handleSurveySubmit(data) {
   return jsonResponse({ ok: true, response_id: responseId });
 }
 
+// ── 방문자 현장 설문 (§8-5, 2026-07-27) — 퇴장 직전 QR 익명 응답 ─────
+// · 완전 익명: 성명·소속 미수집, 언어 선택(lang)만 기록. 공개 제출 경로 (survey_submit과 동일 지위).
+// · 파생 없음 (성과 대장·이슈 로그 미생성) · ROI 미산입 — 용도는 경험 품질 지표 + 운영 설문 8번 블록과의 격차 분석.
+// · 저장 value는 언어 무관 한국어 canonical (운영 설문과 컬럼·값 단위 직접 비교 전제).
+const VISITOR_SHEET_NAME = 'visitor_responses';
+const VISITOR_HEADERS = ['response_id','submitted_at','lang','satisfaction','impressive_modes','adopt_pick','voice_space','iot_connect','ai_barrier','feedback','raw_json'];
+
+function handleVisitorSubmit(data) {
+  const responseId = String(Date.now());
+  const lang = data.lang === 'en' ? 'EN' : 'KO';
+  const sheet = getNamedSheet(VISITOR_SHEET_NAME, VISITOR_HEADERS);
+  sheet.appendRow(VISITOR_HEADERS.map(h => {
+    if (h === 'response_id')  return responseId;
+    if (h === 'submitted_at') return new Date().toISOString();
+    if (h === 'lang')         return lang;
+    if (h === 'raw_json')     return JSON.stringify(data);
+    return data[h] == null ? '' : String(data[h]);
+  }));
+
+  // 텔레그램 알림 — 실패해도 제출은 성공 처리 (기존 격리 원칙)
+  try {
+    sendTelegramMessage('🙋 방문자 설문 접수 [' + lang + '] — 만족도 ' + String(data.satisfaction || '').replace(/[<>&]/g, ''));
+  } catch (err) { Logger.log('[visitor] telegram fail: ' + err); }
+
+  return jsonResponse({ ok: true, response_id: responseId });
+}
+
+// 방문자 응답 영구 삭제 (관리자 토큰 게이트) — 테스트·실수 정리용.
+// 파생 행이 없으므로 cascade 불필요. 수정(edit) 기능은 의도적으로 없음 — 익명 응답 원문 보존 원칙.
+function handleVisitorDelete(data) {
+  const n = deleteRowsByValue(VISITOR_SHEET_NAME, VISITOR_HEADERS, 'response_id', data.id);
+  return jsonResponse(n ? { ok: true } : { ok: false, error: 'not_found' });
+}
+
 function sendTelegramSurvey(data, track, ledgerCount, issueCount) {
   var e = escapeTelegramHtml;
   var trackLabel = { sales: 'B2B 영업', media: '콘텐츠·홍보', etc: 'R&D·내부·기타' }[track] || track;
@@ -3232,8 +3718,189 @@ function handleGetSurveyData(token) {
   return jsonResponse({
     responses: readSheetRecords(SURVEY_SHEET_NAME, SURVEY_HEADERS),
     ledger:    readSheetRecords(LEDGER_SHEET_NAME, LEDGER_HEADERS),
-    issues:    readSheetRecords(ISSUE_SHEET_NAME, ISSUE_HEADERS)
+    issues:    readSheetRecords(ISSUE_SHEET_NAME, ISSUE_HEADERS),
+    visitors:  readSheetRecords(VISITOR_SHEET_NAME, VISITOR_HEADERS),  // 방문자 현장 설문 (§8-5, 조회 전용)
+    insights:  readSheetRecords(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS) // 월간 리포트 큐레이션 (§8-7 5·6)
+      .map(r => { r.month = insightMonthKey(r.month); return r; }),    // 날짜 자동 변환된 기존 행 복원
+    articles:  readArticleRows(),                                      // 관련 기사 큐레이션 (렌더 리뷰 후속)
+    bestReviewers: readSheetRecords(BEST_SHEET_NAME, BEST_HEADERS)     // 베스트 리뷰어 발송 이력 (2026-08-22)
+      .map(r => { r.month = insightMonthKey(r.month); return r; })     // month 셀 날짜 자동 변환 흡수 (insights와 동일)
   });
+}
+
+// monthly_insights month 셀 정규화 — Sheets가 "2026-07" 문자열을 날짜(해당 월 1일 0시 KST)로 자동
+// 변환해 저장하는 경우가 있어, 읽기 시 KST 기준 yyyy-MM으로 되돌린다.
+// (readSheetRecords가 Date를 UTC ISO로 바꾸므로 그대로 slice하면 전월로 밀림 — 큐레이션 행 증발 버그의 원인)
+function insightMonthKey(v) {
+  const s = String(v == null ? '' : v).trim().replace(/^'+/, '');   // 텍스트 강제용 아포스트로피가 값에 남는 환경 흡수
+  if (/^\d{4}-\d{2}$/.test(s)) return s;
+  const d = (Object.prototype.toString.call(v) === '[object Date]') ? v : new Date(s);
+  if (!isNaN(d.getTime())) return Utilities.formatDate(d, 'Asia/Seoul', 'yyyy-MM');
+  return s.slice(0, 7);
+}
+
+// month 셀 텍스트 확정 기록 — appendRow의 입력 파싱(날짜 변환·아포스트로피 해석)이 환경에 따라
+// 달라 "행이 저장돼도 월 필터에 안 걸리는" 증발 증상이 재발해, 저장 직후 셀 서식을 텍스트(@)로
+// 강제하고 값을 다시 쓴다. 읽기 정규화(insightMonthKey/normalizeMonth)와 이중 방어.
+function forceMonthTextCell(sheet, row, col, month) {
+  try {
+    const cell = sheet.getRange(row, col);
+    cell.setNumberFormat('@');
+    cell.setValue(month);
+  } catch (err) { Logger.log('forceMonthTextCell fail: ' + err); }
+}
+
+// ── 월간 리포트 큐레이션 (§8-7 5·6 — monthly_insights 탭, 관리자 토큰 게이트) ──
+// type='insight'(핵심 인사이트, seq 순 렌더) / type='quote'(인상 깊은 한마디 선택본, source='인솔자'|'방문자')
+function handleInsightAdd(data) {
+  const sheet = getNamedSheet(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS);
+  const month = String(data.month || '');
+  if (!/^\d{4}-\d{2}$/.test(month) || !String(data.text || '').trim()) {
+    return jsonResponse({ ok: false, error: 'invalid_input' });
+  }
+  const rows = readSheetRecords(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS);
+  // data.type은 라우팅 타입(insight_add)이므로 행 타입은 rowType 필드로 받는다
+  const type = String(data.rowType) === 'quote' ? 'quote' : 'insight';
+  // 한마디는 체크박스 토글 특성상 같은 문장 중복 저장이 항상 버그 — 가드 (증발 버그 시절 중복 재발 방지)
+  if (type === 'quote' && rows.some(r => insightMonthKey(r.month) === month &&
+      String(r.type) === 'quote' && String(r.text || '').trim() === String(data.text).trim())) {
+    return jsonResponse({ ok: false, error: 'duplicate' });
+  }
+  const maxSeq = rows.filter(r => insightMonthKey(r.month) === month && String(r.type || 'insight') === type)
+    .reduce((mx, r) => Math.max(mx, Number(r.seq) || 0), 0);
+  const id = String(Date.now());
+  sheet.appendRow([id, "'" + month, maxSeq + 1, type, String(data.text).trim(),
+                   String(data.source || ''), new Date().toISOString()]);
+  forceMonthTextCell(sheet, sheet.getLastRow(), INSIGHTS_HEADERS.indexOf('month') + 1, month);
+  return jsonResponse({ ok: true, id });
+}
+
+function handleInsightDelete(data) {
+  const n = deleteRowsByValue(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS, 'id', data.id);
+  return jsonResponse(n ? { ok: true } : { ok: false, error: 'not_found' });
+}
+
+// 큐레이션 항목 순서 조정 (2026-08-04 팀장 리뷰) — 같은 월·타입 그룹을 seq 순으로 세우고
+// 대상 항목을 한 칸 이동시킨 뒤 그룹 전체 seq를 1..n으로 재기록 (레거시 중복 seq도 함께 정리)
+function handleInsightMove(data) {
+  const id = String(data.id || '');
+  const dir = data.dir === 'up' ? -1 : 1;
+  const rows = readSheetRecords(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS);
+  const target = rows.find(r => String(r.id) === id);
+  if (!target) return jsonResponse({ ok: false, error: 'not_found' });
+  const group = rows.filter(r => insightMonthKey(r.month) === insightMonthKey(target.month) &&
+      String(r.type || 'insight') === String(target.type || 'insight'))
+    .sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0));
+  const idx = group.findIndex(r => String(r.id) === id);
+  const to = idx + dir;
+  if (to < 0 || to >= group.length) return jsonResponse({ ok: false, error: 'edge' });
+  const order = group.map(r => String(r.id));
+  order.splice(idx, 1);
+  order.splice(to, 0, id);
+  const seqById = {};
+  order.forEach((rid, i) => { seqById[rid] = i + 1; });
+  const sheet = getNamedSheet(INSIGHTS_SHEET_NAME, INSIGHTS_HEADERS);
+  const all = sheet.getDataRange().getValues();
+  const iId = INSIGHTS_HEADERS.indexOf('id'), iSeq = INSIGHTS_HEADERS.indexOf('seq');
+  for (let i = 1; i < all.length; i++) {
+    const rid = String(all[i][iId]);
+    if (seqById[rid] != null && Number(all[i][iSeq]) !== seqById[rid]) {
+      sheet.getRange(i + 1, iSeq + 1).setValue(seqById[rid]);
+    }
+  }
+  return jsonResponse({ ok: true });
+}
+
+// 기사 순서 조정 — monthly_articles는 순서 컬럼이 없어(컬럼 구조 불변) 같은 달 이웃 행과 값 전체 교환
+function handleArticleMove(data) {
+  const month = String(data.month || '');
+  const url = String(data.url || '').trim();
+  const dir = data.dir === 'up' ? -1 : 1;
+  const sheet = getArticlesSheet();
+  const headers = getOrCreateArticlesHeaders(sheet);
+  const iM = headers.indexOf('month'), iU = headers.indexOf('url');
+  const all = sheet.getDataRange().getValues();
+  const idxs = [];
+  for (let i = 1; i < all.length; i++) {
+    if (normalizeMonth(all[i][iM]) === month && String(all[i][iU] || '').trim()) idxs.push(i);
+  }
+  const pos = idxs.findIndex(i => String(all[i][iU]).trim() === url);
+  if (pos < 0) return jsonResponse({ ok: false, error: 'not_found' });
+  const npos = pos + dir;
+  if (npos < 0 || npos >= idxs.length) return jsonResponse({ ok: false, error: 'edge' });
+  const a = idxs[pos], b = idxs[npos];
+  const width = headers.length;
+  const rowA = all[a].slice(0, width), rowB = all[b].slice(0, width);
+  sheet.getRange(a + 1, 1, 1, width).setValues([rowB]);
+  sheet.getRange(b + 1, 1, 1, width).setValues([rowA]);
+  forceMonthTextCell(sheet, a + 1, iM + 1, normalizeMonth(rowB[iM]));   // 교환 시 재파싱 대비
+  forceMonthTextCell(sheet, b + 1, iM + 1, normalizeMonth(rowA[iM]));
+  return jsonResponse({ ok: true });
+}
+
+// ── 관련 기사 큐레이션 (2026-08-03 렌더 리뷰 후속 — monthly_articles 탭, 관리자 토큰 게이트) ──
+// URL만 받아 행 추가 — 제목·출처·요약·썸네일은 메타 태그에서 자동 추출 (실패 시 공란 → 리포트 빌드 때 재시도)
+function handleArticleAdd(data) {
+  const month = String(data.month || '');
+  const url = String(data.url || '').trim();
+  if (!/^\d{4}-\d{2}$/.test(month) || !/^https?:\/\//i.test(url)) {
+    return jsonResponse({ ok: false, error: 'invalid_input' });
+  }
+  const sheet = getArticlesSheet();
+  const headers = getOrCreateArticlesHeaders(sheet);
+  if (readArticleRows().some(r => r.month === month && r.url === url)) {
+    return jsonResponse({ ok: false, error: 'duplicate' });
+  }
+  const it = enrichArticleFromUrl({ title: '', link: url, source: '', snippet: '', publishedAt: '', thumbnail: '' });
+  const vals = {
+    month: "'" + month,
+    title: (it.title && it.title !== url) ? it.title : '', // 추출 실패 시 공란 (다음 읽기에서 재시도)
+    url: url,
+    source: it.source || '', summary: it.snippet || '',
+    published_at: it.publishedAt || '', thumbnail: it.thumbnail || '',
+  };
+  sheet.appendRow(headers.map(h => (vals[h] != null ? vals[h] : '')));
+  forceMonthTextCell(sheet, sheet.getLastRow(), headers.indexOf('month') + 1, month);
+  return jsonResponse({ ok: true, title: vals.title });
+}
+
+function handleArticleDelete(data) {
+  const month = String(data.month || '');
+  const url = String(data.url || '').trim();
+  const sheet = getArticlesSheet();
+  const headers = getOrCreateArticlesHeaders(sheet);
+  const iM = headers.indexOf('month'), iU = headers.indexOf('url');
+  const rows = sheet.getDataRange().getValues();
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (normalizeMonth(rows[i][iM]) === month && String(rows[i][iU] || '').trim() === url) {
+      sheet.deleteRow(i + 1);
+      return jsonResponse({ ok: true });
+    }
+  }
+  return jsonResponse({ ok: false, error: 'not_found' });
+}
+
+// 관리자 큐레이션 UI용 기사 행 조회 — 원본 셀에서 직접 읽어 month/published_at을 정규화
+// (readSheetRecords는 Date를 UTC ISO로 바꿔 월이 밀리므로 사용하지 않음)
+function readArticleRows() {
+  const sheet = getArticlesSheet();
+  const headers = getOrCreateArticlesHeaders(sheet);
+  const rows = sheet.getDataRange().getValues();
+  const iM = headers.indexOf('month'), iT = headers.indexOf('title'), iU = headers.indexOf('url'),
+        iS = headers.indexOf('source'), iP = headers.indexOf('published_at');
+  const out = [];
+  for (let i = 1; i < rows.length; i++) {
+    const url = String(rows[i][iU] || '').trim();
+    if (!url) continue;
+    out.push({
+      month: normalizeMonth(rows[i][iM]),
+      title: String(rows[i][iT] || '').trim(),
+      url: url,
+      source: iS >= 0 ? String(rows[i][iS] || '').trim() : '',
+      published_at: iP >= 0 ? formatPublishedDate(rows[i][iP]) : '',
+    });
+  }
+  return out;
 }
 
 function readSheetRecords(name, headers) {
@@ -3283,12 +3950,30 @@ function collectMonthlySurvey(month) {
   responses.forEach(r => { respMonthById[String(r.response_id)] = respMonth(r); });
   const issueCount = issues.filter(x => respMonthById[String(x.response_id)] === month).length;
 
+  // §8-7: 방문자 설문 지표 + 만족도/NPS (인솔자·방문자, 혼재 척도 분리 집계)
+  let visitor = null, satAll = null, satOperator = null, satVisitor = null;
+  try {
+    const visitors = readSheetRecords(VISITOR_SHEET_NAME, VISITOR_HEADERS)
+      .filter(v => String(v.submitted_at || '').slice(0, 7) === month);
+    const opSats = monthResponses.map(r => r.satisfaction);
+    const vSats = visitors.map(v => v.satisfaction);
+    satOperator = classifySatisfaction(opSats);
+    satVisitor = classifySatisfaction(vSats);
+    satAll = classifySatisfaction(opSats.concat(vSats));
+    visitor = {
+      count: visitors.length,
+      ko: visitors.filter(v => v.lang === 'KO').length,
+      en: visitors.filter(v => v.lang === 'EN').length,
+    };
+  } catch (err) { Logger.log('[monthly] visitor metrics fail: ' + err); }
+
   return {
     count: monthResponses.length, tracks,
     revisitPct,
     ledgerNew: ledgerNew.length, ledgerConfirmed: confirmedRows.length,
     ledgerDropped: droppedNew, confirmedSum,
-    issueCount
+    issueCount,
+    visitor, satAll, satOperator, satVisitor
   };
 }
 
@@ -3328,7 +4013,7 @@ function handleLedgerUpdate(data) {
   const idIdx = headers.indexOf('ledger_id');
   const EDITABLE = ['status', 'confirmed_amount', 'confirmed_date', 'confirmed_note', 'roi_included',
                     'category', 'project_name', 'expected_scale', 'attribution_pct',
-                    'visit_date', 'respondent', 'dept'];
+                    'visit_date', 'respondent', 'dept', 'amount_basis'];
   for (let i = 1; i < rows.length; i++) {
     if (String(rows[i][idIdx]) === String(data.id)) {
       EDITABLE.forEach(f => {
@@ -3343,9 +4028,60 @@ function handleLedgerUpdate(data) {
   return jsonResponse({ ok: false, error: 'not_found' });
 }
 
+// ── 설문·대장·이슈 영구 삭제 (관리자 토큰 게이트 — 테스트·실수 데이터 정리용) ──
+// 실제 성과 기록은 드롭/기각 상태 전환으로 보존하는 것이 원칙 — 삭제는 테스트 정리에만 사용.
+// survey_delete는 응답의 파생 행(대장·이슈, response_id 연결)도 함께 삭제해 고아 행을 막는다.
+// 예약 booking_delete와 동일하게 알림(메일·텔레그램)은 발송하지 않는다.
+function deleteRowsByValue(sheetName, headers, colName, value) {
+  const sheet = getNamedSheet(sheetName, headers);
+  const rows = sheet.getDataRange().getValues();
+  const idx = rows[0].indexOf(colName);
+  let deleted = 0;
+  for (let i = rows.length - 1; i >= 1; i--) {   // 아래→위 삭제 — 행 인덱스 어긋남 방지
+    if (String(rows[i][idx]) === String(value)) { sheet.deleteRow(i + 1); deleted++; }
+  }
+  return deleted;
+}
+
+function handleSurveyDelete(data) {
+  const n = deleteRowsByValue(SURVEY_SHEET_NAME, SURVEY_HEADERS, 'response_id', data.id);
+  if (!n) return jsonResponse({ ok: false, error: 'not_found' });
+  const ledgerN = deleteRowsByValue(LEDGER_SHEET_NAME, LEDGER_HEADERS, 'response_id', data.id);
+  const issueN  = deleteRowsByValue(ISSUE_SHEET_NAME, ISSUE_HEADERS, 'response_id', data.id);
+  return jsonResponse({ ok: true, deleted: { response: n, ledger: ledgerN, issues: issueN } });
+}
+
+function handleLedgerDelete(data) {
+  const n = deleteRowsByValue(LEDGER_SHEET_NAME, LEDGER_HEADERS, 'ledger_id', data.id);
+  return jsonResponse(n ? { ok: true } : { ok: false, error: 'not_found' });
+}
+
+function handleIssueDelete(data) {
+  const n = deleteRowsByValue(ISSUE_SHEET_NAME, ISSUE_HEADERS, 'issue_id', data.id);
+  return jsonResponse(n ? { ok: true } : { ok: false, error: 'not_found' });
+}
+
+// ── CSV 내보내기 감사 로그 (개인정보보호팀 요구 — 다운로드 사유 기록) ──
+// 관리자 이메일은 클라이언트 입력이 아니라 검증된 토큰 payload에서 추출 (위조 방지).
+// 파일 비밀번호는 기록하지 않는다 — 사유·시각·행 수만 남긴다.
+const EXPORT_LOG_SHEET_NAME = 'export_log';
+const EXPORT_LOG_HEADERS = ['id', 'timestamp', 'email', 'reason', 'rowCount'];
+
+function handleExportLog(data, byEmail) {
+  const sheet = getNamedSheet(EXPORT_LOG_SHEET_NAME, EXPORT_LOG_HEADERS);
+  sheet.appendRow([
+    String(Date.now()),
+    new Date().toISOString(),
+    byEmail,
+    String(data.reason || '').slice(0, 500),
+    Number(data.rowCount) || 0,
+  ]);
+  return jsonResponse({ success: true });
+}
+
 // ── IoT 이슈 상태·속성 부여 (관리자 토큰 게이트) ─────────────
 // C_AS 채널 단가는 민감 정보 — 코드·리포에 두지 않고 Script Property
-// SURVEY_CAS_JSON 에만 둔다. 형식: {"원격":6220,...} (실제 값은 콘솔에서 입력).
+// SURVEY_CAS_JSON 에만 둔다. 형식: {"원격":1000,"내방":2000,"출장":3000} (예시 — 실제 값은 콘솔에서 입력).
 // 미설정 시 est_value 공란 유지 (참고용 표시일 뿐 ROI 미산입이라 무해).
 const SEVERITY_PCT = { '높음': 0.5, '가끔': 0.1, '드묾': 0.01 };
 
@@ -3386,4 +4122,931 @@ function handleIssueUpdate(data) {
     }
   }
   return jsonResponse({ ok: false, error: 'not_found' });
+}
+
+// ============================================================
+//  방문 후기 설문 요청 메일 (배치 — 스크립트 에디터에서 직접 실행)
+//  - 대상: status=확정 + 방문일 경과 + 이메일 보유 + 미발송 행
+//  - 같은 이메일 다건은 가장 최근 방문 1건 기준으로 1통만 발송
+//  - 실행 순서: ① previewSurveyInviteTargets() — 명단만 로그 (발송 없음)
+//               ② sendSurveyInviteTest()       — 소유자 본인에게 1통 (시트 기록 없음)
+//               ③ sendSurveyInviteBatch()      — 실제 발송 + 발송 시각 기록
+//  - 발송한 행은 surveyInviteSentAt에 기록 → 재실행해도 중복 발송 없음
+//  - 웹 엔드포인트가 아니므로 재배포 불필요 (코드 저장 후 에디터에서 실행)
+// ============================================================
+
+const SURVEY_FORM_URL = 'https://thinqreal.com/ThinQ_Real_Visit_Survey.html';
+
+// 설문 링크에 방문일·작성자·소속을 쿼리로 실어 폼이 미리 채우게 한다 (수신자 입력 부담 완화)
+function buildSurveyInviteLink(b) {
+  const params = [];
+  if (b.date) params.push('visit_date=' + encodeURIComponent(b.date));
+  if (b.name) params.push('name=' + encodeURIComponent(b.name));
+  const dept = ((b.division || '') + ' ' + (b.department || '')).trim();
+  if (dept) params.push('dept=' + encodeURIComponent(dept));
+  return SURVEY_FORM_URL + (params.length ? '?' + params.join('&') : '');
+}
+
+function getSurveyInviteTargets() {
+  const sheet = getSheet();
+  getOrCreateHeaders(sheet);                       // surveyInviteSentAt 컬럼 보장
+  const rows = sheet.getDataRange().getValues();
+  const head = rows[0].map(v => String(v || ''));
+  const col = h => head.indexOf(h);
+  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+
+  const byEmail = {};                              // 이메일 → { latest: 최근 방문 건, rowIndexes: 해당 행들 }
+  const excluded = new Set();                      // 허용 도메인 외 이메일 (로그 확인용)
+  rows.slice(1).forEach((row, i) => {
+    const status = String(row[col('status')] || '').trim();
+    const email  = String(row[col('email')]  || '').trim().toLowerCase();
+    const date   = normalizeDate(row[col('date')]);
+    const sent   = String(row[col('surveyInviteSentAt')] || '').trim();
+    if (status !== '확정' || !email || email.indexOf('@') < 0) return;
+    // 발송 대상은 임직원(@lge.com)으로 한정 — 사이트 게이트와 동일한 허용 도메인 단일 소스
+    if (!AUTH_ALLOWED_DOMAINS.some(d => email.endsWith('@' + d))) { excluded.add(email); return; }
+    if (!date || date >= today) return;            // 방문 다음날부터 발송 (아침 자동 발송이 방문 전에 나가는 것 방지)
+    if (sent) return;                              // 이미 발송한 행 제외 (재실행 안전)
+
+    const rec = {
+      rowIndex: i + 2, email, date,
+      name:       String(row[col('name')] || ''),
+      slotLabel:  String(row[col('slotLabel')] || ''),
+      purpose:    String(row[col('purpose')] || ''),
+      subject:    String(row[col('subject')] || row[col('org')] || ''),
+      division:   String(row[col('division')] || ''),
+      department: String(row[col('department')] || ''),
+    };
+    const cur = byEmail[email];
+    if (!cur) {
+      byEmail[email] = { latest: rec, rowIndexes: [rec.rowIndex] };
+    } else {
+      cur.rowIndexes.push(rec.rowIndex);
+      if (rec.date > cur.latest.date) cur.latest = rec;
+    }
+  });
+
+  if (excluded.size) {
+    Logger.log('제외 (@lge.com 외 주소 ' + excluded.size + '건): ' + [...excluded].join(', '));
+  }
+  return Object.keys(byEmail).map(k => byEmail[k]);
+}
+
+// 참조(CC) 수신자 — 관리자 6명 전원 참조는 통수 부담(각자 발송 통수만큼 수신)으로 미채택 (2026-07-19 결정)
+const SURVEY_INVITE_CC_BATCH = CC_EMAIL;                       // 1회성 수동 배치: 운영자(강원석)만
+const SURVEY_INVITE_CC_AUTO  = ADMIN_EMAILS + ', ' + CC_EMAIL; // 자동 발송: 담당자 3명(이철호·서문수·김현진) + 강원석
+
+// ① 발송 없이 대상자 명단만 로그로 확인 (드라이런)
+function previewSurveyInviteTargets() {
+  const targets = getSurveyInviteTargets();
+  const perMail = 1 + SURVEY_INVITE_CC_BATCH.split(',').length;  // 할당량은 수신자 수 기준
+  Logger.log('설문 요청 대상: ' + targets.length + '명 | 수동 배치 통당 수신자 ' + perMail + '명' +
+    ' | 필요 할당량 ' + targets.length * perMail + ' / 남은 할당량 ' + MailApp.getRemainingDailyQuota());
+  targets.forEach(t => {
+    const b = t.latest;
+    Logger.log('- ' + b.email + ' | ' + b.date + ' ' + b.slotLabel + ' | ' + b.purpose + ' | ' + b.name +
+      (t.rowIndexes.length > 1 ? ' (확정 ' + t.rowIndexes.length + '건 → 1통)' : ''));
+  });
+  return targets.length;
+}
+
+// ② 테스트 발송 — 실제 대상자 첫 건의 데이터로 운영자에게만 발송 (시트 기록 없음)
+//    소유자 gmail + 사내 메일(CC_EMAIL) 양쪽으로 보내 Gmail·Outlook 표시를 모두 확인한다.
+//    사내 수신은 LG 보안 게이트웨이 스캔 큐를 타므로 수분~수십분 지연될 수 있음.
+function sendSurveyInviteTest() {
+  const me = Session.getEffectiveUser().getEmail();
+  const to = me + ',' + CC_EMAIL;
+  const targets = getSurveyInviteTargets();
+  const b = targets.length ? targets[0].latest : {
+    email: me, date: '2026-07-10', name: '홍길동',
+    slotLabel: '2회차 13:00~14:30', purpose: 'R&D', subject: '테스트 방문',
+    division: 'HS사업본부', department: 'AI홈솔루션엔지니어링팀',
+  };
+  MailApp.sendEmail({
+    to: to,
+    subject: '[테스트] ' + buildSurveyInviteSubject(),
+    body: buildSurveyInviteText(b), htmlBody: buildSurveyInviteHtml(b),
+    name: 'ThinQ Real',
+  });
+  Logger.log('테스트 메일 발송 → ' + to +
+    (targets.length ? ' (실데이터 사용: ' + b.email + ' 건)' : ' (대상 없음 — 더미 데이터 사용)'));
+}
+
+// 공용 발송 코어 — 발송 성공한 이메일의 모든 해당 행에 surveyInviteSentAt 기록
+// 메일 할당량은 수신자 수 기준이므로 통당 소모 = 1 + 참조 수.
+function sendSurveyInvitesCore(cc, label) {
+  const sheet = getSheet();
+  const headers = getOrCreateHeaders(sheet);
+  const sentCol = headers.indexOf('surveyInviteSentAt') + 1;
+  const targets = getSurveyInviteTargets();
+  const perMail = 1 + cc.split(',').length;
+  const need = targets.length * perMail;
+  const quota = MailApp.getRemainingDailyQuota();
+  if (!targets.length) { Logger.log('[' + label + '] 발송 대상이 없습니다.'); return 0; }
+  if (need > quota) {
+    Logger.log('[' + label + '] 중단: 필요 할당량 ' + need + '(대상 ' + targets.length + '명 × 수신자 ' + perMail + '명) > 남은 할당량 ' + quota + '. 다음 날 다시 실행하세요.');
+    return 0;
+  }
+
+  const now = new Date().toISOString();
+  let ok = 0, fail = 0;
+  targets.forEach(t => {
+    const b = t.latest;
+    try {
+      MailApp.sendEmail({
+        to: b.email, cc: cc, subject: buildSurveyInviteSubject(),
+        body: buildSurveyInviteText(b), htmlBody: buildSurveyInviteHtml(b),
+        name: 'ThinQ Real',
+      });
+      t.rowIndexes.forEach(r => sheet.getRange(r, sentCol).setValue(now));
+      ok++;
+    } catch (err) {
+      fail++;
+      Logger.log('[' + label + '] 발송 실패: ' + b.email + ' — ' + err.message);
+    }
+  });
+  Logger.log('[' + label + '] 설문 요청 발송 완료: 성공 ' + ok + '통 / 실패 ' + fail + '통');
+  return ok;
+}
+
+// ③ 실제 발송 (1회성 수동 배치) — 참조: 운영자만
+function sendSurveyInviteBatch() {
+  sendSurveyInvitesCore(SURVEY_INVITE_CC_BATCH, '수동 배치');
+}
+
+// ④ 자동 발송 (매일 08:30경 트리거) — 방문 다음날 아침에 전날까지의 미발송 방문 건 발송.
+//    참조: 담당자 3명 + 운영자. 대상이 없는 날은 로그만 남기고 종료.
+function surveyInviteTrigger() {
+  sendSurveyInvitesCore(SURVEY_INVITE_CC_AUTO, '자동');
+}
+
+// 자동 발송 트리거 설치 — 에디터에서 1회 직접 실행 (기존 등록이 있으면 교체)
+function installSurveyInviteTrigger() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'surveyInviteTrigger') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('surveyInviteTrigger')
+    .timeBased()
+    .everyDays(1)
+    .atHour(8)
+    .nearMinute(30)
+    .create();
+  return '설문 자동 발송 트리거 설치 완료 (매일 08:30경 — 스크립트 TZ 기준)';
+}
+
+function buildSurveyInviteSubject() {
+  return '[ThinQ Real] 방문 후기 설문 요청 — 소중한 의견을 들려주세요';
+}
+
+function buildSurveyInviteText(b) {
+  const link = buildSurveyInviteLink(b);
+  return [
+    '안녕하세요, ' + (b.name || '') + '님.',
+    '',
+    'ThinQ Real을 방문해 주셔서 감사합니다.',
+    '방문 경험에 대한 짧은 설문을 부탁드립니다. (약 3분 소요)',
+    '',
+    '📅 방문 정보',
+    '   ' + b.date + '  /  ' + (b.slotLabel || ''),
+    '   ' + (b.purpose || '') + (b.subject ? ' — ' + b.subject : ''),
+    '',
+    '📝 설문 작성',
+    '   ' + link,
+    '   (방문일 등 기본 정보가 미리 채워져 있습니다)',
+    '',
+    '응답해 주신 내용은 ThinQ Real 운영 개선과 성과 분석에',
+    '소중하게 활용됩니다.',
+    '',
+    '🎁 매월 베스트 리뷰어 세 분을 선정해 소정의 사은품을 드립니다.',
+    '',
+    '감사합니다.',
+    'HS플랫폼사업센터 AI홈솔루션엔지니어링팀',
+  ].join('\n');
+}
+
+function buildSurveyInviteHtml(b) {
+  const name = escapeHtml(b.name || '');
+  const date = escapeHtml(b.date || '');
+  const slot = escapeHtml(b.slotLabel || '');
+  const purpose = escapeHtml(b.purpose || '');
+  const subject = escapeHtml(b.subject || '');
+  const link = escapeHtml(buildSurveyInviteLink(b));  // & → &amp; (href 속성 안전)
+
+  return (
+    '<div style="background:#f5f5f7;padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,\'Helvetica Neue\',\'Apple SD Gothic Neo\',\'Malgun Gothic\',sans-serif;">' +
+      '<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:collapse;max-width:680px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">' +
+        '<tr><td style="background:#3a5035;color:#ffffff;padding:24px 28px;">' +
+          '<div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.7;">ThinQ Real</div>' +
+          '<div style="font-size:20px;font-weight:600;margin-top:4px;">방문 후기를 들려주세요</div>' +
+        '</td></tr>' +
+        '<tr><td style="padding:28px;">' +
+          '<div style="font-size:15px;color:#1d1d1f;line-height:1.7;margin-bottom:20px;">' +
+            '안녕하세요, <strong>' + name + '</strong>님.<br>' +
+            'ThinQ Real을 방문해 주셔서 감사합니다.<br>' +
+            '방문 경험에 대한 짧은 설문을 부탁드립니다. <span style="color:#6e6e73;">(약 3분 소요)</span>' +
+          '</div>' +
+          '<div style="padding:16px 18px;background:#f5f5f7;border-radius:8px;font-size:14px;line-height:1.7;">' +
+            '<div style="font-weight:600;color:#3a3a3c;margin-bottom:4px;">📅 방문 정보</div>' +
+            '<div style="font-size:15px;font-weight:600;color:#3a5035;">' + date + '</div>' +
+            '<div style="color:#6e6e73;font-size:13px;">' + slot + '</div>' +
+            (purpose ? '<div style="margin-top:4px;color:#1d1d1f;font-size:13px;">' + purpose + (subject ? ' — ' + subject : '') + '</div>' : '') +
+          '</div>' +
+          '<div style="text-align:center;margin:28px 0 8px;">' +
+            '<a href="' + link + '" style="display:inline-block;background:#3a5035;color:#ffffff;font-size:15px;font-weight:600;padding:14px 32px;border-radius:8px;text-decoration:none;">설문 작성하기 (약 3분) ↗</a>' +
+            '<div style="color:#aeaeb2;font-size:12px;margin-top:8px;">방문일 등 기본 정보가 미리 채워져 있습니다.</div>' +
+          '</div>' +
+          '<div style="margin-top:20px;padding:14px 18px;background:#fdf7ec;border-radius:8px;font-size:13px;color:#6e5a2e;line-height:1.6;">' +
+            '🎁 매월 <strong>베스트 리뷰어 세 분</strong>을 선정해 소정의 사은품을 드립니다. 구체적인 후기일수록 선정 확률이 올라갑니다.' +
+          '</div>' +
+          '<div style="margin-top:28px;padding-top:20px;border-top:1px solid #eeeeee;font-size:13px;color:#6e6e73;line-height:1.6;">' +
+            '응답해 주신 내용은 ThinQ Real 운영 개선과 성과 분석에 소중하게 활용됩니다.<br>' +
+            '감사합니다.<br>HS플랫폼사업센터 AI홈솔루션엔지니어링팀' +
+          '</div>' +
+        '</td></tr>' +
+      '</table>' +
+    '</div>'
+  );
+}
+
+// ============================================================
+//  베스트 리뷰어 사은품 발송 (2026-08-22)
+//  - 설문 요청 메일의 「매월 베스트 리뷰어 세 분」 공지 이행.
+//  - 관리자 설문 탭에서 응답을 보고 선정 → 축하 메일 발송 + best_reviewers 기록.
+//  - 축하 메일만 발송 — 기프티콘(모바일 쿠폰)은 별도 채널로 전달 (시스템 미경유).
+//  - 가드: 같은 응답 재발송 차단 / 같은 달 3명(BEST_MONTHLY_LIMIT) 초과 차단.
+// ============================================================
+
+// 'YYYY-MM' → 'YYYY년 M월'
+function bestMonthLabel(month) {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(month) || '');
+  return m ? m[1] + '년 ' + Number(m[2]) + '월' : String(month);
+}
+
+function handleBestReviewerSend(data, adminEmail) {
+  const sheet = getNamedSheet(BEST_SHEET_NAME, BEST_HEADERS);
+  const month = String(data.month || '');
+  const responseId = String(data.responseId || '').trim();
+  const email = String(data.email || '').trim().toLowerCase();
+  const name = String(data.name || '').trim();
+  if (!/^\d{4}-\d{2}$/.test(month) || !responseId || !name) {
+    return jsonResponse({ ok: false, error: 'invalid_input' });
+  }
+  // 수신 대상은 설문 초대와 동일하게 @lge.com 한정 (사내 리워드)
+  if (!/^[a-z0-9._%+-]+@lge\.com$/.test(email)) {
+    return jsonResponse({ ok: false, error: 'invalid_email' });
+  }
+  const rows = readSheetRecords(BEST_SHEET_NAME, BEST_HEADERS);
+  if (rows.some(function(r) { return String(r.response_id) === responseId; })) {
+    return jsonResponse({ ok: false, error: 'already_sent' });
+  }
+  const monthCount = rows.filter(function(r) { return insightMonthKey(r.month) === month; }).length;
+  if (monthCount >= BEST_MONTHLY_LIMIT) {
+    return jsonResponse({ ok: false, error: 'limit_reached' });
+  }
+  const product = String(data.product || '').trim() || BEST_DEFAULT_PRODUCT;
+  const visitDate = String(data.visitDate || '').trim();
+
+  // 메일 발송이 본질 — 발송 성공 후에만 이력 기록 (실패 시 기록 없음 → 재시도 가능)
+  MailApp.sendEmail({
+    to: email,
+    bcc: BEST_REVIEWER_BCC,
+    subject: buildBestReviewerSubject(month),
+    body: buildBestReviewerText(name, month, product, visitDate),
+    htmlBody: buildBestReviewerHtml(name, month, product, visitDate),
+    name: 'ThinQ Real'
+  });
+  sheet.appendRow([String(Date.now()), "'" + month, responseId, name,
+                   String(data.dept || ''), email, visitDate, product,
+                   new Date().toISOString(), String(adminEmail || '')]);
+  forceMonthTextCell(sheet, sheet.getLastRow(), BEST_HEADERS.indexOf('month') + 1, month);
+  Logger.log('Best reviewer mail sent → ' + email + ' (' + month + ')');
+  return jsonResponse({ ok: true });
+}
+
+function buildBestReviewerSubject(month) {
+  return '[ThinQ Real] 🏆 ' + bestMonthLabel(month) + ' 베스트 리뷰어로 선정되셨습니다';
+}
+
+function buildBestReviewerText(name, month, product, visitDate) {
+  const label = bestMonthLabel(month);
+  const lines = [
+    '안녕하세요, ' + name + '님.',
+    '',
+    '남겨주신 방문 후기가 ' + label + ' 베스트 리뷰어 세 분에 선정되었습니다.',
+    '정성스러운 후기 감사드립니다 — ThinQ Real 운영 개선에 큰 힘이 됩니다.',
+    '',
+    '🎁 사은품 안내',
+    '   ' + product,
+  ];
+  if (visitDate) lines.push('   (선정 후기: ' + visitDate + ' 방문)');
+  lines.push(
+    '',
+    '모바일 쿠폰은 이 메일과 별도로 전달드릴 예정입니다.',
+    '',
+    '앞으로도 ThinQ Real에 많은 관심 부탁드립니다.',
+    '감사합니다.',
+    'HS플랫폼사업센터 AI홈솔루션엔지니어링팀'
+  );
+  return lines.join('\n');
+}
+
+function buildBestReviewerHtml(name, month, product, visitDate) {
+  const label = bestMonthLabel(month);
+  const n = escapeHtml(name);
+  const p = escapeHtml(product);
+  const v = escapeHtml(visitDate || '');
+  return (
+    '<div style="background:#f5f5f7;padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,\'Helvetica Neue\',\'Apple SD Gothic Neo\',\'Malgun Gothic\',sans-serif;">' +
+      '<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:collapse;max-width:680px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">' +
+        '<tr><td style="background:#3a5035;color:#ffffff;padding:24px 28px;">' +
+          '<div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.7;">ThinQ Real</div>' +
+          '<div style="font-size:20px;font-weight:600;margin-top:4px;">🏆 ' + escapeHtml(label) + ' 베스트 리뷰어</div>' +
+        '</td></tr>' +
+        '<tr><td style="padding:28px;">' +
+          '<div style="font-size:15px;color:#1d1d1f;line-height:1.7;margin-bottom:20px;">' +
+            '안녕하세요, <strong>' + n + '</strong>님.<br>' +
+            '남겨주신 방문 후기가 <strong style="color:#3a5035;">' + escapeHtml(label) + ' 베스트 리뷰어 세 분</strong>에 선정되었습니다.<br>' +
+            '정성스러운 후기 감사드립니다 — ThinQ Real 운영 개선에 큰 힘이 됩니다.' +
+          '</div>' +
+          '<div style="padding:16px 18px;background:#fdf7ec;border-radius:8px;font-size:14px;line-height:1.7;">' +
+            '<div style="font-weight:600;color:#6e5a2e;margin-bottom:4px;">🎁 사은품 안내</div>' +
+            '<div style="font-size:15px;font-weight:600;color:#1d1d1f;">' + p + '</div>' +
+            (v ? '<div style="color:#6e6e73;font-size:13px;margin-top:2px;">선정 후기: ' + v + ' 방문</div>' : '') +
+            '<div style="margin-top:8px;color:#6e5a2e;font-size:13px;">모바일 쿠폰은 이 메일과 별도로 전달드릴 예정입니다.</div>' +
+          '</div>' +
+          '<div style="margin-top:28px;padding-top:20px;border-top:1px solid #eeeeee;font-size:13px;color:#6e6e73;line-height:1.6;">' +
+            '앞으로도 ThinQ Real에 많은 관심 부탁드립니다.<br>' +
+            '감사합니다.<br>HS플랫폼사업센터 AI홈솔루션엔지니어링팀' +
+          '</div>' +
+        '</td></tr>' +
+      '</table>' +
+    '</div>'
+  );
+}
+
+
+// ============================================================
+//  FieldCheck 자동 점검 (ThinQ ON Field 자동 점검 시스템)
+//  - 시트 탭: health_checks
+//  - 점검 장비(무인 노트북, wonseok-lab/thinqreal/fieldcheck/rig)가
+//    결과를 POST, 관리자 페이지가 GET
+//  - 인증: 관리자 토큰 경로가 아닌 FC_API_KEY (점검 장비는 무인 기기)
+//  - 실패 알림: 담당자 메일 + 텔레그램 (기존 파이프라인 재사용)
+// ============================================================
+
+function getHealthSheet() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  return ss.getSheetByName(HEALTH_SHEET_NAME) || ss.insertSheet(HEALTH_SHEET_NAME);
+}
+
+function getOrCreateHealthHeaders(sheet) {
+  const HEADERS = ['id', 'timestamp', 'level', 'scenario_id', 'scenario_label',
+                   'result', 'latency_ms', 'detail', 'stt_text', 'expected',
+                   'media_ref', 'note'];
+  const firstRow = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
+  if (!firstRow[0]) {
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+    const headerRange = sheet.getRange(1, 1, 1, HEADERS.length);
+    headerRange.setBackground('#3a5035');
+    headerRange.setFontColor('#ffffff');
+    headerRange.setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return HEADERS;
+}
+
+// ── 점검 결과 저장 (+ 실패 시 담당자 알림) ──────────────────
+function handleNewHealthCheck(data) {
+  const fcKey = getFcApiKey();
+  if (!fcKey || String(data.apiKey || '') !== fcKey) {
+    return jsonResponse({ error: 'Unauthorized' });
+  }
+
+  const sheet = getHealthSheet();
+  const headers = getOrCreateHealthHeaders(sheet);
+  const id = String(Date.now());
+  const row = headers.map(h => {
+    if (h === 'id')        return id;
+    if (h === 'timestamp') return data.timestamp || new Date().toISOString();
+    return data[h] ?? '';
+  });
+  sheet.appendRow(row);
+
+  // 건별 즉시 알림은 FC_IMMEDIATE_ALERT가 켜진 경우에만
+  // (테스트 단계에선 끔 — 일일 요약 메일이 기본 알림 수단)
+  let mailed = false;
+  if (FC_IMMEDIATE_ALERT && data.result === 'fail' && data.alert) {
+    sendHealthAlert(data);
+    mailed = true;
+  }
+
+  return jsonResponse({ success: true, id, mailed });
+}
+
+// ── 점검 이력 조회 (관리자 대시보드용) ──────────────────────
+function handleGetHealthChecks(days) {
+  const sheet = getHealthSheet();
+  getOrCreateHealthHeaders(sheet);
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+
+  let cutoff = null;
+  const n = Number(days);
+  if (n > 0) cutoff = new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+
+  const records = rows.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((h, j) => {
+      let v = row[j];
+      if (Object.prototype.toString.call(v) === '[object Date]') v = v.toISOString();
+      obj[h] = v == null ? '' : v;
+    });
+    return obj;
+  }).filter(r => {
+    if (!r.id) return false;
+    if (!cutoff) return true;
+    const t = new Date(r.timestamp);
+    return !isNaN(t) && t >= cutoff;
+  });
+
+  // 최신순 정렬
+  records.sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
+  return jsonResponse({ records });
+}
+
+// ── 점검 실패 즉시 알림 (FC_IMMEDIATE_ALERT가 켜진 경우에만 사용) ──
+function sendHealthAlert(data) {
+  const label = data.scenario_label || data.scenario_id || '';
+  const subject = `[ThinQ Real] ⚠ 자동 점검 실패 — ${label}`;
+  const body = `
+FieldCheck 자동 점검에서 실패가 감지되었습니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  점검 시각 : ${data.timestamp || ''}
+  점검 단계 : ${data.level || 'L1'}
+  시나리오  : ${label}
+  결과      : 실패 (음성 응답 없음 또는 판정 기준 미달)
+  녹음 파일 : ${data.media_ref || '-'} (점검 장비의 recordings 폴더)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ThinQ ON이 점검 발화에 음성으로 응답하지 않았습니다.
+현장에서 직접 발화하여 재현 여부를 확인해 주세요.
+  `.trim();
+
+  try {
+    if (FC_TEST_MODE) {
+      MailApp.sendEmail({ to: CC_EMAIL, subject, body });
+      Logger.log('Health alert mail sent (test mode) → ' + CC_EMAIL);
+    } else {
+      MailApp.sendEmail({ to: ADMIN_EMAILS, cc: CC_EMAIL, subject, body });
+      Logger.log('Health alert mail sent → ' + ADMIN_EMAILS);
+    }
+  } catch(err) {
+    Logger.log('Health alert mail error: ' + err.message);
+  }
+
+  // 텔레그램은 담당자 전원이 있는 그룹이므로 테스트 단계에선 발송하지 않음
+  if (!FC_TEST_MODE) {
+    const e = escapeTelegramHtml;
+    sendTelegramMessage(
+      '⚠ <b>ThinQ ON 자동 점검 실패</b>\n' +
+      '시나리오: ' + e(label) + '\n' +
+      '시각: ' + e(String(data.timestamp || '')) + '\n' +
+      '음성 무응답 — 현장 재현 확인 필요'
+    );
+  }
+}
+
+// ── 일일 요약 메일 (매일 아침 1회 — 시간 기반 트리거로 실행) ──
+// 최초 1회 setupFieldCheckDailyTrigger()를 에디터에서 직접 실행하면
+// 매일 FC_SUMMARY_HOUR:FC_SUMMARY_MINUTE 무렵(±15분) sendFieldCheckDailySummary가 자동 호출된다.
+// 시각을 바꾼 뒤에는 이 함수를 에디터에서 한 번 다시 실행해야 기존 트리거가 교체된다.
+function setupFieldCheckDailyTrigger() {
+  // 중복 트리거 방지 — 같은 핸들러의 기존 트리거 제거 후 재생성
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'sendFieldCheckDailySummary') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+  ScriptApp.newTrigger('sendFieldCheckDailySummary')
+    .timeBased().everyDays(1).atHour(FC_SUMMARY_HOUR).nearMinute(FC_SUMMARY_MINUTE).create();
+  Logger.log('FieldCheck 일일 요약 트리거 생성 완료 (매일 ' + FC_SUMMARY_HOUR + ':' + FC_SUMMARY_MINUTE + ' 무렵, ±15분)');
+}
+
+function sendFieldCheckDailySummary() {
+  const sheet = getHealthSheet();
+  getOrCreateHealthHeaders(sheet);
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+  const idx = {};
+  headers.forEach((h, j) => { idx[h] = j; });
+
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const recent = rows.slice(1).filter(r => {
+    const t = new Date(r[idx.timestamp]);
+    return r[idx.id] && !isNaN(t) && t >= cutoff;
+  });
+
+  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  let subject, body;
+  // HTML 메일 구성용 데이터 (예약 확정 메일과 동일하게 평문 + HTML 동시 발송)
+  const view = { today: today, total: recent.length, failCount: 0, levels: [], failures: [] };
+
+  if (recent.length === 0) {
+    // 기록 없음 = 점검 장비가 안 돌았다는 뜻 — 이것 자체가 이상 신호
+    subject = `[ThinQ Real] 자동 점검 일일 요약 (${today}) — ⚠ 점검 기록 없음`;
+    body = [
+      '최근 24시간 동안 FieldCheck 점검 기록이 없습니다.',
+      '',
+      '점검 장비(노트북)가 꺼져 있거나, 네트워크 문제로 전송이 실패했을 수 있습니다.',
+      '점검 장비 상태를 확인해 주세요. (전송 실패분은 점검 장비의 results.jsonl에 남아 있습니다)',
+    ].join('\n');
+  } else {
+    const fails = recent.filter(r => r[idx.result] === 'fail');
+
+    // 판정 단계(L1/L2/L3)별로 나눠 집계한다. 한 시나리오가 L1(응답 유무)과
+    // L2(내용 정확도) 두 건을 남기므로, 섞어 세면 성공률이 왜곡된다.
+    const byLevel = {};
+    recent.forEach(r => {
+      const lv = String(r[idx.level] || 'L1').toUpperCase();
+      const key = r[idx.scenario_label] || r[idx.scenario_id] || '(미상)';
+      if (!byLevel[lv]) byLevel[lv] = {};
+      if (!byLevel[lv][key]) byLevel[lv][key] = { total: 0, fail: 0, latSum: 0, latN: 0 };
+      const s = byLevel[lv][key];
+      s.total++;
+      if (r[idx.result] === 'fail') s.fail++;
+      const lat = Number(r[idx.latency_ms]);
+      if (lat > 0) { s.latSum += lat; s.latN++; }
+    });
+
+    const statusMark = fails.length === 0 ? '✅ 전체 정상' : `⚠ 실패 ${fails.length}건`;
+    subject = `[ThinQ Real] 자동 점검 일일 요약 (${today}) — ${statusMark}`;
+
+    const lines = [
+      `최근 24시간 ThinQ ON 자동 점검 결과입니다.`,
+      '',
+      `총 판정 : ${recent.length}건  (성공 ${recent.length - fails.length} / 실패 ${fails.length})`,
+    ];
+
+    view.failCount = fails.length;
+    Object.keys(byLevel).sort().forEach(lv => {
+      lines.push('');
+      lines.push(`── ${FC_LEVEL_LABELS[lv] || lv} ──`);
+      const group = byLevel[lv];
+      const items = [];
+      Object.keys(group).forEach(key => {
+        const s = group[key];
+        const rate = Math.round((s.total - s.fail) / s.total * 100);
+        const avgLat = s.latN > 0 ? Math.round(s.latSum / s.latN) : null;
+        const latPart = avgLat !== null ? `, 평균 응답 시작 ${avgLat}ms` : '';
+        lines.push(`  ${key} : 성공률 ${rate}% (${s.total - s.fail}/${s.total})${latPart}`);
+        items.push({ label: key, rate: rate, pass: s.total - s.fail, total: s.total, avgLat: avgLat });
+      });
+      view.levels.push({ code: lv, title: FC_LEVEL_LABELS[lv] || lv, items: items });
+      if (items.some(it => it.avgLat !== null)) {
+        // 평문 클라이언트에도 같은 도식을 싣는다 (HTML판과 정보량을 맞춤)
+        lines.push('');
+        lines.push('  ※ 응답 시작 측정 구간');
+        lines.push('     ① "하이 엘지" 재생 → ② ThinQ ON "띵" → ③ 1.5초 대기 → ④ 점검 질문 재생');
+        lines.push('                                                      ↓ 재생 끝 = 0ms');
+        lines.push('                                                ⑤ 녹음 시작 ─── ⑥ 말 시작');
+        lines.push(`     ${FC_LATENCY_NOTE}`);
+      }
+    });
+
+    if (fails.length > 0) {
+      lines.push('');
+      lines.push('── 실패 상세 (최근순, 최대 10건) ──');
+      fails.slice(-10).reverse().forEach(r => {
+        // Sheets가 timestamp를 Date 객체로 자동 변환하는 경우가 있어 양쪽 모두 처리
+        const tsv = r[idx.timestamp];
+        const ts = (Object.prototype.toString.call(tsv) === '[object Date]')
+          ? Utilities.formatDate(tsv, Session.getScriptTimeZone(), 'MM-dd HH:mm')
+          : String(tsv).replace('T', ' ').slice(5, 16);
+        const lv = String(r[idx.level] || 'L1').toUpperCase();
+        lines.push(`  ${ts}  [${lv}] ${r[idx.scenario_label] || r[idx.scenario_id]}  (녹음: ${r[idx.media_ref] || '-'})`);
+        // L2 실패는 "무엇을 어떻게 잘못 답했는지"가 원인 파악의 핵심이므로 함께 싣는다
+        const said = String(r[idx.stt_text] || '').trim();
+        if (said) lines.push(`        인식: "${said.length > 120 ? said.slice(0, 120) + '…' : said}"`);
+        // 점검 장비가 원인을 특정한 실패(마이크 무입력 등)는 사유를 그대로 노출한다.
+        // 이것이 없으면 점검 장비 설정 문제를 ThinQ ON 장애로 오인하게 된다.
+        const note = fcNormalizeNote(r[idx.note]);
+        if (note) lines.push(`        ⚠ ${note}`);
+        view.failures.push({
+          ts: ts, level: lv,
+          label: String(r[idx.scenario_label] || r[idx.scenario_id] || ''),
+          media: String(r[idx.media_ref] || ''),
+          said: said.length > 120 ? said.slice(0, 120) + '…' : said,
+          note: note,
+        });
+      });
+      lines.push('');
+      lines.push('실패 녹음 파일은 점검 장비의 recordings 폴더에서 확인할 수 있습니다.');
+      if (fails.some(r => fcNormalizeNote(r[idx.note]).indexOf('마이크') >= 0)) {
+        lines.push('');
+        lines.push('※ "마이크 무입력"으로 표시된 건은 점검 장비 쪽 문제이며, ThinQ ON 장애가 아닙니다.');
+        lines.push('   점검 장비에서  python fieldcheck.py --mic-test  로 확인해 주세요.');
+      }
+    }
+    body = lines.join('\n');
+  }
+
+  const to = FC_TEST_MODE ? CC_EMAIL : ADMIN_EMAILS;
+  // 예약 확정 메일과 동일하게 HTML + 평문 동시 발송
+  // (HTML 미지원 클라이언트는 평문을 받으므로 정보 손실이 없다)
+  const htmlBody = buildHealthSummaryHtml(view);
+  try {
+    if (FC_TEST_MODE) {
+      MailApp.sendEmail({ to: to, subject, body, htmlBody });
+    } else {
+      MailApp.sendEmail({ to: to, cc: CC_EMAIL, subject, body, htmlBody });
+    }
+    Logger.log('FieldCheck daily summary sent → ' + to);
+  } catch(err) {
+    Logger.log('FieldCheck daily summary error: ' + err.message);
+  }
+}
+
+// ── '응답 시작' 측정 구간 도식 ──────────────────────────────
+// 점검 한 회차의 진행 순서를 보여주고, 그중 어느 구간을 잰 값인지 표시한다.
+// (숫자만 보면 '답을 마치기까지의 시간'으로 오해하기 쉬움)
+// 메일 클라이언트 호환: flex/grid 없이 표 셀 6칸으로 배치
+// 과거 기록 호환 — 초기 버전이 '리그'라는 용어로 기록한 사유가 시트에 남아
+// 있다. 저장된 값을 고치는 대신 표시 시점에 현재 용어로 바꾼다
+// (이미 발생한 기록을 수정하지 않는 편이 이력 추적에 안전하다).
+function fcNormalizeNote(v) {
+  return String(v || '').trim().replace(/리그/g, '점검 장비');
+}
+
+function buildLatencyDiagramHtml() {
+  const OLIVE = '#3a5035', GRAY = '#6e6e73', LIGHT = '#aeaeb2';
+
+  const step = function (n, line1, line2, active) {
+    return '<td width="16%" align="center" valign="top" style="padding:0 3px;">' +
+      '<div style="width:20px;height:20px;line-height:20px;border-radius:10px;' +
+        'background:' + (active ? OLIVE : '#e0e0e5') + ';color:' + (active ? '#ffffff' : GRAY) + ';' +
+        'font-size:11px;font-weight:700;margin:0 auto;">' + n + '</div>' +
+      '<div style="font-size:10.5px;color:' + (active ? '#1d1d1f' : GRAY) + ';margin-top:6px;line-height:1.5;">' +
+        line1 + (line2 ? '<br>' + line2 : '') +
+      '</div>' +
+    '</td>';
+  };
+
+  return (
+    '<div style="margin-top:12px;padding:15px 16px 14px;background:#fafafa;border:1px solid #ededed;border-radius:8px;">' +
+      '<div style="font-size:11.5px;font-weight:600;color:#1d1d1f;margin-bottom:13px;">' +
+        '응답 시작은 이렇게 측정합니다' +
+      '</div>' +
+      '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' +
+        '<tr>' +
+          step('1', '“하이 엘지”', '재생', false) +
+          step('2', 'ThinQ ON', '“띵”', false) +
+          step('3', '1.5초', '대기', false) +
+          step('4', '점검 질문', '재생', false) +
+          step('5', '녹음 시작', '', true) +
+          step('6', 'ThinQ ON이', '말을 시작', true) +
+        '</tr>' +
+        '<tr>' +
+          '<td colspan="4" align="right" style="padding:12px 6px 0 0;font-size:10px;color:' + LIGHT + ';line-height:1.4;">' +
+            '질문 재생 끝 = 0ms ▸' +
+          '</td>' +
+          '<td colspan="2" style="padding:12px 3px 0;">' +
+            '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;">' +
+              '<tr><td height="4" style="background:' + OLIVE + ';border-radius:2px;font-size:0;line-height:0;">&nbsp;</td></tr>' +
+            '</table>' +
+            '<div style="text-align:center;font-size:10.5px;font-weight:600;color:' + OLIVE + ';margin-top:5px;">이 구간</div>' +
+          '</td>' +
+        '</tr>' +
+      '</table>' +
+      '<div style="margin-top:12px;padding-top:11px;border-top:1px solid #ededed;font-size:10.5px;color:' + GRAY + ';line-height:1.65;">' +
+        '질문을 다 말한 순간부터 <strong style="color:#1d1d1f;">답을 시작하기까지</strong> 걸린 시간입니다.<br>' +
+        '답변을 끝내기까지의 길이는 포함하지 않으며, 기동어 “띵” 시점 기준도 아닙니다.' +
+      '</div>' +
+    '</div>'
+  );
+}
+
+// ── 일일 요약 HTML (예약 확정 메일과 동일한 디자인 언어) ────
+// 인라인 스타일만 사용한다 — Gmail/Outlook은 <style> 블록과 외부 리소스를
+// 제거하므로 (기존 sendGuestMail과 같은 제약)
+function buildHealthSummaryHtml(v) {
+  const OLIVE = '#3a5035', RED = '#b3261e', GRAY = '#6e6e73', LIGHT = '#aeaeb2';
+  const ok = v.failCount === 0 && v.total > 0;
+  const noData = v.total === 0;
+
+  const statusColor = ok ? OLIVE : RED;
+  const statusText = noData ? '점검 기록 없음' : (ok ? '전체 정상' : '실패 ' + v.failCount + '건');
+  const statusIcon = ok ? '✅' : '⚠';
+
+  // 성공률 막대 — div 중첩 대신 표 셀 폭으로 그린다 (메일 클라이언트 호환)
+  const bar = (rate) =>
+    '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;max-width:76px;background:#e8e8ed;border-radius:3px;">' +
+      '<tr>' +
+        (rate > 0 ? '<td height="6" style="width:' + rate + '%;background:' + (rate === 100 ? OLIVE : RED) + ';border-radius:3px;font-size:0;line-height:0;">&nbsp;</td>' : '') +
+        (rate < 100 ? '<td height="6" style="font-size:0;line-height:0;">&nbsp;</td>' : '') +
+      '</tr>' +
+    '</table>';
+
+  const kpi = (label, value, color) =>
+    '<td align="center" style="padding:14px 8px;background:#f5f5f7;border-radius:10px;">' +
+      '<div style="font-size:24px;font-weight:600;color:' + color + ';line-height:1.2;">' + value + '</div>' +
+      '<div style="font-size:12px;color:' + GRAY + ';margin-top:2px;">' + label + '</div>' +
+    '</td>';
+
+  let inner = '';
+
+  if (noData) {
+    inner =
+      '<div style="padding:18px 20px;background:#fdf3f2;border-left:3px solid ' + RED + ';border-radius:6px;font-size:14px;color:#1d1d1f;line-height:1.7;">' +
+        '<strong>최근 24시간 동안 점검 기록이 없습니다.</strong><br>' +
+        '점검 장비(노트북)가 꺼져 있거나, 네트워크 문제로 전송이 실패했을 수 있습니다.' +
+        '<div style="color:' + GRAY + ';font-size:13px;margin-top:6px;">전송 실패분은 점검 장비의 results.jsonl에 남아 있습니다.</div>' +
+      '</div>';
+  } else {
+    inner =
+      '<table role="presentation" cellspacing="8" cellpadding="0" border="0" style="border-collapse:separate;width:100%;margin-bottom:8px;"><tr>' +
+        kpi('총 판정', v.total, '#1d1d1f') +
+        kpi('성공', v.total - v.failCount, OLIVE) +
+        kpi('실패', v.failCount, v.failCount ? RED : LIGHT) +
+      '</tr></table>';
+
+    v.levels.forEach(function (lv) {
+      const hasLat = lv.items.some(function (it) { return it.avgLat !== null; });
+      const th = 'font-size:11px;color:' + LIGHT + ';font-weight:400;padding:0 0 6px;';
+      const head =
+        '<tr>' +
+          '<td style="' + th + '">시나리오</td>' +
+          '<td style="' + th + '"></td>' +
+          '<td align="right" style="' + th + '">성공률</td>' +
+          '<td align="right" style="' + th + '">' + (hasLat ? '응답 시작' : '') + '</td>' +
+        '</tr>';
+
+      const rows = lv.items.map(function (it) {
+        return '<tr>' +
+          '<td style="padding:9px 0;font-size:13px;color:#1d1d1f;">' + escapeHtml(it.label) + '</td>' +
+          '<td align="right" style="padding:9px 8px;width:76px;">' + bar(it.rate) + '</td>' +
+          '<td align="right" style="padding:9px 0;width:82px;font-size:13px;color:' + (it.rate === 100 ? OLIVE : RED) + ';font-weight:600;white-space:nowrap;">' +
+            it.rate + '%' +
+            '<span style="color:' + LIGHT + ';font-weight:400;font-size:12px;">&nbsp;' + it.pass + '/' + it.total + '</span>' +
+          '</td>' +
+          '<td align="right" style="padding:9px 0;width:60px;font-size:12px;color:' + GRAY + ';">' +
+            (it.avgLat !== null ? it.avgLat + 'ms' : '') + '</td>' +
+        '</tr>';
+      }).join('');
+
+      inner +=
+        '<div style="margin-top:22px;font-size:13px;font-weight:600;color:' + OLIVE + ';">' + escapeHtml(lv.title) + '</div>' +
+        '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;margin-top:8px;">' +
+          head +
+        '</table>' +
+        '<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;width:100%;border-top:1px solid #eeeeee;">' +
+          rows +
+        '</table>' +
+        // 숫자만 있으면 무엇을 잰 값인지 알 수 없으므로 측정 구간을 도식으로 함께 싣는다
+        (hasLat ? buildLatencyDiagramHtml() : '');
+    });
+
+    if (v.failures.length) {
+      const cards = v.failures.map(function (f) {
+        return '<div style="margin-top:8px;padding:12px 14px;background:#fdf3f2;border-left:3px solid ' + RED + ';border-radius:6px;">' +
+          '<div style="font-size:13px;color:#1d1d1f;">' +
+            '<span style="color:' + GRAY + ';">' + escapeHtml(f.ts) + '</span>&nbsp;&nbsp;' +
+            '<span style="display:inline-block;padding:1px 6px;background:' + RED + ';color:#ffffff;border-radius:3px;font-size:11px;font-weight:600;">' + escapeHtml(f.level) + '</span>&nbsp;' +
+            '<strong>' + escapeHtml(f.label) + '</strong>' +
+          '</div>' +
+          (f.said ? '<div style="font-size:13px;color:#1d1d1f;margin-top:5px;">인식: “' + escapeHtml(f.said) + '”</div>' : '') +
+          (f.note ? '<div style="font-size:12px;color:' + RED + ';margin-top:5px;">⚠ ' + escapeHtml(f.note) + '</div>' : '') +
+          (f.media ? '<div style="font-size:11px;color:' + LIGHT + ';margin-top:5px;font-family:Consolas,Menlo,monospace;word-break:break-all;">' + escapeHtml(f.media) + '</div>' : '') +
+        '</div>';
+      }).join('');
+
+      inner +=
+        '<div style="margin-top:24px;font-size:13px;font-weight:600;color:' + RED + ';">실패 상세 (최근순, 최대 10건)</div>' +
+        cards +
+        '<div style="margin-top:10px;font-size:12px;color:' + GRAY + ';">실패 녹음 파일은 점검 장비의 recordings 폴더에서 확인할 수 있습니다.</div>';
+
+      if (v.failures.some(function (f) { return f.note.indexOf('마이크') >= 0; })) {
+        inner +=
+          '<div style="margin-top:12px;padding:12px 14px;background:#f5f5f7;border-radius:6px;font-size:12px;color:' + GRAY + ';line-height:1.6;">' +
+            '※ <strong style="color:#1d1d1f;">“마이크 무입력”</strong>으로 표시된 건은 점검 장비 쪽 문제이며, ThinQ ON 장애가 아닙니다.<br>' +
+            '점검 장비에서 <span style="font-family:Consolas,Menlo,monospace;color:#1d1d1f;">python fieldcheck.py --mic-test</span> 로 확인해 주세요.' +
+          '</div>';
+      }
+    }
+  }
+
+  return (
+    '<div style="background:#f5f5f7;padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,\'Helvetica Neue\',\'Apple SD Gothic Neo\',\'Malgun Gothic\',sans-serif;">' +
+      '<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="border-collapse:collapse;max-width:680px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;">' +
+        '<tr><td style="background:' + statusColor + ';color:#ffffff;padding:24px 28px;">' +
+          '<div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.7;">ThinQ Real · FieldCheck</div>' +
+          '<div style="font-size:20px;font-weight:600;margin-top:4px;">' + statusIcon + ' ' + escapeHtml(statusText) + '</div>' +
+          '<div style="font-size:13px;opacity:0.8;margin-top:2px;">' + escapeHtml(v.today) + ' · 최근 24시간 ThinQ ON 자동 점검 결과</div>' +
+        '</td></tr>' +
+        '<tr><td style="padding:24px 28px 28px;">' +
+          inner +
+          '<div style="margin-top:28px;padding-top:18px;border-top:1px solid #eeeeee;font-size:12px;color:' + GRAY + ';line-height:1.6;">' +
+            'ThinQ ON Field 자동 점검 시스템이 매일 아침 자동 발송하는 메일입니다.<br>' +
+            'HS플랫폼사업센터 AI홈솔루션엔지니어링팀' +
+          '</div>' +
+        '</td></tr>' +
+      '</table>' +
+    '</div>'
+  );
+}
+
+
+// ============================================================
+//  FieldVoice 현장 인사이트 (방문 인터뷰 분석 리포트)
+//  - 시트 탭: voc_reports
+//  - 파이프라인(wonseok-lab/thinqreal/fieldvoice/pipeline)이 도슨트의
+//    수동 확인 후 1페이지 요약 리포트를 POST, 관리자 페이지 🎙 탭이 GET
+//  - 저장 원칙: 가명화된 1페이지 요약만 — 원본 음성·전사는 절대 업로드하지 않음
+//    (fieldvoice/DESIGN.md §5·§8)
+//  - 인증: POST = FV_API_KEY (Script Property) / GET = 관리자 토큰 필수
+//    (health_checks와 달리 방문객 발화 인용이 포함되므로 무인증 조회 불가)
+// ============================================================
+
+function getVocSheet() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  return ss.getSheetByName(VOC_SHEET_NAME) || ss.insertSheet(VOC_SHEET_NAME);
+}
+
+function getOrCreateVocHeaders(sheet) {
+  const HEADERS = ['id', 'timestamp', 'visit_date', 'session_id', 'purpose',
+                   'one_liner', 'report_md', 'consent', 'author'];
+  const firstRow = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
+  if (!firstRow[0]) {
+    sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+    const headerRange = sheet.getRange(1, 1, 1, HEADERS.length);
+    headerRange.setBackground('#3a5035');
+    headerRange.setFontColor('#ffffff');
+    headerRange.setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return HEADERS;
+}
+
+// ── 리포트 저장 (FV_API_KEY 인증, fail-closed) ──────────────
+function handleNewVocReport(data) {
+  const fvKey = getFvApiKey();
+  if (!fvKey || String(data.apiKey || '') !== fvKey) {
+    return jsonResponse({ error: 'Unauthorized' });
+  }
+  // 1페이지 요약만 받는다 — 비정상적으로 큰 본문(전사 전문 오업로드 등)은 거부.
+  const md = String(data.report_md || '').trim();
+  if (!md) return jsonResponse({ error: 'report_md is required' });
+  if (md.length > 20000) {
+    return jsonResponse({ error: 'report too large — 1페이지 요약(report.md)만 업로드하세요' });
+  }
+
+  const sheet = getVocSheet();
+  const headers = getOrCreateVocHeaders(sheet);
+  const id = String(Date.now());
+  const row = headers.map(h => {
+    if (h === 'id')        return id;
+    if (h === 'timestamp') return data.timestamp || new Date().toISOString();
+    if (h === 'report_md') return md;
+    return data[h] != null ? String(data[h]) : '';
+  });
+  sheet.appendRow(row);
+  return jsonResponse({ success: true, id });
+}
+
+// ── 리포트 목록 조회 (관리자 토큰 필수) ─────────────────────
+function handleGetVocReports(token, days) {
+  const admin = verifyAdminToken(token);
+  if (!admin.ok) {
+    return jsonResponse({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
+  }
+
+  const sheet = getVocSheet();
+  getOrCreateVocHeaders(sheet);
+  const rows = sheet.getDataRange().getValues();
+  const headers = rows[0];
+
+  let cutoff = null;
+  const n = Number(days);
+  if (n > 0) cutoff = new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+
+  const records = rows.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((h, j) => {
+      let v = row[j];
+      if (Object.prototype.toString.call(v) === '[object Date]') v = v.toISOString();
+      obj[h] = v == null ? '' : v;
+    });
+    return obj;
+  }).filter(r => {
+    if (!r.id) return false;
+    if (!cutoff) return true;
+    const t = new Date(r.timestamp);
+    return !isNaN(t) && t >= cutoff;
+  });
+
+  // 방문일 최신순 (같은 날은 업로드 시각순)
+  records.sort((a, b) =>
+    String(b.visit_date || b.timestamp).localeCompare(String(a.visit_date || a.timestamp)) ||
+    String(b.timestamp).localeCompare(String(a.timestamp)));
+  return jsonResponse({ records });
 }
