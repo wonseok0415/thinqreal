@@ -121,7 +121,20 @@ BE팀이 사내 클라우드에 ThinQ Real 전용 인프라를 실제로 구축�
 | ENVIRONMENT 환경변수 | 앱 안에서 현재 환경(kic-st/kic-qa 등) 식별 가능 — 환경별 설정 분기(예: ST/QA는 테스트 수신자, OP만 실 발송)에 활용 예정 |
 
 ### 다음 작업에의 함의 (이관 세션용)
-1. **2단계 실체 확정**: `server/` 코드를 gitea 저장소의 샘플 자리에 README 규칙대로 이식 → push → ST 자동 배포로 검증하는 흐름.
-2. **store 어댑터**: dynamo 스텁 → **postgres 구현**으로 교체 (인터페이스 5+1종은 그대로 — 설계 의도대로 교체만 하면 됨). 시트 → PostgreSQL 데이터 이행 계획 별도.
-3. ~~도메인 전달~~ → **(08-25 정리됨)** OP만 lge.com 사용, ST/QA는 임시 도메인 유지. 잔여 액션: **OP 환경 구축 완료 통보를 받으면 CSR로 `thinqreal.lge.com` → OP 주소(예상 `kic-op-thinq-real.thinqcloud.link`) redirect 등록 신청** (강원석).
-4. 메일(SMTP)은 여전히 미결. SSO는 방향 확인됨(08-20 Confluence) — **ops-gateway 계층에서 MS Entra ID로 처리(미완 항목)**, 앱은 게이트웨이 헤더의 사용자 이메일을 읽는 방식 대비. 상세는 gitea-repo-contract.md §9.
+1. **2단계 실체 확정**: `server/` 코드를 gitea 저장소의 샘플 자리에 README 규칙대로 이식 → push → ST 자동 배포로 검증하는 흐름. → ✅ **완료 (2026-08-26, 과제 A — migration-log.md 참조)**.
+2. **store 어댑터**: dynamo 스텁 → **postgres 구현**으로 교체 (인터페이스는 그대로 — 설계 의도대로 교체만 하면 됨). 시트 → PostgreSQL 데이터 이행 계획 별도.
+3. ~~도메인 전달~~ → §6-1 ⑤로 갱신 — CSR 등록이 지금 바로 가능해짐.
+4. 메일(SMTP)은 여전히 미결(§6-1 ③ 대기). SSO 헤더 스펙은 §6-1 ④로 확정됨.
+
+### 6-1. BE팀 미결 질문 답변 (2026-08-26 Teams, 박현정 책임 — 최신 사실)
+
+| # | 항목 | 답변 |
+|---|---|---|
+| ① | SealedSecret (ST/QA) | **우리가 직접 넣으면 됨** — kubeseal 설치 후 암호화한 값을 deploy에 넣는 방식. 가이드: 사내 collab TCN 위키 "sealed-secrets 사용법" 페이지 |
+| ② | CronJob 등록 | **우리가 deploy에 직접 추가하면 됨** (git repo 소유권 = 강원석). → 다음 키트에 CronJob 매니페스트 3종(월간 리포트·설문 초대·FieldCheck 요약) 포함 예정 |
+| ③ | 사내 SMTP | BE팀 쪽 정리 필요 사항 있음 — **정리되는 대로 회신 예정 (대기)** |
+| ④ | SSO 헤더 스펙 | ops-gateway 인증 후 **`x-user-id` 헤더로 사용자 email 전달** → 후속 과제에서 앱의 HMAC 이메일 게이트를 이 헤더 판별로 교체 가능 |
+| ⑤ | OP·도메인 | **OP 준비 차주말(9월 초) 완료 예정.** CSR redirect는 기다릴 필요 없이 **ops-gateway ELB 주소를 target domain으로 지금 바로 등록 가능** (주소 원문은 Teams 08-26 답변 참조 — 사내 내부 주소라 이 퍼블릭 리포에는 미기재) |
+| ⑥ | ⚠ **OP 전용 제약 (신규 정보)** | OP에서는 BE팀이 준비한 DB가 아니라 **인프라팀 제공 DB(PostgreSQL + KVStore Redis/Valkey)를 써야 하고, secret도 sealed-secrets가 아닌 인프라팀 제공 vault를 써야 함. 둘 다 강원석이 직접 신청** — 신청 가이드는 별도 전달 예정 |
+
+**⑥의 함의**: 우리 컨테이너는 DB·Valkey·비밀값을 전부 **env 주입**으로 받는 구조라 **코드 변경 없음** — ST/QA(BE팀 DB + sealed-secrets)와 OP(인프라팀 DB + vault)는 주입 경로만 다르고 앱은 동일 이미지 그대로 간다. 과제 B(postgres 어댑터)도 영향 없음.
