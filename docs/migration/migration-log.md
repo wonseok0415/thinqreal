@@ -217,3 +217,9 @@ BE팀이 사내 클라우드에 ThinQ Real 인프라 구축 진행 — **상세�
 - 사내 Claude가 남긴 막힌 것 2건은 사람 몫의 확인으로 해소/이월: Actions 육안 확인(담당자 완료) / 인증 게이트 테스트(LENS 로그 접근 필요 — BE팀에 접근 방법 문의 예정, 출장 복귀 후 수행).
 
 **다음**: BE팀 문의 4+2건(SealedSecret·CronJob 3종 등록·SMTP·SSO 헤더·OP 시점·LENS 접근) 발송 → 담당자 9/1~9/10 IFA 출장 → 복귀 후 과제 B(PostgreSQL 어댑터 — 외부 트랙이 출장 기간 중 사전 제작 검토).
+
+## 작업 내역 (2026-08-26 후속 — BE팀 미결 질문 답변 회수)
+
+박현정 책임 Teams 답변(6건) 회수 — **정리본은 decisions-2026-07-06.md §6-1이 단일 소스.** 요지: SealedSecret·CronJob은 우리가 직접 넣으면 됨 / SMTP는 BE팀 회신 대기 / SSO는 `x-user-id` 헤더로 email 전달 / OP 차주말 완료 예정 + CSR redirect 지금 등록 가능(target=ops-gateway ELB, 주소 원문은 사내 Teams 기록) / ⚠ **OP는 인프라팀 제공 DB(PG+Valkey)·vault 필수, 강원석 직접 신청** (가이드 별도 전달 예정 — env 주입 구조라 앱 코드 영향 0).
+
+담당자 액션: ① CSR redirect 등록 신청(즉시 가능) ② OP용 DB·vault 신청(가이드 수신 후) ③ SMTP 회신 대기. 외부 트랙 후속: 과제 B 키트(postgres 어댑터) + CronJob 매니페스트 3종 사전 제작 검토.
