@@ -1644,12 +1644,17 @@ function getManualArticles(month) {
     const row = rows[i];
     const rowMonth = normalizeMonth(row[idxMonth]);
     if (rowMonth !== month) continue;
-    const title = String(row[idxTitle] || '').trim();
+    // 시트 저장분 엔티티 소급 힐링 (2026-08-25) — 16진 미지원 시절 저장 값(&#x27; 등)을 읽기 시점에 교정.
+    // title이 채워진 행은 enrich를 건너뛰므로(아래) 반드시 여기서 디코딩해야 함. 평문에는 무변화. URL은 제외.
+    const rawTitle   = String(row[idxTitle] || '').trim();
+    const rawSource  = idxSource  >= 0 ? String(row[idxSource]  || '').trim() : '';
+    const rawSummary = idxSummary >= 0 ? String(row[idxSummary] || '').trim() : '';
+    const title = decodeHtmlEntities(rawTitle);
     const url   = String(row[idxUrl]   || '').trim();
     if (!url) continue;                 // url은 필수
 
-    const origSource  = idxSource  >= 0 ? String(row[idxSource]  || '').trim() : '';
-    const origSummary = idxSummary >= 0 ? String(row[idxSummary] || '').trim() : '';
+    const origSource  = decodeHtmlEntities(rawSource);
+    const origSummary = decodeHtmlEntities(rawSummary);
     const origPubAt   = idxPubAt   >= 0 ? formatPublishedDate(row[idxPubAt]) : '';
     const origThumb   = idxThumb   >= 0 ? String(row[idxThumb]   || '').trim() : '';
 
@@ -1672,6 +1677,10 @@ function getManualArticles(month) {
     if (idxTitle   >= 0 && !title       && enriched.title)       updates.push([idxTitle,   enriched.title]);
     if (idxSource  >= 0 && !origSource  && enriched.source)      updates.push([idxSource,  enriched.source]);
     if (idxSummary >= 0 && !origSummary && enriched.snippet)     updates.push([idxSummary, enriched.snippet]);
+    // 힐링된 값이 저장분과 다르면 시트도 1회성 교정 (다음 읽기부턴 평문)
+    if (idxTitle   >= 0 && title       && title       !== rawTitle)   updates.push([idxTitle,   title]);
+    if (idxSource  >= 0 && origSource  && origSource  !== rawSource)  updates.push([idxSource,  origSource]);
+    if (idxSummary >= 0 && origSummary && origSummary !== rawSummary) updates.push([idxSummary, origSummary]);
     if (idxPubAt   >= 0 && !origPubAt   && enriched.publishedAt) updates.push([idxPubAt,   enriched.publishedAt]);
     if (idxThumb   >= 0 && !origThumb   && enriched.thumbnail)   updates.push([idxThumb,   enriched.thumbnail]);
     if (updates.length) {
@@ -3911,9 +3920,10 @@ function readArticleRows() {
     if (!url) continue;
     out.push({
       month: normalizeMonth(rows[i][iM]),
-      title: String(rows[i][iT] || '').trim(),
+      // 엔티티 소급 힐링 (2026-08-25) — 관리자 큐레이션 목록 표시도 교정 (평문 무변화)
+      title: decodeHtmlEntities(String(rows[i][iT] || '').trim()),
       url: url,
-      source: iS >= 0 ? String(rows[i][iS] || '').trim() : '',
+      source: iS >= 0 ? decodeHtmlEntities(String(rows[i][iS] || '').trim()) : '',
       published_at: iP >= 0 ? formatPublishedDate(rows[i][iP]) : '',
     });
   }
