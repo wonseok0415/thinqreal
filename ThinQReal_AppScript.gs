@@ -1982,6 +1982,11 @@ function encodePngBytes(raw, width, height) {
 // URL의 HTML을 fetch해서 OpenGraph 메타 태그로 빈 필드 자동 채우기
 // 담당자가 이미 채워둔 필드는 보존, 비어 있는 필드만 자동으로 채움
 function enrichArticleFromUrl(item) {
+  // 시트에 이미 저장된 값의 엔티티 잔재 소급 정리 (16진 미지원 시절 저장분 — 일반 텍스트에는 무해)
+  const cleanStored = v => (v ? decodeHtmlEntities(String(v)) : v);
+  item = Object.assign({}, item, {
+    title: cleanStored(item.title), snippet: cleanStored(item.snippet), source: cleanStored(item.source),
+  });
   const meta = fetchYoutubeMeta(item.link) || fetchUrlMeta(item.link);
   if (!meta) {
     // fetch 실패 시 도메인이라도 source로 (마지막 안전망)
@@ -2001,15 +2006,21 @@ function enrichArticleFromUrl(item) {
 }
 
 // 인코딩 감지(헤더 → HTML meta charset → UTF-8 폴백) 후 메타 태그 파싱
-// EUC-KR/MS949 사용하는 일부 국내 뉴스 사이트의 한글 깨짐 방지
+// EUC-KR/MS949 사용하는 일부 국내 뉴스 사이트의 한글 깨짐 방지.
+// 봇 UA를 차단하는 사이트(chip.de 등 — 403/차단 페이지)는 브라우저 UA로 1회 재시도 (2026-08-25).
 function fetchUrlMeta(url) {
+  return fetchUrlMetaWith(url, 'Mozilla/5.0 (compatible; ThinQRealBot/1.0; +https://thinqreal.com)')
+      || fetchUrlMetaWith(url, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36');
+}
+
+function fetchUrlMetaWith(url, userAgent) {
   try {
     const resp = UrlFetchApp.fetch(url, {
       muteHttpExceptions: true,
       followRedirects: true,
       validateHttpsCertificates: true,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; ThinQRealBot/1.0; +https://thinqreal.com)',
+        'User-Agent': userAgent,
         'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.5',
       },
     });
@@ -2047,7 +2058,9 @@ function fetchUrlMeta(url) {
         html = utf8Text;
       }
     }
-    return parseMetaTags(html);
+    const meta = parseMetaTags(html);
+    // 유효 메타가 하나도 없으면 실패로 간주 → 호출부의 다음 UA 재시도 유도
+    return (meta.title || meta.description || meta.image) ? meta : null;
   } catch(err) {
     Logger.log('fetchUrlMeta error for ' + url + ': ' + err.message);
     return null;
@@ -2088,12 +2101,16 @@ function parseMetaTags(html) {
   return result;
 }
 
+// 숫자 엔티티(10·16진) → 문자 우선 변환, &amp;는 마지막(이중 디코딩 방지).
+// 16진(&#x27; &#xc744; 등) 미지원이 MTN 제목·Instagram 요약 깨짐의 원인이었음 (2026-08-25 수정).
 function decodeHtmlEntities(s) {
   return String(s)
-    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+    .replace(/&#x([0-9a-fA-F]+);/g, (m, n) => { try { return String.fromCodePoint(parseInt(n, 16)); } catch (e) { return m; } })
+    .replace(/&#(\d+);/g, (m, n) => { try { return String.fromCodePoint(parseInt(n, 10)); } catch (e) { return m; } })
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
     .replace(/&nbsp;/g, ' ')
-    .replace(/&#(\d+);/g, (m, n) => String.fromCharCode(parseInt(n, 10)));
+    .replace(/&amp;/g, '&');
 }
 
 function extractDomain(url) {
