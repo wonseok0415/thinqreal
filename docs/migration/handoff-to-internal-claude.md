@@ -42,7 +42,8 @@
 
 ## 5. 과제 목록 (한 세션에 하나씩, 이 순서대로)
 
-**과제 A — server/ 코드를 Gitea 저장소에 이식** (읽을 것: `gitea-repo-contract.md` §1·§2·§8 + 저장소의 실제 Dockerfile·release.yml·src/server.js)
+**과제 A — server/ 코드를 Gitea 저장소에 이식** ✅ **완료 (2026-08-26)** — 키트 v2 적용·push, Actions 성공, ST 검증표 4/4 통과 (healthz/메인 페이지/관리자/가전 45). 아래 원문은 이력 보존용.
+(읽을 것: `gitea-repo-contract.md` §1·§2·§8 + 저장소의 실제 Dockerfile·release.yml·src/server.js)
 - `src/server.js`(샘플) 제거 → `server/src/*`를 `src/`로 이동. `server/package.json` 병합(pg 의존성은 샘플 것 유지).
 - 정적 프론트(HTML 6종 — index/admin/ROI/Visit_Survey/Visitor_Survey/privacy + images/)도 이미지에 COPY — **키트의 public/이 최신본** (`original-code/`는 7월 초 구버전이라 쓰지 말 것. 이식 시점에 외부 트랙에 최신 여부 재확인).
 - Dockerfile: 샘플의 실행 패턴 유지하되 의존성(express·googleapis·nodemailer·iconv-lite·@napi-rs/canvas·chart.js·chartjs-plugin-datalabels) + **fonts-noto-cjk**(차트 한글 필수) 추가, `CMD ["node","src/index.js"]`.

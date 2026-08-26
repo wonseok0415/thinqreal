@@ -201,3 +201,19 @@ BE팀이 사내 클라우드에 ThinQ Real 인프라 구축 진행 — **상세�
 - **server/ 보강 (커밋 `c117295`)**: Valkey 공유 캐시(kvcache.js — 인증 코드·쿨다운·잠금), AUTH_SECRET Valkey 공유(auth/secret.js, SealedSecret 전 임시), ENVIRONMENT=kic-st/qa 실발송 자동 억제, googleapis 지연 로드, alpine 폰트 경로.
 - **과제 A 키트 전달** (`thinq-real_kit_A.zip`, 스크래치 산출물 — 리포 미커밋): alpine Dockerfile + release.yml(테스트 명령 1줄 교체) + 병합 package.json + src 44파일 + public/(최신 정적) + KIT-INSTRUCTIONS.md. 사내에서 절차대로 반영→`feat:` push→ST 자동 배포→검증표 확인.
 - ⚠ ECR 계정 ID·클러스터 내부 주소는 퍼블릭 리포에 기재 금지 — 키트·스냅샷(스크래치)에만.
+
+## 작업 내역 (2026-08-25~26 — main 재병합 + 신규 기능 전체 이식 + ✅ 과제 A 완료)
+
+**① main 재병합 + 컨테이너 동기화 (2026-08-25, 커밋 `9625b90` → PR #78 머지)**
+라이브 트랙이 병합 기준점 이후 126커밋(.gs 3,400→5,052줄) 진행된 것을 담당자 지적으로 확인 → main 재병합 후 신규 기능을 컨테이너에 전량 이식 (API **GET 19종 + POST 29종**). 상세는 stage1-container-design.md §8-7이 단일 소스. 키트도 v2로 재생성·전달 (`thinq-real_kit_A_v2.zip` — src 55파일 + 정적 6종 최신본).
+- 메모리 실측: 부팅 43MB → 리포트 도넛 렌더 후 51~54MB — **256Mi 한도의 ~20%, "빡빡하다" 우려 해소** (동적 로드 + 소형 캔버스 효과).
+- PR #78로 `server/`·`docs/migration/` 최신본이 main에 반영됨 (라이브 파일 diff 0). 브랜치는 merge 후 origin/main 기준 재시작.
+
+**② ✅ 과제 A 완료 (2026-08-26 — 사내 적용, 담당자 + 사내 Claude 방법 B)**
+- 키트 v2를 메일로 사내 반입 → 사내 PC에 작업 폴더(`thinqreal-work\` — OneDrive 동기화 밖) 구성 → 사내 Claude가 KIT-INSTRUCTIONS.md 절차대로 적용·push (잔여 한도 ~20%로 완료).
+- Gitea Actions workflow **성공(초록)** 확인 → ST 검증표 **4/4 통과**: `/healthz` `{"ok":true,"backend":"memory"}` / `/` ThinQ Real 메인 페이지(샘플 hello 대체 확인) / `/thinqreal_admin.html` / `/api?type=appliances` 45개.
+- **ST에서 우리 컨테이너가 실가동 중** — 단일 도커 컨테이너 이관의 첫 실배포.
+- ⚠ 접속 주소 특이사항: 문서 기록 주소(`kic-st-thinq-real.thinqcloud.link`)로는 "연결할 수 없음"이었고, 담당자가 Teams의 `thinqreal`→`thinq-real` 변경 안내를 참고해 수정한 주소로 열림 — **실제 동작 주소 원문 확보 필요** (확보 시 이 문서·KIT·decisions §6 주소 일괄 정정).
+- 사내 Claude가 남긴 막힌 것 2건은 사람 몫의 확인으로 해소/이월: Actions 육안 확인(담당자 완료) / 인증 게이트 테스트(LENS 로그 접근 필요 — BE팀에 접근 방법 문의 예정, 출장 복귀 후 수행).
+
+**다음**: BE팀 문의 4+2건(SealedSecret·CronJob 3종 등록·SMTP·SSO 헤더·OP 시점·LENS 접근) 발송 → 담당자 9/1~9/10 IFA 출장 → 복귀 후 과제 B(PostgreSQL 어댑터 — 외부 트랙이 출장 기간 중 사전 제작 검토).
