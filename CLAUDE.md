@@ -95,7 +95,7 @@
 - **관리 탭**: 📋 예약 관리(KPI·필터·승인/거절·상세 모달·이력 추가/수정·영구 삭제·CSV 내보내기) / 📊 통계 / 🚫 슬롯 제어 / 🔐 연동 계정 / 🎬 시연 시나리오 / 💡 조명 스위치 / ⚙️ 시스템 구성 / 📦 구비 가전(45개, `?type=appliances` fetch)
 - **분석 탭**: 📈 ROI 분석(iframe, `ROI_BUILD` 캐시 토큰) / 📝 설문·대장 — **서브탭 4분할**(2026-08-22 A안 + 🏆 분리): 응답·대장·이슈(파생 관계 세트) / 방문자 / 베스트 리뷰어(월 현황·발송 이력·당월 후보) / 리포트 준비. 마지막 뷰는 localStorage(`thinqreal_admin_sv_subtab`) 기억, 렌더는 전 섹션 공통(표시만 전환). 필터 스코프: 트랙=응답 전용(main만 표시), 월=응답·대장·이슈·방문자 공용(베스트 리뷰어·리포트 준비는 자체 월 선택기). 응답 상세 모달에서 베스트 리뷰어 발송(🏆 마커·월 현황 표시)
 - **데이터 로딩**: stale-while-revalidate — localStorage 캐시(`thinqreal_bookings_v1`, TTL 30분) 즉시 렌더 + 백그라운드 fresh fetch. 콜드 스타트 1~3초 스피너는 정상.
-- **CSV 내보내기**: 모달에서 다운로드 사유(5자+) + 비밀번호(ASCII 8자+) → `export_log` 기록 성공 후에만 ZipCrypto 암호화 ZIP 다운로드.
+- **CSV 내보내기**: 모달에서 다운로드 사유(5자+) + 비밀번호(ASCII 8자+) → `export_log` 기록 성공 후에만 ZipCrypto 암호화 ZIP 다운로드. **설문 원본 내보내기**(2026-08-27 — AI 인사이트 추출 1단계): 설문·대장 탭 툴바 ⬇ → 응답·방문자 전 컬럼(raw_json 포함)을 CSV+JSONL 두 형식으로, 절차·게이트는 예약 CSV와 동일 (reason에 대상·건수 접두 기록).
 - **반응형**: 사이드바 240↔64 토글(localStorage `thinqreal_admin_sidebar_collapsed`) / 모바일 오프캔버스 드로어. 표는 `.table-card` 가로 스크롤(booking 760px·survey 780px·ledger 960px·issue 1000px min-width).
 
 ## 설문 파이프라인

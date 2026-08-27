@@ -81,7 +81,7 @@
 | `survey_delete` | 관리자 토큰 | 설문 응답 영구 삭제 (2026-07-16 — 테스트·실수 정리용). **파생 행(대장·이슈, response_id 연결) cascade 삭제** | — (알림 미발송) |
 | `ledger_delete` | 관리자 토큰 | 대장 행 영구 삭제 (테스트·실수 정리용 — 실제 성과 기록은 드롭 권장) | — (알림 미발송) |
 | `issue_delete` | 관리자 토큰 | 이슈 행 영구 삭제 (테스트·실수 정리용 — 실제 이슈는 기각 권장) | — (알림 미발송) |
-| `export_log` | 관리자 토큰 | CSV 내보내기 감사 로그 기록 `{reason, rowCount}` (2026-07-20 — 개인정보보호팀 요구). email은 토큰 payload에서 추출, 파일 비밀번호는 미기록 | — |
+| `export_log` | 관리자 토큰 | CSV 내보내기 감사 로그 기록 `{reason, rowCount}` (2026-07-20 — 개인정보보호팀 요구). email은 토큰 payload에서 추출, 파일 비밀번호는 미기록. **2026-08-27부터 설문 원본 내보내기(응답·방문자 CSV+JSONL — AI 인사이트 추출 1단계)도 동일 엔드포인트 사용** — reason에 `[설문 원본: 응답 N건 · 방문자 M건]` 접두, rowCount=총 행수 (컬럼 무변경) | — |
 | `roi_report_pin` | 관리자 토큰 | 리포트 반영 시나리오 지정 `{id}` / 해제 `{id:''}` → Script Property `roi_report_snapshot_id` (2026-08-24). 미존재 id 거부. **지정 시에만 리포트 ROI 블록이 해당 스냅샷 수치로 렌더** — 미지정·조회 실패·필드 결손은 `ROI_FIXED` 고정 수치 폴백. roi_snapshot 저장이 공개 경로라 「최신 자동 참조」는 금지 — 지정 경로만 허용 | — |
 | `best_reviewer_send` | 관리자 토큰 | 베스트 리뷰어 축하 메일 발송 `{responseId, month, email, name, dept, visitDate, product}` → `best_reviewers` 이력 기록 (2026-08-22). 가드: 같은 responseId 재발송·월 3명(`BEST_MONTHLY_LIMIT`) 초과·@lge.com 외 수신 거부. 발송 성공 후에만 기록(실패 시 재시도 가능) | 축하 메일 발송 (BCC: 담당자 3+팀장+운영자 — `BEST_REVIEWER_BCC`). **기프티콘은 별도 채널 전달 — 시스템 미경유** |
 
