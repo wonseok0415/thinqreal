@@ -59,7 +59,7 @@
 | 담당자 알림 수신(ADMIN_EMAILS) | 이철호(ch275.lee) · 서문수(moonsu.seo) · 김현진(hj8462.kim) |
 | CC(CC_EMAIL) | kang.wonseok@lge.com |
 
-- **엔드포인트 전체 스펙은 `docs/migration/api-contract.md`가 단일 소스** (GET 18종 + POST 29종 — 2026-08-24 기준, 인증 모델·메일 규칙·스케줄 포함). 여기엔 요약만 둔다:
+- **엔드포인트 전체 스펙은 `docs/migration/api-contract.md`가 단일 소스** (GET 18종 + POST 30종 — 2026-08-26 기준, 인증 모델·메일 규칙·스케줄 포함). 여기엔 요약만 둔다:
   - 공개: `booking`(예약 접수→알림 메일+텔레그램), `survey_submit`(설문→파생 행+텔레그램), `visitor_submit`(방문자 현장 설문→텔레그램, 파생 없음), `availability`, `appliances`, `auth_*`/`admin_auth_*`(코드 인증)
   - 관리자 토큰 필수: `bookings` 조회, `update`(확정/거절→예약자 메일+캘린더), `booking_delete`, `admin_booking_create/edit`(알림 미발송 — 백필용), `slot_block/unblock`, `survey/ledger/issue`의 update·delete, `export_log`, `survey_data`
   - ROI `roi_snapshot`/`roi_delete`는 토큰 미적용 (별창 열림 → 토큰 전달 경로 없음, 저위험 수용)
@@ -127,7 +127,7 @@
 | 설문 요청 자동 발송 | `installSurveyInviteTrigger()` 설치됨(2026-07-20) — 매일 08:30, CC=담당자3+강원석(`SURVEY_INVITE_CC_AUTO`). 수동 배치 CC=강원석만(`SURVEY_INVITE_CC_BATCH`) |
 | 텔레그램 알림 | 신규 예약·확정/거절·설문 제출·방문자 설문 제출 → 그룹 발송. 메일과 독립(try/catch 격리) |
 | Google 캘린더 | 확정 예약 → 팀 캘린더(`thinq_real_calendar@gmail.com`) 회차별 개별 일정. 확정→생성/수정→갱신(delete+recreate)/거절·삭제→제거. `calendarEventId`에 id 배열 JSON |
-| 기사 검색 | **수동 큐레이션 우선 + 자동 보충 병합**: 관리자 큐레이션 UI(URL 입력 → 메타 태그로 제목·썸네일 자동 추출, **YouTube는 oEmbed+i.ytimg 우회**) 또는 시트 직접 입력한 링크가 먼저 실리고, 5건(`REPORT_ARTICLE_LIMIT`) 미달분만 Serper.dev(`SERPER_API_KEY`, 키워드 `MONTHLY_REPORT_QUERY`='LG전자 ThinQ Real' — 2026-08-04 팀장 리뷰) → CSE 폴백(403 차단 중)으로 보충. **자동 수집은 ThinQ Real/씽큐 리얼 포함 기사만**(`filterThinqRealItems`) — 없으면 0건이 정상. 설명문은 수동/혼합/자동 케이스별 자동 동기화 |
+| 기사 검색 | **수동 큐레이션 우선 + 자동 보충 병합**: 관리자 큐레이션 UI(URL 입력 → 메타 태그로 제목·썸네일 자동 추출, **YouTube는 oEmbed+i.ytimg 우회**, 크롤러 차단·로그인 게이트 매체는 행별 **[수정] 모달**로 제목·출처·요약·게재일·썸네일 직접 교정 — `article_update`, 2026-08-26) 또는 시트 직접 입력한 링크가 먼저 실리고, 5건(`REPORT_ARTICLE_LIMIT`) 미달분만 Serper.dev(`SERPER_API_KEY`, 키워드 `MONTHLY_REPORT_QUERY`='LG전자 ThinQ Real' — 2026-08-04 팀장 리뷰) → CSE 폴백(403 차단 중)으로 보충. **자동 수집은 ThinQ Real/씽큐 리얼 포함 기사만**(`filterThinqRealItems`) — 없으면 0건이 정상. 설명문은 수동/혼합/자동 케이스별 자동 동기화 |
 
 ## 데이터 스키마
 - **컬럼 정의 단일 소스**: `docs/migration/data-schema.md` + Apps Script의 `HEADERS`/`SURVEY_HEADERS`/`LEDGER_HEADERS`/`ISSUE_HEADERS` 상수.
@@ -187,6 +187,7 @@
 - 주차 안내에 ThinQ Real 담당자 개인 이메일 재기재 금지 (mgparking·mgoc·Kuwait.park는 외부 조직이라 예외).
 
 ### 관리자 페이지 UI
+- **UI 설계 기준은 실사용 관리자** (2026-08-26 운영자 지시 — 운영자 본인은 상시 사용자가 아님): 반복 운영 작업이 구글 시트 직접 편집을 요구하지 않도록 관리자 페이지 안에서 완결되게 설계한다 (예: 기사 메타 교정 → [수정] 모달). 시트 직접 편집은 백필·비상 경로로만.
 - 새 모달의 백드롭 닫기는 인라인 onclick 대신 `bindBackdropClose()` 사용. **입력 폼 성격 모달은 백드롭 닫기 자체를 바인딩하지 않는 것이 원칙** (작성 중 내용 소실 방지). 조회용 모달만 백드롭 닫기 허용.
 - 영구 삭제류는 **"삭제" 정확 일치 타이핑 게이트** — 약화 금지. `booking_delete`·`admin_booking_create/edit`는 알림 미발송이 의도된 동작.
 - ROI 툴 갱신 시 `ROI_BUILD` 토큰 필수 상향 (`?v={token}` — 안 올리면 iframe 캐시로 옛 버전).

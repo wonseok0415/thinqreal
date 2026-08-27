@@ -43,7 +43,7 @@
 | `slot_blocks` | `date=` (선택) | — | 차단 슬롯 현황 (비민감) |
 | `telegram_test` | — | — | `{ok:true}` 또는 `{ok:false, reason:'not_configured'}` |
 | `calendar_test` | — | — | 캘린더 연동 점검 (테스트 일정 생성 후 즉시 삭제) |
-| `survey_data` | `token` | 관리자 | `{responses:[], ledger:[], issues:[], visitors:[], insights:[], articles:[], bestReviewers:[]}` — 설문·대장·이슈·방문자·큐레이션·기사·베스트 리뷰어 이력 통합 조회 (insights·articles 2026-08-03, bestReviewers 2026-08-22 추가) |
+| `survey_data` | `token` | 관리자 | `{responses:[], ledger:[], issues:[], visitors:[], insights:[], articles:[], bestReviewers:[]}` — 설문·대장·이슈·방문자·큐레이션·기사·베스트 리뷰어 이력 통합 조회 (insights·articles 2026-08-03, bestReviewers 2026-08-22 추가). articles 행은 `{month, title, url, source, published_at, summary, thumbnail}` (summary·thumbnail은 수정 모달 프리필용 — 2026-08-26 추가, title·source·summary는 엔티티 디코딩 적용) |
 | `health_checks` | `days=` (선택) | — ⚠ 무인증 | FieldCheck 점검 이력 조회 (관리자 🩺 탭용). ⚠ 토큰 게이트 적용 검토는 FieldCheck 전용 세션에 위임 (2026-07-30 관찰) |
 | `voc_reports` | `token`, `days=` (선택) | **관리자** | FieldVoice 현장 인사이트 리포트 목록 (관리자 🎙 탭용, 2026-08-19). 방문객 발화 인용이 포함되므로 health_checks와 달리 처음부터 토큰 게이트. ⚠ 기능 상세는 FieldVoice(아이디어 트랙) 소관 — 존재·인증 방식만 등재 |
 
@@ -72,6 +72,7 @@
 | `insight_delete` | 관리자 토큰 | 큐레이션 행 삭제 `{id}` | — |
 | `article_add` | 관리자 토큰 | 관련 기사 링크 추가 `{month, url}` → `monthly_articles` (2026-08-03). 제목·출처·요약·썸네일은 서버가 메타 태그에서 자동 추출(실패 시 공란 → 리포트 빌드 때 재시도). month는 텍스트 강제 저장. 같은 달 중복 URL 거부 | — |
 | `article_delete` | 관리자 토큰 | 관련 기사 링크 삭제 `{month, url}` | — |
+| `article_update` | 관리자 토큰 | 기사 메타 직접 교정 `{month, url, title?, source?, summary?, published_at?, thumbnail?}` (2026-08-26) — 크롤러 차단·로그인 게이트 매체용. month+url이 행 정체성(수정 불가), 전송된 필드만 트림 저장(빈 문자열=비우기 허용 — title 비우면 다음 빌드 때 자동 추출 재시도), 미전송 필드 보존. 미존재 행 `not_found` | — |
 | `insight_move` | 관리자 토큰 | 큐레이션 항목 순서 조정 `{id, dir:'up'|'down'}` — 같은 월·타입 그룹 seq 1..n 재기록 (2026-08-04) | — |
 | `article_move` | 관리자 토큰 | 기사 순서 조정 `{month, url, dir}` — 같은 달 이웃 행과 값 교환 (순서 컬럼 없음 — 컬럼 구조 불변) | — |
 | `survey_update` | 관리자 토큰 | 설문 응답 내용 정정 (2026-07-14). 불변: `response_id/submitted_at/track/raw_json` + 파생 트리거 3종(`media_link/etc_link/iot_defect`) | — (행 삭제 없음 — 의도) |

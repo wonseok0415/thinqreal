@@ -2576,6 +2576,52 @@ body {
   </div>
 </div>
 
+<!-- 기사 정보 수정 모달 (입력 폼 — 백드롭 닫기 미바인딩 원칙, 2026-08-26).
+     크롤러 차단·로그인 게이트 매체는 자동 추출이 불가 — 관리자가 UI에서 직접 교정하는 경로 -->
+<div class="modal-backdrop" id="articleEditBg">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <h2 class="modal-title">✏️ 기사 정보 수정</h2>
+      <button class="modal-close" onclick="closeArticleEdit()">✕</button>
+    </div>
+    <p class="modal-delete-summary" id="aeUrl" style="overflow-wrap:anywhere;"></p>
+    <div class="ffield" style="margin-bottom:var(--sp-12);">
+      <label class="ffield-label">제목</label>
+      <input class="finput" type="text" id="aeTitle" autocomplete="off"
+             placeholder="비워두면 다음 리포트 준비 때 자동 추출을 다시 시도합니다">
+    </div>
+    <div style="display:flex; gap:var(--sp-12); flex-wrap:wrap;">
+      <div class="ffield" style="flex:1; min-width:160px; margin-bottom:var(--sp-12);">
+        <label class="ffield-label">출처</label>
+        <input class="finput" type="text" id="aeSource" autocomplete="off" placeholder="예: MTN NEWS">
+      </div>
+      <div class="ffield" style="flex:1; min-width:160px; margin-bottom:var(--sp-12);">
+        <label class="ffield-label">게재일</label>
+        <input class="finput" type="text" id="aeDate" autocomplete="off" placeholder="예: 2026-08-07">
+      </div>
+    </div>
+    <div class="ffield" style="margin-bottom:var(--sp-12);">
+      <label class="ffield-label">요약 <span style="font-weight:400;">— 리포트 카드에 1~2문장 표시</span></label>
+      <textarea class="ftextarea" id="aeSummary"></textarea>
+    </div>
+    <div class="ffield">
+      <label class="ffield-label">썸네일 이미지 URL</label>
+      <input class="finput" type="text" id="aeThumb" autocomplete="off"
+             placeholder="비워두면 텍스트 카드로 표시됩니다 (정상)" oninput="aeThumbPreview()">
+      <img id="aeThumbImg" alt="" style="display:none; margin-top:8px; max-width:160px; max-height:90px; border-radius:8px; object-fit:cover;"
+           onerror="this.style.display='none'">
+    </div>
+    <p style="font-size:var(--t-caption); color:var(--c-label-3); margin-top:var(--sp-12); line-height:1.6;">
+      자동 추출이 안 되는 기사(봇 접근 차단 매체·로그인이 필요한 SNS 등)는 여기서 직접 채워주세요.<br>
+      직접 입력한 값은 자동 추출이 덮어쓰지 않고 그대로 리포트에 실립니다.
+    </p>
+    <div class="modal-delete-actions">
+      <button class="modal-btn-close" onclick="closeArticleEdit()">취소</button>
+      <button class="modal-btn-confirm" onclick="articleEditSave()">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- CSV 내보내기 모달 (입력 폼 — 백드롭 닫기 미바인딩 원칙).
      개인정보보호팀 요구: 다운로드 사유 기록(export_log) + 비밀번호 ZIP으로만 다운로드 -->
 <div class="modal-backdrop" id="exportBg">
@@ -4684,8 +4730,10 @@ function renderCurationSection() {
       '<span style="flex:1; font-size:var(--t-footnote); line-height:1.6; min-width:0; overflow-wrap:anywhere;">' +
         '<a href="' + escapeHtml(r.url) + '" target="_blank" rel="noopener" style="color:var(--c-accent);">' + escapeHtml(r.title || r.url) + '</a>' +
         ((r.source || r.published_at) ? ' <span style="color:var(--c-label-3);">— ' + escapeHtml([r.source, r.published_at].filter(Boolean).join(' · ')) + '</span>' : '') +
+        (!r.title ? '<br><span style="font-size:var(--t-caption); color:#C2540A;">⚠ 제목 자동 추출 실패 — [수정]에서 직접 입력해 주세요</span>' : '') +
       '</span>' +
       svMoveBtns('articleMove(' + i, i, articleRowList.length) +
+      '<button class="sv-save-btn" onclick="articleEdit(' + i + ')">수정</button>' +
       '<button class="sv-save-btn" style="border-color:var(--c-red); color:var(--c-red);" onclick="articleDelete(' + i + ')">삭제</button>' +
     '</div>').join('')
     : '<div style="font-size:var(--t-footnote); color:var(--c-label-3);">등록된 링크가 없습니다 — 이 달 기사는 자동 수집으로만 채워집니다.</div>';
@@ -4715,6 +4763,59 @@ async function articleDelete(i) {
   renderSurveyTab();
   if (await svPost({ type: 'article_delete', month: r.month, url: r.url })) toast('삭제했습니다.');
   else loadSurveyData(true, true);
+}
+
+// ── 기사 정보 수정 모달 (2026-08-26) — 자동 추출 불가 매체 직접 교정 ──
+let articleEditTarget = null;   // month+url이 행 정체성 — 이 둘은 모달에서 수정 불가
+
+function articleEdit(i) {
+  const r = articleRowList[i];
+  if (!r) return;
+  articleEditTarget = r;
+  document.getElementById('aeUrl').textContent = r.url;
+  document.getElementById('aeTitle').value = r.title || '';
+  document.getElementById('aeSource').value = r.source || '';
+  document.getElementById('aeDate').value = r.published_at || '';
+  document.getElementById('aeSummary').value = r.summary || '';
+  document.getElementById('aeThumb').value = r.thumbnail || '';
+  aeThumbPreview();
+  document.getElementById('articleEditBg').classList.add('open');
+  document.getElementById('aeTitle').focus();
+}
+
+function closeArticleEdit() {
+  document.getElementById('articleEditBg').classList.remove('open');
+  articleEditTarget = null;
+}
+
+function aeThumbPreview() {
+  const url = document.getElementById('aeThumb').value.trim();
+  const img = document.getElementById('aeThumbImg');
+  if (/^https?:\/\//i.test(url)) { img.style.display = 'block'; img.src = url; }
+  else { img.style.display = 'none'; img.removeAttribute('src'); }
+}
+
+async function articleEditSave() {
+  const r = articleEditTarget;
+  if (!r) return;
+  const fields = {
+    title: document.getElementById('aeTitle').value.trim(),
+    source: document.getElementById('aeSource').value.trim(),
+    published_at: document.getElementById('aeDate').value.trim(),
+    summary: document.getElementById('aeSummary').value.trim(),
+    thumbnail: document.getElementById('aeThumb').value.trim(),
+  };
+  if (fields.thumbnail && !/^https?:\/\//i.test(fields.thumbnail)) {
+    toast('썸네일은 http(s):// 로 시작하는 이미지 주소여야 합니다.'); return;
+  }
+  closeArticleEdit();
+  Object.assign(r, fields);          // 낙관적 로컬 반영
+  renderSurveyTab();
+  const ok = await svPost({ type: 'article_update', month: r.month, url: r.url,
+    title: fields.title, source: fields.source, published_at: fields.published_at,
+    summary: fields.summary, thumbnail: fields.thumbnail });
+  if (ok) toast('저장했습니다.');
+  loadSurveyData(true, true);        // 서버 재조회로 저장 검증 (no-cors 낙관적 UI 보완)
 }
 
 async function insightAdd() {

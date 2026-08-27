@@ -377,6 +377,7 @@ function doPost(e) {
       data.type === 'insight_add' || data.type === 'insight_delete' ||
       data.type === 'article_add' || data.type === 'article_delete' ||
       data.type === 'insight_move' || data.type === 'article_move' ||
+      data.type === 'article_update' ||
       data.type === 'best_reviewer_send' || data.type === 'roi_report_pin') {
     var admin = verifyAdminToken(data.token);
     if (!admin.ok) {
@@ -400,6 +401,7 @@ function doPost(e) {
     if (data.type === 'insight_delete')       return handleInsightDelete(data);
     if (data.type === 'article_add')          return handleArticleAdd(data);
     if (data.type === 'article_delete')       return handleArticleDelete(data);
+    if (data.type === 'article_update')       return handleArticleUpdate(data);
     if (data.type === 'insight_move')         return handleInsightMove(data);
     if (data.type === 'article_move')         return handleArticleMove(data);
     if (data.type === 'best_reviewer_send')   return handleBestReviewerSend(data, admin.email);
@@ -3906,6 +3908,29 @@ function handleArticleDelete(data) {
   return jsonResponse({ ok: false, error: 'not_found' });
 }
 
+// 기사 메타 직접 교정 (2026-08-26) — 크롤러 차단·로그인 게이트 매체는 자동 추출이 구조적으로 불가하므로
+// 관리자가 UI 수정 모달에서 제목·출처·요약·게재일·썸네일을 직접 채우는 경로. month+url이 행 정체성이라
+// 이 둘은 수정 불가. 빈 값 저장 허용 — title을 비우면 다음 리포트 빌드 때 자동 추출을 다시 시도한다.
+function handleArticleUpdate(data) {
+  const month = String(data.month || '');
+  const url = String(data.url || '').trim();
+  const sheet = getArticlesSheet();
+  const headers = getOrCreateArticlesHeaders(sheet);
+  const iM = headers.indexOf('month'), iU = headers.indexOf('url');
+  const rows = sheet.getDataRange().getValues();
+  const EDITABLE = ['title', 'source', 'summary', 'published_at', 'thumbnail'];
+  for (let i = 1; i < rows.length; i++) {
+    if (normalizeMonth(rows[i][iM]) !== month || String(rows[i][iU] || '').trim() !== url) continue;
+    EDITABLE.forEach(f => {
+      if (data[f] == null) return;                    // 미전송 필드는 기존 값 보존
+      const col = headers.indexOf(f);
+      if (col >= 0) sheet.getRange(i + 1, col + 1).setValue(String(data[f]).trim());
+    });
+    return jsonResponse({ ok: true });
+  }
+  return jsonResponse({ ok: false, error: 'not_found' });
+}
+
 // 관리자 큐레이션 UI용 기사 행 조회 — 원본 셀에서 직접 읽어 month/published_at을 정규화
 // (readSheetRecords는 Date를 UTC ISO로 바꿔 월이 밀리므로 사용하지 않음)
 function readArticleRows() {
@@ -3913,7 +3938,8 @@ function readArticleRows() {
   const headers = getOrCreateArticlesHeaders(sheet);
   const rows = sheet.getDataRange().getValues();
   const iM = headers.indexOf('month'), iT = headers.indexOf('title'), iU = headers.indexOf('url'),
-        iS = headers.indexOf('source'), iP = headers.indexOf('published_at');
+        iS = headers.indexOf('source'), iP = headers.indexOf('published_at'),
+        iSm = headers.indexOf('summary'), iTh = headers.indexOf('thumbnail');
   const out = [];
   for (let i = 1; i < rows.length; i++) {
     const url = String(rows[i][iU] || '').trim();
@@ -3925,6 +3951,9 @@ function readArticleRows() {
       url: url,
       source: iS >= 0 ? decodeHtmlEntities(String(rows[i][iS] || '').trim()) : '',
       published_at: iP >= 0 ? formatPublishedDate(rows[i][iP]) : '',
+      // ✏️ 수정 모달 프리필용 (2026-08-26) — thumbnail은 주소라 디코딩 제외
+      summary: iSm >= 0 ? decodeHtmlEntities(String(rows[i][iSm] || '').trim()) : '',
+      thumbnail: iTh >= 0 ? String(rows[i][iTh] || '').trim() : '',
     });
   }
   return out;
