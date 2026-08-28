@@ -48,6 +48,9 @@ const FC_LATENCY_NOTE = '응답 시작 = 점검 질문을 다 말한 순간부�
 // 신규 예약 알림을 받는 담당자들 (콤마로 구분, MailApp이 다중 수신 처리)
 const ADMIN_EMAILS = 'ch275.lee@lge.com, moonsu.seo@lge.com, hj8462.kim@lge.com';
 const CC_EMAIL     = 'kang.wonseok@lge.com';  // 참조 수신자 (시스템 동작 모니터링)
+// 점검 결과(FieldCheck) 전용 수신자 — 담당자 3명 + 팀장(김재훈). 예약 알림(ADMIN_EMAILS)과
+// 분리해 두어 점검 수신자를 바꿔도 예약 메일 흐름에는 영향이 없다.
+const FC_REPORT_EMAILS = ADMIN_EMAILS + ', jhs.kim@lge.com';
 
 // 방문 전 이용 안내 페이지 URL (이용안내 탭으로 직접 이동)
 const GUIDE_URL = 'https://thinqreal.com/#page-guide';
@@ -4654,8 +4657,8 @@ ThinQ ON이 점검 발화에 음성으로 응답하지 않았습니다.
       MailApp.sendEmail({ to: CC_EMAIL, subject, body });
       Logger.log('Health alert mail sent (test mode) → ' + CC_EMAIL);
     } else {
-      MailApp.sendEmail({ to: ADMIN_EMAILS, cc: CC_EMAIL, subject, body });
-      Logger.log('Health alert mail sent → ' + ADMIN_EMAILS);
+      MailApp.sendEmail({ to: FC_REPORT_EMAILS, cc: CC_EMAIL, subject, body });
+      Logger.log('Health alert mail sent → ' + FC_REPORT_EMAILS);
     }
   } catch(err) {
     Logger.log('Health alert mail error: ' + err.message);
@@ -4807,7 +4810,7 @@ function sendFieldCheckDailySummary() {
     body = lines.join('\n');
   }
 
-  const to = FC_TEST_MODE ? CC_EMAIL : ADMIN_EMAILS;
+  const to = FC_TEST_MODE ? CC_EMAIL : FC_REPORT_EMAILS;
   // 예약 확정 메일과 동일하게 HTML + 평문 동시 발송
   // (HTML 미지원 클라이언트는 평문을 받으므로 정보 손실이 없다)
   const htmlBody = buildHealthSummaryHtml(view);
