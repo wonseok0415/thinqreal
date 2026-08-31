@@ -1305,7 +1305,7 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
           <div class="slot-item" id="slot1" onclick="selectSlot(1)">
             <div>
               <div class="slot-label-text">1회차</div>
-              <div class="slot-time-text">09:00 – 10:30</div>
+              <div class="slot-time-text">09:30 – 11:00</div>
               <div class="slot-booked-label" id="slot1-status"></div>
             </div>
             <span class="slot-badge" id="slot1-badge">오전</span>
@@ -1313,7 +1313,7 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
           <div class="slot-item" id="slot2" onclick="selectSlot(2)">
             <div>
               <div class="slot-label-text">2회차</div>
-              <div class="slot-time-text">13:00 – 14:30</div>
+              <div class="slot-time-text">13:30 – 15:00</div>
               <div class="slot-booked-label" id="slot2-status"></div>
             </div>
             <span class="slot-badge" id="slot2-badge">오후</span>
@@ -1321,7 +1321,7 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
           <div class="slot-item" id="slot3" onclick="selectSlot(3)">
             <div>
               <div class="slot-label-text">3회차</div>
-              <div class="slot-time-text">15:00 – 16:30</div>
+              <div class="slot-time-text">15:30 – 17:00</div>
               <div class="slot-booked-label" id="slot3-status"></div>
             </div>
             <span class="slot-badge" id="slot3-badge">오후</span>
@@ -1515,12 +1515,12 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
         <table class="schedule-table">
           <thead><tr><th>구분</th><th>시간</th><th>비고</th></tr></thead>
           <tbody>
-            <tr><td><strong>1회차</strong></td><td>09:00 – 10:30</td><td>90분</td></tr>
-            <tr><td><span class="badge badge-break">재정비</span></td><td>10:30 – 11:00</td><td>30분</td></tr>
-            <tr><td><span class="badge badge-closed">점심</span></td><td>11:30 – 13:00</td><td>예약 불가</td></tr>
-            <tr><td><strong>2회차</strong></td><td>13:00 – 14:30</td><td>90분</td></tr>
-            <tr><td><span class="badge badge-break">재정비</span></td><td>14:30 – 15:00</td><td>30분</td></tr>
-            <tr><td><strong>3회차</strong></td><td>15:00 – 16:30</td><td>90분</td></tr>
+            <tr><td><strong>1회차</strong></td><td>09:30 – 11:00</td><td>90분</td></tr>
+            <tr><td><span class="badge badge-break">재정비</span></td><td>11:00 – 11:30</td><td>30분</td></tr>
+            <tr><td><span class="badge badge-closed">점심</span></td><td>11:30 – 13:30</td><td>예약 불가</td></tr>
+            <tr><td><strong>2회차</strong></td><td>13:30 – 15:00</td><td>90분</td></tr>
+            <tr><td><span class="badge badge-break">재정비</span></td><td>15:00 – 15:30</td><td>30분</td></tr>
+            <tr><td><strong>3회차</strong></td><td>15:30 – 17:00</td><td>90분</td></tr>
           </tbody>
         </table>
         <p style="font-size:var(--t-caption);color:var(--c-label-3);margin-top:var(--sp-8);">* 토요일·일요일 및 공휴일 운영 없음</p>
@@ -1997,9 +1997,9 @@ function toast(msg, ms=3000) {
 // ── Calendar ──────────────────────────────────────────────
 const DAY_KO  = ['일','월','화','수','목','금','토'];
 const SLOT_LABELS = {
-  1: '1회차  09:00–10:30',
-  2: '2회차  13:00–14:30',
-  3: '3회차  15:00–16:30'
+  1: '1회차  09:30–11:00',
+  2: '2회차  13:30–15:00',
+  3: '3회차  15:30–17:00'
 };
 
 let currentDate   = new Date();
