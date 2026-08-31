@@ -49,7 +49,6 @@ h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.022em; text-align: ce
 }
 h2 { font-size: 15px; font-weight: 600; color: var(--c-accent); margin: 18px 0 8px; }
 h2 .req { color: #b3261e; font-size: 12.5px; font-weight: 600; }
-h2 .opt { color: var(--c-label-2); font-size: 12.5px; font-weight: 600; }
 p { margin: 6px 0; }
 .note { font-size: 12px; color: var(--c-label-2); }
 
@@ -99,7 +98,7 @@ th { background: var(--c-accent-light); font-weight: 600; white-space: nowrap; }
 <div class="wrap">
 
 <h1>ThinQ Real 방문자 개인정보 수집·이용 동의서</h1>
-<p class="doc-sub">LG전자 ThinQ Real (마곡 LG사이언스파크 W6동 1층) · 서식 v0.9 — 법무팀 검토용 초안</p>
+<p class="doc-sub">LG전자 ThinQ Real (마곡 LG사이언스파크 W6동 1층) · 서식 v0.9</p>
 
 <div class="intro">
   본 동의서는 ThinQ Real 방문 운영을 위해 방문자 본인의 개인정보 수집·이용에 관한 동의를 받기 위한 것입니다.
@@ -130,13 +129,13 @@ th { background: var(--c-accent-light); font-weight: 600; white-space: nowrap; }
 </section>
 
 <section>
-<h2>3. 현장 대화 녹음 및 인사이트 활용 동의 <span class="opt">(선택)</span></h2>
+<h2>3. 현장 대화 녹음 및 인사이트 활용 동의</h2>
 <p style="font-size:12.5px;">
   시연·상담 진행 중 대화가 녹음될 수 있으며, 녹음 내용은 <strong>개인을 식별할 수 없도록 가명처리된 요약 형태로만</strong>
   공간 운영 개선 및 제품·서비스 인사이트 분석(내부 활용)에 이용됩니다. 원본 음성과 전사 전문은 외부에 공유되지 않으며,
   요약 작성 완료 후 지체 없이 파기합니다.
 </p>
-<p class="note">※ 선택 항목입니다. 동의하지 않으셔도 방문·시연 이용에 어떠한 불이익도 없으며, 이 경우 귀하가 참여하는 세션은 녹음하지 않습니다.</p>
+<p class="note">※ 동의하지 않으시는 경우 안내 담당자에게 말씀해 주시면 귀하가 참여하는 세션은 녹음하지 않으며, 방문·시연 이용에 어떠한 불이익도 없습니다.</p>
 </section>
 
 <div class="roster-wrap">
@@ -153,7 +152,7 @@ th { background: var(--c-accent-light); font-weight: 600; white-space: nowrap; }
       <th>성명</th>
       <th>소속·직급</th>
       <th class="col-sign">1·2항 동의 서명<br><span style="font-weight:400; font-size:11px;">(필수)</span></th>
-      <th class="col-opt">3항 녹음 동의<br><span style="font-weight:400; font-size:11px;">(선택 — 동의 시 ○)</span></th>
+      <th class="col-opt">3항 녹음 동의<br><span style="font-weight:400; font-size:11px;">(동의 시 ○)</span></th>
     </tr>
   </thead>
   <tbody>
@@ -178,5 +177,37 @@ th { background: var(--c-accent-light); font-weight: 600; white-space: nowrap; }
 </div>
 
 </div>
+
+<script>
+// 관리자 [동의서 인쇄] 프리필 (2026-08-31) — 예약 상세에서 방문일·회사·방문자 명단을 채워 연다.
+// 전달은 URL 해시 프래그먼트(b64url JSON): 쿼리스트링과 달리 서버로 전송되지 않아
+// 방문자 성명이 호스팅(GitHub Pages) 로그에 남지 않는다. 해시 없으면 빈 서식 그대로.
+(function () {
+  try {
+    var m = location.hash.match(/pf=([A-Za-z0-9_-]+)/);
+    if (!m) return;
+    var b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
+    var bytes = Uint8Array.from(atob(b64), function (c) { return c.charCodeAt(0); });
+    var pf = JSON.parse(new TextDecoder().decode(bytes));
+    var fills = document.querySelectorAll('.roster-head .fill');
+    var setFill = function (i, v) {
+      if (!v || !fills[i]) return;
+      fills[i].textContent = v;
+      fills[i].style.width = 'auto';
+      fills[i].style.minWidth = '150px';
+      fills[i].style.padding = '0 6px';
+    };
+    setFill(0, pf.date);
+    setFill(1, pf.company);
+    setFill(2, pf.docent);
+    var rows = document.querySelectorAll('.roster tbody tr');
+    (pf.visitors || []).slice(0, rows.length).forEach(function (v, i) {
+      var tds = rows[i].querySelectorAll('td');
+      tds[1].textContent = v.name || '';
+      tds[2].textContent = [v.org, v.rank].filter(Boolean).join(' · ');
+    });
+  } catch (e) { /* 프리필 실패 시 빈 서식 그대로 (수기 기입 가능) */ }
+})();
+</script>
 </body>
 </html>

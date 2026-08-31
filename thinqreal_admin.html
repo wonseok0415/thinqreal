@@ -2397,6 +2397,7 @@ body {
     </div>
     <div class="modal-actions" id="modalActions">
       <button class="modal-btn-close" onclick="closeModal()">닫기</button>
+      <button class="modal-btn-close" id="modalConsentBtn" onclick="printConsentFromModal()">🖨 동의서</button>
       <button class="modal-btn-edit"  id="modalEditBtn"  onclick="editFromModal()">수정</button>
       <button class="modal-btn-danger" id="modalDeleteBtn" onclick="startDelete()">영구 삭제</button>
       <button class="modal-btn-reject"  id="modalRejectBtn"  onclick="updateStatusFromModal('거절')">거절</button>
@@ -3572,6 +3573,28 @@ function openModal(id) {
 }
 function closeModal() { document.getElementById('modalBg').classList.remove('open'); currentModalId = null; }
 function updateStatusFromModal(s) { if (currentModalId) { updateStatus(currentModalId,s); closeModal(); } }
+
+// 방문자 서면 동의서 인쇄 (2026-08-31) — 방문일·방문 회사·방문자 명단 프리필로 동의서 페이지를 연다.
+// 현장에서는 도슨트 설명 후 서명만 받는 흐름 (방문자 자필 기입 시간 제거).
+// 전달은 URL 해시(b64url JSON) — 쿼리스트링과 달리 서버로 전송되지 않아 성명이 호스팅 로그에 안 남음.
+function printConsentFromModal() {
+  if (!currentModalId) return;
+  const b = allBookings.find(x => x.id === currentModalId);
+  if (!b) return;
+  let visitors = [];
+  try { visitors = JSON.parse(b.visitors || '[]'); } catch (e) {}
+  if (!Array.isArray(visitors)) visitors = [];
+  const pf = {
+    date: b.date || '',
+    company: b.clientCompany || [...new Set(visitors.map(v => v.org).filter(Boolean))].join(' · '),
+    visitors: visitors.slice(0, 10).map(v => ({ org: v.org || '', name: v.name || '', rank: v.rank || '' })),
+  };
+  const bytes = new TextEncoder().encode(JSON.stringify(pf));
+  let bin = '';
+  bytes.forEach(x => { bin += String.fromCharCode(x); });
+  const b64 = btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  window.open('ThinQ_Real_Visit_Consent.html#pf=' + b64, '_blank', 'noopener');
+}
 
 // ── 예약 영구 삭제 ─────────────────────────────────────────
 // '삭제' 타이핑 확인을 거쳐야만 실행 — 오삭제 방지.
