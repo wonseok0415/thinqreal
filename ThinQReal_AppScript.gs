@@ -2284,6 +2284,10 @@ function buildMonthlyReportText(d) {
   L.push(`   당월 방문 건수   ${d.kpi.confirmed}건` + (d.ytd ? `  (26년 누적 ${d.ytd.confirmed}건)` : ''));
   L.push(`   당월 방문 인원   ${d.kpi.visitors}명` + (d.ytd ? `  (26년 누적 ${d.ytd.visitors}명)` : ''));
   L.push(`   만족도(NPS)      ${d.survey ? satDisplay(d.survey.satAll) : '—'}`);
+  // NPS 풋노트 (2026-08-31) — HTML판과 동일 설명, NPS 표시 월에만
+  if (d.survey && d.survey.satAll && d.survey.satAll.newCount) {
+    L.push('   * NPS(순추천지수) = 추천(9~10점)% − 비추천(0~6점)%, 범위 -100~+100 (0보다 크면 추천 우세)');
+  }
   L.push('');
 
   // 사업부별 활용 현황 — 확정 기준, 건수 있는 본부만 (2026-08-03 렌더 리뷰)
@@ -2299,6 +2303,21 @@ function buildMonthlyReportText(d) {
     });
     L.push('');
   }
+
+  // 방문 목적별 분포 — 사업부별 바로 아래 (2026-08-31 운영자 지시, HTML판과 동일 순서)
+  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  L.push('🎯 방문 목적별 분포');
+  L.push('   확정된 방문이 어떤 목적으로 진행되었는지의 비중');
+  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  const sorted = Object.keys(d.purposeCounts).map(k => [k, d.purposeCounts[k]])
+    .sort((a, b) => b[1] - a[1]);
+  const tot = sorted.reduce((s, [, v]) => s + v, 0);
+  if (!sorted.length) L.push('   (해당 없음)');
+  else sorted.forEach(([k, v]) => {
+    const pct = tot ? Math.round(v/tot*100) : 0;
+    L.push(`   ${k}  —  ${v}건 (${pct}%)`);
+  });
+  L.push('');
 
   // 핵심 인사이트 — 큐레이션 행 없으면 블록 생략
   if (d.insights && d.insights.length) {
@@ -2321,20 +2340,6 @@ function buildMonthlyReportText(d) {
       L.push('');
     });
   }
-
-  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  L.push('🎯 방문 목적별 분포');
-  L.push('   확정된 방문이 어떤 목적으로 진행되었는지의 비중');
-  L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  const sorted = Object.keys(d.purposeCounts).map(k => [k, d.purposeCounts[k]])
-    .sort((a, b) => b[1] - a[1]);
-  const tot = sorted.reduce((s, [, v]) => s + v, 0);
-  if (!sorted.length) L.push('   (해당 없음)');
-  else sorted.forEach(([k, v]) => {
-    const pct = tot ? Math.round(v/tot*100) : 0;
-    L.push(`   ${k}  —  ${v}건 (${pct}%)`);
-  });
-  L.push('');
 
   L.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   L.push('📰 관련 기사');
@@ -2408,6 +2413,7 @@ function buildMonthlyReportHtml(d) {
   const satAll = d.survey ? d.survey.satAll : null;
   let satCardValue = '—', satCardUnit = '', satCardSub = '', satCardLabel = 'NPS (추천 지수)';
   if (satAll && satAll.newCount) {
+    satCardLabel = 'NPS (추천 지수)*';   // '*' = 하단 풋노트 참조 (2026-08-31)
     satCardValue = (satAll.nps >= 0 ? '+' : '') + satAll.nps;
     satCardSub = '평균 ' + satAll.newAvg.toFixed(1) + '/10 · ' + satAll.newCount + '건' + (satAll.newCount < 10 ? ' (참고치)' : '');
   } else if (satAll && satAll.oldCount) {
@@ -2427,6 +2433,16 @@ function buildMonthlyReportHtml(d) {
         '</tr>' +
       '</table>' +
     '</td></tr>';
+
+  // NPS 풋노트 (2026-08-31 운영자 요청) — NPS 비인지 수신자를 위한 한 줄 설명 + 범위.
+  // NPS 카드가 표시되는 달에만 (구 척도 전용 월·무응답 월엔 미표시 — '*' 마커도 그 분기에서만 붙음).
+  const npsFootRow = (satAll && satAll.newCount) ?
+    '<tr><td style="padding:0 28px 14px;">' +
+      '<div style="font-size:11px;color:#8e8e93;line-height:1.55;">' +
+        '* NPS(순추천지수, Net Promoter Score): 추천 의향 0~10점 응답에서 추천(9~10점) 비율 − 비추천(0~6점) 비율. ' +
+        '범위는 −100~+100이며, 0보다 크면 추천 응답이 더 많다는 뜻입니다.' +
+      '</div>' +
+    '</td></tr>' : '';
 
   // ── 2) 사업부별 활용 현황 — 확정 기준, 건수 있는 본부만 표시, 상위 본부 강조 ──
   let divisionsRow = '';
@@ -2590,11 +2606,13 @@ function buildMonthlyReportHtml(d) {
         outlookHintRow +
         sectionHeader('📊', 'Executive 요약', descKpi) +
         kpiTable +
+        npsFootRow +
         (divisionsRow ? sectionHeader('🏢', '사업부별 활용 현황', descDivisions) + divisionsRow : '') +
-        (insightsRow ? sectionHeader('💡', '핵심 인사이트', descInsights) + insightsRow : '') +
-        (quotesRow ? sectionHeader('💬', '인상 깊은 한마디', descQuotes) + quotesRow : '') +
+        // 목적 도넛은 사업부별 바로 아래 (2026-08-31 운영자 지시 — 방문 현황 블록끼리 묶고 큐레이션 블록은 뒤로)
         sectionHeader('🎯', '방문 목적별 분포', descPurpose) +
         '<tr><td style="padding:0 28px 16px;">' + purposeBody + '</td></tr>' +
+        (insightsRow ? sectionHeader('💡', '핵심 인사이트', descInsights) + insightsRow : '') +
+        (quotesRow ? sectionHeader('💬', '인상 깊은 한마디', descQuotes) + quotesRow : '') +
         sectionHeader('📰', '관련 기사', descArticles) +
         '<tr><td style="padding:0 28px 24px;">' + articlesBody + '</td></tr>' +
         sectionHeader('💰', '투자 대비 성과 (ROI)', descRoi) +
