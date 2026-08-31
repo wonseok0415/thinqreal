@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>방문자 개인정보 동의서 — ThinQ Real</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* 현장 서면 동의서 — A4 인쇄 전제 서식 (2026-08-31, 법무팀 서면 동의 제안 반영).
+   화면은 privacy.html 팔레트 계승, 인쇄 시 topbar·버튼 숨김 + 흑백 복합기 가독 우선. */
+:root {
+  --c-label:     #1d1d1f;
+  --c-label-2:   #6e6e73;
+  --c-label-3:   #aeaeb2;
+  --c-bg:        #ffffff;
+  --c-separator: rgba(0,0,0,0.12);
+  --c-accent:       #3a5035;
+  --c-accent-light: #eef2ec;
+}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  font-size: 14px; line-height: 1.55; color: var(--c-label); background: var(--c-bg);
+}
+.topbar {
+  position: sticky; top: 0; z-index: 100;
+  height: 52px; display: flex; align-items: center; gap: 10px;
+  padding: 0 max(24px, calc(50vw - 400px));
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--c-separator);
+}
+.topbar-brand { font-size: 17px; font-weight: 600; color: var(--c-accent); letter-spacing: -0.022em; text-decoration: none; }
+.topbar-sub { font-size: 13px; color: var(--c-label-3); }
+.print-btn {
+  margin-left: auto; border: 1px solid var(--c-accent); background: #fff; color: var(--c-accent);
+  border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.print-btn:hover { background: var(--c-accent-light); }
+.wrap { max-width: 800px; margin: 0 auto; padding: 36px 24px 64px; }
+
+h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.022em; text-align: center; margin-bottom: 4px; }
+.doc-sub { text-align: center; font-size: 13px; color: var(--c-label-2); margin-bottom: 22px; }
+.intro {
+  background: var(--c-accent-light); border-left: 4px solid var(--c-accent);
+  border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 0 0 18px;
+  font-size: 13px; color: var(--c-label);
+}
+h2 { font-size: 15px; font-weight: 600; color: var(--c-accent); margin: 18px 0 8px; }
+h2 .req { color: #b3261e; font-size: 12.5px; font-weight: 600; }
+h2 .opt { color: var(--c-label-2); font-size: 12.5px; font-weight: 600; }
+p { margin: 6px 0; }
+.note { font-size: 12px; color: var(--c-label-2); }
+
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; margin: 8px 0; }
+th, td { border: 1px solid #9a9a9e; padding: 6px 9px; vertical-align: top; text-align: left; }
+th { background: var(--c-accent-light); font-weight: 600; white-space: nowrap; }
+
+.consent-line {
+  display: flex; align-items: center; justify-content: flex-end; gap: 14px;
+  font-size: 12.5px; margin: 6px 0 2px; font-weight: 500;
+}
+.consent-line .box { display: inline-block; width: 13px; height: 13px; border: 1.5px solid #555; border-radius: 2px; vertical-align: -2px; }
+
+.roster-head { display: flex; flex-wrap: wrap; gap: 18px; margin: 10px 0 8px; font-size: 13px; }
+.roster-head .fill { display: inline-block; border-bottom: 1px solid #777; width: 150px; vertical-align: -2px; }
+.roster th, .roster td { text-align: center; padding: 6px 6px; }
+.roster td { height: 32px; }
+.roster .col-no { width: 34px; }
+.roster .col-sign { width: 118px; }
+.roster .col-opt { width: 96px; }
+
+.foot {
+  margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--c-separator);
+  font-size: 11.5px; color: var(--c-label-2); line-height: 1.6;
+}
+.page-break { page-break-before: always; }
+
+@media print {
+  @page { size: A4; margin: 12mm 14mm; }
+  .topbar, .print-btn { display: none !important; }
+  body { font-size: 12.5px; }
+  .wrap { max-width: none; padding: 0; }
+  .intro { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  section, .roster-wrap { page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <a class="topbar-brand" href="./">ThinQ Real</a>
+  <span class="topbar-sub">방문자 개인정보 동의서 (현장 서면)</span>
+  <button type="button" class="print-btn" onclick="window.print()">🖨 인쇄</button>
+</nav>
+
+<div class="wrap">
+
+<h1>ThinQ Real 방문자 개인정보 수집·이용 동의서</h1>
+<p class="doc-sub">LG전자 ThinQ Real (마곡 LG사이언스파크 W6동 1층) · 서식 v0.9 — 법무팀 검토용 초안</p>
+
+<div class="intro">
+  본 동의서는 ThinQ Real 방문 운영을 위해 방문자 본인의 개인정보 수집·이용에 관한 동의를 받기 위한 것입니다.
+  아래 내용을 확인하신 후 서명해 주시기 바랍니다. 개인정보처리방침 전문은 <strong>thinqreal.com/privacy.html</strong> 에서 확인하실 수 있습니다.
+</div>
+
+<section>
+<h2>1. 개인정보 수집·이용 동의 <span class="req">(필수)</span></h2>
+<table>
+  <tr><th>수집 항목</th><td>성명, 소속(회사·부서), 직급, 방문 기록(방문일·방문 목적)</td></tr>
+  <tr><th>수집·이용 목적</th><td>방문자 확인 및 시설 출입 관리, 방문 일정 운영, 방문 현황 통계 (내부 보고용)</td></tr>
+  <tr><th>보유·이용 기간</th><td><strong>방문일로부터 3년</strong> — 기간 경과 또는 삭제 요청 시 지체 없이 파기</td></tr>
+</table>
+<p class="note">※ 귀하는 동의를 거부할 권리가 있습니다. 다만 동의하지 않으실 경우 시설 출입 관리상 방문이 제한될 수 있습니다.</p>
+</section>
+
+<section>
+<h2>2. 개인정보 국외 이전 동의 <span class="req">(필수)</span></h2>
+<p class="note" style="margin-top:0;">방문 기록의 저장·처리에 해외 클라우드 서비스가 이용되어, 수집된 개인정보가 국외로 이전·보관됩니다.</p>
+<table>
+  <tr><th>이전받는 자</th><td>Google LLC (privacy.google.com)</td></tr>
+  <tr><th>이전되는 국가</th><td>미국 등 Google 글로벌 데이터 센터 소재국</td></tr>
+  <tr><th>이전 일시·방법</th><td>방문 기록 등록 시 정보통신망을 통해 전송·저장</td></tr>
+  <tr><th>이전 항목</th><td>위 1항의 수집 항목 전체</td></tr>
+  <tr><th>이용 목적·보유 기간</th><td>클라우드 인프라(Google Sheets)를 통한 방문 기록 보관·처리 / 위 1항의 보유 기간과 동일</td></tr>
+</table>
+<p class="note">※ 귀하는 국외 이전에 대한 동의를 거부할 권리가 있습니다. 거부 시 담당자에게 요청하시면 별도 방식의 방문 접수를 안내해 드립니다.</p>
+</section>
+
+<section>
+<h2>3. 현장 대화 녹음 및 인사이트 활용 동의 <span class="opt">(선택)</span></h2>
+<p style="font-size:12.5px;">
+  시연·상담 진행 중 대화가 녹음될 수 있으며, 녹음 내용은 <strong>개인을 식별할 수 없도록 가명처리된 요약 형태로만</strong>
+  공간 운영 개선 및 제품·서비스 인사이트 분석(내부 활용)에 이용됩니다. 원본 음성과 전사 전문은 외부에 공유되지 않으며,
+  요약 작성 완료 후 지체 없이 파기합니다.
+</p>
+<p class="note">※ 선택 항목입니다. 동의하지 않으셔도 방문·시연 이용에 어떠한 불이익도 없으며, 이 경우 귀하가 참여하는 세션은 녹음하지 않습니다.</p>
+</section>
+
+<div class="roster-wrap">
+<h2 style="margin-top:20px;">방문자 서명</h2>
+<div class="roster-head">
+  <span>방문일: <span class="fill">&nbsp;</span></span>
+  <span>방문 회사(기관): <span class="fill">&nbsp;</span></span>
+  <span>안내 담당자: <span class="fill">&nbsp;</span></span>
+</div>
+<table class="roster">
+  <thead>
+    <tr>
+      <th class="col-no">번호</th>
+      <th>성명</th>
+      <th>소속·직급</th>
+      <th class="col-sign">1·2항 동의 서명<br><span style="font-weight:400; font-size:11px;">(필수)</span></th>
+      <th class="col-opt">3항 녹음 동의<br><span style="font-weight:400; font-size:11px;">(선택 — 동의 시 ○)</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>1</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>2</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>3</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>4</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>5</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>6</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>7</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>8</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>9</td><td></td><td></td><td></td><td></td></tr>
+    <tr><td>10</td><td></td><td></td><td></td><td></td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="foot">
+  개인정보 보호 문의: 이철호 책임 (ch275.lee@lge.com) · 운영 담당: 서문수 선임 (moonsu.seo@lge.com), 김현진 선임 (hj8462.kim@lge.com)<br>
+  서명하신 동의서는 LG전자 ThinQ Real 운영팀이 보유 기간(방문일로부터 3년) 동안 보관 후 파기합니다.
+  개인정보처리방침 전문: thinqreal.com/privacy.html
+</div>
+
+</div>
+</body>
+</html>
