@@ -1151,9 +1151,9 @@ body {
         </select>
         <select class="toolbar-select" id="filterSlot" onchange="renderTable()">
           <option value="">전체 회차</option>
-          <option value="1">1회차 (09:00)</option>
-          <option value="2">2회차 (13:00)</option>
-          <option value="3">3회차 (15:00)</option>
+          <option value="1">1회차 (09:30)</option>
+          <option value="2">2회차 (13:30)</option>
+          <option value="3">3회차 (15:30)</option>
         </select>
         <input type="month" class="toolbar-input" id="filterMonth" onchange="renderTable()">
         <span class="toolbar-spacer"></span>
@@ -2790,7 +2790,7 @@ body {
 
 <script>
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec';
-const SLOT_LABELS = { '1':'1회차  09:00–10:30', '2':'2회차  13:00–14:30', '3':'3회차  15:00–16:30' };
+const SLOT_LABELS = { '1':'1회차  09:30–11:00', '2':'2회차  13:30–15:00', '3':'3회차  15:30–17:00' };
 
 // ── 관리자 인증 (이메일 코드, 명단 한정) ───────────────────
 // 공유 비밀번호를 폐기하고, 등록된 관리자 메일로 6자리 코드를 받아
@@ -3361,8 +3361,10 @@ function normalizeRecord(b) {
   };
 }
 
-// 회차 라벨 전체 표시 (모달·메일·CSV용): "1회차  09:00–10:30 · 2회차  13:00–14:30"
+// 회차 라벨 전체 표시 (모달·CSV용): "1회차  09:30–11:00 · 2회차  13:30–15:00"
+// 저장된 slotLabel 우선 (2026-08-31 시간표 개편) — 개편 이전 예약의 이력이 새 시간으로 왜곡 표시되지 않게.
 function fmtSlots(b) {
+  if (b.slotLabel) return String(b.slotLabel);
   if (b.slotsArr && b.slotsArr.length) {
     return b.slotsArr.map(n => SLOT_LABELS[String(n)] || String(n)).join(' · ');
   }

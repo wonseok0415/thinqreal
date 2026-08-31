@@ -596,13 +596,14 @@ function normalizeSlotsInput(slots, slot) {
 // ============================================================
 const CALENDAR_PROP_ID = 'CALENDAR_ID';
 
-// 회차 → 시작/종료 시각 (KST, [시, 분]). 슬롯 시간표는 확정값(변경 금지).
+// 회차 → 시작/종료 시각 (KST, [시, 분]). 슬롯 시간표는 확정값 — 변경은 운영자 승인 필수
+// (2026-08-31 개편: 09:30 시작. 구 시간표 09:00–10:30/13:00–14:30/15:00–16:30은 개편 전 예약의 저장 라벨에만 남음).
 const SLOT_TIMES = {
-  1: { start: [9, 0],  end: [10, 30] },
-  2: { start: [13, 0], end: [14, 30] },
-  3: { start: [15, 0], end: [16, 30] },
+  1: { start: [9, 30],  end: [11, 0] },
+  2: { start: [13, 30], end: [15, 0] },
+  3: { start: [15, 30], end: [17, 0] },
 };
-const SLOT_LABEL_TEXT = { 1: '1회차 09:00~10:30', 2: '2회차 13:00~14:30', 3: '3회차 15:00~16:30' };
+const SLOT_LABEL_TEXT = { 1: '1회차 09:30~11:00', 2: '2회차 13:30~15:00', 3: '3회차 15:30~17:00' };
 
 function getBookingCalendar() {
   const id = PropertiesService.getScriptProperties().getProperty(CALENDAR_PROP_ID);
@@ -4278,7 +4279,7 @@ function sendSurveyInviteTest() {
   const targets = getSurveyInviteTargets();
   const b = targets.length ? targets[0].latest : {
     email: me, date: '2026-07-10', name: '홍길동',
-    slotLabel: '2회차 13:00~14:30', purpose: 'R&D', subject: '테스트 방문',
+    slotLabel: '2회차 13:30~15:00', purpose: 'R&D', subject: '테스트 방문',
     division: 'HS사업본부', department: 'AI홈솔루션엔지니어링팀',
   };
   MailApp.sendEmail({
