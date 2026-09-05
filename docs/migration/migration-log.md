@@ -223,3 +223,7 @@ BE팀이 사내 클라우드에 ThinQ Real 인프라 구축 진행 — **상세�
 박현정 책임 Teams 답변(6건) 회수 — **정리본은 decisions-2026-07-06.md §6-1이 단일 소스.** 요지: SealedSecret·CronJob은 우리가 직접 넣으면 됨 / SMTP는 BE팀 회신 대기 / SSO는 `x-user-id` 헤더로 email 전달 / OP 차주말 완료 예정 + CSR redirect 지금 등록 가능(target=ops-gateway ELB, 주소 원문은 사내 Teams 기록) / ⚠ **OP는 인프라팀 제공 DB(PG+Valkey)·vault 필수, 강원석 직접 신청** (가이드 별도 전달 예정 — env 주입 구조라 앱 코드 영향 0).
 
 담당자 액션: ① CSR redirect 등록 신청(즉시 가능) ② OP용 DB·vault 신청(가이드 수신 후) ③ SMTP 회신 대기. 외부 트랙 후속: 과제 B 키트(postgres 어댑터) + CronJob 매니페스트 3종 사전 제작 검토.
+
+## 작업 내역 (2026-09-05 — OP 배포 완료·SSO 전 환경 적용 확인)
+
+박현정 책임 Teams(09-01) 확인 — **정리본은 decisions-2026-07-06.md §6-2가 단일 소스.** OP 배포 완료(예상보다 조기), MS Entra ID(SSO)가 ST/QA/OP 전부 적용 → 사내 SSO 계정 보유자만 진입 가능. ⚠ 전환 설계 신규 아젠다 발굴: SSO 전면 적용 시 **방문자 현장 설문(외부 방문객 QR)·FieldCheck/FieldVoice 장비 POST·공개 열람 페이지가 차단**되므로 SSO 예외 경로 협의 필요. OP용 DB·vault 신청 가이드는 계속 대기.

@@ -134,7 +134,17 @@ BE팀이 사내 클라우드에 ThinQ Real 전용 인프라를 실제로 구축�
 | ② | CronJob 등록 | **우리가 deploy에 직접 추가하면 됨** (git repo 소유권 = 강원석). → 다음 키트에 CronJob 매니페스트 3종(월간 리포트·설문 초대·FieldCheck 요약) 포함 예정 |
 | ③ | 사내 SMTP | BE팀 쪽 정리 필요 사항 있음 — **정리되는 대로 회신 예정 (대기)** |
 | ④ | SSO 헤더 스펙 | ops-gateway 인증 후 **`x-user-id` 헤더로 사용자 email 전달** → 후속 과제에서 앱의 HMAC 이메일 게이트를 이 헤더 판별로 교체 가능 |
-| ⑤ | OP·도메인 | **OP 준비 차주말(9월 초) 완료 예정.** CSR redirect는 기다릴 필요 없이 **ops-gateway ELB 주소를 target domain으로 지금 바로 등록 가능** (주소 원문은 Teams 08-26 답변 참조 — 사내 내부 주소라 이 퍼블릭 리포에는 미기재) |
+| ⑤ | OP·도메인 | ~~OP 준비 차주말 완료 예정~~ → **(09-01 확인) OP 배포 완료.** CSR redirect는 **ops-gateway ELB 주소를 target domain으로 지금 바로 등록 가능** (주소 원문은 Teams 08-26 답변 참조 — 사내 내부 주소라 이 퍼블릭 리포에는 미기재) |
 | ⑥ | ⚠ **OP 전용 제약 (신규 정보)** | OP에서는 BE팀이 준비한 DB가 아니라 **인프라팀 제공 DB(PostgreSQL + KVStore Redis/Valkey)를 써야 하고, secret도 sealed-secrets가 아닌 인프라팀 제공 vault를 써야 함. 둘 다 강원석이 직접 신청** — 신청 가이드는 별도 전달 예정 |
 
 **⑥의 함의**: 우리 컨테이너는 DB·Valkey·비밀값을 전부 **env 주입**으로 받는 구조라 **코드 변경 없음** — ST/QA(BE팀 DB + sealed-secrets)와 OP(인프라팀 DB + vault)는 주입 경로만 다르고 앱은 동일 이미지 그대로 간다. 과제 B(postgres 어댑터)도 영향 없음.
+
+### 6-2. OP 배포 완료 + SSO 전 환경 적용 (2026-09-01 Teams, 박현정 책임)
+
+- **OP 배포 완료** — ST/QA/OP 3환경 전부 가동. MS Entra ID(사내 SSO) 연동이 **세 환경 모두에 적용**되어 사내 SSO 계정 보유자만 진입 가능해짐.
+- **함의 (전환 설계 시 필수 검토 — ⚠ 신규 발견)**: SSO가 전면에 깔리면서 **사내 SSO 계정이 없는 호출자는 전부 차단**된다. 현행 시스템에는 SSO 없이 접근해야 하는 경로가 존재:
+  1. **방문자 현장 설문**(`ThinQ_Real_Visitor_Survey.html` + `visitor_submit`) — 외부 방문객이 퇴장 직전 QR로 접속하는 폼. SSO를 통과할 수 없음.
+  2. **FieldCheck 점검 장비**(`health_check` POST)·**FieldVoice 파이프라인**(`voc_report` POST) — 무인 기기/스크립트의 API 키 인증 호출. SSO 로그인 불가.
+  3. privacy.html(게이트 밖 열람 의도) 등 공개 열람 페이지.
+  → 전환 전에 **BE팀과 "SSO 예외 경로(특정 path 우회)" 가능 여부 협의 필요**. 불가하면 방문자 설문·장비 업로드는 별도 진입점(도메인/경로) 설계로 대체해야 함. (지금 당장은 라이브가 Apps Script라 실영향 없음 — 전환 시점 아젠다.)
+- 반사이익: SSO가 이미 전 환경에서 동작하므로 `x-user-id` 헤더 기반 앱 게이트 교체(§6-1 ④)를 ST에서 바로 실험할 수 있게 됨.
