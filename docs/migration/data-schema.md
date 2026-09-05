@@ -166,3 +166,11 @@
 - Wi-Fi·도어락 등 민감 정보는 확정 메일에만 — DB/페이지 노출 금지
 - 캘린더 일정에는 방문자 명단·연락처 미표기
 - 백필/직접 입력 시 25컬럼 순서 엄수 (`slots`·`slot`·`slotLabel` 3종 모두 필수, `surveyInviteSentAt` 공란 허용)
+
+## PostgreSQL 매핑 규칙 (사내 이관 — 2026-09-05, server/src/store/postgres/)
+
+- 테이블 = 시트 탭 1:1, 테이블·컬럼명은 위 정의 그대로. **전 컬럼 TEXT** (시트가 문자열 저장소였고 소비처가 전부 String/Number 변환을 수행 — 타입 강화는 이관 안정화 후 별도 과제).
+- 추가 컬럼 2종: `rid BIGSERIAL PRIMARY KEY`(시트의 행 순서 대체 — 조회 ORDER BY rid), `monthly_articles.ord BIGINT`(기사 순서 교환용 — article_move).
+- `app_state`는 key/value 2컬럼 + PK(key) — Script Properties 대체 (발송 토큰·수동 발송 이력·ROI pin·월 가드).
+- 스키마는 앱 기동 시 자동 생성/진화 (CREATE TABLE IF NOT EXISTS + ADD COLUMN IF NOT EXISTS — 이 문서의 상수 배열이 곧 DDL 소스). 별도 마이그레이션 도구 없음.
+- 시트→PG 실데이터 이행은 과제 D (전환 직전 1회) — 이행 시 컬럼 순서가 아니라 **컬럼명 매칭**으로 넣을 것.

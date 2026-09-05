@@ -10,6 +10,7 @@
 //   node src/jobs/surveyInvite.js --preview   → 발송 없이 대상자 명단만 로그 (드라이런)
 //   node src/jobs/surveyInvite.js             → 자동 발송 (CC: 담당자 3명 + 운영자)
 //   node src/jobs/surveyInvite.js --batch     → 1회성 수동 배치 (CC: 운영자만)
+import { pathToFileURL } from 'node:url';
 import { config } from '../config.js';
 import { AUTH_ALLOWED_DOMAINS } from '../lib/constants.js';
 import { formatDateLocal, normalizeDate } from '../lib/dates.js';
@@ -88,26 +89,30 @@ async function sendSurveyInvitesCore(store, cc, label) {
   return ok;
 }
 
-async function main() {
-  const args = process.argv.slice(2);
-  const store = await getStore();
-
-  if (args.includes('--preview')) {
-    const targets = await getSurveyInviteTargets(store);
-    console.log('[survey-invite] 설문 요청 대상: ' + targets.length + '명');
-    targets.forEach((t) => {
-      const b = t.latest;
-      console.log('- ' + b.email + ' | ' + b.date + ' ' + b.slotLabel + ' | ' + b.purpose + ' | ' + b.name +
-        (t.ids.length > 1 ? ' (확정 ' + t.ids.length + '건 → 1통)' : ''));
-    });
-    return;
-  }
-
-  if (args.includes('--batch')) await sendSurveyInvitesCore(store, CC_BATCH(), '수동 배치');
-  else await sendSurveyInvitesCore(store, CC_AUTO(), '자동');
+/** 자동 발송 (매일 08:30) — 인앱 스케줄러(lib/scheduler.js)와 CLI가 공유 */
+export async function runSurveyInviteJob(store) {
+  return sendSurveyInvitesCore(store, CC_AUTO(), '자동');
 }
 
-main().then(
-  () => process.exit(0),
-  (e) => { console.error('[survey-invite] error:', e); process.exit(1); },
-);
+// CLI 직접 실행 시에만 동작 (스케줄러가 import할 때는 실행 안 함)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const args = process.argv.slice(2);
+  (async () => {
+    const store = await getStore();
+    if (args.includes('--preview')) {
+      const targets = await getSurveyInviteTargets(store);
+      console.log('[survey-invite] 설문 요청 대상: ' + targets.length + '명');
+      targets.forEach((t) => {
+        const b = t.latest;
+        console.log('- ' + b.email + ' | ' + b.date + ' ' + b.slotLabel + ' | ' + b.purpose + ' | ' + b.name +
+          (t.ids.length > 1 ? ' (확정 ' + t.ids.length + '건 → 1통)' : ''));
+      });
+      return;
+    }
+    if (args.includes('--batch')) await sendSurveyInvitesCore(store, CC_BATCH(), '수동 배치');
+    else await runSurveyInviteJob(store);
+  })().then(
+    () => process.exit(0),
+    (e) => { console.error('[survey-invite] error:', e); process.exit(1); },
+  );
+}

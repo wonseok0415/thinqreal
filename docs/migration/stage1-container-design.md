@@ -329,3 +329,22 @@ Gitea 저장소 원본 검수에서 **HPA min 2 레플리카**가 확인되어(�
 - .gs의 자체 PNG 도넛 렌더러(GLYPHS 비트맵·encodePngBytes ~600줄)는 이식하지 않음 — 컨테이너는 기존 chart.js(@napi-rs/canvas) 렌더러 재사용 (같은 목적의 상위 구현).
 - Script Properties(발송 토큰·수동 발송 이력·ROI pin) → app_state(store.state)로 — 멀티 레플리카에서도 공유됨.
 - `FC_API_KEY`/`FV_API_KEY`/`MONTHLY_REPORT_TEST_TO`/`BEST_REVIEWER_BCC`/`SURVEY_FORM_URL` → env (.env.example 갱신). 도어락 PIN 변경(509067)은 env `DOORLOCK_PIN` 값 교체 사항 — 코드 무관.
+
+### 8-8. 과제 B 구현 — PostgreSQL 어댑터 + 인앱 스케줄러 + 8/26 델타 이식 (2026-09-05)
+
+**① 8/26 라이브 델타 이식**: `article_update`(기사 메타 직접 교정 — ArticlesStore에 `updateMeta` 연산 추가), `decodeHtmlEntities` 16진 엔티티 지원 + 저장분 소급 힐링(getManualArticles 읽기 시점 교정·write-back, survey_data 응답 디코딩), `fetchUrlMeta` 봇 차단 UA 브라우저 재시도(유효 메타 0이면 실패 간주), articles `listAll`에 summary/thumbnail(수정 모달 프리필), FieldCheck 수신자 분리(env `FC_REPORT_EMAILS` — 기본 담당자 3+팀장).
+
+**② 인앱 스케줄러 (`lib/scheduler.js`)** — ⚠ 스펙 대비 변경: K8s CronJob 매니페스트 대신 앱 내부 스케줄러 채택. 이유: release.yml이 deployment.yaml의 이미지 태그만 갱신하므로 CronJob 매니페스트는 릴리스마다 옛 이미지에 고착되고, deploy/ 구조(kustomize·ArgoCD 등록) 수정도 필요해진다. 인앱이면 항상 현재 배포 이미지로 돌고 push 한 번으로 끝. **BE팀 문의 ②(CronJob 등록 방법)는 "불필요해짐"으로 종결 가능.**
+- 1분 tick, 5분 발화 창, KST 고정 시각(07:40 FieldCheck 요약 / 08:30 월간 리포트·설문 초대 — Apps Script 트리거와 동일).
+- 레플리카 중복 방지: Valkey 일일 락 `kvTryLock`(SET NX EX, TTL 20h — kvcache.js에 신설). 각 잡의 자체 멱등 가드(월 가드·surveyInviteSentAt)와 이중.
+- 잡 3종은 `run*Job(store)` 함수로 추출, CLI 직접 실행(`node src/jobs/*.js`)은 `import.meta.url` 가드로 유지. `JOBS_DISABLED=true`로 끔.
+
+**③ PostgreSQL 어댑터 (`store/postgres/`)** — dynamo 스텁 제거·대체. Store 인터페이스 전체 구현.
+- 테이블 = 시트 탭 1:1(13종 + app_state), 컬럼명 동일, **전 컬럼 TEXT**(시트 동작 승계 — 핸들러가 이미 전부 변환 수행), `rid BIGSERIAL`이 행 순서 대체, monthly_articles만 `ord BIGINT`(article_move 순서 교환).
+- 기동 시 스키마 자동 생성/진화(CREATE TABLE IF NOT EXISTS + ADD COLUMN IF NOT EXISTS — ensureHeaders 등가). 읽기 후 JS 정규화(normalizeDate/Month)는 sheets 어댑터와 동일 규칙 유지.
+- 접속: env `DB_*` 6종, SSLMODE 'disable'만 ssl off(저장소 샘플 규칙). pg는 동적 import(256Mi 원칙).
+- **STORE_BACKEND 자동 감지**: 미지정 시 DB_HOST 있으면 postgres, 없으면 memory — 사내 K8s는 secret이 DB_*를 항상 주입하므로 **deploy 수정 없이 push만으로 영속 저장소 전환**. 명시 지정 우선.
+
+**검증 (로컬 PostgreSQL 16, STORE_BACKEND=postgres 전수 회귀)**: 스키마 자동 생성 14종 / 예약 생명주기(접수→확정→가용성 마감→편집→삭제) / 설문 파이프라인(파생 2종·amount_basis·est_value·cascade 삭제) / 방문자·health(FC키)·voc(FV키+토큰) / 큐레이션(인사이트 move·기사 add/move(ord)/update(16진 디코딩 확인)/delete) / ROI pin(app_state) / export_log / 베스트 리뷰어 재발송 가드 / 리포트 미리보기(PG 데이터·pin 라벨) / 2단계 발송 토큰(app_state 저장 확인) / 잡 CLI 3종 / **재기동 후 데이터 보존·스키마 멱등** / 자동 감지(DB_HOST 유→postgres, 무→memory) / kvTryLock(1회 획득·2회 거부) / memory 백엔드 회귀. 키트 레이아웃(STATIC_DIR=public) 기동 2모드 확인.
+
+**과제 B 키트 v3** (`thinq-real_kit_A_v3.zip`, 스크래치 산출물): src 56파일 + public 6종 최신 + docs/migration + KIT-INSTRUCTIONS v3(적용 5단계·검증표 5항 — postgres 전환·영속성·스케줄러 확인 포함).

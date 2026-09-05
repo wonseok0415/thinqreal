@@ -5,6 +5,7 @@
 //
 // 기록 없음 = 점검 장비가 안 돌았다는 뜻 — 그것 자체가 이상 신호라 요약 메일은 항상 발송.
 // FC_TEST_MODE=true(테스트 단계)면 운영자(CC_EMAIL)에게만 발송.
+import { pathToFileURL } from 'node:url';
 import { config } from '../config.js';
 import { FC_TEST_MODE, FC_LEVEL_LABELS, FC_LATENCY_NOTE } from '../lib/constants.js';
 import { formatDateLocal } from '../lib/dates.js';
@@ -22,8 +23,8 @@ function fmtTs(tsv) {
   return String(tsv).replace('T', ' ').slice(5, 16);
 }
 
-async function main() {
-  const store = await getStore();
+/** 일일 요약 본체 — 인앱 스케줄러(lib/scheduler.js)와 CLI가 공유 */
+export async function runFieldcheckSummaryJob(store) {
   const rows = await store.health.list();
 
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -135,13 +136,15 @@ async function main() {
   const htmlBody = buildHealthSummaryHtml(view);
   const msg = FC_TEST_MODE
     ? { to: config.adminAlertCc, subject, text: body, html: htmlBody }
-    : { to: config.adminAlertTo, cc: config.adminAlertCc, subject, text: body, html: htmlBody };
+    : { to: config.fcReportTo, cc: config.adminAlertCc, subject, text: body, html: htmlBody };
   const result = await sendMail(msg);
   if (result.ok) console.log('[fieldcheck-summary] sent → ' + msg.to);
   else console.error('[fieldcheck-summary] send fail: ' + result.error);
 }
 
-main().then(
-  () => process.exit(0),
-  (e) => { console.error('[fieldcheck-summary] error:', e); process.exit(1); },
-);
+// CLI 직접 실행 시에만 동작 (스케줄러가 import할 때는 실행 안 함)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  getStore()
+    .then((store) => runFieldcheckSummaryJob(store))
+    .then(() => process.exit(0), (e) => { console.error('[fieldcheck-summary] error:', e); process.exit(1); });
+}

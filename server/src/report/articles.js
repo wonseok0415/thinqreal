@@ -6,12 +6,18 @@ import { MONTHLY_REPORT_QUERY } from '../lib/constants.js';
 import { decodeHtmlEntities, extractDomain, truncate } from '../lib/html.js';
 
 // ── URL 메타 추출 ────────────────────────────────────────────
+// 봇 UA를 차단하는 사이트(chip.de 등 — 403/차단 페이지)는 브라우저 UA로 1회 재시도 (2026-08-25 이식)
 async function fetchUrlMeta(url) {
+  return (await fetchUrlMetaWith(url, 'Mozilla/5.0 (compatible; ThinQRealBot/1.0; +https://thinqreal.com)'))
+      || (await fetchUrlMetaWith(url, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'));
+}
+
+async function fetchUrlMetaWith(url, userAgent) {
   try {
     const res = await fetch(url, {
       redirect: 'follow',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; ThinQRealBot/1.0; +https://thinqreal.com)',
+        'User-Agent': userAgent,
         'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.5',
       },
       signal: AbortSignal.timeout(10000),
@@ -39,7 +45,9 @@ async function fetchUrlMeta(url) {
       if (iconv.encodingExists(encName)) html = iconv.decode(buf, encName);
       else console.warn(`[articles] unsupported charset ${charset} for ${url} → UTF-8 fallback`);
     }
-    return parseMetaTags(html);
+    const meta = parseMetaTags(html);
+    // 유효 메타가 하나도 없으면 실패로 간주 → 호출부의 다음 UA 재시도 유도
+    return (meta.title || meta.description || meta.image) ? meta : null;
   } catch (e) {
     console.warn(`[articles] fetchUrlMeta error for ${url}: ${e.message}`);
     return null;
@@ -112,6 +120,9 @@ async function fetchYoutubeMeta(url) {
 }
 
 export async function enrichArticleFromUrl(item) {
+  // 시트에 이미 저장된 값의 엔티티 잔재 소급 정리 (16진 미지원 시절 저장분 — 일반 텍스트에는 무해)
+  const cleanStored = (v) => (v ? decodeHtmlEntities(String(v)) : v);
+  item = { ...item, title: cleanStored(item.title), snippet: cleanStored(item.snippet), source: cleanStored(item.source) };
   const meta = (await fetchYoutubeMeta(item.link)) || (await fetchUrlMeta(item.link));
   if (!meta) {
     return { ...item, title: item.title || item.link, source: item.source || extractDomain(item.link) };
@@ -137,15 +148,20 @@ export async function getManualArticles(store, month) {
   }
   const items = [];
   for (const row of rows) {
-    const title = String(row.title || '').trim();
+    // 저장분 엔티티 소급 힐링 (2026-08-25 이식) — 16진 미지원 시절 저장 값(&#x27; 등)을 읽기 시점에 교정.
+    // title이 채워진 행은 enrich를 건너뛰므로(아래) 반드시 여기서 디코딩해야 함. 평문에는 무변화. URL은 제외.
+    const rawTitle = String(row.title || '').trim();
+    const rawSource = String(row.source || '').trim();
+    const rawSummary = String(row.summary || '').trim();
+    const title = decodeHtmlEntities(rawTitle);
     const url = String(row.url || '').trim();
     if (!url) continue;
 
     const baseItem = {
       title,
       link: url,
-      source: String(row.source || '').trim(),
-      snippet: String(row.summary || '').trim(),
+      source: decodeHtmlEntities(rawSource),
+      snippet: decodeHtmlEntities(rawSummary),
       publishedAt: String(row.published_at || '').trim(),
       thumbnail: String(row.thumbnail || '').trim(),
     };
@@ -157,6 +173,10 @@ export async function getManualArticles(store, month) {
     if (!title && enriched.title) wb.title = enriched.title;
     if (!baseItem.source && enriched.source) wb.source = enriched.source;
     if (!baseItem.snippet && enriched.snippet) wb.summary = enriched.snippet;
+    // 힐링된 값이 저장분과 다르면 저장소도 1회성 교정 (다음 읽기부턴 평문)
+    if (title && title !== rawTitle) wb.title = title;
+    if (baseItem.source && baseItem.source !== rawSource) wb.source = baseItem.source;
+    if (baseItem.snippet && baseItem.snippet !== rawSummary) wb.summary = baseItem.snippet;
     if (!baseItem.publishedAt && enriched.publishedAt) wb.published_at = enriched.publishedAt;
     if (!baseItem.thumbnail && enriched.thumbnail) wb.thumbnail = enriched.thumbnail;
     if (Object.keys(wb).length && row.rowRef != null) {
