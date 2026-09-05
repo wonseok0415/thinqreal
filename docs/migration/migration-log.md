@@ -227,3 +227,13 @@ BE팀이 사내 클라우드에 ThinQ Real 인프라 구축 진행 — **상세�
 ## 작업 내역 (2026-09-05 — OP 배포 완료·SSO 전 환경 적용 확인)
 
 박현정 책임 Teams(09-01) 확인 — **정리본은 decisions-2026-07-06.md §6-2가 단일 소스.** OP 배포 완료(예상보다 조기), MS Entra ID(SSO)가 ST/QA/OP 전부 적용 → 사내 SSO 계정 보유자만 진입 가능. ⚠ 전환 설계 신규 아젠다 발굴: SSO 전면 적용 시 **방문자 현장 설문(외부 방문객 QR)·FieldCheck/FieldVoice 장비 POST·공개 열람 페이지가 차단**되므로 SSO 예외 경로 협의 필요. OP용 DB·vault 신청 가이드는 계속 대기.
+
+## 작업 내역 (2026-09-05 — 과제 B 구현 완료 + 키트 v3)
+
+담당자 승인으로 과제 B 착수·완료 — **상세는 stage1-container-design.md §8-8이 단일 소스.**
+
+- **8/26 라이브 델타 이식**: article_update·16진 엔티티 디코딩+소급 힐링·봇 차단 UA 재시도·survey_data articles 스키마 확장(summary/thumbnail)·FieldCheck 수신자 분리(env FC_REPORT_EMAILS).
+- **인앱 스케줄러** (⚠ 스펙 대비 변경 — CronJob 매니페스트 대신): 이미지 태그 고착·deploy 구조 수정 문제를 피하기 위해 앱이 일일 잡 3종을 스스로 실행 (Valkey 일일 락으로 레플리카 중복 방지). **BE팀 문의 ②(CronJob)는 불필요해짐.**
+- **PostgreSQL 어댑터**: 테이블 14종 자동 생성, 전 컬럼 TEXT + rid/ord, STORE_BACKEND 자동 감지(DB_HOST 있으면 postgres) → **사내는 push만으로 영속 저장소 전환**. 로컬 PostgreSQL 16으로 전수 회귀 통과 (예약 생명주기·설문 파이프라인·큐레이션·ROI pin·2단계 발송 토큰·재기동 보존·memory 회귀 포함).
+- **키트 v3 전달** (`thinq-real_kit_A_v3.zip`): 적용 5단계 + 검증표 5항(postgres 전환·데이터 영속성·스케줄러). 사내 적용은 담당자 복귀(9/10) 후.
+- 남은 것: 과제 D(시트→DB 이행 — 전환 직전) / SSO 예외 경로 협의 / OP용 DB·vault 신청(가이드 대기) / SMTP 회신 대기.
