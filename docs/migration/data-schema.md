@@ -29,8 +29,8 @@
 | 20 | `purposeKey` | enum | `b2b` / `rd` / `pr` / `content` / `internal-comm` / `other` — **분기 로직은 항상 이 키 기준** |
 | 21 | `privacyConsent` | 'Y'/'' | 개인정보 수집·국외이전 동의 증빙 (동의 시각=timestamp). 백필 행 공란 허용 |
 | 22 | `calendarEventId` | JSON string | 캘린더 이벤트 id 배열 (회차마다 개별 일정). 레거시 단일 문자열도 파싱됨 |
-| 23 | `division` | string | 신청자 소속 본부 (드롭다운 10종). 2026-07 이전 행 공란 |
-| 24 | `department` | string | 신청자 소속 부서 (자유 입력) |
+| 23 | `division` | string | **방문 책임 부서의 소속 본부** (드롭다운 — 2026-09-01 의미 확정: 사업부별 활용 통계·캘린더 표기 기준. B2B 대리 신청 시 책임자 본부). 2026-07 이전 행 공란 |
+| 24 | `department` | string | 방문 책임 부서명 (자유 입력 — division과 세트) |
 | 25 | `surveyInviteSentAt` | ISO string | 방문 후기 설문 요청 메일 발송 시각 (배치 재실행 시 중복 발송 방지 마커). 미발송 행 공란 |
 | 26 | `applicant` | string | 신청자 "이름 직급" (2026-09-01 신청자/책임자 분리 — `name`은 방문 책임자). 공란 = 책임자와 동일 취급 (분리 이전 행 호환). 확정·거절 메일 인사말·설문 초대 프리필·베스트 리뷰어 매칭은 `applicant \|\| name` |
 

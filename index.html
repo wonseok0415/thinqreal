@@ -1339,8 +1339,14 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
           <strong id="summaryText">—</strong>
         </div>
 
-        <!-- 신청자 소속 + 이메일 — 목적과 무관한 신청자 기본 정보라 방문 목적보다 먼저 입력.
+        <!-- 그룹 구분 (2026-09-01 운영자 피드백): 책임자·신청자 모두 사내 소속이 있어 "소속"이 누구
+             것인지 혼선 → 방문 책임자/신청자 블록을 시각 분리. 소속 본부·부서 = 방문을 주관하는 책임
+             부서 기준 (B2B 대리 신청 시 한영본 등 — 사업부별 활용 통계·캘린더 표기의 기준).
              본부는 고정 드롭다운, 부서는 조직개편으로 수시 변경되어 직접 입력 방식. -->
+        <div style="margin:4px 0 14px; font-size:15px; font-weight:600; color:var(--c-accent); letter-spacing:-0.016em;">
+          👤 방문 책임자
+          <span style="display:block; margin-top:3px; font-size:12.5px; font-weight:400; color:var(--c-label-2);">방문을 주관하는 부서와 책임자 정보를 입력해 주세요.</span>
+        </div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">소속 본부 *</label>
@@ -1365,7 +1371,7 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
           <div class="form-group">
             <label class="form-label">소속 부서 *</label>
             <input class="form-input" id="fDepartment" type="text" placeholder="예: AI홈솔루션엔지니어링팀">
-            <span class="form-hint-inline">현재 소속 부서명을 입력해 주세요.</span>
+            <span class="form-hint-inline">방문 책임자의 소속 부서명을 입력해 주세요.</span>
           </div>
         </div>
 
@@ -1383,7 +1389,11 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
           </div>
         </div>
 
-        <div class="form-group" style="margin-top:-4px;">
+        <div style="margin:22px 0 14px; padding-top:18px; border-top:1px solid var(--c-separator); font-size:15px; font-weight:600; color:var(--c-accent); letter-spacing:-0.016em;">
+          ✍️ 신청자
+          <span style="display:block; margin-top:3px; font-size:12.5px; font-weight:400; color:var(--c-label-2);">예약을 신청하시는 분 — 확정 메일과 방문 후기 설문이 신청자 이메일로 발송됩니다.</span>
+        </div>
+        <div class="form-group">
           <label style="display:flex;align-items:center;gap:8px;font-size:var(--t-subhead);color:var(--c-label);cursor:pointer;">
             <input type="checkbox" id="fSameApplicant" checked onchange="toggleApplicant()">
             신청자가 방문 책임자와 동일합니다
@@ -1459,7 +1469,7 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
             <input type="checkbox" id="fPrivacyCollect">
             <span class="form-agreement-text">
               <strong>[필수] 개인정보 수집·이용 동의</strong> —
-              예약 처리·방문 운영·운영 통계를 위해 신청자·방문 책임자 이름·직급, 신청자 이메일·소속(본부·부서),
+              예약 처리·방문 운영·운영 통계를 위해 신청자·방문 책임자 이름·직급, 방문 부서 소속(본부·부서), 신청자 이메일,
               방문자 소속·이름·직급을 수집·이용함에 동의합니다.
               (보유 기간: 방문일로부터 3년)
               <a href="privacy.html" target="_blank" rel="noopener">자세히 보기</a>
