@@ -27,7 +27,7 @@ export function buildAdminAlertText(data, id) {
   회  차  : ${data.slotLabel || ''}
   목  적  : ${data.purpose}
   ${subjLabel.padEnd(7, ' ')}: ${data.subject || data.org || ''}
-  책임자  : ${data.name}
+  책임자  : ${data.name}${data.applicant && data.applicant !== data.name ? '\n  신청자  : ' + data.applicant : ''}
   소  속  : ${[data.division, data.department].filter(Boolean).join(' · ')}
   연락처  : ${data.phone}
   이메일  : ${data.email}
@@ -107,6 +107,8 @@ export function buildAdminAlertHtml(data, id) {
 
   rows +=
     infoRow('👤', '책임자', name) +
+    (data.applicant && data.applicant !== data.name
+      ? infoRow('✍️', '신청자', escapeHtml(data.applicant)) : '') +
     infoRow('🏛', '소속', belong || '<span style="color:#aeaeb2;">—</span>') +
     infoRow('☎', '연락처',
       '<div>' + phone + '</div>' +

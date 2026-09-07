@@ -44,6 +44,7 @@ export async function getSurveyInviteTargets(store) {
     const rec = {
       id: String(b.id), email, date,
       name: String(b.name || ''),
+      applicant: String(b.applicant || ''),
       slotLabel: String(b.slotLabel || ''),
       purpose: String(b.purpose || ''),
       subject: String(b.subject || b.org || ''),
