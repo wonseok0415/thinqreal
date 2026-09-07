@@ -1368,13 +1368,16 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
           👤 방문 책임자
           <span style="display:block; margin-top:3px; font-size:12.5px; font-weight:400; color:var(--c-label-2);">방문을 주관하는 부서와 책임자 정보를 입력해 주세요.</span>
         </div>
+        <!-- 질문형 + 기본 미체크 (2026-09-01 운영자 피드백): 기본 체크 서술문은 읽지 않고 지나침 —
+             질문을 읽고 능동적으로 체크하게 한다. 미체크 = 책임자 별도 입력 (칸 기본 노출이라 상태 모호성 없음). -->
         <div class="form-group">
-          <label style="display:flex;align-items:center;gap:8px;font-size:var(--t-subhead);color:var(--c-label);cursor:pointer;">
-            <input type="checkbox" id="fSameLeader" checked onchange="toggleLeader()">
-            방문 책임자가 신청자와 동일합니다
+          <div style="font-size:var(--t-subhead);font-weight:600;color:var(--c-label);margin-bottom:8px;">방문 책임자와 신청자가 동일합니까?</div>
+          <label style="display:flex;align-items:flex-start;gap:8px;font-size:var(--t-subhead);color:var(--c-label);cursor:pointer;">
+            <input type="checkbox" id="fSameLeader" onchange="toggleLeader()" style="margin-top:3px;">
+            <span>예, 동일합니다 <span style="color:var(--c-label-3);">— 다르면 체크하지 말고 아래에 방문 책임자 정보를 입력해 주세요.</span></span>
           </label>
         </div>
-        <div class="form-row" id="leaderRow" style="display:none;">
+        <div class="form-row" id="leaderRow">
           <div class="form-group">
             <label class="form-label">방문 책임자 이름 *</label>
             <input class="form-input" id="fName" type="text" placeholder="예: 박한영">
@@ -2391,7 +2394,7 @@ async function submitBooking() {
     toast('신청자 이름과 직급을 입력해 주세요.'); return;
   }
   if (!sameLeader && (!leaderName || !leaderRank)) {
-    toast('방문 책임자 이름과 직급을 입력해 주세요.'); return;
+    toast('방문 책임자 이름과 직급을 입력해 주세요. (신청자와 동일하면 「예, 동일합니다」에 체크해 주세요.)'); return;
   }
   if (!subject || !email) {
     toast('필수 항목을 모두 입력해 주세요.'); return;
