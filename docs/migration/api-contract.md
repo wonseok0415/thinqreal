@@ -54,11 +54,11 @@
 
 | type | 인증 | 동작 | 부수 효과 |
 |---|---|---|---|
-| `booking` | — | 신규 예약 행 append (id=`Date.now()` 문자열) | 담당자 알림 메일 + 텔레그램 발송 |
+| `booking` | — | 신규 예약 행 append (id=`Date.now()` 문자열). **2026-09-01: `applicant`(신청자 "이름 직급") 필드 추가** — `name`은 방문 책임자. **D+7 버퍼 검증**: `date < 오늘(KST)+7일`이면 `{error:'booking_too_soon', minDate}` 거부 (달력 차단의 서버 강제 — 클라이언트는 no-cors라 응답 미확인, 달력이 1차 게이트) | 담당자 알림 메일 + 텔레그램 발송 (신청자≠책임자면 양쪽 표기) |
 | `update` | 관리자 토큰 | `status` 변경 (확정/거절) | 예약자 확정·거절 메일 + 텔레그램 + 캘린더 동기화 |
 | `booking_delete` | 관리자 토큰 | 행 영구 삭제 | 캘린더 이벤트 제거. **메일 미발송** (의도) |
-| `admin_booking_create` | 관리자 토큰 | 이력 직접 추가 (기본 status=확정) | **알림 미발송** (의도). 확정이면 캘린더 등록 |
-| `admin_booking_edit` | 관리자 토큰 | 편집 가능 필드만 갱신 (`id·timestamp·privacyConsent` 보존) | **알림 미발송**. 캘린더 동기화 |
+| `admin_booking_create` | 관리자 토큰 | 이력 직접 추가 (기본 status=확정). **D+7 제한 없음** — 긴급 방문 전화 접수의 등록 경로 | **알림 미발송** (의도). 확정이면 캘린더 등록 |
+| `admin_booking_edit` | 관리자 토큰 | 편집 가능 필드만 갱신 (`id·timestamp·privacyConsent` 보존, `applicant` 편집 가능 — 2026-09-01) | **알림 미발송**. 캘린더 동기화 |
 | `slot_block` | 관리자 토큰 | `{date, slot, reason}` 슬롯 차단 | — |
 | `slot_unblock` | 관리자 토큰 | `{date, slot}` 또는 `{id}` 차단 해제 | — |
 | `roi_snapshot` | — ⚠️ | ROI 시나리오 저장 `{label, author, inputs, outputs}` | — |

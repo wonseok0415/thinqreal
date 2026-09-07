@@ -1369,16 +1369,34 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
           </div>
         </div>
 
-        <!-- 신청자 이름·직급 — 방문 후기 설문이 신청자 이메일로 발송되므로,
-             설문 작성자와 올바르게 맵핑되도록 신청자 본인 정보를 받는다 (2026-07-20). -->
+        <!-- 방문 책임자 이름·직급 (name 컬럼 — 관리자·캘린더의 '책임자' 표기와 동일 인물).
+             B2B 대리 신청처럼 신청자가 다른 경우 아래 체크 해제 후 신청자 정보를 따로 입력 (2026-09-01 운영팀 요청).
+             확정 메일·설문 요청은 신청자(이메일 소유자) 기준으로 발송·프리필된다. -->
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">신청자 이름 *</label>
+            <label class="form-label">방문 책임자 이름 *</label>
             <input class="form-input" id="fName" type="text" placeholder="예: 김엘지">
           </div>
           <div class="form-group">
-            <label class="form-label">신청자 직급 *</label>
+            <label class="form-label">방문 책임자 직급 *</label>
             <input class="form-input" id="fRank" type="text" placeholder="예: 책임">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top:-4px;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:var(--t-subhead);color:var(--c-label);cursor:pointer;">
+            <input type="checkbox" id="fSameApplicant" checked onchange="toggleApplicant()">
+            신청자가 방문 책임자와 동일합니다
+          </label>
+        </div>
+        <div class="form-row" id="applicantRow" style="display:none;">
+          <div class="form-group">
+            <label class="form-label">신청자 이름 *</label>
+            <input class="form-input" id="fAppName" type="text" placeholder="예: 하임경">
+          </div>
+          <div class="form-group">
+            <label class="form-label">신청자 직급 *</label>
+            <input class="form-input" id="fAppRank" type="text" placeholder="예: 책임">
           </div>
         </div>
 
@@ -1441,7 +1459,7 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
             <input type="checkbox" id="fPrivacyCollect">
             <span class="form-agreement-text">
               <strong>[필수] 개인정보 수집·이용 동의</strong> —
-              예약 처리·방문 운영·운영 통계를 위해 신청자 이름·직급·이메일·소속(본부·부서),
+              예약 처리·방문 운영·운영 통계를 위해 신청자·방문 책임자 이름·직급, 신청자 이메일·소속(본부·부서),
               방문자 소속·이름·직급을 수집·이용함에 동의합니다.
               (보유 기간: 방문일로부터 3년)
               <a href="privacy.html" target="_blank" rel="noopener">자세히 보기</a>
@@ -1507,7 +1525,7 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
           <div class="process-step"><span class="process-num">03</span><span class="process-label">확정 메일</span></div>
           <div class="process-step"><span class="process-num">04</span><span class="process-label">방문 이용</span></div>
         </div>
-        <p style="font-size:var(--t-subhead);color:var(--c-label-2);line-height:1.6;letter-spacing:-0.016em;">예약 신청 후 담당자 검토를 거쳐 확정 메일이 발송됩니다. 신청 시 방문 목적, 인원, 신청자 정보를 정확히 입력해 주세요.</p>
+        <p style="font-size:var(--t-subhead);color:var(--c-label-2);line-height:1.6;letter-spacing:-0.016em;">예약 신청 후 담당자 검토를 거쳐 확정 메일이 발송됩니다. 신청 시 방문 목적, 인원, 신청자 정보를 정확히 입력해 주세요. <strong>예약은 방문일 기준 1주일 전까지</strong> 신청 가능합니다 (오늘부터 7일 이내 날짜는 선택 불가 — 급한 방문은 담당자에게 문의해 주세요).</p>
       </div>
 
       <div class="guide-section">
@@ -2022,6 +2040,8 @@ function renderCalendar() {
   const firstDay = new Date(y, m, 1).getDay();
   const daysInMonth = new Date(y, m+1, 0).getDate();
   const today = new Date(); today.setHours(0,0,0,0);
+  // 예약 가능 시작일 = 오늘+7일 (D+7 버퍼 — 2026-09-01 운영팀 요청. 급한 방문은 담당자 문의 → 관리자 백필)
+  const minBookable = new Date(today); minBookable.setDate(minBookable.getDate() + 7);
 
   for (let i = 0; i < firstDay; i++) {
     const el = document.createElement('div');
@@ -2031,7 +2051,7 @@ function renderCalendar() {
     const el = document.createElement('div');
     el.className = 'cal-day';
     const dt = new Date(y, m, d);
-    if (dt < today) el.classList.add('past');
+    if (dt < minBookable) el.classList.add('past');   // 과거 + D+7 미만 버퍼 모두 선택 불가
     const dow = dt.getDay();
     if (dow === 0 || dow === 6) el.classList.add('closed'); // 일·토 휴무
     if (dt.toDateString() === today.toDateString()) el.classList.add('today');
@@ -2046,6 +2066,12 @@ function renderCalendar() {
 function changeMonth(dir) {
   currentDate.setMonth(currentDate.getMonth() + dir);
   renderCalendar();
+}
+
+// 신청자 분리 칸 토글 (2026-09-01) — "책임자와 동일" 해제 시에만 신청자 이름·직급 입력 노출
+function toggleApplicant() {
+  document.getElementById('applicantRow').style.display =
+    document.getElementById('fSameApplicant').checked ? 'none' : '';
 }
 
 function selectDate(date) {
@@ -2342,8 +2368,11 @@ async function submitBooking() {
 
   const get = id => document.getElementById(id).value.trim();
   const subject  = get('fSubject');
-  const applicantName = get('fName');
-  const applicantRank = get('fRank');
+  const leaderName = get('fName');    // 방문 책임자 (name 컬럼)
+  const leaderRank = get('fRank');
+  const sameApplicant = document.getElementById('fSameApplicant').checked;
+  const appName = get('fAppName');
+  const appRank = get('fAppRank');
   const email    = get('fEmail');
   const division   = get('fDivision');
   const department = get('fDepartment');
@@ -2352,7 +2381,10 @@ async function submitBooking() {
 
   if (!division)   { toast('소속 본부를 선택해 주세요.'); return; }
   if (!department) { toast('소속 부서를 입력해 주세요.'); return; }
-  if (!applicantName || !applicantRank) {
+  if (!leaderName || !leaderRank) {
+    toast('방문 책임자 이름과 직급을 입력해 주세요.'); return;
+  }
+  if (!sameApplicant && (!appName || !appRank)) {
     toast('신청자 이름과 직급을 입력해 주세요.'); return;
   }
   if (!subject || !email) {
@@ -2414,7 +2446,8 @@ async function submitBooking() {
     type: 'booking', timestamp: new Date().toISOString(),
     date: dateStr, slots: sortedSlots, slot: sortedSlots[0], slotLabel,
     // 기존 호환 필드 — 관리자 페이지 표시용
-    name:    applicantName + ' ' + applicantRank,  // 신청자 이름+직급 (책임자 컬럼 겸용 — 설문 작성자 프리필과 맵핑)
+    name:      leaderName + ' ' + leaderRank,     // 방문 책임자 "이름 직급" (관리자·캘린더 '책임자' 표기)
+    applicant: sameApplicant ? (leaderName + ' ' + leaderRank) : (appName + ' ' + appRank),  // 신청자 — 확정 메일 인사말·설문 프리필 기준 (2026-09-01 분리)
     org:     subject,           // 1번째 줄 입력값 (대표 표시)
     phone:   '',                // 연락처 수집 중단 (2026-07-20) — 시트 컬럼 호환 위해 빈 값 유지
     email,

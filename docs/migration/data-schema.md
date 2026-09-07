@@ -3,7 +3,7 @@
 > 현재 저장소: Google Sheets (ID는 CLAUDE.md 참조). 사내 DB 이전 시 테이블 설계 기준.
 > 헤더의 단일 소스: `ThinQReal_AppScript.gs`의 `getOrCreateHeaders()` `HEADERS` 배열.
 
-## 1. `bookings` 탭 (예약 — 메인 테이블, 25컬럼)
+## 1. `bookings` 탭 (예약 — 메인 테이블, 26컬럼)
 
 | # | 컬럼 | 타입 | 설명 |
 |---|---|---|---|
@@ -32,6 +32,7 @@
 | 23 | `division` | string | 신청자 소속 본부 (드롭다운 10종). 2026-07 이전 행 공란 |
 | 24 | `department` | string | 신청자 소속 부서 (자유 입력) |
 | 25 | `surveyInviteSentAt` | ISO string | 방문 후기 설문 요청 메일 발송 시각 (배치 재실행 시 중복 발송 방지 마커). 미발송 행 공란 |
+| 26 | `applicant` | string | 신청자 "이름 직급" (2026-09-01 신청자/책임자 분리 — `name`은 방문 책임자). 공란 = 책임자와 동일 취급 (분리 이전 행 호환). 확정·거절 메일 인사말·설문 초대 프리필·베스트 리뷰어 매칭은 `applicant \|\| name` |
 
 ### `purpose` / `purposeKey` enum (2026-07-05 개편)
 | purposeKey | purpose (라벨) |
@@ -165,4 +166,4 @@
 - 개인정보 보유: **방문일로부터 3년** (privacy.html §3와 동기화)
 - Wi-Fi·도어락 등 민감 정보는 확정 메일에만 — DB/페이지 노출 금지
 - 캘린더 일정에는 방문자 명단·연락처 미표기
-- 백필/직접 입력 시 25컬럼 순서 엄수 (`slots`·`slot`·`slotLabel` 3종 모두 필수, `surveyInviteSentAt` 공란 허용)
+- 백필/직접 입력 시 26컬럼 순서 엄수 (`slots`·`slot`·`slotLabel` 3종 모두 필수, `surveyInviteSentAt`·`applicant` 공란 허용)
