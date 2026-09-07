@@ -417,6 +417,14 @@ function doPost(e) {
 
 // ── 신규 예약 저장 ───────────────────────────────────────────
 function handleNewBooking(data) {
+  // 예약 가능일 D+7 버퍼 (2026-09-01 운영팀 요청): 오늘(KST)+7일 이후 날짜만 접수 — 달력 차단
+  // 우회 방지용 서버 강제. 급한 방문(전화 접수)은 관리자 백필(admin_booking_create — 제한 없음)로.
+  const bkDate  = normalizeDate(data.date);
+  const minDate = Utilities.formatDate(new Date(Date.now() + 7 * 86400000), 'Asia/Seoul', 'yyyy-MM-dd');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(bkDate) || bkDate < minDate) {
+    return jsonResponse({ error: 'booking_too_soon', minDate: minDate });
+  }
+
   const sheet   = getSheet();
   const headers = getOrCreateHeaders(sheet);
 
@@ -562,7 +570,7 @@ function handleAdminEditBooking(data, byEmail) {
   // 나머지 편집 가능한 필드만 갱신 (undefined는 건너뜀)
   ['date', 'slotLabel', 'name', 'org', 'phone', 'email', 'purpose', 'count', 'note', 'status',
    'subject', 'clientCompany', 'visitors', 'usagePlan', 'expectedEffect', 'purposeKey',
-   'division', 'department'
+   'division', 'department', 'applicant'
   ].forEach(f => { if (data[f] !== undefined) setField(f, data[f]); });
 
   // 캘린더 동기화 — 갱신된 행의 최종 상태 기준 (확정이면 등록/갱신, 아니면 제거)
@@ -801,7 +809,7 @@ function buildAdminAlertText(data, id) {
   회  차  : ${data.slotLabel || ''}
   목  적  : ${data.purpose}
   ${subjLabel.padEnd(7, ' ')}: ${data.subject || data.org || ''}
-  책임자  : ${data.name}
+  책임자  : ${data.name}${data.applicant && data.applicant !== data.name ? '\n  신청자  : ' + data.applicant : ''}
   소  속  : ${[data.division, data.department].filter(Boolean).join(' · ')}
   연락처  : ${data.phone}
   이메일  : ${data.email}
@@ -883,6 +891,8 @@ function buildAdminAlertHtml(data, id) {
 
   rows +=
     infoRow('👤', '책임자', name) +
+    (data.applicant && data.applicant !== data.name
+      ? infoRow('✍️', '신청자', escapeHtml(data.applicant)) : '') +
     infoRow('🏛', '소속', belong || '<span style="color:#aeaeb2;">—</span>') +
     infoRow('☎', '연락처',
       '<div>' + phone + '</div>' +
@@ -1006,7 +1016,7 @@ function buildConfirmText(data) {
   const includeWelcomeBoard = /(B2B|홍보)/.test(data.purpose || '');
 
   const sections = [
-    `안녕하세요, ${data.name}님.`,
+    `안녕하세요, ${data.applicant || data.name}님.`,   // 수신자 = 신청자 이메일 → 인사말도 신청자 (2026-09-01)
     ``,
     `ThinQ Real 방문 예약이 확정되었습니다.`,
     ``,
@@ -1073,7 +1083,7 @@ function buildConfirmText(data) {
 function buildConfirmHtml(data) {
   const includeAppliances = (data.purpose || '').indexOf('R&D') >= 0;
   const includeWelcomeBoard = /(B2B|홍보)/.test(data.purpose || '');
-  const name = escapeHtml(data.name);
+  const name = escapeHtml(data.applicant || data.name);   // 수신자 = 신청자 (2026-09-01)
   const date = escapeHtml(data.date);
   const slot = escapeHtml(data.slotLabel || '');
 
@@ -1140,7 +1150,7 @@ function buildConfirmHtml(data) {
 
 function buildRejectText(data) {
   return [
-    `안녕하세요, ${data.name}님.`,
+    `안녕하세요, ${data.applicant || data.name}님.`,
     ``,
     `아쉽게도 요청하신 일정(${data.date} ${data.slotLabel || ''})에`,
     `ThinQ Real 방문 예약이 어렵게 되었습니다.`,
@@ -1161,7 +1171,7 @@ function buildRejectText(data) {
 }
 
 function buildRejectHtml(data) {
-  const name = escapeHtml(data.name);
+  const name = escapeHtml(data.applicant || data.name);   // 수신자 = 신청자 (2026-09-01)
   const date = escapeHtml(data.date);
   const slot = escapeHtml(data.slotLabel || '');
   return (
@@ -2919,7 +2929,10 @@ function getOrCreateHeaders(sheet) {
     // 2026-07 B2E 전환 — 신청자 소속 (본부 드롭다운 / 부서 직접 입력)
     'division', 'department',
     // 2026-07 방문 후기 설문 요청 메일 발송 기록 (배치 재실행 시 중복 발송 방지)
-    'surveyInviteSentAt'
+    'surveyInviteSentAt',
+    // 2026-09 신청자/책임자 분리 (운영팀 요청 — B2B 대리 신청 케이스): 신청자 "이름 직급".
+    // 공란 = 책임자(name)와 동일 취급 (분리 이전 행 호환). 확정 메일 인사말·설문 프리필은 applicant 우선.
+    'applicant'
   ];
   const lastCol  = Math.max(sheet.getLastColumn(), 1);
   const firstRow = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
@@ -3443,6 +3456,7 @@ function sendTelegramNewBooking(data, id) {
   if (subject) lines.push('📝 ' + e(subjLabel) + ': ' + e(subject));
   if (company) lines.push('🏢 ' + e(company));
   lines.push('👤 ' + e(data.name) + (count ? '  ·  총 ' + e(count) + '명' : ''));
+  if (data.applicant && data.applicant !== data.name) lines.push('✍ 신청 ' + e(data.applicant));
   if (belong) lines.push('🏛 ' + e(belong));
   if (data.phone) lines.push('☎ ' + e(data.phone));
   lines.push('');
@@ -4219,7 +4233,8 @@ const SURVEY_FORM_URL = 'https://thinqreal.com/ThinQ_Real_Visit_Survey.html';
 function buildSurveyInviteLink(b) {
   const params = [];
   if (b.date) params.push('visit_date=' + encodeURIComponent(b.date));
-  if (b.name) params.push('name=' + encodeURIComponent(b.name));
+  const writer = b.applicant || b.name;   // 설문 작성자 = 메일 수신자 = 신청자 (2026-09-01 분리)
+  if (writer) params.push('name=' + encodeURIComponent(writer));
   const dept = ((b.division || '') + ' ' + (b.department || '')).trim();
   if (dept) params.push('dept=' + encodeURIComponent(dept));
   return SURVEY_FORM_URL + (params.length ? '?' + params.join('&') : '');

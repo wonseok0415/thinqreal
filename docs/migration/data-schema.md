@@ -3,7 +3,7 @@
 > 현재 저장소: Google Sheets (ID는 CLAUDE.md 참조). 사내 DB 이전 시 테이블 설계 기준.
 > 헤더의 단일 소스: `ThinQReal_AppScript.gs`의 `getOrCreateHeaders()` `HEADERS` 배열.
 
-## 1. `bookings` 탭 (예약 — 메인 테이블, 25컬럼)
+## 1. `bookings` 탭 (예약 — 메인 테이블, 26컬럼)
 
 | # | 컬럼 | 타입 | 설명 |
 |---|---|---|---|
@@ -29,9 +29,10 @@
 | 20 | `purposeKey` | enum | `b2b` / `rd` / `pr` / `content` / `internal-comm` / `other` — **분기 로직은 항상 이 키 기준** |
 | 21 | `privacyConsent` | 'Y'/'' | 개인정보 수집·국외이전 동의 증빙 (동의 시각=timestamp). 백필 행 공란 허용 |
 | 22 | `calendarEventId` | JSON string | 캘린더 이벤트 id 배열 (회차마다 개별 일정). 레거시 단일 문자열도 파싱됨 |
-| 23 | `division` | string | 신청자 소속 본부 (드롭다운 10종). 2026-07 이전 행 공란 |
-| 24 | `department` | string | 신청자 소속 부서 (자유 입력) |
+| 23 | `division` | string | **방문 책임 부서의 소속 본부** (드롭다운 — 2026-09-01 의미 확정: 사업부별 활용 통계·캘린더 표기 기준. B2B 대리 신청 시 책임자 본부). 2026-07 이전 행 공란 |
+| 24 | `department` | string | 방문 책임 부서명 (자유 입력 — division과 세트) |
 | 25 | `surveyInviteSentAt` | ISO string | 방문 후기 설문 요청 메일 발송 시각 (배치 재실행 시 중복 발송 방지 마커). 미발송 행 공란 |
+| 26 | `applicant` | string | 신청자 "이름 직급" (2026-09-01 신청자/책임자 분리 — `name`은 방문 책임자). 공란 = 책임자와 동일 취급 (분리 이전 행 호환). 확정·거절 메일 인사말·설문 초대 프리필·베스트 리뷰어 매칭은 `applicant \|\| name` |
 
 ### `purpose` / `purposeKey` enum (2026-07-05 개편)
 | purposeKey | purpose (라벨) |
@@ -165,12 +166,12 @@
 - 개인정보 보유: **방문일로부터 3년** (privacy.html §3와 동기화)
 - Wi-Fi·도어락 등 민감 정보는 확정 메일에만 — DB/페이지 노출 금지
 - 캘린더 일정에는 방문자 명단·연락처 미표기
-- 백필/직접 입력 시 25컬럼 순서 엄수 (`slots`·`slot`·`slotLabel` 3종 모두 필수, `surveyInviteSentAt` 공란 허용)
+- 백필/직접 입력 시 26컬럼 순서 엄수 (`slots`·`slot`·`slotLabel` 3종 모두 필수, `surveyInviteSentAt`·`applicant` 공란 허용)
 
 ## PostgreSQL 매핑 규칙 (사내 이관 — 2026-09-05, server/src/store/postgres/)
 
 - 테이블 = 시트 탭 1:1, 테이블·컬럼명은 위 정의 그대로. **전 컬럼 TEXT** (시트가 문자열 저장소였고 소비처가 전부 String/Number 변환을 수행 — 타입 강화는 이관 안정화 후 별도 과제).
 - 추가 컬럼 2종: `rid BIGSERIAL PRIMARY KEY`(시트의 행 순서 대체 — 조회 ORDER BY rid), `monthly_articles.ord BIGINT`(기사 순서 교환용 — article_move).
 - `app_state`는 key/value 2컬럼 + PK(key) — Script Properties 대체 (발송 토큰·수동 발송 이력·ROI pin·월 가드).
-- 스키마는 앱 기동 시 자동 생성/진화 (CREATE TABLE IF NOT EXISTS + ADD COLUMN IF NOT EXISTS — 이 문서의 상수 배열이 곧 DDL 소스). 별도 마이그레이션 도구 없음.
+- 스키마는 앱 기동 시 자동 생성/진화 (CREATE TABLE IF NOT EXISTS + ADD COLUMN IF NOT EXISTS — 상수 배열이 곧 DDL 소스라 applicant 같은 신규 컬럼도 상수 반영 시 자동 추가). 별도 마이그레이션 도구 없음.
 - 시트→PG 실데이터 이행은 과제 D (전환 직전 1회) — 이행 시 컬럼 순서가 아니라 **컬럼명 매칭**으로 넣을 것.

@@ -2453,6 +2453,12 @@ body {
         <div class="ffield">
           <label class="ffield-label" id="bfLeaderLabel">책임자<span class="req">*</span></label>
           <input class="finput" id="bfName" type="text" autocomplete="off">
+          <span class="fhint">"이름 직급" 형식 (예: 김엘지 책임)</span>
+        </div>
+        <div class="ffield">
+          <label class="ffield-label">신청자</label>
+          <input class="finput" id="bfApplicant" type="text" autocomplete="off" placeholder="이름 직급">
+          <span class="fhint">비우면 책임자와 동일로 처리됩니다 (B2B 대리 신청 시에만 입력).</span>
         </div>
         <div class="ffield">
           <label class="ffield-label">방문 인원</label>
@@ -3541,6 +3547,9 @@ function openModal(id) {
     + '<span class="detail-label">날짜</span>    <span class="detail-value">' + escapeHtml(b.date||'') + '</span>'
     + '<span class="detail-label">회차</span>    <span class="detail-value">' + fmtSlots(b) + '</span>'
     + '<span class="detail-label">책임자</span>  <span class="detail-value">' + escapeHtml(b.name||'') + '</span>'
+    + ((b.applicant && b.applicant !== b.name)
+        ? '<span class="detail-label">신청자</span>  <span class="detail-value">' + escapeHtml(b.applicant) + '</span>'
+        : '')
     + ((b.division || b.department)
         ? '<span class="detail-label">소속</span>    <span class="detail-value">' + escapeHtml([b.division, b.department].filter(Boolean).join(' · ')) + '</span>'
         : '')
@@ -3837,7 +3846,7 @@ function openBookingFormCreate() {
   bfMode = 'create'; bfEditId = null;
   document.getElementById('bfTitle').textContent = '예약 이력 추가';
   document.getElementById('bfPurpose').value = '';
-  ['bfSubject','bfClient','bfDate','bfName','bfCount','bfPhone','bfEmail','bfDivision','bfDepartment','bfUsage','bfEffect','bfNote']
+  ['bfSubject','bfClient','bfDate','bfName','bfApplicant','bfCount','bfPhone','bfEmail','bfDivision','bfDepartment','bfUsage','bfEffect','bfNote']
     .forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('bfStatus').value = '확정';
   bfSetSlots([]);
@@ -3864,6 +3873,7 @@ function openBookingFormEdit(id) {
   document.getElementById('bfStatus').value  = b.status || '확정';
   bfSetSlots(b.slotsArr || []);
   document.getElementById('bfName').value    = b.name || '';
+  document.getElementById('bfApplicant').value = b.applicant || '';
   document.getElementById('bfCount').value   = (b.count != null && b.count !== '') ? b.count : '';
   document.getElementById('bfPhone').value   = b.phone || '';
   document.getElementById('bfEmail').value   = b.email || '';
@@ -3950,6 +3960,7 @@ async function saveBookingForm() {
     purposeKey: key,
     division: document.getElementById('bfDivision').value,
     department: document.getElementById('bfDepartment').value.trim(),
+    applicant: document.getElementById('bfApplicant').value.trim(),   // 공란 = 책임자와 동일 (2026-09-01 분리)
   };
 
   const btn = document.getElementById('bfSaveBtn');
@@ -4126,7 +4137,7 @@ function genExportPassword(targetId) {
 }
 
 function buildBookingsCsv() {
-  const headers = ['날짜','회차','목적','주제','책임자','소속본부','소속부서','연락처','이메일','인원','방문자명단','활용방안','기대효과','상태','신청일시'];
+  const headers = ['날짜','회차','목적','주제','책임자','신청자','소속본부','소속부서','연락처','이메일','인원','방문자명단','활용방안','기대효과','상태','신청일시'];
   const rows = allBookings.map(b => {
     let visitorSummary = '';
     try {
@@ -4135,7 +4146,7 @@ function buildBookingsCsv() {
     } catch(e) {}
     return [
       b.date, fmtSlots(b), b.purpose, b.subject || b.org,
-      b.name, b.division || '', b.department || '', b.phone, b.email, b.count,
+      b.name, b.applicant || '', b.division || '', b.department || '', b.phone, b.email, b.count,
       visitorSummary, b.usagePlan || '', b.expectedEffect || '',
       b.status, new Date(b.timestamp).toLocaleString('ko-KR')
     ];
@@ -5159,8 +5170,10 @@ function openBestModal(id) {
   document.getElementById('bestMonth').value =
     String(r.visit_date || '').slice(0, 7) || fmtLocalDateTime(r.submitted_at).slice(0, 7);
   // 이메일 자동 매칭: 방문일+작성자명이 일치하는 예약의 신청자 이메일 (설문 프리필 경로의 역방향)
+  const rn = String(r.name || '').trim();
   const hit = (allBookings || []).find(b =>
-    b.date === r.visit_date && String(b.name || '').trim() === String(r.name || '').trim());
+    b.date === r.visit_date &&
+    (String(b.applicant || '').trim() === rn || String(b.name || '').trim() === rn));   // 설문 작성자 = 신청자 우선 (2026-09-01 분리)
   document.getElementById('bestEmail').value = (hit && hit.email) || '';
   document.getElementById('bestEmailHint').textContent = (hit && hit.email)
     ? '예약 이력에서 자동 매칭됨 — 발송 전 확인하세요.'

@@ -24,7 +24,7 @@
 ├── ThinQ_Real_Visit_Survey.html  # 방문 후기 설문 폼 (공개 — 게이트 미적용 의도)
 ├── ThinQ_Real_Visitor_Survey.html # 방문자 현장 설문 (QR·익명·한/영 — 공개, 2026-07-27)
 ├── ThinQ_Real_ROI_Tool.html      # ROI 분석 툴 (관리자 iframe 임베드 + 별창 열기)
-├── privacy.html                  # 개인정보처리방침 (게이트 밖 열람 가능 의도, 현재 v1.2)
+├── privacy.html                  # 개인정보처리방침 (게이트 밖 열람 가능 의도, 현재 v1.3)
 ├── ThinQ_Real_Visit_Consent.html # 방문자 개인정보 서면 동의서 (현장 인쇄용 A4 양면 1장 — 서식 v0.9 법무 검토 중)
 ├── ThinQReal_AppScript.gs        # Apps Script 소스 (실배포는 script.google.com에서 관리)
 ├── CNAME / .nojekyll / README.md
@@ -88,8 +88,8 @@
 - **이메일 게이트**: `@lge.com` 6자리 코드 인증 → HMAC 토큰 30일 (`AUTH_ALLOWED_DOMAINS` ↔ index.html 정규식 동기화 필수). 외부 손님은 게이트 통과 불가 → 관리자가 시트 백필.
 - **홈**: 쇼룸 지원 → 기술 연구·검증 → 데이터 축적 카드 (순서 유지). ABOUT 우측은 `<video>` 배경 (autoplay muted loop playsinline + poster).
 - **공간 소개**: 01 거실 → 02 주방 → 03 침실 → 04 런드레스룸 → 05 욕실 → 06 현관·복도
-- **예약**: 달력 → 슬롯 다중 선택 → 폼. 슬롯 상태 4종: 예약 마감(적) / N팀 예약 중(주황, **클릭 가능 유지**) / 예약 불가(관리자 차단, 회색, 최우선) / 선택 가능. `?type=availability` → `{bookedSlots, pendingCounts, blockedSlots}` (기존 키 하위 호환 유지).
-- **예약 폼** (2026-07-20 현행): 소속 본부(드롭다운)+부서 → **신청자 이름·직급** → 신청자 이메일 → 방문 목적(6종, 트리거) → 동적 영역(주제/방문자 명단 최대 `MAX_VISITORS`=10/활용 방안/기대 효과 — 활용·기대는 `MIN_DETAIL_LEN`=30자 이상) → 필수 동의 3종(개인정보 수집/국외 이전/파손·분실). 담당자·연락처 필드는 삭제됨 — `name` 컬럼에 신청자 "이름 직급" 저장, `phone`은 빈 값.
+- **예약**: 달력 → 슬롯 다중 선택 → 폼. **예약 가능일 = 오늘+7일(D+7)부터** (2026-09-01 운영팀 요청 — 달력 차단 + `booking` 서버 검증 이중. 긴급 방문은 담당자 접수 → 관리자 백필, `admin_booking_create`는 날짜 제한 없음). 슬롯 상태 4종: 예약 마감(적) / N팀 예약 중(주황, **클릭 가능 유지**) / 예약 불가(관리자 차단, 회색, 최우선) / 선택 가능. `?type=availability` → `{bookedSlots, pendingCounts, blockedSlots}` (기존 키 하위 호환 유지).
+- **예약 폼** (2026-09-01 현행): **✍️ 신청자 그룹 상단**(폼 작성자 본인 — 이름·직급·이메일) → **👤 방문 책임자 그룹**(소속 본부 드롭다운+부서 — **방문 주관 부서 기준**, 사업부별 통계·캘린더 표기의 소스 / 「책임자가 신청자와 동일」 체크, 해제 시 책임자 이름·직급 별도 입력). 그룹 분리·신청자 우선 배치는 2026-09-01 운영자 피드백 2건(소속 귀속 혼선·작성자 정보 우선) → 방문 목적(6종, 트리거) → 동적 영역(주제/방문자 명단 최대 `MAX_VISITORS`=10/활용 방안/기대 효과 — 활용·기대는 `MIN_DETAIL_LEN`=30자 이상) → 필수 동의 3종(개인정보 수집/국외 이전/파손·분실). 담당자·연락처 필드는 삭제됨 — `name` 컬럼에 신청자 "이름 직급" 저장, `phone`은 빈 값.
 - **이용 안내**: 유의사항 5그룹(공통/가전/공간/욕실/ThinQ — 구조 유지, 홈초대 규정은 ThinQ 그룹이 단일 소스) → 기타 이용 안내 → 주차(지하/지상 2카드 + 인라인 SVG 약도) → 웰컴 보드 → 담당자.
 
 ## 관리자 대시보드 (thinqreal_admin.html)
@@ -138,14 +138,14 @@
 
 ## 데이터 스키마
 - **컬럼 정의 단일 소스**: `docs/migration/data-schema.md` + Apps Script의 `HEADERS`/`SURVEY_HEADERS`/`LEDGER_HEADERS`/`ISSUE_HEADERS` 상수.
-- **bookings 25컬럼**: `id timestamp date slots slot slotLabel name org phone email purpose count note status subject clientCompany visitors usagePlan expectedEffect purposeKey privacyConsent calendarEventId division department surveyInviteSentAt`
+- **bookings 26컬럼**: `id timestamp date slots slot slotLabel name org phone email purpose count note status subject clientCompany visitors usagePlan expectedEffect purposeKey privacyConsent calendarEventId division department surveyInviteSentAt applicant` — `name`=방문 책임자·`applicant`=신청자 "이름 직급"(2026-09-01 분리, 공란=책임자와 동일). **확정·거절 메일 인사말·설문 프리필·베스트 리뷰어 매칭은 applicant 우선**(`applicant || name`) — 한쪽만 바꾸면 설문 작성자 맵핑이 깨짐.
 - **purposeKey 6종**: `b2b` / `rd` / `pr` / `content` / `internal-comm` / `other` — 분기 로직은 항상 purposeKey, 통계는 purpose(한국어 라벨) 기준.
 - **survey_responses 42컬럼** (raw_json 포함), performance_ledger 15, iot_issue_log 9, export_log 5, visitor_responses 11.
 
 ### 시트 백필 규칙 (직접 입력 시)
-- 25컬럼 **순서 엄수** — 추측 금지, `HEADERS` 배열이 단일 소스. 헤더 한 칸이라도 틀리면 관리자에서 조용히 누락됨.
+- 26컬럼 **순서 엄수** — 추측 금지, `HEADERS` 배열이 단일 소스. 헤더 한 칸이라도 틀리면 관리자에서 조용히 누락됨.
 - `slots`(JSON 문자열 `"[2]"`)·`slot`(숫자)·`slotLabel`(텍스트) 3종 모두 채울 것. 하나라도 빠지면 후속 컬럼이 밀림.
-- id는 13자리 ms 시퀀스(기존 백필 `17799000000xx` 연속). 같은 날 다건이면 회차 분산. `phone·privacyConsent·calendarEventId·division·department·surveyInviteSentAt` 공란 허용.
+- id는 13자리 ms 시퀀스(기존 백필 `17799000000xx` 연속). 같은 날 다건이면 회차 분산. `phone·privacyConsent·calendarEventId·division·department·surveyInviteSentAt·applicant` 공란 허용.
 - 알림이 불필요한 대량 입력은 **시트 직접 입력** — `POST booking`은 담당자 메일+텔레그램을 트리거하므로 백필에 부적합.
 
 ## 담당자
