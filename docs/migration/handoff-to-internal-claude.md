@@ -51,13 +51,15 @@
 - 검증: `ENVIRONMENT` 없이도 기동(memory store) → push → ST 자동 배포 → `https://kic-st-thinq-real.thinqcloud.link/healthz` 및 `/` (index.html) 확인.
 - ⚠ 함정 예방: chartjs-plugin-datalabels는 반드시 ESM 빌드 직접 import (이미 코드에 반영돼 있음 — 바꾸지 말 것). 날짜 처리에 `toISOString()` 금지(KST 규칙, lib/dates.js 사용).
 
-**과제 B — PostgreSQL store 어댑터 구현** (읽을 것: `server/src/store/types.js`·`memory.js`·`sheets/index.js` + 저장소 샘플의 PostgreSQL CRUD 코드 + `data-schema.md`)
+**과제 B — PostgreSQL store 어댑터 구현** ✅ **구현 완료 (2026-09-05, 외부 트랙 — 키트 v3로 사내 적용 대기)** — `store/postgres/` + STORE_BACKEND 자동 감지(DB_HOST 있으면 postgres) + 인앱 스케줄러(K8s CronJob 불필요해짐). 사내에서는 키트 v3의 KIT-INSTRUCTIONS.md 절차대로 적용만 하면 됨. 상세: `stage1-container-design.md` §8-8. 아래 원문은 이력 보존용.
+(읽을 것: `server/src/store/types.js`·`memory.js`·`sheets/index.js` + 저장소 샘플의 PostgreSQL CRUD 코드 + `data-schema.md`)
 - `server/src/store/dynamo/`(스텁) → `postgres/`로 교체. 인터페이스(bookings/roi/slotBlocks/articles/state/survey + 신규 TableStore 6종: visitors/insights/best/exportLog/health/voc — `store/types.js`가 계약)는 그대로 구현만 바꾼다.
 - env `DB_HOST/PORT/NAME/USER/PASSWORD/SSLMODE` 사용 (config.js에 추가). 테이블은 시트 탭 구조를 따르되 컬럼명 유지 (bookings **25컬럼**(+surveyInviteSentAt) + roi + slot_blocks + monthly_articles + app_state + 설문 3탭 + visitor_responses·monthly_insights·best_reviewers·export_log·health_checks·voc_reports — `data-schema.md`가 단일 소스).
 - `STORE_BACKEND=postgres`로 ST에서 검증. **당분간 운영 데이터 원본은 여전히 구글 시트** — 데이터 이행(시트→PG)은 별도 과제 D.
 - 설문 3탭의 remove 연산은 memory/sheets 구현과 동일한 의미(테스트 정리 전용, §4-5)로만 구현할 것.
 
-**과제 C — ENVIRONMENT 분기 + 알림/메일 스위치** (읽을 것: `server/src/config.js`·`mail/mailer.js`)
+**과제 C — ENVIRONMENT 분기 + 알림/메일 스위치** ✅ **완료 (2026-08-25 외부 트랙 선반영 — 키트 v2에 포함되어 이미 적용됨)** — config.outboundSuppressed(kic-st/qa 실발송 억제, OUTBOUND_FORCE_SEND 해제). 아래 원문은 이력 보존용.
+(읽을 것: `server/src/config.js`·`mail/mailer.js`)
 - `ENVIRONMENT` env 읽기 추가. `kic-st`/`kic-qa`에서는 메일 실발송 억제(콘솔 모드)·텔레그램/Teams 스킵, OP에서만 실발송.
 
 **과제 D — 데이터 이행 + 전환** (마지막, OP 준비 후): 시트 → PostgreSQL 이행 스크립트, 프론트 `SCRIPT_URL` 3곳 → `/api` 교체, OP 배포, CSR redirect 등록(외부 트랙과 협의).

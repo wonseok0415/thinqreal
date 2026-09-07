@@ -207,6 +207,7 @@ export function createSheetsStore({ serviceAccount, sheetId }) {
         await client.updateCells(ARTICLES_SHEET_NAME, updates);
       },
       // 관리자 큐레이션 UI용 — 전 행 조회 (month/published_at 정규화, .gs readArticleRows 이식)
+      // summary·thumbnail은 수정 모달 프리필용 (2026-08-26). 엔티티 디코딩은 핸들러 책임.
       async listAll() {
         const { records } = await readTable(ARTICLES_SHEET_NAME, ARTICLES_HEADERS);
         return records
@@ -217,7 +218,23 @@ export function createSheetsStore({ serviceAccount, sheetId }) {
             url: String(r.url || '').trim(),
             source: String(r.source || '').trim(),
             published_at: formatPublishedDate(r.published_at),
+            summary: String(r.summary || '').trim(),
+            thumbnail: String(r.thumbnail || '').trim(),
           }));
+      },
+      // 기사 메타 직접 교정 (article_update) — month+url이 행 정체성이라 이 둘은 수정 불가
+      async updateMeta(month, url, fields) {
+        const { headers, records } = await readTable(ARTICLES_SHEET_NAME, ARTICLES_HEADERS);
+        const found = records.find((r) =>
+          normalizeMonth(r.month) === month && String(r.url || '').trim() === url);
+        if (!found) return false;
+        const updates = [];
+        for (const [k, v] of Object.entries(fields)) {
+          const col = headers.indexOf(k);
+          if (col >= 0) updates.push({ rowNum: found._rowNum, colIndex: col, value: v == null ? '' : v });
+        }
+        await client.updateCells(ARTICLES_SHEET_NAME, updates);
+        return true;
       },
       async append(record) {
         const headers = await client.ensureHeaders(ARTICLES_SHEET_NAME, ARTICLES_HEADERS);

@@ -227,3 +227,20 @@ BE팀이 사내 클라우드에 ThinQ Real 인프라 구축 진행 — **상세�
 ## 작업 내역 (2026-09-05 — OP 배포 완료·SSO 전 환경 적용 확인)
 
 박현정 책임 Teams(09-01) 확인 — **정리본은 decisions-2026-07-06.md §6-2가 단일 소스.** OP 배포 완료(예상보다 조기), MS Entra ID(SSO)가 ST/QA/OP 전부 적용 → 사내 SSO 계정 보유자만 진입 가능. ⚠ 전환 설계 신규 아젠다 발굴: SSO 전면 적용 시 **방문자 현장 설문(외부 방문객 QR)·FieldCheck/FieldVoice 장비 POST·공개 열람 페이지가 차단**되므로 SSO 예외 경로 협의 필요. OP용 DB·vault 신청 가이드는 계속 대기.
+
+## 작업 내역 (2026-09-05 — 과제 B 구현 완료 + 키트 v3)
+
+담당자 승인으로 과제 B 착수·완료 — **상세는 stage1-container-design.md §8-8이 단일 소스.**
+
+- **8/26 라이브 델타 이식**: article_update·16진 엔티티 디코딩+소급 힐링·봇 차단 UA 재시도·survey_data articles 스키마 확장(summary/thumbnail)·FieldCheck 수신자 분리(env FC_REPORT_EMAILS).
+- **인앱 스케줄러** (⚠ 스펙 대비 변경 — CronJob 매니페스트 대신): 이미지 태그 고착·deploy 구조 수정 문제를 피하기 위해 앱이 일일 잡 3종을 스스로 실행 (Valkey 일일 락으로 레플리카 중복 방지). **BE팀 문의 ②(CronJob)는 불필요해짐.**
+- **PostgreSQL 어댑터**: 테이블 14종 자동 생성, 전 컬럼 TEXT + rid/ord, STORE_BACKEND 자동 감지(DB_HOST 있으면 postgres) → **사내는 push만으로 영속 저장소 전환**. 로컬 PostgreSQL 16으로 전수 회귀 통과 (예약 생명주기·설문 파이프라인·큐레이션·ROI pin·2단계 발송 토큰·재기동 보존·memory 회귀 포함).
+- **키트 v3 전달** (`thinq-real_kit_A_v3.zip`): 적용 5단계 + 검증표 5항(postgres 전환·데이터 영속성·스케줄러). 사내 적용은 담당자 복귀(9/10) 후.
+- 남은 것: 과제 D(시트→DB 이행 — 전환 직전) / SSO 예외 경로 협의 / OP용 DB·vault 신청(가이드 대기) / SMTP 회신 대기.
+
+## 작업 내역 (2026-09-07 — ✅ 과제 B 사내 배포 성공 + Gitea 이력 재작성 대응 + 라이브 델타 추가 이식)
+
+**① 과제 B 사내 적용 결과 (담당자 + 사내 Claude)**: 키트 v3 적용 → **릴리스 0.8.1→0.9.0 배포 성공** (태그 v0.9.0, 이미지 thinq-real:0.9.0). 검증표는 ST가 SSO 게이트 뒤로 들어가 curl 무효화 — 담당자가 사내 브라우저(SSO 로그인)로 `/healthz`=`backend:"postgres"`·데이터 영속성 확인 예정.
+**② Gitea 이력 재작성 발생·대응 완료**: BE팀이 `deploy/base/secret.yaml`(평문 비밀값) 제거를 위해 main 이력을 force-push로 재작성 → 사내 클론 `git pull` 실패. 대응: 내용 동일성 검증 후 `reset --hard origin/main`, 평문 커밋을 가리키던 로컬 태그 7종(v0.2.0~v0.7.0) 삭제 + `git fetch --tags` 재취득, **`git push --tags` 금지 수칙 신설** (naive merge-push였으면 평문 비밀값 재유입 — 사내 Claude가 회피). 다음 키트 절차서의 git pull 단계에 이 시나리오 대응 반영 예정.
+**③ SSO 실측 확인 (§6-2 아젠다 실증)**: ST 전 경로가 302→login.microsoftonline.com. 사내 Claude가 독립적으로 동일 결론 — BE팀 협의 필요 2건: `/healthz` 게이트웨이 경유 외부 모니터링 302 / 비대화형 경로(FC·FV 업로드, 설문 폼) 예외 목록.
+**④ 라이브 델타 추가 이식 (#94~#97 — main 재병합 후)**: bookings **26컬럼**(+`applicant` — 신청자/책임자 분리, 공란=책임자 동일 취급), **예약 D+7 버퍼**(서버 강제, 관리자 백필은 무제한), 확정/거절 메일 인사말·설문 초대 링크 작성자 = 신청자 우선, 담당자 알림·텔레그램 신청자 표기, **회차 시간표 2026-08-31 개편본**(09:30/13:30/15:30 — 8/25 이식분에 누락돼 있던 것 발견·정정). memory 검증: D+3 거부(booking_too_soon)·D+8 접수·알림 메일 신청자 줄 확인. PG 스키마는 자동 진화로 applicant 컬럼 자동 추가.

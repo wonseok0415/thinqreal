@@ -45,7 +45,10 @@ export const config = {
   port: Number(env('PORT', '8080')),
   staticDir: resolveStaticDir(),
 
-  storeBackend: env('STORE_BACKEND', 'memory'), // memory | sheets | dynamo(2단계)
+  // memory | sheets | postgres. 미지정 시 자동 감지: DB_HOST가 주입돼 있으면 postgres
+  // (사내 K8s는 deploy secret이 DB_*를 항상 주입 — deploy 수정 없이 영속 저장소로 전환),
+  // 없으면 memory (로컬 검증). 명시 지정이 항상 우선.
+  storeBackend: env('STORE_BACKEND') || (env('DB_HOST') ? 'postgres' : 'memory'),
   storeSeed: env('STORE_SEED'),
 
   // ── 사내 K8s(TCN) 배포 환경 — gitea-repo-contract.md §4의 기본 제공 env ──
@@ -64,12 +67,26 @@ export const config = {
     if (!e || e === 'kic-op') return false;
     return env('OUTBOUND_FORCE_SEND') !== 'true';
   })(),
+  // 인앱 스케줄러 (일일 잡 3종 — lib/scheduler.js). 기본 켜짐 — K8s CronJob 불필요.
+  // 잡을 CronJob으로 옮기거나 로컬에서 끄고 싶을 때만 JOBS_DISABLED=true.
+  jobsDisabled: env('JOBS_DISABLED') === 'true',
 
   authSecret,
 
   sheetId: env('SHEET_ID', '1-Z158TV46MtSEArir9bW4h4KQ438NCuhb3qaGyOooA0'),
   googleServiceAccountJson: env('GOOGLE_SERVICE_ACCOUNT_JSON'), // 파일 경로 또는 JSON 문자열
   calendarId: env('CALENDAR_ID'),
+
+  // PostgreSQL (STORE_BACKEND=postgres) — 사내 K8s는 deploy/<env>/secret.yaml이 DB_* 6종을 주입.
+  // OP는 인프라팀 제공 DB로 교체 예정(decisions §6-1 ⑥)이지만 env 이름은 동일하게 유지한다.
+  db: {
+    host: env('DB_HOST'),
+    port: Number(env('DB_PORT', '5432')),
+    name: env('DB_NAME'),
+    user: env('DB_USER'),
+    password: env('DB_PASSWORD'),
+    sslmode: env('DB_SSLMODE', 'disable'),
+  },
 
   smtp: {
     host: env('SMTP_HOST'),
@@ -81,6 +98,10 @@ export const config = {
   },
   adminAlertTo: env('ADMIN_ALERT_TO', 'ch275.lee@lge.com, moonsu.seo@lge.com, hj8462.kim@lge.com'),
   adminAlertCc: env('ADMIN_ALERT_CC', 'kang.wonseok@lge.com'),
+  // 점검 결과(FieldCheck) 전용 수신자 — 담당자 3명 + 팀장 (2026-09 .gs FC_REPORT_EMAILS 이식).
+  // 예약 알림(adminAlertTo)과 분리해 두어 점검 수신자를 바꿔도 예약 메일 흐름에는 영향이 없다.
+  fcReportTo: env('FC_REPORT_EMAILS',
+    'ch275.lee@lge.com, moonsu.seo@lge.com, hj8462.kim@lge.com, jhs.kim@lge.com'),
   monthlyReportTo: env('MONTHLY_REPORT_TO'),
   // 월간 리포트 "나에게만 테스트 발송" 수신자 (§8-6 2단계 발송 — 미설정 시 테스트 버튼 안내만)
   monthlyReportTestTo: env('MONTHLY_REPORT_TEST_TO'),

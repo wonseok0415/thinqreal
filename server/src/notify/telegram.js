@@ -56,6 +56,7 @@ export function buildNewBookingMessage(data, id) {
   if (subject) lines.push('📝 ' + esc(subjLabel) + ': ' + esc(subject));
   if (company) lines.push('🏢 ' + esc(company));
   lines.push('👤 ' + esc(data.name) + (count ? '  ·  총 ' + esc(count) + '명' : ''));
+  if (data.applicant && data.applicant !== data.name) lines.push('✍ 신청 ' + esc(data.applicant));
   if (belong) lines.push('🏛 ' + esc(belong));
   if (data.phone) lines.push('☎ ' + esc(data.phone));
   lines.push('');

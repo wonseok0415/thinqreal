@@ -76,6 +76,19 @@ export async function kvGetOrSet(key, producer) {
   return (await c.get(k(key))) || value;
 }
 
+/** 일일 잡 락 — SET NX EX. true = 이 인스턴스가 락 획득 (해당 키로는 유일한 실행자).
+ *  Valkey 미설정 시 프로세스 메모리 — 단일 인스턴스 전제라 항상 획득. */
+export async function kvTryLock(key, ttlSec) {
+  const c = await shared();
+  if (!c) {
+    if (memCache.get(key)) return false;
+    memCache.put(key, '1', ttlSec);
+    return true;
+  }
+  const won = await c.set(k(key), '1', { NX: true, EX: ttlSec });
+  return !!won;
+}
+
 export function kvSharedMode() {
   return !!config.kvstore.addr;
 }

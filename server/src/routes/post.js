@@ -19,7 +19,7 @@ import { handleNewHealthCheck } from '../handlers/health.js';
 import { handleNewVocReport } from '../handlers/voc.js';
 import {
   handleInsightAdd, handleInsightDelete, handleInsightMove,
-  handleArticleAdd, handleArticleDelete, handleArticleMove,
+  handleArticleAdd, handleArticleDelete, handleArticleMove, handleArticleUpdate,
 } from '../handlers/curation.js';
 import { handleExportLog } from '../handlers/exportLog.js';
 import { handleBestReviewerSend } from '../handlers/best.js';
@@ -31,7 +31,7 @@ const ADMIN_TYPES = new Set([
   'survey_update', 'survey_delete', 'ledger_update', 'ledger_delete',
   'issue_update', 'issue_delete', 'visitor_delete', 'export_log',
   'insight_add', 'insight_delete', 'insight_move',
-  'article_add', 'article_delete', 'article_move',
+  'article_add', 'article_delete', 'article_move', 'article_update',
   'best_reviewer_send', 'roi_report_pin',
 ]);
 
@@ -87,6 +87,7 @@ export function createPostRouter(store) {
         if (data.type === 'article_add') return res.json(await handleArticleAdd(store, data));
         if (data.type === 'article_delete') return res.json(await handleArticleDelete(store, data));
         if (data.type === 'article_move') return res.json(await handleArticleMove(store, data));
+        if (data.type === 'article_update') return res.json(await handleArticleUpdate(store, data));
         if (data.type === 'best_reviewer_send') return res.json(await handleBestReviewerSend(store, data, admin.email));
         if (data.type === 'roi_report_pin') return res.json(await handleRoiReportPin(store, data));
       }

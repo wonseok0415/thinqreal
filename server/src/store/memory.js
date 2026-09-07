@@ -148,12 +148,21 @@ export function createMemoryStore({ seed } = {}) {
           .filter((a) => a.month === month && String(a.url || '').trim());
       },
       async listAll() {
+        // summary·thumbnail은 관리자 수정 모달 프리필용 (2026-08-26). 엔티티 디코딩은 핸들러 책임.
         return articles
           .filter((a) => String(a.url || '').trim())
           .map((a) => ({
             month: a.month, title: String(a.title || '').trim(), url: String(a.url || '').trim(),
             source: String(a.source || '').trim(), published_at: String(a.published_at || '').trim(),
+            summary: String(a.summary || '').trim(), thumbnail: String(a.thumbnail || '').trim(),
           }));
+      },
+      // 기사 메타 직접 교정 (article_update) — month+url이 행 정체성이라 이 둘은 수정 불가
+      async updateMeta(month, url, fields) {
+        const row = articles.find((a) => a.month === month && String(a.url || '').trim() === url);
+        if (!row) return false;
+        Object.assign(row, fields);
+        return true;
       },
       async update(rowRef, fields) {
         if (articles[rowRef]) Object.assign(articles[rowRef], fields);

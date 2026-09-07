@@ -9,19 +9,16 @@
 //   node src/jobs/monthlyReport.js                → 트리거 로직 그대로 (첫째 수요일 판정 포함)
 //   node src/jobs/monthlyReport.js --force        → 판정·중복 가드 무시하고 즉시 발송
 //   node src/jobs/monthlyReport.js --month=2026-06 → 대상 월 지정
+import { pathToFileURL } from 'node:url';
 import { getStore } from '../store/index.js';
 import { isFirstWednesdayOfMonth, prevMonthLocal } from '../lib/dates.js';
 import { STATE_LAST_SENT_KEY } from '../lib/constants.js';
 import { sendMonthlyReport } from '../report/send.js';
 
-const args = process.argv.slice(2);
-const force = args.includes('--force');
-const monthArg = (args.find((a) => a.startsWith('--month=')) || '').split('=')[1] || '';
-
-async function main() {
+/** 트리거 본체 — 인앱 스케줄러(lib/scheduler.js)와 CLI가 공유 */
+export async function runMonthlyReportJob(store, { force = false, month = '' } = {}) {
   const now = new Date();
-  const monthKey = monthArg || prevMonthLocal(now); // 전월분 발송
-  const store = await getStore();
+  const monthKey = month || prevMonthLocal(now); // 전월분 발송
 
   if (!force) {
     if (!isFirstWednesdayOfMonth(now)) {
@@ -44,7 +41,12 @@ async function main() {
   }
 }
 
-main().then(
-  () => process.exit(0),
-  (e) => { console.error('[report-job] error:', e); process.exit(1); },
-);
+// CLI 직접 실행 시에만 동작 (스케줄러가 import할 때는 실행 안 함)
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const args = process.argv.slice(2);
+  const force = args.includes('--force');
+  const month = (args.find((a) => a.startsWith('--month=')) || '').split('=')[1] || '';
+  getStore()
+    .then((store) => runMonthlyReportJob(store, { force, month }))
+    .then(() => process.exit(0), (e) => { console.error('[report-job] error:', e); process.exit(1); });
+}

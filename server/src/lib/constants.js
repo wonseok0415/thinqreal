@@ -18,6 +18,9 @@ export const BOOKING_HEADERS = [
   'division', 'department',
   // 2026-07 방문 후기 설문 요청 메일 발송 기록 (배치 재실행 시 중복 발송 방지)
   'surveyInviteSentAt',
+  // 2026-09 신청자/책임자 분리 (운영팀 요청 — B2B 대리 신청 케이스): 신청자 "이름 직급".
+  // 공란 = 책임자(name)와 동일 취급 (분리 이전 행 호환). 확정 메일 인사말·설문 프리필은 applicant 우선.
+  'applicant',
 ];
 export const ROI_HEADERS = ['id', 'timestamp', 'label', 'author', 'inputs', 'outputs'];
 export const ARTICLES_HEADERS = ['month', 'title', 'url', 'source', 'summary', 'published_at', 'thumbnail'];
@@ -102,13 +105,14 @@ export const AUTH_TEMP_ADMINS = {
   'aelim.go@lge.com': '2026-07-03', // 사내 정보보호팀 침투테스트 (2026-06-29 ~ 07-03)
 };
 
-// ── 회차 시간표 (확정, 변경 금지) ─────────────────────────────
+// ── 회차 시간표 (확정, 변경 금지 — 2026-08-31 개편본) ──────────
+// 개편 전 예약 행의 slotLabel은 구 시간 그대로 보존 — 표시는 저장 라벨 우선 (캘린더 시각만 이 상수 사용)
 export const SLOT_TIMES = {
-  1: { start: [9, 0], end: [10, 30] },
-  2: { start: [13, 0], end: [14, 30] },
-  3: { start: [15, 0], end: [16, 30] },
+  1: { start: [9, 30], end: [11, 0] },
+  2: { start: [13, 30], end: [15, 0] },
+  3: { start: [15, 30], end: [17, 0] },
 };
-export const SLOT_LABEL_TEXT = { 1: '1회차 09:00~10:30', 2: '2회차 13:00~14:30', 3: '3회차 15:00~16:30' };
+export const SLOT_LABEL_TEXT = { 1: '1회차 09:30~11:00', 2: '2회차 13:30~15:00', 3: '3회차 15:30~17:00' };
 
 // ── 목적별 1번째 줄(주제) 라벨 — index.html PURPOSE_CONFIG와 동기화 ──
 export const SUBJ_LABELS = {

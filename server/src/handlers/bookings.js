@@ -1,6 +1,7 @@
 // 예약 핸들러 — .gs handleGetBookings/handleNewBooking/handleUpdateStatus/
 // handleDeleteBooking/handleAdminCreateBooking/handleAdminEditBooking 이식.
 import { BOOKING_HEADERS } from '../lib/constants.js';
+import { normalizeDate, formatDateLocal } from '../lib/dates.js';
 import { verifyAdminToken } from '../auth/token.js';
 import { sendMail } from '../mail/mailer.js';
 import { buildAdminAlertText, buildAdminAlertHtml } from '../mail/templates/adminAlert.js';
@@ -19,6 +20,14 @@ export async function handleGetBookings(store, token) {
 
 // ── 신규 예약 저장 + 담당자 알림 (메일·메신저) ──
 export async function handleNewBooking(store, data) {
+  // 예약 가능일 D+7 버퍼 (2026-09-01 운영팀 요청): 오늘(KST)+7일 이후 날짜만 접수 — 달력 차단
+  // 우회 방지용 서버 강제. 급한 방문(전화 접수)은 관리자 백필(admin_booking_create — 제한 없음)로.
+  const bkDate = normalizeDate(data.date);
+  const minDate = formatDateLocal(new Date(Date.now() + 7 * 86400000));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(bkDate) || bkDate < minDate) {
+    return { error: 'booking_too_soon', minDate };
+  }
+
   const id = String(Date.now());
   const record = {};
   for (const h of BOOKING_HEADERS) {
@@ -113,7 +122,7 @@ export async function handleAdminCreateBooking(store, data, byEmail) {
 const EDITABLE_FIELDS = [
   'date', 'slotLabel', 'name', 'org', 'phone', 'email', 'purpose', 'count', 'note', 'status',
   'subject', 'clientCompany', 'visitors', 'usagePlan', 'expectedEffect', 'purposeKey',
-  'division', 'department',
+  'division', 'department', 'applicant',
 ];
 
 export async function handleAdminEditBooking(store, data, byEmail) {

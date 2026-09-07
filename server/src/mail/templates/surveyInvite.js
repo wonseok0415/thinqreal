@@ -6,7 +6,8 @@ import { escapeHtml } from '../../lib/html.js';
 export function buildSurveyInviteLink(b) {
   const params = [];
   if (b.date) params.push('visit_date=' + encodeURIComponent(b.date));
-  if (b.name) params.push('name=' + encodeURIComponent(b.name));
+  const writer = b.applicant || b.name;   // 설문 작성자 = 메일 수신자 = 신청자 (2026-09-01 분리)
+  if (writer) params.push('name=' + encodeURIComponent(writer));
   const dept = ((b.division || '') + ' ' + (b.department || '')).trim();
   if (dept) params.push('dept=' + encodeURIComponent(dept));
   return config.surveyFormUrl + (params.length ? '?' + params.join('&') : '');

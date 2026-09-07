@@ -14,7 +14,7 @@ export function buildConfirmText(data) {
   const { wifi, doorlockPin } = config;
 
   const sections = [
-    `안녕하세요, ${data.name}님.`,
+    `안녕하세요, ${data.applicant || data.name}님.`,   // 수신자 = 신청자 이메일 → 인사말도 신청자 (2026-09-01)
     ``,
     `ThinQ Real 방문 예약이 확정되었습니다.`,
     ``,
@@ -82,7 +82,7 @@ export function buildConfirmHtml(data) {
   const includeAppliances = includeAppliancesFor(data.purpose);
   const includeWelcomeBoard = includeWelcomeBoardFor(data.purpose);
   const { wifi, doorlockPin } = config;
-  const name = escapeHtml(data.name);
+  const name = escapeHtml(data.applicant || data.name);   // 수신자 = 신청자 (2026-09-01)
   const date = escapeHtml(data.date);
   const slot = escapeHtml(data.slotLabel || '');
 
@@ -149,7 +149,7 @@ export function buildConfirmHtml(data) {
 
 export function buildRejectText(data) {
   return [
-    `안녕하세요, ${data.name}님.`,
+    `안녕하세요, ${data.applicant || data.name}님.`,
     ``,
     `아쉽게도 요청하신 일정(${data.date} ${data.slotLabel || ''})에`,
     `ThinQ Real 방문 예약이 어렵게 되었습니다.`,
@@ -170,7 +170,7 @@ export function buildRejectText(data) {
 }
 
 export function buildRejectHtml(data) {
-  const name = escapeHtml(data.name);
+  const name = escapeHtml(data.applicant || data.name);   // 수신자 = 신청자 (2026-09-01)
   const date = escapeHtml(data.date);
   const slot = escapeHtml(data.slotLabel || '');
   return (

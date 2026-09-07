@@ -20,6 +20,7 @@
     "googleapis": "^144.0.0",
     "iconv-lite": "^0.6.3",
     "nodemailer": "^6.9.16",
+    "pg": "^8.13.1",
     "redis": "^6.2.1"
   },
   "optionalDependencies": {

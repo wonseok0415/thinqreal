@@ -91,6 +91,21 @@ export async function handleArticleDelete(store, data) {
   return ok ? { ok: true } : { ok: false, error: 'not_found' };
 }
 
+// 기사 메타 직접 교정 (2026-08-26 이식) — 크롤러 차단·로그인 게이트 매체는 자동 추출이 구조적으로 불가하므로
+// 관리자가 수정 모달에서 제목·출처·요약·게재일·썸네일을 직접 채우는 경로. month+url이 행 정체성이라 수정 불가.
+// 빈 값 저장 허용 — title을 비우면 다음 리포트 빌드 때 자동 추출을 다시 시도한다.
+const ARTICLE_META_EDITABLE = ['title', 'source', 'summary', 'published_at', 'thumbnail'];
+
+export async function handleArticleUpdate(store, data) {
+  const fields = {};
+  for (const f of ARTICLE_META_EDITABLE) {
+    if (data[f] == null) continue;              // 미전송 필드는 기존 값 보존
+    fields[f] = String(data[f]).trim();
+  }
+  const ok = await store.articles.updateMeta(String(data.month || ''), String(data.url || '').trim(), fields);
+  return ok ? { ok: true } : { ok: false, error: 'not_found' };
+}
+
 export async function handleArticleMove(store, data) {
   return store.articles.move(String(data.month || ''), String(data.url || '').trim(),
     data.dir === 'up' ? 'up' : 'down');

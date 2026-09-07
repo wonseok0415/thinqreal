@@ -8,6 +8,7 @@
 import { config } from '../config.js';
 import { SURVEY_HEADERS, LEDGER_HEADERS, ISSUE_HEADERS, SEVERITY_PCT } from '../lib/constants.js';
 import { normalizeMonth } from '../lib/dates.js';
+import { decodeHtmlEntities } from '../lib/html.js';
 import { verifyAdminToken } from '../auth/token.js';
 import { notifySurvey } from '../notify/index.js';
 
@@ -103,7 +104,14 @@ export async function handleGetSurveyData(store, token) {
   // month 셀 날짜 자동 변환 잔재 흡수 (.gs insightMonthKey와 동일 목적)
   const insights = insightsRaw.map((r) => ({ ...r, month: normalizeMonth(r.month) }));
   const bestReviewers = bestRaw.map((r) => ({ ...r, month: normalizeMonth(r.month) }));
-  return { responses, ledger, issues, visitors, insights, articles, bestReviewers };
+  // 기사 목록 엔티티 소급 힐링 (2026-08-25 이식) — thumbnail은 주소라 디코딩 제외
+  const articlesOut = articles.map((a) => ({
+    ...a,
+    title: decodeHtmlEntities(a.title),
+    source: decodeHtmlEntities(a.source),
+    summary: decodeHtmlEntities(a.summary || ''),
+  }));
+  return { responses, ledger, issues, visitors, insights, articles: articlesOut, bestReviewers };
 }
 
 // data에서 편집 가능 필드만 추출 (undefined 필드는 건너뜀 — 현행 setValue 조건과 동일)

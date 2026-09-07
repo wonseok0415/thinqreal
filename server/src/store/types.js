@@ -35,6 +35,7 @@
  * @property {(record: object) => Promise<void>} append               article_add (관리자 큐레이션)
  * @property {(month: string, url: string) => Promise<boolean>} remove       article_delete
  * @property {(month: string, url: string, dir: 'up'|'down') => Promise<{ok:boolean, error?:string}>} move  같은 달 이웃 행과 순서 교환
+ * @property {(month: string, url: string, fields: object) => Promise<boolean>} updateMeta  article_update (메타 직접 교정 — month·url 불변)
  *
  * @typedef {object} StateStore — Script Properties 상태값 대체 (monthly_report_last_sent_month 등)
  * @property {(key: string) => Promise<string>} get

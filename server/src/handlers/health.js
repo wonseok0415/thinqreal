@@ -66,7 +66,7 @@ async function sendHealthAlert(data) {
 
   try {
     if (FC_TEST_MODE) await sendMail({ to: config.adminAlertCc, subject, text: body });
-    else await sendMail({ to: config.adminAlertTo, cc: config.adminAlertCc, subject, text: body });
+    else await sendMail({ to: config.fcReportTo, cc: config.adminAlertCc, subject, text: body });
   } catch (e) { console.warn('[health] alert mail error: ' + e.message); }
 
   // 텔레그램은 담당자 전원이 있는 그룹이므로 테스트 단계에선 발송하지 않음
