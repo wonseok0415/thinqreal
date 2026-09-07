@@ -1339,11 +1339,32 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
           <strong id="summaryText">—</strong>
         </div>
 
-        <!-- 그룹 구분 (2026-09-01 운영자 피드백): 책임자·신청자 모두 사내 소속이 있어 "소속"이 누구
-             것인지 혼선 → 방문 책임자/신청자 블록을 시각 분리. 소속 본부·부서 = 방문을 주관하는 책임
-             부서 기준 (B2B 대리 신청 시 한영본 등 — 사업부별 활용 통계·캘린더 표기의 기준).
-             본부는 고정 드롭다운, 부서는 조직개편으로 수시 변경되어 직접 입력 방식. -->
+        <!-- 그룹 구분 (2026-09-01 운영자 피드백 2건): ① 책임자·신청자 모두 사내 소속이 있어 "소속"이
+             누구 것인지 혼선 → 블록 시각 분리 ② 폼 작성자 = 신청자이므로 신청자 그룹을 상단 배치 (본인 정보부터).
+             소속 본부·부서 = 방문을 주관하는 책임 부서 기준 (B2B 대리 신청 시 한영본 등 — 사업부별 활용
+             통계·캘린더 표기의 기준). 본부는 고정 드롭다운, 부서는 조직개편으로 수시 변경되어 직접 입력.
+             확정 메일·설문 요청은 신청자(이메일 소유자) 기준으로 발송·프리필된다. name 컬럼 = 방문 책임자. -->
         <div style="margin:4px 0 14px; font-size:15px; font-weight:600; color:var(--c-accent); letter-spacing:-0.016em;">
+          ✍️ 신청자
+          <span style="display:block; margin-top:3px; font-size:12.5px; font-weight:400; color:var(--c-label-2);">예약을 신청하시는 본인 정보를 입력해 주세요.</span>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">신청자 이름 *</label>
+            <input class="form-input" id="fAppName" type="text" placeholder="예: 김엘지">
+          </div>
+          <div class="form-group">
+            <label class="form-label">신청자 직급 *</label>
+            <input class="form-input" id="fAppRank" type="text" placeholder="예: 책임">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">신청자 이메일 *</label>
+          <input class="form-input" id="fEmail" type="email" placeholder="name@lge.com">
+          <span class="form-hint-inline">예약 확정 메일과 방문 후기 설문 요청이 이 주소로 발송됩니다.</span>
+        </div>
+
+        <div style="margin:22px 0 14px; padding-top:18px; border-top:1px solid var(--c-separator); font-size:15px; font-weight:600; color:var(--c-accent); letter-spacing:-0.016em;">
           👤 방문 책임자
           <span style="display:block; margin-top:3px; font-size:12.5px; font-weight:400; color:var(--c-label-2);">방문을 주관하는 부서와 책임자 정보를 입력해 주세요.</span>
         </div>
@@ -1374,46 +1395,21 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
             <span class="form-hint-inline">방문 책임자의 소속 부서명을 입력해 주세요.</span>
           </div>
         </div>
-
-        <!-- 방문 책임자 이름·직급 (name 컬럼 — 관리자·캘린더의 '책임자' 표기와 동일 인물).
-             B2B 대리 신청처럼 신청자가 다른 경우 아래 체크 해제 후 신청자 정보를 따로 입력 (2026-09-01 운영팀 요청).
-             확정 메일·설문 요청은 신청자(이메일 소유자) 기준으로 발송·프리필된다. -->
-        <div class="form-row">
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:8px;font-size:var(--t-subhead);color:var(--c-label);cursor:pointer;">
+            <input type="checkbox" id="fSameLeader" checked onchange="toggleLeader()">
+            방문 책임자가 신청자와 동일합니다
+          </label>
+        </div>
+        <div class="form-row" id="leaderRow" style="display:none;">
           <div class="form-group">
             <label class="form-label">방문 책임자 이름 *</label>
-            <input class="form-input" id="fName" type="text" placeholder="예: 김엘지">
+            <input class="form-input" id="fName" type="text" placeholder="예: 박한영">
           </div>
           <div class="form-group">
             <label class="form-label">방문 책임자 직급 *</label>
             <input class="form-input" id="fRank" type="text" placeholder="예: 책임">
           </div>
-        </div>
-
-        <div style="margin:22px 0 14px; padding-top:18px; border-top:1px solid var(--c-separator); font-size:15px; font-weight:600; color:var(--c-accent); letter-spacing:-0.016em;">
-          ✍️ 신청자
-          <span style="display:block; margin-top:3px; font-size:12.5px; font-weight:400; color:var(--c-label-2);">예약을 신청하시는 분 — 확정 메일과 방문 후기 설문이 신청자 이메일로 발송됩니다.</span>
-        </div>
-        <div class="form-group">
-          <label style="display:flex;align-items:center;gap:8px;font-size:var(--t-subhead);color:var(--c-label);cursor:pointer;">
-            <input type="checkbox" id="fSameApplicant" checked onchange="toggleApplicant()">
-            신청자가 방문 책임자와 동일합니다
-          </label>
-        </div>
-        <div class="form-row" id="applicantRow" style="display:none;">
-          <div class="form-group">
-            <label class="form-label">신청자 이름 *</label>
-            <input class="form-input" id="fAppName" type="text" placeholder="예: 하임경">
-          </div>
-          <div class="form-group">
-            <label class="form-label">신청자 직급 *</label>
-            <input class="form-input" id="fAppRank" type="text" placeholder="예: 책임">
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">신청자 이메일 *</label>
-          <input class="form-input" id="fEmail" type="email" placeholder="name@lge.com">
-          <span class="form-hint-inline">예약 확정 메일과 방문 후기 설문 요청이 이 주소로 발송됩니다.</span>
         </div>
 
         <!-- 방문 목적 — 트리거. 목적에 따라 아래 항목이 동적으로 바뀝니다. -->
@@ -2078,10 +2074,10 @@ function changeMonth(dir) {
   renderCalendar();
 }
 
-// 신청자 분리 칸 토글 (2026-09-01) — "책임자와 동일" 해제 시에만 신청자 이름·직급 입력 노출
-function toggleApplicant() {
-  document.getElementById('applicantRow').style.display =
-    document.getElementById('fSameApplicant').checked ? 'none' : '';
+// 방문 책임자 분리 칸 토글 (2026-09-01) — "신청자와 동일" 해제 시에만 책임자 이름·직급 입력 노출
+function toggleLeader() {
+  document.getElementById('leaderRow').style.display =
+    document.getElementById('fSameLeader').checked ? 'none' : '';
 }
 
 function selectDate(date) {
@@ -2378,11 +2374,11 @@ async function submitBooking() {
 
   const get = id => document.getElementById(id).value.trim();
   const subject  = get('fSubject');
-  const leaderName = get('fName');    // 방문 책임자 (name 컬럼)
-  const leaderRank = get('fRank');
-  const sameApplicant = document.getElementById('fSameApplicant').checked;
-  const appName = get('fAppName');
+  const appName = get('fAppName');    // 신청자 (폼 작성자 — 항상 입력)
   const appRank = get('fAppRank');
+  const sameLeader = document.getElementById('fSameLeader').checked;
+  const leaderName = get('fName');    // 방문 책임자 (동일 체크 해제 시에만 별도 입력)
+  const leaderRank = get('fRank');
   const email    = get('fEmail');
   const division   = get('fDivision');
   const department = get('fDepartment');
@@ -2391,11 +2387,11 @@ async function submitBooking() {
 
   if (!division)   { toast('소속 본부를 선택해 주세요.'); return; }
   if (!department) { toast('소속 부서를 입력해 주세요.'); return; }
-  if (!leaderName || !leaderRank) {
-    toast('방문 책임자 이름과 직급을 입력해 주세요.'); return;
-  }
-  if (!sameApplicant && (!appName || !appRank)) {
+  if (!appName || !appRank) {
     toast('신청자 이름과 직급을 입력해 주세요.'); return;
+  }
+  if (!sameLeader && (!leaderName || !leaderRank)) {
+    toast('방문 책임자 이름과 직급을 입력해 주세요.'); return;
   }
   if (!subject || !email) {
     toast('필수 항목을 모두 입력해 주세요.'); return;
@@ -2456,8 +2452,8 @@ async function submitBooking() {
     type: 'booking', timestamp: new Date().toISOString(),
     date: dateStr, slots: sortedSlots, slot: sortedSlots[0], slotLabel,
     // 기존 호환 필드 — 관리자 페이지 표시용
-    name:      leaderName + ' ' + leaderRank,     // 방문 책임자 "이름 직급" (관리자·캘린더 '책임자' 표기)
-    applicant: sameApplicant ? (leaderName + ' ' + leaderRank) : (appName + ' ' + appRank),  // 신청자 — 확정 메일 인사말·설문 프리필 기준 (2026-09-01 분리)
+    name:      sameLeader ? (appName + ' ' + appRank) : (leaderName + ' ' + leaderRank),  // 방문 책임자 "이름 직급" (관리자·캘린더 '책임자' 표기)
+    applicant: appName + ' ' + appRank,   // 신청자 = 폼 작성자 (항상) — 확정 메일 인사말·설문 프리필 기준 (2026-09-01 분리)
     org:     subject,           // 1번째 줄 입력값 (대표 표시)
     phone:   '',                // 연락처 수집 중단 (2026-07-20) — 시트 컬럼 호환 위해 빈 값 유지
     email,
