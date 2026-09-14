@@ -268,3 +268,16 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 4. `/privacy.html` — 공개 열람 의도 문서
 5. `/images/` — 위 공개 페이지들이 참조하는 정적 자원
 나머지 전부(/, 관리자, ROI, 임직원 설문 폼)는 SSO 뒤 유지. `/api` 전체 예외가 부담스럽다는 회신이 오면 컨테이너에 공개 전용 경로(`/pub` 등)를 신설해 공개 타입만 라우팅하는 대안 가능 (코드 소폭).
+
+## 작업 내역 (2026-09-14 후속 3 — OP 접속 확인·주소 출처 정정 + DB·vault 생성 가이드 검수)
+
+**① OP 접속 상태 확인 (담당자 실측)**
+- `kic-op-thinq-real.thinqcloud.link` — **접속 가능 확인.** 이 주소는 이관 트랙의 추측이 아니라 **박현정 책임이 8/18 Teams에서 안내한 값**이었음 ("아마도" 단서 포함 — 출처 정정). OP 실가동 재확인.
+- `thinqreal.lge.com` — 미접속이나 **정상** (CSR redirect 미등록 상태라 당연함 — 등록 후 열림). CSR target은 8/26 안내대로 ops-gateway ELB 주소 사용이 최신 지침.
+
+**② OP용 DB·KV store·secret store 생성 가이드 원문 검수 (Confluence, 박현정 책임 작성 — 2026-09-10 갱신본)**
+- 구조: ST/QA용(관리 주체 TCN — extapps-db·extapps-kvstore·sealed-secrets는 **개발 편의용**)과 OP용(관리 주체 **DB팀·인프라팀**) 분리. OP real-world 서비스는 반드시 OP용으로 배포해야 함 (§6-1 ⑥ 재확인).
+- **DB(RDS)·KV(ElastiCache)**: 공식 요청 시스템(JIRA)으로 신청. OP에는 extapps-db 같은 통합 인스턴스가 없어 **서비스별 신청**. 절차 다수·소요 김. **DB 수작업 접근은 전용 매체(DB-i/TAAgent)로만** — ⚠ 과제 D(데이터 이행) 설계 시 고려 (앱 컨테이너 경유 이행이 기본 경로가 될 것).
+- **secret store(Vault)**: sealed-secrets 대신 Vault, 운영 주체 인프라팀(담당 김형곤 책임). DB보다 진행 쉬움. ArgoCD 배포 방법 섹션은 skip (extapps 전 ArgoCD app에 plugin 기설치 — ST/QA 포함).
+- 신청서 기재값(AWS 계정명·VPC·CIDR 등 사내 식별자)은 퍼블릭 리포 미기재 원칙 — **thinq-real용 기재값 절차서는 외부 트랙이 담당자에게 채팅으로 전달** (가이드 표의 extapps 공통값 + ThinqService=thinq-real).
+- 담당자 액션: RDS·ElastiCache JIRA 신청(소요 길어 선행) → Vault 생성 → 완료 시 OP env 주입 준비 완료.
