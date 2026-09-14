@@ -1296,11 +1296,11 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
           <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
         </div>
         <div class="cal-grid" id="calGrid"></div>
-        <!-- D+2 버퍼 안내 (2026-09-14) — 오늘·내일이 선택되지 않는 이유와 긴급 경로를 달력 바로 아래에서 안내 -->
-        <p style="margin:12px 4px 2px; font-size:var(--t-footnote); color:var(--c-label-2); line-height:1.6;">
-          방문 희망일이 <strong>2일 이내</strong>인 경우 달력에서 선택할 수 없습니다.
-          급한 방문은 ThinQ Real 담당자에게 유선으로 문의해 주시기 바랍니다.
-        </p>
+        <!-- D+2 버퍼 안내 (2026-09-14, 같은 날 2줄 분리 — 운영자 가독성 피드백) -->
+        <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--c-separator); font-size:var(--t-footnote); color:var(--c-label-2); line-height:1.55;">
+          <div>방문 희망일이 <strong>2일 이내</strong>인 경우 달력에서 선택할 수 없습니다.</div>
+          <div style="margin-top:4px;">급한 방문은 ThinQ Real 담당자에게 유선으로 문의해 주시기 바랍니다.</div>
+        </div>
       </div>
 
       <!-- Slots -->
