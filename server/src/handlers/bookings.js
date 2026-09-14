@@ -20,10 +20,11 @@ export async function handleGetBookings(store, token) {
 
 // ── 신규 예약 저장 + 담당자 알림 (메일·메신저) ──
 export async function handleNewBooking(store, data) {
-  // 예약 가능일 D+7 버퍼 (2026-09-01 운영팀 요청): 오늘(KST)+7일 이후 날짜만 접수 — 달력 차단
-  // 우회 방지용 서버 강제. 급한 방문(전화 접수)은 관리자 백필(admin_booking_create — 제한 없음)로.
+  // 예약 가능일 D+2 버퍼 (2026-09-14 운영자 지시로 D+7→D+2 단축, 최초 도입 2026-09-01):
+  // 오늘(KST)+2일 이후 날짜만 접수 — 달력 차단 우회 방지용 서버 강제.
+  // 2일 이내 긴급 방문(유선 접수)은 관리자 백필(admin_booking_create — 제한 없음)로.
   const bkDate = normalizeDate(data.date);
-  const minDate = formatDateLocal(new Date(Date.now() + 7 * 86400000));
+  const minDate = formatDateLocal(new Date(Date.now() + 2 * 86400000));
   if (!/^\d{4}-\d{2}-\d{2}$/.test(bkDate) || bkDate < minDate) {
     return { error: 'booking_too_soon', minDate };
   }
