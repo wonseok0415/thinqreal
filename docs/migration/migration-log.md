@@ -299,3 +299,10 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 **③ 채널 — GitHub 읽기 전용 미러**: 사내 브라우저에서 github.com 접속 확인(담당자 실측) → 사내 PC의 별도 폴더에 퍼블릭 저장소를 인증 없이 clone, 세션 시작 시 pull → `migration-log.md` 마지막 항목이 외부 최신 지시. git CLI 접근은 키트 절차의 `ls-remote`로 검증 예정. 코드 키트는 계속 메일 zip(퍼블릭 `server/`와 Gitea 배치가 달라 코드 경로로는 쓰지 않음).
 **④ 사내 Gitea 현황 확인(담당자 화면)**: 루트 `CLAUDE.md`(8/26 반입 v1) 존재 확인, 0.9.0 릴리스·태그 12·커밋 39, worklog 커밋 반영됨. `handoff-to-internal-claude.md`는 과제 절차 원문으로 유지하고 상단에 진입점 이관 안내 추가.
 **⑤ 한계(정직 기록)**: 외부 트랙이 가진 기억은 이관 세션분뿐 — 운영·FieldCheck·해커톤 세션 대화는 `CLAUDE.md`·`history.md` 기록 범위로만 전달. 문맥 확대는 사내 한도 소모 증가 → "항상 읽는 짧은 CLAUDE.md + 필요 시 여는 상세" 계층화로 억제, 모델 기준(절차=Sonnet급/진단=Opus급) 명시.
+
+## 작업 내역 (2026-09-15 후속 2 — ✅ 문맥 팩 v1 사내 적용 완료·검증 통과)
+
+- **사내 적용**: 담당자가 zip 반입 → 사내 Claude가 KIT-INSTRUCTIONS대로 파일 3종 배치(루트 `CLAUDE.md` v2·`internal-claude-briefing.md`·`internal-context.md`) + **GitHub 읽기 전용 미러 개통**(`git ls-remote` 해시 확인 → 별도 폴더 clone, `migration-log.md` 최신 항목 확인) + `docs:` 커밋. push는 권한 팝업 거부로 담당자가 Claude Code의 터미널 실행 버튼(`>_`)으로 직접 수행 — Gitea 최신 커밋 "docs: 사내 Claude 문맥 팩 v1" 확인.
+- **검증 통과**: 새 채팅에서 검증 프롬프트 → 되묻지 않고 OP 전환 사내 절차 8개 표 + "DBMS = Postgre(PostgreSQL 어댑터)" 정답. **사내 Claude가 현장 판단자로 동작 시작.**
+- **이후 운영 규칙 확정**: 사내 시스템 질문(JIRA·Next SPoC·CSR·Vault)은 사내 Claude가 1차 처리, 외부 트랙에는 결과·"확인 필요"만 압축 양식(3~5줄)으로. 외부 트랙의 새 결정은 GitHub push → 사내 미러 pull로 전달 (문맥용), 코드 키트는 메일 zip 유지. `internal-context.md` 갱신은 외부 트랙 새 판 반입 또는 담당자 승인 하 사내 직접 기입(`docs:`).
+- 권한 팝업 거부 시 대응 수칙: Claude Code가 표시한 명령 옆 `>_` 버튼으로 담당자가 직접 실행 (2회째 발생 — 표준 대응으로 등재).
