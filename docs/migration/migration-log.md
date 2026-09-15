@@ -281,3 +281,13 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **secret store(Vault)**: sealed-secrets 대신 Vault, 운영 주체 인프라팀(담당 김형곤 책임). DB보다 진행 쉬움. ArgoCD 배포 방법 섹션은 skip (extapps 전 ArgoCD app에 plugin 기설치 — ST/QA 포함).
 - 신청서 기재값(AWS 계정명·VPC·CIDR 등 사내 식별자)은 퍼블릭 리포 미기재 원칙 — **thinq-real용 기재값 절차서는 외부 트랙이 담당자에게 채팅으로 전달** (가이드 표의 extapps 공통값 + ThinqService=thinq-real).
 - 담당자 액션: RDS·ElastiCache JIRA 신청(소요 길어 선행) → Vault 생성 → 완료 시 OP env 주입 준비 완료.
+
+## 작업 내역 (2026-09-15 — 사내 작업 폴더 이전: OneDrive 손상 → SMB 재clone)
+
+**① 증상·원인**: 사내(클라우드 PC) Claude Code가 "작업 폴더가 더이상 존재하지 않습니다" 오류. 기존 작업 폴더가 OneDrive 동기화 경로(문서 폴더) 아래에 있어, 파일 온디맨드(자리표시자화)로 `.git` 로컬 실체가 유실·손상됨 (git 명령 자체가 실패). 탐색기에는 파일이 보이나 실체는 클라우드에만 있는 상태.
+**② 대응 — 복구 대신 재clone (Gitea가 원본이므로 무손실)**:
+- 커밋·push된 모든 내용은 사내 Gitea 원본에 존재 — 로컬 폴더는 폐기 대상으로 확정, 구 폴더는 untracked 개인 파일만 확인 후 삭제.
+- 새 작업 폴더는 OneDrive 동기화 범위 밖의 네트워크 드라이브(SMB) 경로로 이전. SMB는 git이 소유권 확인 불가로 기본 거부 → **`safe.directory` 예외를 해당 경로 한 곳만 등록**(와일드카드 금지) 후 clone 성공 — 사내 Claude가 진단·수행.
+- 물리 노트북 로컬 디스크 대안은 미검증 환경(Claude Code·Gitea망 접근 불명)이라 예비 카드로 보류 — 검증된 클라우드 PC 환경 유지가 저리스크.
+- DB MGR credential(db-mgr.zip)은 **저장소 폴더 밖** 별도 폴더로 격리 보관 (커밋 유입 원천 차단).
+**③ SMB 운영 수칙 신설**: 작업 시작 시 `git status`+`git pull` / 커밋 즉시 push (push 안 된 커밋을 로컬에 묵히지 않기) / 이상 동작 시 수리 시도 대신 재clone. 로컬 사본은 소모품, 원본은 Gitea — 이 원칙이 이번 사고의 피해를 0으로 만듦.
