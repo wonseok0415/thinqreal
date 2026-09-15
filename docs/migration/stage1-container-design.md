@@ -348,3 +348,29 @@ Gitea 저장소 원본 검수에서 **HPA min 2 레플리카**가 확인되어(�
 **검증 (로컬 PostgreSQL 16, STORE_BACKEND=postgres 전수 회귀)**: 스키마 자동 생성 14종 / 예약 생명주기(접수→확정→가용성 마감→편집→삭제) / 설문 파이프라인(파생 2종·amount_basis·est_value·cascade 삭제) / 방문자·health(FC키)·voc(FV키+토큰) / 큐레이션(인사이트 move·기사 add/move(ord)/update(16진 디코딩 확인)/delete) / ROI pin(app_state) / export_log / 베스트 리뷰어 재발송 가드 / 리포트 미리보기(PG 데이터·pin 라벨) / 2단계 발송 토큰(app_state 저장 확인) / 잡 CLI 3종 / **재기동 후 데이터 보존·스키마 멱등** / 자동 감지(DB_HOST 유→postgres, 무→memory) / kvTryLock(1회 획득·2회 거부) / memory 백엔드 회귀. 키트 레이아웃(STATIC_DIR=public) 기동 2모드 확인.
 
 **과제 B 키트 v3** (`thinq-real_kit_A_v3.zip`, 스크래치 산출물): src 56파일 + public 6종 최신 + docs/migration + KIT-INSTRUCTIONS v3(적용 5단계·검증표 5항 — postgres 전환·영속성·스케줄러 확인 포함).
+
+### 8-9. 과제 D 설계 — 시트 → PostgreSQL 데이터 이행 (2026-09-15 설계 확정, 키트 v4로 구현 예정)
+
+**목표**: 전환일에 구글 시트 14탭의 실데이터를 OP PostgreSQL로 **1회·무손실·검증 가능**하게 이행한다.
+
+**설계를 결정한 제약**
+1. OP DB 수작업 접근은 전용 매체(DB-i/TAAgent)로만 가능 → 적재는 **앱 컨테이너 경유**.
+2. 사내 K8s 컨테이너의 Google Sheets API 아웃바운드는 보장 없음(`GOOGLE_SERVICE_ACCOUNT_JSON` 의존) → 컨테이너가 시트를 직접 읽는 방식 **불채택**, 파일 스냅샷 방식.
+3. 개인정보(예약자 성명·이메일·방문자 명단·설문 원문) 포함 → 암호 zip 반입, 적재 완료 후 사내 파일 삭제, `export_log`에 이행 이력 기록.
+
+**구조 — 추출(외부) → 적재(사내·앱 경유) → 검증**
+- **① 스냅샷 추출 (외부 트랙)**: 14탭 → 탭별 JSON(레코드는 어댑터 필드명 그대로의 평면 객체, `normalizeDate/Month` 규칙 선적용) + `manifest.json`(탭별 행수·id 목록 해시·추출 시각). 암호 zip으로 메일 반입.
+- **② 적재 (담당자, 사내 브라우저 — 채택안)**: 관리자 페이지에 「데이터 이행」 패널(숨은 진입) + `POST admin_import`(관리자 토큰 게이트). 탭 단위 청크 업로드 → 서버가 postgres 어댑터의 `insertRow(table, headers, record)` 경로로 삽입(rid = 업로드 순서 = 시트 행 순서 보존, `monthly_articles`는 ord 부여). **dry-run**(건수·충돌만 계산) / **멱등 모드**(같은 id: skip 또는 replace 선택) / 탭 단위 재실행 가능.
+  - 채택 이유: 사내 브라우저는 이미 SSO를 통과하므로 별도 예외 경로·curl 불필요, 담당자가 클릭만으로 수행(사내 Claude가 절차 안내). 대안(CLI 잡 + `kubectl cp`)은 pod 파일 반입 권한이 불명확해 보류.
+- **③ 검증**: 서버가 적재 후 탭별 행수·id 집합을 manifest와 대조한 리포트 반환(불일치 탭 명시). 담당자는 관리자 페이지 KPI(예약 건수·월별·설문 수)를 라이브 관리자 페이지와 나란히 대조. 설문 `raw_json` 샘플 대조.
+
+**진행 순서**
+1. 키트 v4 제작(외부): `admin_import` 핸들러(`handlers/`) + 관리자 이행 패널(`public/thinqreal_admin.html` 컨테이너 전용 분기) + 검증 리포트 + 외부 추출 스크립트(`tools/` — 이미지에 미포함). `api-contract.md`에 `admin_import` 등재.
+2. **QA 리허설**: 실데이터 스냅샷을 QA에 적재 → 검증 → replace 모드 재적재로 초기화 (QA는 SSO 뒤·발송 억제라 실데이터 연습 안전).
+3. **전환일(D-day)**: T-1 예약 폼 공지(운영 세션 협조) → T-0 라이브 동결(Apps Script 쓰기 차단 플래그 — 운영 세션이 .gs에 추가) → 최종 스냅샷 → OP 적재 → 검증 → 프론트 전환(`thinqreal.com`에 lge.com 안내·리다이렉트, 관리자 북마크 교체) → 구 시트 읽기 전용 보관 → 1주 관찰.
+
+**선행조건**: OP 자원 신청 a~g(브리핑 §3) 완료 · SSO 예외 경로 확정 · **사내 SMTP 확정**(확정 메일 발송 없이는 전환 불가 — BE팀 대기 항목).
+
+**미결 (담당자 판단 대기)**: ⓐ 라이브 동결 시간대·팀 합의(운영 세션 협조 범위) ⓑ 전환 후 `thinqreal.com` 리다이렉트 안내 유지 기간(예: 3개월). 적재 방식(관리자 페이지 업로드)은 2026-09-15 담당자 승인으로 확정.
+
+**⚠ 스펙 대비 변경**: `handoff-to-internal-claude.md` §5 과제 D 원문은 "시트 → PostgreSQL 이행 스크립트"(컨테이너 안 스크립트가 시트를 직접 읽는 전제)였으나, 위 제약 1·2로 **파일 스냅샷 + 관리자 페이지 업로드**로 변경. 앱 계약(`store/types.js`)은 불변 — `admin_import`는 기존 append 경로를 묶어 호출하는 상위 핸들러다.
