@@ -35,7 +35,13 @@ const ADMIN_TYPES = new Set([
   'best_reviewer_send', 'roi_report_pin',
 ]);
 
-export function createPostRouter(store) {
+// 공개 전용 경로(/pub)에서 허용하는 type — 호출자가 사내 SSO 쿠키를 가질 수 없는 경우만:
+// 외부 방문객 QR 익명 설문 / 점검 장비(API 키) / FieldVoice 파이프라인(API 키+토큰).
+// ops-gateway의 SSO 예외는 이 경로에만 걸린다 (BE팀 2026-09-16 — "인증 여부에 따라 dir 분리").
+// 관리자 타입은 토큰이 있어도 여기서는 404 — 예외 경로에 관리자 기능이 노출되지 않게.
+export const PUB_TYPES = new Set(['visitor_submit', 'health_check', 'voc_report']);
+
+export function createPostRouter(store, { onlyTypes } = {}) {
   const router = Router();
 
   // 프론트가 mode:'no-cors'로 보내는 POST는 Content-Type이 text/plain으로 강제되므로
@@ -47,6 +53,9 @@ export function createPostRouter(store) {
         data = typeof req.body === 'object' && req.body !== null ? req.body : JSON.parse(req.body || '');
       } catch {
         return res.json({ error: 'Invalid JSON' });
+      }
+      if (onlyTypes && !onlyTypes.has(String(data.type || ''))) {
+        return res.status(404).json({ error: 'not_found' });
       }
 
       if (data.type === 'booking') return res.json(await handleNewBooking(store, data));

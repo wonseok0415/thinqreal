@@ -2,7 +2,7 @@
 import express from 'express';
 import { config } from './config.js';
 import { createGetRouter } from './routes/get.js';
-import { createPostRouter } from './routes/post.js';
+import { createPostRouter, PUB_TYPES } from './routes/post.js';
 
 export function createApp(store) {
   const app = express();
@@ -24,6 +24,11 @@ export function createApp(store) {
   // API — 단일 경로 + type 라우팅 (api-contract.md 계약 불변)
   app.use('/api', createGetRouter(store));
   app.use('/api', createPostRouter(store));
+
+  // 공개 전용 API — 사내 SSO 예외 경로. POST + PUB_TYPES 3종만, 그 외(GET 포함) 404.
+  // 같은 type은 /api로도 계속 동작한다 (SSO 뒤 페이지에서의 호출 호환).
+  app.use('/pub', createPostRouter(store, { onlyTypes: PUB_TYPES }));
+  app.all('/pub', (req, res) => res.status(404).json({ error: 'not_found' }));
 
   // 정적 프론트 — index.html·thinqreal_admin.html·ROI 툴·privacy·images
   app.use(express.static(config.staticDir, { extensions: ['html'] }));

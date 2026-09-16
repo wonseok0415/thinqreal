@@ -11,6 +11,7 @@
 - 클라이언트(index.html·thinqreal_admin.html·ROI 툴)는 POST를 `mode:'no-cors'`로 호출 → **POST 응답 본문을 읽지 않음** (낙관적 UI + 실패 시 롤백 패턴). 재구현 시 CORS를 정상 허용하면 클라이언트를 응답 확인 방식으로 개선 가능.
 - 날짜는 항상 `YYYY-MM-DD` 문자열 (타임존 Asia/Seoul 기준, `toISOString()` 사용 금지 규칙).
 - 알 수 없는 `type` → `{ "error": "Unknown type" }`.
+- **컨테이너 전용 — 공개 경로 `/pub` (2026-09-16)**: 사내 ops-gateway의 SSO 예외는 `/api` 전체가 아니라 **`/pub`에만** 걸린다 (BE팀 요청 — 인증 여부에 따라 경로 분리). `/pub`은 **POST 3종만** 통과: `visitor_submit`(외부 방문객 익명 설문) · `health_check`(점검 장비, API 키) · `voc_report`(FieldVoice, API 키+토큰). 그 외 type과 모든 GET은 **HTTP 404 `{ "error": "not_found" }`** — 관리자 type은 토큰이 있어도 404. 같은 3종은 `/api`로도 계속 동작(SSO 뒤 페이지 호환). 전환 시 `ThinQ_Real_Visitor_Survey.html`·FieldCheck rig `config.json`·FieldVoice 파이프라인의 API 주소만 `/pub`로 바꾼다. Apps Script(현행)에는 없는 개념.
 
 ## 인증 모델
 

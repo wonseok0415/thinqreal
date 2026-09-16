@@ -311,3 +311,11 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 
 - 담당자 승인으로 **적재 방식 = 관리자 페이지 업로드(`admin_import`, 관리자 토큰)** 확정. 설계 전문은 `stage1-container-design.md` **§8-9** (제약 3·구조 3단계·진행 순서·선행조건·미결 2건·⚠스펙 대비 변경).
 - 다음: 키트 v4(admin_import + 이행 패널 + 검증 리포트 + 외부 추출 스크립트) 제작 — 선행조건(OP 자원·SSO 예외·SMTP)이 수 주 소요이므로 그 사이 진행. 미결 ⓐ 라이브 동결 합의 ⓑ thinqreal.com 리다이렉트 기간은 담당자 판단 대기.
+
+## 작업 내역 (2026-09-16 — SSO 예외: `/api`→`/pub` 공개 전용 경로 신설·검증)
+
+- BE팀 답변(박현정 책임, 일부): `/api` 전체 예외 곤란 → 인증 여부로 경로 분리 요청. 위험 처리는 앱 코드 책임 전제. 정리는 **decisions §6-4**.
+- **구현**: `routes/post.js`에 `PUB_TYPES`(visitor_submit·health_check·voc_report) + `createPostRouter(store, {onlyTypes})` 화이트리스트, `app.js`에 `/pub` 마운트(그 외 type·GET → 404 `not_found`). `/api`는 무변경(3종은 양쪽 모두 동작). **검증(memory, curl 12건)**: GET /pub 404 / 3종 통과(키 검증 유지) / booking·roi·관리자(update+토큰) 404 / invalid JSON 처리 / `/api` visitor_submit 동작·`/api` update 게이트 유지.
+- **문서**: api-contract 공통 사항에 `/pub` 계약 추가, 브리핑 §2·§3-f 갱신(최종 예외 5종: `/healthz`·`/pub`·방문자 설문·privacy·images).
+- **키트 v3.1**(`thinq-real_kit_pub_v3.1.zip`): 변경 2파일(src/app.js·src/routes/post.js)만 — 사내 적용 시 `feat:` 커밋으로 0.10.0 릴리스, BE팀 게이트웨이 설정 후 ST에서 `/pub` 실측 예정.
+- 담당자 회신 문안(Teams)은 채팅으로 전달. 후속 질문 2건(예외 경로 rate limit/WAF 유무, `x-user-id` strip 여부) 포함.
