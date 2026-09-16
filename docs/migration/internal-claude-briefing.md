@@ -22,9 +22,9 @@
 
 - **과제 A(컨테이너 첫 배포) ✅ / 과제 B(PostgreSQL 영속 저장소 + 인앱 스케줄러) ✅ / 과제 C(ST·QA 발송 억제) ✅** — 릴리스 **0.9.0**이 ST·QA·OP 3환경에서 가동 중. ST `/healthz` = `{"ok":true,"backend":"postgres"}` 실측 확인(9/14).
 - **ST/QA**는 BE팀 제공 공용 자원(extapps-db·extapps-kvstore·sealed-secrets) 사용 — 개발 편의용. **OP는 반드시 서비스별 자원을 담당자가 직접 신청**해야 한다(§3). 앱은 env 주입 구조라 **코드 변경 없이** OP 자원으로 갈아 끼운다.
-- **SSO(MS Entra ID)가 3환경 전부에 적용**됨 → 사내 계정 없는 호출자(외부 방문객 QR 설문, 점검 장비 API, 공개 열람 페이지)는 차단됨. BE팀 답: **path 단위 예외 가능**. 우리 예외 요청 목록(5종): `/healthz`, `/api`, `/ThinQ_Real_Visitor_Survey.html`, `/privacy.html`, `/images/` — 나머지는 SSO 뒤. 회신·확정 대기 중.
+- **SSO(MS Entra ID)가 3환경 전부에 적용**됨 → 사내 계정 없는 호출자(외부 방문객 QR 설문, 점검 장비 API, 공개 열람 페이지)는 차단됨. BE팀 답: **path 단위 예외 가능**, 단 `/api` 전체는 곤란 → **인증 여부에 따라 경로 분리** 요청(9/16). 우리 결정: 인증 없이 열어야 하는 API는 3종뿐(방문객 익명 설문 `visitor_submit` / 점검 장비 `health_check` / FieldVoice `voc_report` — 각각 익명 설계·API 키로 앱이 검증) → 컨테이너에 **공개 전용 경로 `/pub`** 신설(이 3종만, 그 외 404). **최종 예외 요청 목록(5종)**: `/healthz`, **`/pub`**, `/ThinQ_Real_Visitor_Survey.html`, `/privacy.html`, `/images/` — `/api`를 포함한 나머지는 전부 SSO 뒤. 위험 처리(키 검증·입력 검증·크기 제한)는 앱 코드 책임(BE팀 전제와 일치).
 - **남은 코드 과제**: **과제 D — 시트→DB 데이터 이행**(전환 직전 1회, 외부 트랙이 키트 제작 예정. OP DB는 수작업 접근이 전용 매체(DB-i/TAAgent)로만 가능하므로 이행은 앱 컨테이너 경유가 기본 설계) + 전환(프론트 `SCRIPT_URL` → `/api`, CSR 등록).
-- **BE팀 대기**: 사내 SMTP 스펙 / SSO 예외 경로 회신 / CSR target 기재 방식(§3-e).
+- **BE팀 대기**: 사내 SMTP 스펙 / SSO 예외 최종 목록 회신 후 게이트웨이 반영 / CSR target 기재 방식(§3-e).
 
 ## 3. OP 전환에 필요한 사내 절차 지도 (왜·순서·상태)
 
@@ -37,7 +37,7 @@
 | c | **Vault(secret store) 생성** | OP는 sealed-secrets 대신 Vault로 비밀값 주입 (인프라팀 가이드, ArgoCD 섹션은 skip — 기설치) | a·b 제출 후 (쉬움) | 대기 |
 | d | **Next SPoC — DB 계정 생성** | 앱이 쓸 DB 접속 계정 | **a 완료 통보 후** (인스턴스가 생겨야 검색됨 — 그 전엔 검색해도 안 나오는 게 정상) | a 대기 |
 | e | **CSR — `thinqreal.lge.com` → ops-gateway** | 운영 도메인이 현재 GitHub Pages IP를 가리킴 → OP로 변경 | BE팀 답변 후 (요청서가 IP 기재형인데 ELB는 IP가 바뀌므로 **고정 IP 유무 또는 다른 등록 유형**을 확인 중). 지금 바꿔도 무해(현재 미접속 상태) | 확인 대기 |
-| f | **SSO 예외 경로 회신** | 외부 방문객·장비 경로 개통 | 목록은 확정, BE팀 회신 대기 | 대기 |
+| f | **SSO 예외 경로 회신** | 외부 방문객·장비 경로 개통 | BE팀 요청으로 `/api`→`/pub` 분리 확정(9/16). 최종 5종 회신 후 BE팀이 게이트웨이 설정 → ST에서 `/pub` 실측 | 회신 단계 |
 | g | **OP env 주입** | a~d의 접속정보 + AUTH_SECRET 등 앱 비밀값을 Vault 경유로 컨테이너에 | a~d 완료 후 | — |
 | h | **과제 D 이행 + 전환** | 실데이터 이행 → 프론트 API 주소 교체 → 전환일 동결 | g 완료 + 외부 트랙 키트 | — |
 

@@ -154,3 +154,11 @@ BE팀이 사내 클라우드에 ThinQ Real 전용 인프라를 실제로 구축�
 - **SSO 예외 = path 단위로 가능** — "둘 모두 path로 명확히 나눌 수 있으면 가능합니다" (§6-2 아젠다 해소). 우리 쪽 액션: 예외 경로 목록 확정해 회신 (이관 트랙이 목록 설계 — migration-log 2026-09-14 참조).
 - **OP용 DB·vault 신청 가이드 도착** (메일): db-mgr.zip(DB MGR 계정 credential — ⚠ 사내 보관 전용, 반출·리포 기재 금지) + 사내 위키 가이드 2건(sealed-secrets 사용법 / DB·KV store·secret store 생성). **OP는 인프라팀·DB팀 제공 DB+Vault로 교체 필수 재확인** — BE팀 제공 DB·sealed-secrets는 ST/QA 전용. OP용 DB 서비스는 이미 제공 중.
 - 잔여 BE팀 대기: SMTP 스펙만 남음.
+
+### 6-4. SSO 예외 — `/api` 전체 불가, 인증 여부로 경로 분리 (2026-09-16 Teams, 박현정 책임 답변 일부)
+
+- BE팀 답변 요지: ① 인증 없이 들어오는 요청의 위험 처리는 **앱 코드(강원석 담당) 책임**을 전제 ② `/api` 하위 전체 예외는 곤란 — **인증 없이 노출해도 되는 API를 골라 별도 dir로 분리**하면 나머지 경로와 함께 처리하겠다.
+- **이관 트랙 결정**: 인증 없이 열어야 하는 API는 **3종뿐** — `visitor_submit`(외부 방문객 QR 익명 설문, 파생·ROI 미연결) / `health_check`(FieldCheck 장비, 앱 API 키) / `voc_report`(FieldVoice, API 키+토큰). 컨테이너에 **공개 전용 경로 `/pub`** 신설(POST 3종만 통과, 그 외 type·모든 GET은 404 — 관리자 type은 토큰이 있어도 404). 예약·인증 코드·가용성·ROI·관리자 API는 호출 페이지가 SSO 뒤이므로 `/api`에 두고 SSO를 받는다.
+- **최종 예외 요청 목록(5종)**: `/healthz` · `/pub` · `/ThinQ_Real_Visitor_Survey.html` · `/privacy.html` · `/images/`. 나머지 전부 SSO 뒤.
+- 전환 시 클라이언트 측 변경: 방문자 설문 HTML의 API 주소 · FieldCheck rig `config.json` · FieldVoice 파이프라인 → `/pub`. (FieldCheck·FieldVoice는 전용 세션 소관 — 전환 시점에 협조 요청.)
+- 후속 확인 사항(BE팀): 예외 경로에 게이트웨이 차원의 rate limit/WAF가 있는지(없으면 앱에서 `/pub` 요청 빈도 제한 검토), 예외 경로로 들어오는 요청의 `x-user-id` 헤더는 게이트웨이가 strip하는지(향후 SSO 헤더 게이트 도입 시 위조 방지 전제).
