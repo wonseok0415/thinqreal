@@ -84,7 +84,7 @@
 2. `internal-context.md`가 지정한 **별도 폴더**에 `git clone https://github.com/wonseok0415/thinqreal.git` (1회). Gitea 저장소 폴더와 섞지 않는다.
 3. 세션 시작 시 그 폴더에서 `git pull` → `docs/migration/migration-log.md` 마지막 1~2 항목을 읽는다. 외부 트랙의 최신 결정이 거기 있다.
 4. 미러 폴더에는 아무것도 쓰지 않는다. 외부 트랙에 전할 것은 §6 양식으로 담당자에게.
-5. 코드 키트는 계속 메일 반입(zip) — GitHub 미러는 **문맥 전달용**이지 코드 적용 경로가 아니다 (퍼블릭 저장소의 `server/`는 Gitea 배치와 다르다).
+5. **코드 반입도 미러 경유가 기본**(2026-09-16 개정 — 메일은 `.js`가 든 zip을 차단): 외부 트랙이 KIT 절차(프롬프트 또는 KIT-INSTRUCTIONS)에서 지정한 파일만 미러에서 Gitea 저장소로 **복사**한다. 경로 규칙은 퍼블릭 `server/src/*` → Gitea `src/*`, `server/public/*` → `public/*`. 복사는 역할 경계 §5의 "키트 적용 ✅"에 해당하며 코드 변경 ⛔가 아니다 — 단 복사 외의 수정은 금지, 담당자 승인 후 `feat:`/`fix:` 커밋. 메일 zip은 사내 식별자가 든 문서(`internal-context.md` 갱신) 전용.
 
 ## 8. 이 문서에 없는 것 → `internal-context.md` (사내 전용)
 
