@@ -354,3 +354,9 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 
 - 담당자 ST 실측: 예외 5종 로그인 없이 열림, 루트는 SSO 유지 → **SSO 예외 건 종결**. 첫 시도는 `thinqreal.lge.com`으로 테스트해 혼선 — 브리핑에 "테스트 주소는 항상 thinqcloud.link, lge.com은 CSR 완료 전 불가" 명시.
 - **⚠ 발견**: 사외에서 thinqcloud.link NXDOMAIN → 사내 전용 DNS. 외부 방문객 QR 설문·(네트워크 미확인 시) 점검 장비 경로에 영향. 정리는 decisions **§6-6**, 브리핑 §3-f 갱신 + **§3-i(사외 접속 경로 확보) 신설**. BE팀 문의 발송, 대안(출구 태블릿) 준비.
+
+## 작업 내역 (2026-09-17 후속 4 — 외부 접점 설계 전환: 하이브리드 에지 + egress_check)
+
+- 담당자 확정 사실: OP도 사내 전용 DNS / lge.com 사외 노출 불가 전제(B2E) / FieldCheck 장비 사외 Wi-Fi(의도) / 방문객은 귀가 후 설문 → 태블릿 대안 폐기. 정리 **decisions §6-7**, 설계 **stage1 §8-10**(외부 접점 3종은 현행 GitHub Pages+Apps Script 유지, 사내 스케줄러가 pull·병합, `LEGACY_AUTH_SECRET`로 토큰 자체 발급 → .gs 변경 0, delete-through, ⚠스펙 대비 변경 표기).
+- **구현**: `GET /api?type=egress_check` — pod→Apps Script 아웃바운드 진단(ST/QA 토큰 생략, OP 관리자 토큰). `config.legacyScriptUrl`(env `LEGACY_SCRIPT_URL`, 공개 URL 기본값). 검증: 무토큰 거부(OP 모드)·응답 형태 확인(샌드박스는 프록시 정책상 403 — 사내 실측이 목적).
+- **키트 v3.3**(미러 복사 3파일: `src/handlers/diagnostics.js`·`src/routes/get.js`·`src/config.js`) → 0.12.0 → ST에서 `egress_check` 실측이 다음 관문. BE팀 문의 2건(pod 아웃바운드/프록시, 공식 외부 진입점 패턴).

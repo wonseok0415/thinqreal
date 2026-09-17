@@ -374,3 +374,22 @@ Gitea 저장소 원본 검수에서 **HPA min 2 레플리카**가 확인되어(�
 **미결 (담당자 판단 대기)**: ⓐ 라이브 동결 시간대·팀 합의(운영 세션 협조 범위) ⓑ 전환 후 `thinqreal.com` 리다이렉트 안내 유지 기간(예: 3개월). 적재 방식(관리자 페이지 업로드)은 2026-09-15 담당자 승인으로 확정.
 
 **⚠ 스펙 대비 변경**: `handoff-to-internal-claude.md` §5 과제 D 원문은 "시트 → PostgreSQL 이행 스크립트"(컨테이너 안 스크립트가 시트를 직접 읽는 전제)였으나, 위 제약 1·2로 **파일 스냅샷 + 관리자 페이지 업로드**로 변경. 앱 계약(`store/types.js`)은 불변 — `admin_import`는 기존 append 경로를 묶어 호출하는 상위 핸들러다.
+
+### 8-10. 하이브리드 에지 설계 — 외부 접점 유지 + 사내 pull 동기화 (2026-09-17 설계, 키트 v4·v5 범위)
+
+**배경**: 사내 인프라는 사내 전용 DNS·SSO로 외부에서 접근 불가(decisions §6-6·§6-7). 외부 호출자 3종(방문객 휴대폰 설문·FieldCheck 장비·FieldVoice)은 사내로 들어올 수 없다.
+
+**구조**
+| 흐름 | 외부(현행 유지) | 사내(신규) |
+|---|---|---|
+| 방문객 설문 | GitHub Pages `ThinQ_Real_Visitor_Survey.html` → Apps Script `visitor_submit` → `visitor_responses` 시트 + 텔레그램(현행) | 스케줄러 잡 `edgeSync`(예: 10분 주기) → Apps Script `survey_data`(관리자 토큰) → visitors 병합 |
+| FieldCheck | rig → Apps Script `health_check` → `health_checks` 시트 (rig 설정 무변경) | `health_checks?days=2` pull → 병합 |
+| FieldVoice | 파이프라인 → Apps Script `voc_report` (무변경) | `voc_reports?days=2`(관리자 토큰) pull → 병합 |
+
+- **토큰**: 컨테이너가 Apps Script와 **같은 HMAC 서명 방식**(`auth/token.js` 이식)을 쓰므로, env `LEGACY_AUTH_SECRET`(Apps Script의 AUTH_SECRET)만 주입하면 컨테이너가 관리자 토큰을 자체 발급해 `survey_data`·`voc_reports`를 호출할 수 있다 → **.gs 변경 0**. 
+- **병합 규칙**: id(response_id·health id·voc id) 기준 멱등 upsert. 사내 관리자 페이지에서의 삭제(`visitor_delete`)는 **delete-through**(같은 토큰으로 Apps Script `visitor_delete` 호출 → 원본도 삭제, 부활 방지).
+- **레플리카**: `kvTryLock`으로 잡 중복 방지(스케줄러 기존 패턴).
+- **과제 D 관계**: 이행 시 세 탭의 과거분을 1회 적재하고, 이후는 edgeSync가 최신분을 유지. 전환 후에도 이 세 흐름의 원본은 시트(외부)이며 PG는 사내 조회용 미러 — 관리자 페이지·리포트는 PG만 본다.
+- **보안 경계**: 인바운드 pull만(사내→외부 GET). 외부에 남는 데이터는 익명 설문·장비 로그·현장 리포트(현행과 동일 위치). 예약·인증·관리자 데이터는 외부로 나가지 않는다.
+- **성립 조건·미결**: ① pod 아웃바운드(`egress_check` 실측) — 실패 시 undici `ProxyAgent`로 `HTTPS_PROXY` 경유 ② Apps Script 호출 한도(일 GET 수십 회 — 무해) ③ 텔레그램 알림은 외부(Apps Script)가 계속 담당(중복 방지를 위해 사내 pull은 알림 없음).
+- **⚠ 스펙 대비 변경**: decisions §2의 "단일 컨테이너로 완전 대체" 방향 중 **외부 접점 3종은 현행 Google 경로를 존치**하는 것으로 변경 — 사유는 사내 인프라의 외부 비노출(§6-6·§6-7). 대체 불가가 아니라 네트워크 경계 때문이며, 공식 외부 진입점이 생기면 `/pub`로 회귀 가능하도록 `/pub`·SSO 예외를 유지한다.

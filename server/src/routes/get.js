@@ -10,7 +10,7 @@ import {
 } from '../handlers/auth.js';
 import { handleMonthlyReportPreview, handleMonthlyReportSend } from '../handlers/report.js';
 import {
-  handleMailStatus, handleMailTest, handleTelegramTest, handleTeamsTest, handleCalendarTest,
+  handleMailStatus, handleMailTest, handleTelegramTest, handleTeamsTest, handleCalendarTest, handleEgressCheck,
 } from '../handlers/diagnostics.js';
 import { handleGetSurveyData } from '../handlers/survey.js';
 import { handleGetHealthChecks } from '../handlers/health.js';
@@ -63,6 +63,8 @@ export function createGetRouter(store) {
           return res.json(await handleTeamsTest());
         case 'calendar_test':
           return res.json(await handleCalendarTest());
+        case 'egress_check': // 사내 pod → 인터넷(현행 Apps Script) 아웃바운드 진단 (관리자 토큰)
+          return res.json(await handleEgressCheck(q.token));
         case 'survey_data': // 설문·대장·이슈·방문자·큐레이션 통합 조회 (관리자 토큰 필수 — 핸들러 내부 검증)
           return res.json(await handleGetSurveyData(store, q.token));
         case 'health_checks': // FieldCheck 점검 이력 (무인증 조회 — 비민감 점검 결과)
