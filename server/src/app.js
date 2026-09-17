@@ -3,6 +3,7 @@ import express from 'express';
 import { config } from './config.js';
 import { createGetRouter } from './routes/get.js';
 import { createPostRouter, PUB_TYPES } from './routes/post.js';
+import { createRateLimiter } from './lib/rateLimit.js';
 
 export function createApp(store) {
   const app = express();
@@ -27,6 +28,8 @@ export function createApp(store) {
 
   // 공개 전용 API — 사내 SSO 예외 경로. POST + PUB_TYPES 3종만, 그 외(GET 포함) 404.
   // 같은 type은 /api로도 계속 동작한다 (SSO 뒤 페이지에서의 호출 호환).
+  // 게이트웨이에 rate limit이 없으므로(BE팀 2026-09-17) 예외 경로는 앱이 빈도 제한 — IP당 분당 PUB_RATE_LIMIT건
+  app.use('/pub', createRateLimiter({ limit: config.pubRateLimit, windowSec: 60 }));
   app.use('/pub', createPostRouter(store, { onlyTypes: PUB_TYPES }));
   app.all('/pub', (req, res) => res.status(404).json({ error: 'not_found' }));
 

@@ -162,3 +162,10 @@ BE팀이 사내 클라우드에 ThinQ Real 전용 인프라를 실제로 구축�
 - **최종 예외 요청 목록(5종)**: `/healthz` · `/pub` · `/ThinQ_Real_Visitor_Survey.html` · `/privacy.html` · `/images/`. 나머지 전부 SSO 뒤.
 - 전환 시 클라이언트 측 변경: 방문자 설문 HTML의 API 주소 · FieldCheck rig `config.json` · FieldVoice 파이프라인 → `/pub`. (FieldCheck·FieldVoice는 전용 세션 소관 — 전환 시점에 협조 요청.)
 - 후속 확인 사항(BE팀): 예외 경로에 게이트웨이 차원의 rate limit/WAF가 있는지(없으면 앱에서 `/pub` 요청 빈도 제한 검토), 예외 경로로 들어오는 요청의 `x-user-id` 헤더는 게이트웨이가 strip하는지(향후 SSO 헤더 게이트 도입 시 위조 방지 전제).
+
+### 6-5. SSO 예외 반영 완료 + 후속 질문 답변 + CSR 진행 (2026-09-17 Teams, 박현정 책임)
+
+- **SSO 예외 5종(`/healthz`·`/pub`·방문자 설문·privacy·images) 게이트웨이 설정 완료** (09:42) — 담당자 실측 대기.
+- 후속 질문 답변: ① 예외 경로에 **게이트웨이 rate limit 없음**(WAF는 OP에만, 빈도 제한과 무관) → 앱이 `/pub`에 IP당 분당 60건 제한 추가(`PUB_RATE_LIMIT`). ② 예외 경로에서는 게이트웨이가 x-user-id를 알 수 없어 **붙이지 않음** → `/pub`에서 x-user-id 신뢰 금지(설계 규칙). `/api`의 SSO 헤더 게이트 도입 시 위조 헤더 덮어쓰기 여부는 ST 실측으로 확인.
+- CSR: 담당자가 **CNAME 방식**으로 등록(IP 아님). BE팀 "완료 처리되면 thinqreal.lge.com 호출 테스트" — 처리 완료 통보 대기. 현재 "listener not found"는 과도기로 판단.
+- SMTP: "정리되는 대로 전달" — 대기 유지.
