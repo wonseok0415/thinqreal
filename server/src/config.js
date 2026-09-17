@@ -44,6 +44,7 @@ export const config = {
   isProd,
   port: Number(env('PORT', '8080')),
   staticDir: resolveStaticDir(),
+  pubRateLimit: Number(env('PUB_RATE_LIMIT')) || 60, // /pub IP당 분당 요청 상한 (레플리카별)
 
   // memory | sheets | postgres. 미지정 시 자동 감지: DB_HOST가 주입돼 있으면 postgres
   // (사내 K8s는 deploy secret이 DB_*를 항상 주입 — deploy 수정 없이 영속 저장소로 전환),

@@ -342,3 +342,10 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 ## 작업 내역 (2026-09-17 후속 — Next SPoC 양식 확인으로 절차 순서 확정)
 
 - 담당자 확인: Next SPoC DB 계정 양식 = `DB-i 적용 여부` · `Instance(AWS)` · `접속 IP` 3항목 → 인스턴스 생성 기능 없음. **순서 확정: RDS 인스턴스(JIRA) → Next SPoC 계정.** 브리핑 §3-d에 항목·기재 방향(접속 IP=OP 클러스터 CIDR, DB-i=앱 계정 미적용 유력 — DB팀 확인 필요) 반영. RDS JIRA는 미신청 상태 — 사내 Claude 지원으로 착수.
+
+## 작업 내역 (2026-09-17 후속 2 — BE팀 답변 반영: SSO 예외 완료·`/pub` rate limit 구현)
+
+- BE팀 답변 정리는 **decisions §6-5**. SSO 예외 게이트웨이 설정 완료 → 담당자 실측 6항목 안내(시크릿 창 5종 + **휴대폰 외부망에서 방문자 설문** — 외부 방문객 QR 전제 검증).
+- **구현**: `lib/rateLimit.js`(인메모리 고정 창, XFF 첫 IP 기준, 429+Retry-After) + `app.js` `/pub` 앞단 마운트 + `config.pubRateLimit`(env `PUB_RATE_LIMIT`, 기본 60/분). **검증(memory, limit=5)**: 5회 200 → 6·7회 429 / 다른 XFF IP 독립 200 / `/api` 7회 전부 200(무제한) / 429 본문·Retry-After 확인. api-contract `/pub` 항목에 계약 추가.
+- **키트 v3.2**(미러 복사 3파일: `src/app.js`·`src/config.js`·`src/lib/rateLimit.js`) — `feat:` 커밋 → 0.11.0.
+- 브리핑 §2·§3-e·§3-f 상태 갱신(CSR CNAME 등록 완료·BE팀 처리 중 / SSO 예외 완료·실측 대기).
