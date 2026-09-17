@@ -349,3 +349,8 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **구현**: `lib/rateLimit.js`(인메모리 고정 창, XFF 첫 IP 기준, 429+Retry-After) + `app.js` `/pub` 앞단 마운트 + `config.pubRateLimit`(env `PUB_RATE_LIMIT`, 기본 60/분). **검증(memory, limit=5)**: 5회 200 → 6·7회 429 / 다른 XFF IP 독립 200 / `/api` 7회 전부 200(무제한) / 429 본문·Retry-After 확인. api-contract `/pub` 항목에 계약 추가.
 - **키트 v3.2**(미러 복사 3파일: `src/app.js`·`src/config.js`·`src/lib/rateLimit.js`) — `feat:` 커밋 → 0.11.0.
 - 브리핑 §2·§3-e·§3-f 상태 갱신(CSR CNAME 등록 완료·BE팀 처리 중 / SSO 예외 완료·실측 대기).
+
+## 작업 내역 (2026-09-17 후속 3 — SSO 예외 실측 통과 · thinqcloud.link 사내 전용 DNS 발견)
+
+- 담당자 ST 실측: 예외 5종 로그인 없이 열림, 루트는 SSO 유지 → **SSO 예외 건 종결**. 첫 시도는 `thinqreal.lge.com`으로 테스트해 혼선 — 브리핑에 "테스트 주소는 항상 thinqcloud.link, lge.com은 CSR 완료 전 불가" 명시.
+- **⚠ 발견**: 사외에서 thinqcloud.link NXDOMAIN → 사내 전용 DNS. 외부 방문객 QR 설문·(네트워크 미확인 시) 점검 장비 경로에 영향. 정리는 decisions **§6-6**, 브리핑 §3-f 갱신 + **§3-i(사외 접속 경로 확보) 신설**. BE팀 문의 발송, 대안(출구 태블릿) 준비.
