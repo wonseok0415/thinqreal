@@ -44,6 +44,7 @@
 | `slot_blocks` | `date=` (선택) | — | 차단 슬롯 현황 (비민감) |
 | `telegram_test` | — | — | `{ok:true}` 또는 `{ok:false, reason:'not_configured'}` |
 | `calendar_test` | — | — | 캘린더 연동 점검 (테스트 일정 생성 후 즉시 삭제) |
+| `egress_check` | `token` (OP만 필수) | 관리자 (ST/QA는 SSO 뒤라 토큰 생략 허용) | **컨테이너 전용(2026-09-17)** — pod → 인터넷(현행 Apps Script `appliances`) 아웃바운드 진단 `{ok, status, ms, count, proxyEnv}` / 실패 시 `{ok:false, error, proxyEnv}`. 하이브리드 에지 설계의 성립 조건 실측용 |
 | `survey_data` | `token` | 관리자 | `{responses:[], ledger:[], issues:[], visitors:[], insights:[], articles:[], bestReviewers:[]}` — 설문·대장·이슈·방문자·큐레이션·기사·베스트 리뷰어 이력 통합 조회 (insights·articles 2026-08-03, bestReviewers 2026-08-22 추가). articles 행은 `{month, title, url, source, published_at, summary, thumbnail}` (summary·thumbnail은 수정 모달 프리필용 — 2026-08-26 추가, title·source·summary는 엔티티 디코딩 적용) |
 | `health_checks` | `days=` (선택) | — ⚠ 무인증 | FieldCheck 점검 이력 조회 (관리자 🩺 탭용). ⚠ 토큰 게이트 적용 검토는 FieldCheck 전용 세션에 위임 (2026-07-30 관찰) |
 | `voc_reports` | `token`, `days=` (선택) | **관리자** | FieldVoice 현장 인사이트 리포트 목록 (관리자 🎙 탭용, 2026-08-19). 방문객 발화 인용이 포함되므로 health_checks와 달리 처음부터 토큰 게이트. ⚠ 기능 상세는 FieldVoice(아이디어 트랙) 소관 — 존재·인증 방식만 등재 |

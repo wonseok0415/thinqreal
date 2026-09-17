@@ -45,6 +45,8 @@ export const config = {
   port: Number(env('PORT', '8080')),
   staticDir: resolveStaticDir(),
   pubRateLimit: Number(env('PUB_RATE_LIMIT')) || 60, // /pub IP당 분당 요청 상한 (레플리카별)
+  // 현행 Apps Script Web App URL — 하이브리드 에지(외부 접점 유지 + 사내 pull) 진단·동기화 대상. 공개 URL이라 기본값 내장
+  legacyScriptUrl: env('LEGACY_SCRIPT_URL') || 'https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec',
 
   // memory | sheets | postgres. 미지정 시 자동 감지: DB_HOST가 주입돼 있으면 postgres
   // (사내 K8s는 deploy secret이 DB_*를 항상 주입 — deploy 수정 없이 영속 저장소로 전환),

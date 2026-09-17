@@ -176,3 +176,12 @@ BE팀이 사내 클라우드에 ThinQ Real 전용 인프라를 실제로 구축�
 - **⚠ 신규 사실**: 사외 PC에서 `kic-st-thinq-real.thinqcloud.link` → `DNS_PROBE_FINISHED_NXDOMAIN`. **thinqcloud.link는 사내 전용 DNS.** 함의: SSO 예외를 열어도 외부 방문객 휴대폰(LTE)에서는 접속 자체가 불가 → 방문자 QR 설문 경로의 전제가 깨짐. FieldCheck 장비의 네트워크(사내망 여부)도 확인 대상.
 - **문의 발송(박현정 책임)**: CSR 완료 후 `thinqreal.lge.com`의 사외 접속 가능 여부 / 불가 시 예외 5종만 외부 노출(별도 진입점) 가능 여부.
 - **대안 준비**: 사외 노출 불가 시 쇼룸 출구 태블릿(사내 Wi-Fi)에서 현장 작성 — 코드 변경 없음, 익명 설계 유지. 결정은 BE팀 답변 후.
+
+### 6-7. 외부 접점 설계 전환 — 하이브리드 에지 (2026-09-17 담당자 판단 + 이관 트랙 설계)
+
+- **확정 사실(담당자)**: OP도 thinqcloud.link 사내 전용 DNS / `thinqreal.lge.com` 사외 노출은 **B2E 취지(임직원 한정·사내 정보 보호)상 불가 전제** / FieldCheck 점검 장비는 **의도적으로 사외 Wi-Fi** 사용 / 방문객 설문은 다른 투어장 이동·귀가 후에도 작성 → 출구 태블릿 대안 불가.
+- **설계 전환**: "외부 요청을 사내로 받는다"를 포기하고, **외부 접점은 현행 공개 인프라에 유지 + 사내가 pull**. 대상 3종 = 방문객 익명 설문(`ThinQ_Real_Visitor_Survey.html` on GitHub Pages → Apps Script `visitor_submit` → 시트), FieldCheck `health_check`, FieldVoice `voc_report`. 사내 컨테이너 스케줄러가 주기적으로 Apps Script GET(`survey_data`의 visitors·`health_checks`·`voc_reports`)을 호출해 PG에 병합(id 기준 멱등). 사내 데이터는 밖으로 나가지 않음(인바운드 pull만). 외부에 남는 데이터는 익명 설문·장비 로그·(현행과 동일한) 현장 리포트 — 예약·관리자 데이터(민감)는 전부 사내.
+- **`/pub`·SSO 예외는 유지** — 향후 공식 외부 진입점이 생기면 그대로 전환 가능.
+- **성립 조건**: 사내 pod → script.google.com HTTPS 아웃바운드. `GET /api?type=egress_check`로 실측(ST/QA 토큰 생략 허용). 실패 시 프록시(`HTTPS_PROXY`) 경유 구현 추가 검토.
+- **BE팀 문의 예정**: ① pod 아웃바운드 인터넷 가능 여부·프록시 규칙 ② extapps에 공식 외부(인터넷) 진입점 패턴이 있는지(있으면 장기적으로 하이브리드 폐기 가능).
+- 상세 설계: `stage1-container-design.md` §8-10.
