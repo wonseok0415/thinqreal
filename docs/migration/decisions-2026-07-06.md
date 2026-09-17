@@ -169,3 +169,10 @@ BE팀이 사내 클라우드에 ThinQ Real 전용 인프라를 실제로 구축�
 - 후속 질문 답변: ① 예외 경로에 **게이트웨이 rate limit 없음**(WAF는 OP에만, 빈도 제한과 무관) → 앱이 `/pub`에 IP당 분당 60건 제한 추가(`PUB_RATE_LIMIT`). ② 예외 경로에서는 게이트웨이가 x-user-id를 알 수 없어 **붙이지 않음** → `/pub`에서 x-user-id 신뢰 금지(설계 규칙). `/api`의 SSO 헤더 게이트 도입 시 위조 헤더 덮어쓰기 여부는 ST 실측으로 확인.
 - CSR: 담당자가 **CNAME 방식**으로 등록(IP 아님). BE팀 "완료 처리되면 thinqreal.lge.com 호출 테스트" — 처리 완료 통보 대기. 현재 "listener not found"는 과도기로 판단.
 - SMTP: "정리되는 대로 전달" — 대기 유지.
+
+### 6-6. SSO 예외 실측 통과 + ⚠ thinqcloud.link 사내 전용 DNS 확인 (2026-09-17 담당자 실측)
+
+- **ST 실측**: `/healthz`·`/pub`·`/ThinQ_Real_Visitor_Survey.html`·`/privacy.html` 시크릿 창에서 로그인 없이 열림, `/`는 SSO 로그인으로 이동 — **예외 5종 정상**. `thinqreal.lge.com`은 CSR 완료 처리 전이라 사내망 "listener not found"/사외 GitHub 404 — 과도기 정상(테스트 주소는 항상 thinqcloud.link).
+- **⚠ 신규 사실**: 사외 PC에서 `kic-st-thinq-real.thinqcloud.link` → `DNS_PROBE_FINISHED_NXDOMAIN`. **thinqcloud.link는 사내 전용 DNS.** 함의: SSO 예외를 열어도 외부 방문객 휴대폰(LTE)에서는 접속 자체가 불가 → 방문자 QR 설문 경로의 전제가 깨짐. FieldCheck 장비의 네트워크(사내망 여부)도 확인 대상.
+- **문의 발송(박현정 책임)**: CSR 완료 후 `thinqreal.lge.com`의 사외 접속 가능 여부 / 불가 시 예외 5종만 외부 노출(별도 진입점) 가능 여부.
+- **대안 준비**: 사외 노출 불가 시 쇼룸 출구 태블릿(사내 Wi-Fi)에서 현장 작성 — 코드 변경 없음, 익명 설계 유지. 결정은 BE팀 답변 후.
