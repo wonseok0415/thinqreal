@@ -360,3 +360,10 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - 담당자 확정 사실: OP도 사내 전용 DNS / lge.com 사외 노출 불가 전제(B2E) / FieldCheck 장비 사외 Wi-Fi(의도) / 방문객은 귀가 후 설문 → 태블릿 대안 폐기. 정리 **decisions §6-7**, 설계 **stage1 §8-10**(외부 접점 3종은 현행 GitHub Pages+Apps Script 유지, 사내 스케줄러가 pull·병합, `LEGACY_AUTH_SECRET`로 토큰 자체 발급 → .gs 변경 0, delete-through, ⚠스펙 대비 변경 표기).
 - **구현**: `GET /api?type=egress_check` — pod→Apps Script 아웃바운드 진단(ST/QA 토큰 생략, OP 관리자 토큰). `config.legacyScriptUrl`(env `LEGACY_SCRIPT_URL`, 공개 URL 기본값). 검증: 무토큰 거부(OP 모드)·응답 형태 확인(샌드박스는 프록시 정책상 403 — 사내 실측이 목적).
 - **키트 v3.3**(미러 복사 3파일: `src/handlers/diagnostics.js`·`src/routes/get.js`·`src/config.js`) → 0.12.0 → ST에서 `egress_check` 실측이 다음 관문. BE팀 문의 2건(pod 아웃바운드/프록시, 공식 외부 진입점 패턴).
+
+## 작업 내역 (2026-09-17 후속 5 — ✅ 아웃바운드 성립 실측 + 키트 v4: 하이브리드 에지 동기화 구현)
+
+- **ST 실측(담당자)**: `egress_check` → `ok:true, status:200, count:45, proxyEnv:"none"` — 사내 pod가 프록시 없이 현행 Apps Script에 직접 도달. **하이브리드 에지 설계 성립.**
+- **구현(키트 v4)**: `jobs/edgeSync.js` — health_checks(무인증)·survey_data visitors·voc_reports(관리자 토큰 자체 발급 `signAuthTokenWith(LEGACY_AUTH_SECRET)`)를 pull해 id 기준 멱등 병합, `deleteLegacyVisitor` delete-through. 스케줄러 간격 잡(`INTERVAL_JOBS`, 10분·슬롯 락), GET `edge_sync_now`(ST/QA 토큰 생략), CLI. `.gs` 변경 0.
+- **검증**: 2서버 통합(현행 역할=컨테이너 자신) — 1차 3종 병합 / 2차 멱등 / delete-through 후 원본 감소·부활 없음 / OP 무토큰 거부 / 스케줄러 기동 로그 / CLI. 상세 stage1 §8-10 구현 항.
+- 사내 적용: 미러 복사 6파일(`src/jobs/edgeSync.js` 신규·`src/auth/token.js`·`src/config.js`·`src/lib/scheduler.js`·`src/handlers/visitors.js`·`src/routes/get.js`) → 0.13.0 → ① `edge_sync_now`로 health 동기화 확인 ② `LEGACY_AUTH_SECRET` sealed-secret 주입(BE팀 가이드 "sealed-secrets 사용법") 후 visitors·voc 확인.

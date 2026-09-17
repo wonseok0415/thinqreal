@@ -15,6 +15,9 @@ import {
 import { handleGetSurveyData } from '../handlers/survey.js';
 import { handleGetHealthChecks } from '../handlers/health.js';
 import { handleGetVocReports } from '../handlers/voc.js';
+import { runEdgeSyncJob } from '../jobs/edgeSync.js';
+import { verifyAdminToken } from '../auth/token.js';
+import { config } from '../config.js';
 
 export function createGetRouter(store) {
   const router = Router();
@@ -65,6 +68,13 @@ export function createGetRouter(store) {
           return res.json(await handleCalendarTest());
         case 'egress_check': // 사내 pod → 인터넷(현행 Apps Script) 아웃바운드 진단 (관리자 토큰)
           return res.json(await handleEgressCheck(q.token));
+        case 'edge_sync_now': { // 하이브리드 에지 동기화 즉시 실행 (ST/QA 토큰 생략 허용, OP 관리자 토큰)
+          if (!config.outboundSuppressed) {
+            const admin = verifyAdminToken(q.token);
+            if (!admin.ok) return res.json({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
+          }
+          return res.json(await runEdgeSyncJob(store));
+        }
         case 'survey_data': // 설문·대장·이슈·방문자·큐레이션 통합 조회 (관리자 토큰 필수 — 핸들러 내부 검증)
           return res.json(await handleGetSurveyData(store, q.token));
         case 'health_checks': // FieldCheck 점검 이력 (무인증 조회 — 비민감 점검 결과)

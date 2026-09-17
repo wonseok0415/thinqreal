@@ -18,6 +18,7 @@ import { kvTryLock } from './kvcache.js';
 import { runMonthlyReportJob } from '../jobs/monthlyReport.js';
 import { runSurveyInviteJob } from '../jobs/surveyInvite.js';
 import { runFieldcheckSummaryJob } from '../jobs/fieldcheckSummary.js';
+import { runEdgeSyncJob } from '../jobs/edgeSync.js';
 
 // 실행 시각(KST — 프로세스 TZ 전제)은 Apps Script 트리거와 동일
 const JOBS = [
@@ -35,8 +36,36 @@ function inWindow(now, hour, minute) {
   return cur >= target && cur < target + WINDOW_MIN;
 }
 
+// 간격 잡 — 일일 잡과 달리 everyMin 분마다 실행. 락 키에 실행 시각(분)을 넣어 레플리카 간 중복만 막는다.
+const INTERVAL_JOBS = [
+  { name: 'edge-sync', everyMin: () => config.edgeSyncEveryMin, enabled: () => !config.edgeSyncDisabled && !!config.legacyScriptUrl, run: runEdgeSyncJob },
+];
+
+async function tickInterval(store, now) {
+  for (const job of INTERVAL_JOBS) {
+    if (!job.enabled()) continue;
+    const every = Math.max(1, job.everyMin());
+    if (now.getMinutes() % every !== 0) continue;
+    const slot = `${formatDateLocal(now)}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    let locked;
+    try {
+      locked = await kvTryLock(`job:${job.name}:${slot}`, Math.max(30, every * 60 - 10));
+    } catch (e) {
+      console.warn(`[scheduler] ${job.name} 락 확인 실패 — 이번 tick 건너뜀: ${e.message}`);
+      continue;
+    }
+    if (!locked) continue;
+    try {
+      await job.run(store);
+    } catch (e) {
+      console.error(`[scheduler] ${job.name} 실행 오류: ${e.message}`);
+    }
+  }
+}
+
 async function tick(store) {
   const now = new Date();
+  await tickInterval(store, now);
   for (const job of JOBS) {
     if (!inWindow(now, job.hour, job.minute)) continue;
     let locked;
@@ -61,6 +90,7 @@ export function startScheduler(store) {
   const timer = setInterval(() => { tick(store).catch((e) => console.error('[scheduler] tick error: ' + e.message)); }, 60 * 1000);
   timer.unref(); // 스케줄러가 프로세스 종료를 막지 않게
   console.log('[scheduler] 인앱 스케줄러 시작 — ' +
-    JOBS.map((j) => `${j.name} ${String(j.hour).padStart(2, '0')}:${String(j.minute).padStart(2, '0')}`).join(' / ') + ' (KST)');
+    JOBS.map((j) => `${j.name} ${String(j.hour).padStart(2, '0')}:${String(j.minute).padStart(2, '0')}`).join(' / ') + ' (KST)' +
+    INTERVAL_JOBS.filter((j) => j.enabled()).map((j) => ` / ${j.name} ${j.everyMin()}분 간격`).join(''));
   return timer;
 }

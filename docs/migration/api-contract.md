@@ -45,6 +45,7 @@
 | `telegram_test` | — | — | `{ok:true}` 또는 `{ok:false, reason:'not_configured'}` |
 | `calendar_test` | — | — | 캘린더 연동 점검 (테스트 일정 생성 후 즉시 삭제) |
 | `egress_check` | `token` (OP만 필수) | 관리자 (ST/QA는 SSO 뒤라 토큰 생략 허용) | **컨테이너 전용(2026-09-17)** — pod → 인터넷(현행 Apps Script `appliances`) 아웃바운드 진단 `{ok, status, ms, count, proxyEnv}` / 실패 시 `{ok:false, error, proxyEnv}`. 하이브리드 에지 설계의 성립 조건 실측용 |
+| `edge_sync_now` | `token` (OP만 필수) | 관리자 (ST/QA 토큰 생략 허용) | **컨테이너 전용(2026-09-17)** — 하이브리드 에지 동기화 즉시 실행. 현행 Apps Script에서 `health_checks`(무인증)·`survey_data`의 visitors·`voc_reports`(LEGACY_AUTH_SECRET로 자체 발급한 관리자 토큰)를 pull해 id 기준 멱등 병합. 응답 `{health:{fetched,added}, visitors:…, voc:…, errors:[]}`. 스케줄러가 `EDGE_SYNC_EVERY_MIN`(기본 10분) 간격으로 같은 잡 실행 |
 | `survey_data` | `token` | 관리자 | `{responses:[], ledger:[], issues:[], visitors:[], insights:[], articles:[], bestReviewers:[]}` — 설문·대장·이슈·방문자·큐레이션·기사·베스트 리뷰어 이력 통합 조회 (insights·articles 2026-08-03, bestReviewers 2026-08-22 추가). articles 행은 `{month, title, url, source, published_at, summary, thumbnail}` (summary·thumbnail은 수정 모달 프리필용 — 2026-08-26 추가, title·source·summary는 엔티티 디코딩 적용) |
 | `health_checks` | `days=` (선택) | — ⚠ 무인증 | FieldCheck 점검 이력 조회 (관리자 🩺 탭용). ⚠ 토큰 게이트 적용 검토는 FieldCheck 전용 세션에 위임 (2026-07-30 관찰) |
 | `voc_reports` | `token`, `days=` (선택) | **관리자** | FieldVoice 현장 인사이트 리포트 목록 (관리자 🎙 탭용, 2026-08-19). 방문객 발화 인용이 포함되므로 health_checks와 달리 처음부터 토큰 게이트. ⚠ 기능 상세는 FieldVoice(아이디어 트랙) 소관 — 존재·인증 방식만 등재 |
@@ -67,7 +68,7 @@
 | `roi_delete` | — ⚠️ | ROI 스냅샷 삭제 `{id}` | — |
 | `survey_submit` | — | 설문 응답 append + 파생 행(대장 `후보`·이슈 `등록`) 자동 생성 (2026-07-09) | 텔레그램 발송 (관리자 그룹) |
 | `visitor_submit` | — | 방문자 현장 설문 append (`visitor_responses`, 익명 — 2026-07-27 §8-5). **파생 없음**, 저장 value는 언어 무관 한국어 canonical | 텔레그램 발송 ("방문자 설문 접수 [KO\|EN]") |
-| `visitor_delete` | 관리자 토큰 | 방문자 응답 영구 삭제 (테스트·실수 정리용 — 2026-07-27). cascade 없음(파생 무). **수정 엔드포인트는 의도적으로 없음** — 익명 응답 원문 보존 | — (알림 미발송) |
+| `visitor_delete` | 관리자 토큰 | 방문자 응답 영구 삭제 (테스트·실수 정리용 — 2026-07-27). cascade 없음(파생 무). **수정 엔드포인트는 의도적으로 없음** — 익명 응답 원문 보존. **컨테이너(2026-09-17)**: 하이브리드 에지 delete-through — 로컬 삭제 후 현행 Apps Script `visitor_delete`도 호출(원본 삭제, 다음 pull 부활 방지), 응답에 `legacyDeleted` 포함 | — (알림 미발송) |
 | `health_check` | **FC_API_KEY** (Script Property — 점검 장비 전용, 2026-07-30 Property 이전) | FieldCheck 점검 결과 append (`health_checks` 12컬럼). ⚠ 기능 상세는 FieldCheck 전용 세션 소관 — 이 표에는 존재·인증 방식만 등재 | FC_IMMEDIATE_ALERT 시 실패 알림 (현재 꺼짐) |
 | `voc_report` | **FV_API_KEY** (Script Property — FieldVoice 파이프라인 전용, 2026-08-19) | FieldVoice 1페이지 리포트 append (`voc_reports` 9컬럼, 20KB 초과 거부). ⚠ 기능 상세는 FieldVoice(아이디어 트랙) 소관 — 존재·인증 방식만 등재 | — (알림 미발송) |
 | `insight_add` | 관리자 토큰 | 리포트 큐레이션 행 추가 `{month, text, rowType('insight'\|'quote'), source}` → `monthly_insights` (2026-08-03 §8-7). seq는 월·타입별 자동 증가 | — |

@@ -46,6 +46,13 @@ export const config = {
   staticDir: resolveStaticDir(),
   pubRateLimit: Number(env('PUB_RATE_LIMIT')) || 60, // /pub IP당 분당 요청 상한 (레플리카별)
   // 현행 Apps Script Web App URL — 하이브리드 에지(외부 접점 유지 + 사내 pull) 진단·동기화 대상. 공개 URL이라 기본값 내장
+  // 하이브리드 에지 동기화(jobs/edgeSync.js) — LEGACY_AUTH_SECRET = 현행 Apps Script의 AUTH_SECRET(Script Property).
+  // 없으면 토큰 불필요한 health_checks만 동기화. ADMIN_EMAIL은 현행 AUTH_ADMIN_EMAILS에 있는 주소여야 한다.
+  legacyAuthSecret: env('LEGACY_AUTH_SECRET'),
+  legacyAdminEmail: env('LEGACY_ADMIN_EMAIL') || 'kang.wonseok@lge.com',
+  edgeSyncEveryMin: Number(env('EDGE_SYNC_EVERY_MIN')) || 10, // 스케줄러 간격(분). EDGE_SYNC_DISABLED=true면 끔
+  edgeSyncDays: Number(env('EDGE_SYNC_DAYS')) || 3,          // health/voc는 최근 N일만 pull (visitors는 전체 — 소량)
+  edgeSyncDisabled: env('EDGE_SYNC_DISABLED') === 'true',
   legacyScriptUrl: env('LEGACY_SCRIPT_URL') || 'https://script.google.com/macros/s/AKfycbxqmzxbm99Fi9vrKgLxCslUwwEl8TxiyUN6LPMwimf04yjQjIO1s2tjC2jWKnR7iCSrSQ/exec',
 
   // memory | sheets | postgres. 미지정 시 자동 감지: DB_HOST가 주입돼 있으면 postgres
