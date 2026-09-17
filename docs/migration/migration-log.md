@@ -338,3 +338,7 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 
 - 담당자가 `thinqreal.lge.com` CSR 등록 완료. 접속 시 **"listener not found"** — http/https 동일. 판정: 요청이 ops-gateway까지 도달하나(CSR 동작 확인) 게이트웨이에 `thinqreal.lge.com` 호스트 → thinq-real OP 서비스 라우팅(및 lge.com TLS 인증서)이 미등록. decisions §6 "주소창까지 lge.com 유지는 별도 문의" 항목이 현실화된 것 — BE팀(박현정 책임)에 라우팅 등록 요청 발송(SSO 예외 5종과 함께 처리 요청).
 - CSR target 기재값(호스트명/고정 IP 여부)은 담당자 확인 후 `internal-context.md`에 사내 기입 예정.
+
+## 작업 내역 (2026-09-17 후속 — Next SPoC 양식 확인으로 절차 순서 확정)
+
+- 담당자 확인: Next SPoC DB 계정 양식 = `DB-i 적용 여부` · `Instance(AWS)` · `접속 IP` 3항목 → 인스턴스 생성 기능 없음. **순서 확정: RDS 인스턴스(JIRA) → Next SPoC 계정.** 브리핑 §3-d에 항목·기재 방향(접속 IP=OP 클러스터 CIDR, DB-i=앱 계정 미적용 유력 — DB팀 확인 필요) 반영. RDS JIRA는 미신청 상태 — 사내 Claude 지원으로 착수.

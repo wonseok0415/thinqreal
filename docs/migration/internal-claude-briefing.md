@@ -35,7 +35,7 @@
 | a | **RDS(PostgreSQL) 신청 — JIRA** | OP용 DB. ST/QA 공용 DB는 OP에 못 씀 | 가장 오래 걸림 → **최우선 착수** | 착수 중 |
 | b | **ElastiCache(valkey) 신청 — JIRA** | OP용 캐시·스케줄러 락 | a와 병렬 | 착수 중 |
 | c | **Vault(secret store) 생성** | OP는 sealed-secrets 대신 Vault로 비밀값 주입 (인프라팀 가이드, ArgoCD 섹션은 skip — 기설치) | a·b 제출 후 (쉬움) | 대기 |
-| d | **Next SPoC — DB 계정 생성** | 앱이 쓸 DB 접속 계정 | **a 완료 통보 후** (인스턴스가 생겨야 검색됨 — 그 전엔 검색해도 안 나오는 게 정상) | a 대기 |
+| d | **Next SPoC — DB 계정 생성** | 앱이 쓸 DB 접속 계정. 양식 항목 3종: `Instance(AWS)` · `접속 IP` · `DB-i 적용 여부` (9/17 확인 — 인스턴스 생성 기능 없음, 기존 인스턴스에 접속 권한을 주는 양식) | **a 완료 통보 후** (인스턴스가 생겨야 선택됨 — 그 전엔 검색해도 안 나오는 게 정상). 기재 방향(⚠ DB팀 확인 필요): Instance=완료 통보의 인스턴스명 / 접속 IP=사람 PC가 아니라 **OP 클러스터 대역**(internal-context §2-c KIC-OP CIDR) / DB-i=앱 계정은 미적용 유력(DB-i는 사람의 수작업 접근용). 유지보수·과제 D용 DB-i 적용 계정 추가 여부는 그때 판단 | a 대기 |
 | e | **CSR — `thinqreal.lge.com` → ops-gateway** | 운영 도메인이 현재 GitHub Pages IP를 가리킴 → OP로 변경 | BE팀 답변 후 (요청서가 IP 기재형인데 ELB는 IP가 바뀌므로 **고정 IP 유무 또는 다른 등록 유형**을 확인 중). 지금 바꿔도 무해(현재 미접속 상태) | 확인 대기 |
 | f | **SSO 예외 경로 회신** | 외부 방문객·장비 경로 개통 | BE팀 요청으로 `/api`→`/pub` 분리 확정(9/16). 최종 5종 회신 후 BE팀이 게이트웨이 설정 → ST에서 `/pub` 실측 | 회신 단계 |
 | g | **OP env 주입** | a~d의 접속정보 + AUTH_SECRET 등 앱 비밀값을 Vault 경유로 컨테이너에 | a~d 완료 후 | — |
