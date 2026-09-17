@@ -5,9 +5,14 @@ import { config } from '../config.js';
 import { isAdminEmail } from './admins.js';
 
 export function signAuthToken(email, exp, isAdmin) {
+  return signAuthTokenWith(config.authSecret, email, exp, isAdmin);
+}
+
+/** 지정 secret으로 서명 — 현행 Apps Script(LEGACY_AUTH_SECRET) 호출용 토큰 발급(jobs/edgeSync.js) */
+export function signAuthTokenWith(secret, email, exp, isAdmin) {
   const payload = JSON.stringify({ email, exp, admin: !!isAdmin });
   const payloadB64 = Buffer.from(payload, 'utf8').toString('base64url');
-  const sigB64 = crypto.createHmac('sha256', config.authSecret).update(payloadB64).digest('base64url');
+  const sigB64 = crypto.createHmac('sha256', secret).update(payloadB64).digest('base64url');
   return payloadB64 + '.' + sigB64;
 }
 
