@@ -185,3 +185,4 @@ BE팀이 사내 클라우드에 ThinQ Real 전용 인프라를 실제로 구축�
 - **성립 조건**: 사내 pod → script.google.com HTTPS 아웃바운드. `GET /api?type=egress_check`로 실측(ST/QA 토큰 생략 허용). 실패 시 프록시(`HTTPS_PROXY`) 경유 구현 추가 검토.
 - **BE팀 문의 예정**: ① pod 아웃바운드 인터넷 가능 여부·프록시 규칙 ② extapps에 공식 외부(인터넷) 진입점 패턴이 있는지(있으면 장기적으로 하이브리드 폐기 가능).
 - 상세 설계: `stage1-container-design.md` §8-10.
+- **(09-17 추가) `thinqreal.com` 도메인 만료 대비 + 개인 계정 의존 명시**: 담당자 계획은 구매 1년 후 미연장. 점검 결과 사내 컨테이너·edgeSync·FieldCheck·FieldVoice는 도메인 무관(메일 링크는 env, 호출 대상은 script.google.com). 유일한 영향은 **방문객 설문 QR 주소** — 페이지 자체는 `wonseok0415.github.io/thinqreal/…`로 계속 서빙됨. **만료 전 체크리스트(운영 세션)**: ① 리포 `CNAME` 삭제(만료 도메인 리다이렉트로 github.io까지 깨지는 것 방지) ② QR 포스터 주소 교체. 대안: 설문 주소 유지 목적의 저비용 연장(운영 판단). **장기 리스크**: 외부 접점 3종이 담당자 개인 Google·GitHub 계정 기반 — 팀 공유 필요, 공식 외부 진입점 확보 시 `/pub` 회귀.
