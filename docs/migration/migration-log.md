@@ -367,3 +367,9 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **구현(키트 v4)**: `jobs/edgeSync.js` — health_checks(무인증)·survey_data visitors·voc_reports(관리자 토큰 자체 발급 `signAuthTokenWith(LEGACY_AUTH_SECRET)`)를 pull해 id 기준 멱등 병합, `deleteLegacyVisitor` delete-through. 스케줄러 간격 잡(`INTERVAL_JOBS`, 10분·슬롯 락), GET `edge_sync_now`(ST/QA 토큰 생략), CLI. `.gs` 변경 0.
 - **검증**: 2서버 통합(현행 역할=컨테이너 자신) — 1차 3종 병합 / 2차 멱등 / delete-through 후 원본 감소·부활 없음 / OP 무토큰 거부 / 스케줄러 기동 로그 / CLI. 상세 stage1 §8-10 구현 항.
 - 사내 적용: 미러 복사 6파일(`src/jobs/edgeSync.js` 신규·`src/auth/token.js`·`src/config.js`·`src/lib/scheduler.js`·`src/handlers/visitors.js`·`src/routes/get.js`) → 0.13.0 → ① `edge_sync_now`로 health 동기화 확인 ② `LEGACY_AUTH_SECRET` sealed-secret 주입(BE팀 가이드 "sealed-secrets 사용법") 후 visitors·voc 확인.
+
+## 작업 내역 (2026-09-18 — ✅ 하이브리드 에지 1단계 실증: 현행 FieldCheck 데이터 사내 유입)
+
+- 키트 v4 사내 적용 → **0.12.0**(v3.2+v3.3이 한 커밋 0.11.0으로 합쳐져 번호가 예측과 1 차이). Actions 1회 실패 → 담당자 재실행으로 성공.
+- **ST 실측**: `edge_sync_now` → `health.fetched 21` + `errors:["visitors/voc: LEGACY_AUTH_SECRET 미설정 — 건너뜀"]` — 현행 rig가 올린 최근 3일 점검 21건이 ST DB에 병합됨. **외부 접점(FieldCheck)이 이관 후에도 무변경으로 동작함을 실증.**
+- 다음: 2단계 — ST sealed-secret에 `LEGACY_AUTH_SECRET`(현행 Apps Script Script Property `AUTH_SECRET`) 주입 → visitors·voc 동기화 확인. 주입 후 파드 재기동 필요 가능.
