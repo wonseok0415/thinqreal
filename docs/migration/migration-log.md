@@ -377,3 +377,10 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 ## 작업 내역 (2026-09-17 후속 6 — thinqreal.com 만료 영향 점검)
 
 - 담당자 질문(도메인 1년 후 미연장 시 영향) 점검: 컨테이너·edgeSync·장비 경로는 도메인 무관, 방문객 설문 QR 주소만 영향(github.io로 서빙 지속). 만료 전 체크리스트(CNAME 삭제·QR 교체)와 외부 접점의 개인 계정 의존을 decisions §6-7·브리핑 §3-i에 명시.
+
+## 작업 내역 (2026-09-20 — BE팀 답변 4건 반영·하이브리드 에지 최종 확정·2단계 일시 중지·라이브 델타 점검)
+
+**① 사내 Claude 보고 수신(9/18)**: 키트 v4 적용·0.12.0 확인 / sealed-secret `LEGACY_AUTH_SECRET` 추가 착수 → **cert 확보 단계에서 대기**(kubeseal 0.40.0 설치 완료, 이 PC에 kubectl·kubeconfig 없어 `--fetch-cert` 불가, deploy/ 기존 SealedSecret 3종에 컨트롤러 정보 없음, 평문 미공유 원칙 준수). 담당자 지시로 **해당 작업 일시 중지** — 진행 상태만 기록. 재개 조건: BE팀 cert 파일(또는 LENS 터미널에서 `--fetch-cert`).
+**② BE팀 답변(9/18)** — 정리는 **decisions §6-8**: 아웃바운드 정책 제한 없음(하이브리드 에지 정식 경로 확정, 외부 잔류 데이터 민감성 평가는 우리 책임 — 현행과 동일 범위) / 외부 진입점은 존재하나 등급 상승 부담 → **추진 안 함, 하이브리드 에지 = 최종 설계** / **CSR 반영 완료 — OP 주소 `thinqreal.lge.com`, 구 thinqcloud OP URL 제거** → 실측 대기(예외 5종 새 호스트 재확인 포함) / SMTP 차주.
+**③ 라이브 델타(9/20, 운영 세션 PR #125~#128)**: 처리방침 V3.0(국외 이전 조항 삭제)·동의서 V1.1·index 폼 동의 문구/resetForm·admin 프리필 — 전부 정적 HTML + .gs 주석 2줄. **컨테이너 코드 영향 없음**, 다음 키트 `public/`이 수용. `privacyConsent='Y'` 의미 변경(수집·이용만)을 컨테이너 상수 주석에 패리티 반영.
+**④ 다음**: 담당자 — `thinqreal.lge.com` 실측 + 박현정 책임 회신(cert 요청 포함) / 사내 Claude — internal-context §1 OP 주소 행 정정(`docs:`) / 외부 — SMTP 수령 후 메일 설정, 과제 D 키트 v5(admin_import).

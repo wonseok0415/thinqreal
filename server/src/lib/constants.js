@@ -13,7 +13,7 @@ export const BOOKING_HEADERS = [
   'name', 'org', 'phone', 'email',
   'purpose', 'count', 'note', 'status',
   'subject', 'clientCompany', 'visitors', 'usagePlan', 'expectedEffect', 'purposeKey',
-  'privacyConsent',
+  'privacyConsent', // 'Y' = 개인정보 수집·이용 동의 (2026-09-20 처리방침 V3.0 — 국외 이전 동의 폐지. 이전 행의 'Y'는 구 방침의 통합 동의)
   'calendarEventId',
   'division', 'department',
   // 2026-07 방문 후기 설문 요청 메일 발송 기록 (배치 재실행 시 중복 발송 방지)
