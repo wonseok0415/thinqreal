@@ -27,7 +27,7 @@
 | 18 | `usagePlan` | string | 활용 방안 (줄바꿈 보존) |
 | 19 | `expectedEffect` | string | 기대 효과 |
 | 20 | `purposeKey` | enum | `b2b` / `rd` / `pr` / `content` / `internal-comm` / `other` — **분기 로직은 항상 이 키 기준** |
-| 21 | `privacyConsent` | 'Y'/'' | 개인정보 수집·국외이전 동의 증빙 (동의 시각=timestamp). 백필 행 공란 허용 |
+| 21 | `privacyConsent` | 'Y'/'' | 개인정보 수집·이용 동의 증빙 (동의 시각=timestamp). 2026-09-20 방침 V3.0 전환 이전 행의 'Y'는 국외이전 동의 포함 의미(구 방침). 백필 행 공란 허용 |
 | 22 | `calendarEventId` | JSON string | 캘린더 이벤트 id 배열 (회차마다 개별 일정). 레거시 단일 문자열도 파싱됨 |
 | 23 | `division` | string | **방문 책임 부서의 소속 본부** (드롭다운 — 2026-09-01 의미 확정: 사업부별 활용 통계·캘린더 표기 기준. B2B 대리 신청 시 책임자 본부). 2026-07 이전 행 공란 |
 | 24 | `department` | string | 방문 책임 부서명 (자유 입력 — division과 세트) |

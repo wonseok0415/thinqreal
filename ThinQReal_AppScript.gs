@@ -2923,7 +2923,8 @@ function getOrCreateHeaders(sheet) {
     'purpose', 'count', 'note', 'status',
     // 2026-05 폼 상세화로 추가된 컬럼
     'subject', 'clientCompany', 'visitors', 'usagePlan', 'expectedEffect', 'purposeKey',
-    // 2026-06 개인정보 수집·이용 + 국외 이전 동의 기록 ('Y' = 동의, 동의 시각은 timestamp와 동일)
+    // 개인정보 수집·이용 동의 기록 ('Y' = 동의, 동의 시각은 timestamp와 동일)
+    // — 2026-09-20 방침 V3.0 전환 이전 행의 'Y'는 구 방침 기준(수집·이용 + 국외 이전 통합 동의)
     'privacyConsent',
     // 2026-06 Google 캘린더 연동 — 확정 예약의 캘린더 이벤트 id (갱신·삭제 추적용)
     'calendarEventId',
