@@ -14,7 +14,7 @@
 | 메일·알림 | Gmail(Apps Script) + 텔레그램 | SMTP(사내 스펙 대기) — ST/QA는 실발송 억제(콘솔 로그) |
 | 일일 자동 작업 | Apps Script 시간 트리거 | **인앱 스케줄러**(07:40 점검 요약 / 08:30 월간 리포트·설문 초대) — K8s CronJob 불필요 |
 | 인증 | 앱 자체 이메일 코드(HMAC 토큰) | 당분간 동일 + 전면에 사내 SSO(MS Entra ID, ops-gateway) |
-| 주소 | `thinqreal.com` | `thinqreal.lge.com` → (CSR redirect) → OP 환경 |
+| 주소 | `thinqreal.com` | **`thinqreal.lge.com`** = OP (사내망 전용, 9/18 CSR 반영 — 구 `kic-op-…thinqcloud.link` URL은 제거됨). ST/QA는 thinqcloud.link 주소 유지 |
 
 **역할 분담**: 현행 사이트의 운영·수정은 외부 트랙(별도 세션). 이 저장소는 **이관 트랙만**. 이관 완료 전까지 현행이 계속 운영되며, 현행의 변경은 외부 트랙이 컨테이너에 동기 이식한 뒤 "키트"(완성 파일 zip)로 사내에 반입한다. **사내 Claude는 코드를 새로 쓰지 않는다** — 키트 적용·검증·기록과 사내 시스템 절차가 일이다.
 
@@ -24,23 +24,23 @@
 - **ST/QA**는 BE팀 제공 공용 자원(extapps-db·extapps-kvstore·sealed-secrets) 사용 — 개발 편의용. **OP는 반드시 서비스별 자원을 담당자가 직접 신청**해야 한다(§3). 앱은 env 주입 구조라 **코드 변경 없이** OP 자원으로 갈아 끼운다.
 - **SSO(MS Entra ID)가 3환경 전부에 적용**됨 → 사내 계정 없는 호출자(외부 방문객 QR 설문, 점검 장비 API, 공개 열람 페이지)는 차단됨. BE팀 답: **path 단위 예외 가능**, 단 `/api` 전체는 곤란 → **인증 여부에 따라 경로 분리** 요청(9/16). 우리 결정: 인증 없이 열어야 하는 API는 3종뿐(방문객 익명 설문 `visitor_submit` / 점검 장비 `health_check` / FieldVoice `voc_report` — 각각 익명 설계·API 키로 앱이 검증) → 컨테이너에 **공개 전용 경로 `/pub`** 신설(이 3종만, 그 외 404). **최종 예외 요청 목록(5종)**: `/healthz`, **`/pub`**, `/ThinQ_Real_Visitor_Survey.html`, `/privacy.html`, `/images/` — `/api`를 포함한 나머지는 전부 SSO 뒤. 위험 처리(키 검증·입력 검증·크기 제한)는 앱 코드 책임(BE팀 전제와 일치).
 - **남은 코드 과제**: **과제 D — 시트→DB 데이터 이행**(전환 직전 1회, 외부 트랙이 키트 제작 예정. OP DB는 수작업 접근이 전용 매체(DB-i/TAAgent)로만 가능하므로 이행은 앱 컨테이너 경유가 기본 설계) + 전환(프론트 `SCRIPT_URL` → `/api`, CSR 등록).
-- **BE팀 대기**: 사내 SMTP 스펙(9/17 "정리되는 대로") / CSR 완료 처리 통보. SSO 예외는 게이트웨이 반영 완료(9/17). 확인된 사실: 예외 경로에 게이트웨이 rate limit 없음(앱이 제한), 예외 경로에는 `x-user-id`가 붙지 않음 → **`/pub`에서 x-user-id 절대 신뢰 금지**(3종 모두 사용자 식별 불필요라 무영향).
+- **BE팀 대기**: 사내 SMTP 스펙(9/18 "차주") / sealed-secrets cert 파일(요청). CSR 반영 완료(9/18 — OP 주소 `thinqreal.lge.com`, 실측 대기). SSO 예외는 게이트웨이 반영 완료(9/17). 확인된 사실: 예외 경로에 게이트웨이 rate limit 없음(앱이 제한), 예외 경로에는 `x-user-id`가 붙지 않음 → **`/pub`에서 x-user-id 절대 신뢰 금지**(3종 모두 사용자 식별 불필요라 무영향).
 
 ## 3. OP 전환에 필요한 사내 절차 지도 (왜·순서·상태)
 
 외부 트랙이 코드를 끝냈으므로, **이관의 남은 병목은 전부 사내 절차**다. 사내 Claude가 담당자를 도울 핵심 영역.
 
-| # | 절차 | 왜 필요한가 | 순서·의존 | 상태 (9/15) |
+| # | 절차 | 왜 필요한가 | 순서·의존 | 상태 (9/20) |
 |---|---|---|---|---|
 | a | **RDS(PostgreSQL) 신청 — JIRA** | OP용 DB. ST/QA 공용 DB는 OP에 못 씀 | 가장 오래 걸림 → **최우선 착수** | 착수 중 |
 | b | **ElastiCache(valkey) 신청 — JIRA** | OP용 캐시·스케줄러 락 | a와 병렬 | 착수 중 |
 | c | **Vault(secret store) 생성** | OP는 sealed-secrets 대신 Vault로 비밀값 주입 (인프라팀 가이드, ArgoCD 섹션은 skip — 기설치) | a·b 제출 후 (쉬움) | 대기 |
 | d | **Next SPoC — DB 계정 생성** | 앱이 쓸 DB 접속 계정. 양식 항목 3종: `Instance(AWS)` · `접속 IP` · `DB-i 적용 여부` (9/17 확인 — 인스턴스 생성 기능 없음, 기존 인스턴스에 접속 권한을 주는 양식) | **a 완료 통보 후** (인스턴스가 생겨야 선택됨 — 그 전엔 검색해도 안 나오는 게 정상). 기재 방향(⚠ DB팀 확인 필요): Instance=완료 통보의 인스턴스명 / 접속 IP=사람 PC가 아니라 **OP 클러스터 대역**(internal-context §2-c KIC-OP CIDR) / DB-i=앱 계정은 미적용 유력(DB-i는 사람의 수작업 접근용). 유지보수·과제 D용 DB-i 적용 계정 추가 여부는 그때 판단 | a 대기 |
-| e | **CSR — `thinqreal.lge.com` → ops-gateway** | 운영 도메인이 현재 GitHub Pages IP를 가리킴 → OP로 변경 | **담당자가 CNAME(호스트명) 방식으로 등록 완료(9/17)** — IP 아님(정답). BE팀 "완료 처리되면 thinqreal.lge.com으로 테스트" → 완료 통보 전까지 "listener not found"는 과도기. 통보 후에도 같으면 호스트 라우팅 문의 | BE팀 처리 중 |
+| e | **CSR — `thinqreal.lge.com` → ops-gateway** | 운영 도메인이 현재 GitHub Pages IP를 가리킴 → OP로 변경 | CNAME 등록(9/17) → **BE팀 반영 완료(9/18)**: `thinqreal.lge.com`이 OP의 실제 호스트, 구 thinqcloud OP URL 제거. 담당자 실측 대기: 로그인 상태 `/healthz`(postgres) · `/` → SSO · 시크릿 창에서 예외 5종(새 호스트에도 적용되는지) | 실측 대기 |
 | f | **SSO 예외 경로** | 외부 방문객·장비 경로 개통 | `/api`→`/pub` 분리(9/16) → BE팀 게이트웨이 설정 완료 → **ST 실측 통과(9/17: 예외 5종 로그인 없이 열림, 루트는 SSO 유지)**. 앱 `/pub` 분당 60건/IP 제한(키트 v3.2). **⚠ 신규 발견: `thinqcloud.link`는 사내 전용 DNS(사외 NXDOMAIN)** → SSO 예외만으로는 외부 방문객 QR 경로가 성립하지 않음. `thinqreal.lge.com`의 사외 접속 가능 여부를 BE팀에 문의(§3-i) | SSO 예외 ✅ / 사외 노출 확인 중 |
 | g | **OP env 주입** | a~d의 접속정보 + AUTH_SECRET 등 앱 비밀값을 Vault 경유로 컨테이너에 | a~d 완료 후 | — |
 | h | **과제 D 이행 + 전환** | 실데이터 이행 → 프론트 API 주소 교체 → 전환일 동결 | g 완료 + 외부 트랙 키트 | — |
-| i | **외부 접점 처리 — 하이브리드 에지** (⚠ 외부 접점은 담당자 개인 Google·GitHub 계정 기반 — 팀 공유 사항. `thinqreal.com` 만료 시 QR 주소만 영향: CNAME 삭제 + 포스터 교체, decisions §6-7) | OP도 사내 전용 DNS 확인(9/17). 담당자 판단: `thinqreal.lge.com` 사외 노출은 B2E 취지상 불가 전제 / FieldCheck 장비는 **사외 Wi-Fi**(의도적) / 방문객은 귀가 후에도 설문 작성 → 태블릿 대안 불가 | **설계 확정(설계서 §8-10)**: 외부 접점(방문객 설문 페이지·`visitor_submit`·`health_check`·`voc_report`)은 **현행 공개 인프라(GitHub Pages + Apps Script + 시트)에 그대로 두고, 사내 컨테이너 스케줄러가 주기적으로 pull**해 PG에 병합. 성립 조건 = pod → script.google.com 아웃바운드 → `egress_check`로 실측(키트 v3.3). BE팀 문의: pod 아웃바운드/프록시, 공식 외부 진입점 패턴 유무 | **아웃바운드 성립(9/17 ST: ok·200·count 45·proxyEnv none)** → 동기화 잡 구현 완료(키트 v4, `edge_sync_now`로 즉시 실행). 사내 단계: ① 키트 적용 → health 동기화 확인 ② `LEGACY_AUTH_SECRET` sealed-secret 주입 → visitors·voc |
+| i | **외부 접점 처리 — 하이브리드 에지** (⚠ 외부 접점은 담당자 개인 Google·GitHub 계정 기반 — 팀 공유 사항. `thinqreal.com` 만료 시 QR 주소만 영향: CNAME 삭제 + 포스터 교체, decisions §6-7) | OP도 사내 전용 DNS 확인(9/17). 담당자 판단: `thinqreal.lge.com` 사외 노출은 B2E 취지상 불가 전제 / FieldCheck 장비는 **사외 Wi-Fi**(의도적) / 방문객은 귀가 후에도 설문 작성 → 태블릿 대안 불가 | **설계 확정(설계서 §8-10)**: 외부 접점(방문객 설문 페이지·`visitor_submit`·`health_check`·`voc_report`)은 **현행 공개 인프라(GitHub Pages + Apps Script + 시트)에 그대로 두고, 사내 컨테이너 스케줄러가 주기적으로 pull**해 PG에 병합. 성립 조건 = pod → script.google.com 아웃바운드 → `egress_check`로 실측(키트 v3.3). BE팀 문의: pod 아웃바운드/프록시, 공식 외부 진입점 패턴 유무 | **최종 설계 확정(9/18 BE팀 답변 — decisions §6-8)**: 아웃바운드는 정책상 제한 없음, 외부 진입점은 등급 상승 부담으로 **추진 안 함** → 하이브리드 에지가 최종. 1단계 실증 완료(0.12.0, health 21건). **2단계(`LEGACY_AUTH_SECRET`)는 cert 확보 대기 — 담당자 지시로 일시 중지(9/20)**: kubeseal 0.40.0 설치됨, `--fetch-cert`는 kubectl 부재로 불가, deploy/ 기존 SealedSecret 3종에 컨트롤러 정보 없음 → BE팀에 cert 파일 요청. 재개 시 `--cert <파일>`로 암호화 → 매니페스트 1줄 → `chore:` 커밋 → 파드 재기동 → `edge_sync_now`에서 visitors·voc 확인 |
 
 **절차 공통 판단 기준** ("우리 기준으로 뭘 적나"에 답할 때):
 - DBMS는 **PostgreSQL**, 캐시 엔진은 **valkey** — 코드가 그것만 지원. 다른 선택지는 절대 불가.
