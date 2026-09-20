@@ -3585,7 +3585,8 @@ function openModal(id) {
 function closeModal() { document.getElementById('modalBg').classList.remove('open'); currentModalId = null; }
 function updateStatusFromModal(s) { if (currentModalId) { updateStatus(currentModalId,s); closeModal(); } }
 
-// 방문자 서면 동의서 인쇄 (2026-08-31) — 방문일·방문 회사·방문자 명단 프리필로 동의서 페이지를 연다.
+// 방문자 서면 동의서 인쇄 (2026-08-31) — 방문일·방문 회사·안내 담당자·방문자 명단 프리필로 동의서 페이지를 연다.
+// 안내 담당자 = 예약의 방문 책임자(name, "이름 직급") — 현장 안내를 책임자가 수행하는 운영 흐름 (2026-09-20 운영자 지시).
 // 현장에서는 도슨트 설명 후 서명만 받는 흐름 (방문자 자필 기입 시간 제거).
 // 전달은 URL 해시(b64url JSON) — 쿼리스트링과 달리 서버로 전송되지 않아 성명이 호스팅 로그에 안 남음.
 function printConsentFromModal() {
@@ -3598,6 +3599,7 @@ function printConsentFromModal() {
   const pf = {
     date: b.date || '',
     company: b.clientCompany || [...new Set(visitors.map(v => v.org).filter(Boolean))].join(' · '),
+    docent: b.name || '',   // 방문 책임자 — 공란이면 서식에서 수기 기입
     visitors: visitors.slice(0, 10).map(v => ({ org: v.org || '', name: v.name || '', rank: v.rank || '' })),
   };
   const bytes = new TextEncoder().encode(JSON.stringify(pf));
