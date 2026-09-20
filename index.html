@@ -2490,12 +2490,14 @@ async function submitBooking() {
 
 function resetForm() {
   selectedDate = null; selectedSlots = new Set();
-  ['fSubject','fName','fRank','fEmail','fDivision','fDepartment','fUsagePlan','fExpectedEffect'].forEach(id => {
+  ['fSubject','fAppName','fAppRank','fName','fRank','fEmail','fDivision','fDepartment','fUsagePlan','fExpectedEffect'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   document.getElementById('fPurpose').value = '';
   document.getElementById('fAgree').checked = false;
   document.getElementById('fPrivacyCollect').checked = false;
+  document.getElementById('fSameLeader').checked = false;
+  toggleLeader();
   visitorRows = [];
   renderFormByPurpose();
   document.getElementById('formContent').style.display = 'block';
