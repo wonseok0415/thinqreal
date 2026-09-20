@@ -7,9 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-/* 현장 서면 동의서 — A4 인쇄 전제 서식 (2026-08-31 초안 → 2026-09-20 법무팀 검토 확정본 V1.0 반영).
-   내용은 법무 검토본(Fin 2026-07-15)을 따르고, 단체 방문 현장 운영을 위해
-   개별 체크박스 대신 서명 명부(동의 여부 ○ 표시 + 서명)로 서식화했다.
+/* 현장 서면 동의서 — A4 인쇄 전제 서식 (2026-08-31 초안 → 2026-09-20 법무팀 검토 확정본 V1.0 반영
+   → 같은 날 운영자 지시로 현장 녹음 동의 조항 재추가 = V1.1. 1항은 법무 검토본(Fin 2026-07-15) 원문,
+   2항(녹음)은 구 v0.9 3항 최종 문안 유지 — 실제 공간 녹음 운영 반영, 법무 검토본 범위 밖).
+   단체 방문 현장 운영을 위해 개별 체크박스 대신 서명 명부(동의 여부 ○ 표시 + 서명)로 서식화.
    화면은 privacy.html 팔레트 계승, 인쇄 시 topbar·버튼 숨김 + 흑백 복합기 가독 우선. */
 :root {
   --c-label:     #1d1d1f;
@@ -69,8 +70,9 @@ th { background: var(--c-accent-light); font-weight: 600; white-space: nowrap; }
 .roster th, .roster td { text-align: center; padding: 6px 6px; }
 .roster td { height: 32px; }
 .roster .col-no { width: 34px; }
-.roster .col-choice { width: 148px; }
-.roster .col-sign { width: 96px; }
+.roster .col-choice { width: 132px; }
+.roster .col-rec { width: 76px; }
+.roster .col-sign { width: 84px; }
 .roster td.choice-cell { font-size: 11.5px; color: var(--c-label-2); vertical-align: middle; }
 
 .foot {
@@ -101,7 +103,7 @@ th { background: var(--c-accent-light); font-weight: 600; white-space: nowrap; }
 <div class="wrap">
 
 <h1>개인정보 수집 및 이용 동의서</h1>
-<p class="doc-sub">LG전자 ThinQ Real (마곡 LG사이언스파크 W6동 1층) · 서식 V1.0 (법무 검토 확정)</p>
+<p class="doc-sub">LG전자 ThinQ Real (마곡 LG사이언스파크 W6동 1층) · 서식 V1.1</p>
 
 <div class="intro">
   LG전자 주식회사(이하 “당사”)는 ThinQ Real 예약 관리 서비스를 이용하는 경우 아래와 같이 개인정보를 수집 및 이용하고자 합니다.
@@ -109,7 +111,7 @@ th { background: var(--c-accent-light); font-weight: 600; white-space: nowrap; }
 </div>
 
 <section>
-<h2>개인정보 수집 및 이용 내역</h2>
+<h2>1. 개인정보 수집 및 이용 동의</h2>
 <table>
   <tr><th>수집 및 이용 목적</th><td>방문 예약 접수·확정·거절 처리, 안내 메일 발송 및 담당자 알림, 방문 일정 관리, 시설 이용 안내 및 방문자 확인, 방문 목적·회차별 이용 현황 분석 및 월간 운영 리포트 작성</td></tr>
   <tr><th>수집 항목</th><td>(방문자 명단) 소속, 이름, 직급 / (방문 정보) 방문 목적·주제·일자·회차</td></tr>
@@ -118,10 +120,20 @@ th { background: var(--c-accent-light); font-weight: 600; white-space: nowrap; }
 <p class="note">※ 위의 개인정보 수집 및 이용에 대한 동의를 거부할 권리가 있습니다. 그러나 동의를 거부할 경우 ThinQ Real 예약 관리 서비스 이용에 제한을 받을 수 있습니다.</p>
 </section>
 
+<section>
+<h2>2. 현장 대화 녹음 및 인사이트 활용 동의</h2>
+<p style="font-size:12.5px;">
+  시연·상담 진행 중 대화가 녹음될 수 있으며, 녹음 내용은 <strong>개인을 식별할 수 없도록 가명처리된 요약 형태로만</strong>
+  공간 운영 개선 및 제품·서비스 인사이트 분석(내부 활용)에 이용됩니다. 원본 음성과 전사 전문은 외부에 공유되지 않으며,
+  요약 작성 완료 후 지체 없이 파기합니다.
+</p>
+<p class="note">※ 동의하지 않으시는 경우 안내 담당자에게 말씀해 주시면 귀하가 참여하는 세션은 녹음하지 않으며, 방문·시연 이용에 어떠한 불이익도 없습니다.</p>
+</section>
+
 <div class="roster-wrap">
 <div class="consent-q">
   위와 같이 개인정보를 수집 및 이용하는데 동의하십니까?
-  <span class="sub">아래 명부의 「동의 여부」 란에 ○ 표시 후 서명해 주시기 바랍니다.</span>
+  <span class="sub">1항: 「1항 동의 여부」란에 ○ 표시 후 서명 · 2항(녹음): 동의하시는 경우에만 「2항 녹음 동의」란에 ○ 표시해 주시기 바랍니다.</span>
 </div>
 <div class="roster-head">
   <span>방문일: <span class="fill">&nbsp;</span></span>
@@ -134,21 +146,22 @@ th { background: var(--c-accent-light); font-weight: 600; white-space: nowrap; }
       <th class="col-no">번호</th>
       <th>성명</th>
       <th>소속·직급</th>
-      <th class="col-choice">동의 여부<br><span style="font-weight:400; font-size:11px;">(하나에 ○ 표시)</span></th>
+      <th class="col-choice">1항 동의 여부<br><span style="font-weight:400; font-size:11px;">(하나에 ○ 표시)</span></th>
+      <th class="col-rec">2항 녹음 동의<br><span style="font-weight:400; font-size:11px;">(동의 시 ○)</span></th>
       <th class="col-sign">서명</th>
     </tr>
   </thead>
   <tbody>
-    <tr><td>1</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td></tr>
-    <tr><td>2</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td></tr>
-    <tr><td>3</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td></tr>
-    <tr><td>4</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td></tr>
-    <tr><td>5</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td></tr>
-    <tr><td>6</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td></tr>
-    <tr><td>7</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td></tr>
-    <tr><td>8</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td></tr>
-    <tr><td>9</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td></tr>
-    <tr><td>10</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td></tr>
+    <tr><td>1</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td><td></td></tr>
+    <tr><td>2</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td><td></td></tr>
+    <tr><td>3</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td><td></td></tr>
+    <tr><td>4</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td><td></td></tr>
+    <tr><td>5</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td><td></td></tr>
+    <tr><td>6</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td><td></td></tr>
+    <tr><td>7</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td><td></td></tr>
+    <tr><td>8</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td><td></td></tr>
+    <tr><td>9</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td><td></td></tr>
+    <tr><td>10</td><td></td><td></td><td class="choice-cell">동의함 · 동의하지 않음</td><td></td><td></td></tr>
   </tbody>
 </table>
 </div>
