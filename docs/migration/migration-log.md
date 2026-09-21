@@ -396,3 +396,12 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - 팀장이 이관 업무에 팀원 1명을 배정. 담당자 질문 "둘이 나눌 수 있는 구조인가" → 이관 트랙 판단: **반반은 불가, 성격이 다른 두 트랙으로는 분할 가능.** A 판단·설계 트랙(외부 트랙 협업·키트 승인·과제 D/전환 계획·BE팀 정책 협의·Gitea push 승인)은 담당자 단일 유지 / B 사내 절차 트랙(RDS·ElastiCache JIRA·Vault·Next SPoC·sealed-secret cert·SMTP 적용·LENS·검증표 실측)은 팀원 적임 — 현 병목이 전부 B이고, 문맥 팩(브리핑 §3·internal-context)이 담당자 외 인원도 사내 절차를 수행할 수 있게 설계돼 있음.
 - 분할 시 규칙(안): ① 외부 창구·BE팀 정책 질문은 담당자 한 명 ② push 승인·비밀값 취급은 담당자 ③ 기록은 internal-worklog 하나(팀원도 압축 양식 보고). 온보딩(안): 권한 4종(Gitea·LENS·사내 Claude·JIRA) → 검증 프롬프트로 문맥 확인 → 첫 과제 RDS·ElastiCache JIRA.
 - **결정은 담당자 보류("추후 논의")** — 확정 시 브리핑 §5에 담당자/협업자 구분, internal-context §4에 팀원 프로필 추가 예정.
+
+## 작업 내역 (2026-09-21 후속 — OP 자원 JIRA 작성 검토·오픈 목표 11월 확정)
+
+- **DB 생성 4단계(DBMS 선정→DB 생성→접속계정→운영)와 절차 지도 대응 확인**: DBMS = PostgreSQL(유일 선택지 — 컨테이너 어댑터), DB 생성 = DBSUPPORT JIRA, 접속계정 = **DBSUPPORT JIRA 별도 신청**(템플릿 명시 — 절차 d 정정, Next SPoC은 접속 권한·DB-i 단계), 운영 = env 주입·과제 D.
+- **JIRA 템플릿(RDS/ElastiCache/DynamoDB 3표)**: 담당자 확인 결과 "티켓 1건에 필요한 표만 작성, 불필요 표 삭제" → RDS+ElastiCache 작성, DynamoDB 삭제. (외부 트랙 1차 답변 "티켓 2건"은 오해 — 정정.)
+- **Copilot 기재분 검토**: 🔴 AWS Account `THINQ20`→`thinq20_op`(TAG:System 값과 혼동) / 🔴 VPC "확인 후 기재"→`vpc-an2-op-t20-group` / 🟡 Storage 100GB→20GB(gp3) / 🟡 Engine version 문구 / 🟡 SG 이름(출처 불명) 삭제 / 인스턴스명은 ThinqService 태그와 일치하도록 `thinq-real`. ElastiCache 12칸은 외부 트랙이 작성(cache.t4g.micro·Shard 1·Node 2·valkey·TAG·CIDR·국내 저장). Confluence 가이드의 TAG 3종(Resource/Application/ThinqService)은 템플릿에 칸이 없어 추가요청에 기재.
+- JIRA 입력: Issue Type `DB자원(문의및검토)`, Summary `[DB자원(문의및검토)][thinq20_op]ThinQ Real 운영(OP)용 RDS PostgreSQL 및 ElastiCache valkey 신규 생성 요청`, Component=`thinq20_op`, Due Date 기본, DB Engine=postgres, Description=용도 2줄 + 표 2개. 「공통」 탭 필수 칸 확인 필요.
+- **오픈 목표 = 2026년 11월(잠정)** — 담당자 결정(10월 검토 후 11월로). JIRA 오픈 예정 일정 칸에 "2026년 11월 중 오픈 예정(잠정)". 브리핑 §2·§3-a+b·§3-d 갱신.
+- 다음: 담당자 JIRA 제출 → 티켓 번호 기록. 대기: BE팀 cert·SMTP.
