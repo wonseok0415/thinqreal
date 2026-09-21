@@ -4,6 +4,7 @@ import { config } from './config.js';
 import { createGetRouter } from './routes/get.js';
 import { createPostRouter, PUB_TYPES } from './routes/post.js';
 import { createRateLimiter } from './lib/rateLimit.js';
+import { createHtmlRewrite } from './lib/htmlRewrite.js';
 
 export function createApp(store) {
   const app = express();
@@ -34,6 +35,8 @@ export function createApp(store) {
   app.all('/pub', (req, res) => res.status(404).json({ error: 'not_found' }));
 
   // 정적 프론트 — index.html·thinqreal_admin.html·ROI 툴·privacy·images
+  // HTML은 서빙 시 SCRIPT_URL을 /api로 치환(lib/htmlRewrite.js) — public/은 라이브 사본 그대로 유지
+  app.use(createHtmlRewrite({ staticDir: config.staticDir, apiBase: config.frontApiBase, enabled: config.frontRewrite }));
   app.use(express.static(config.staticDir, { extensions: ['html'] }));
 
   // 에러 핸들러 — 스택은 로그로만, 응답은 현행 스타일의 JSON

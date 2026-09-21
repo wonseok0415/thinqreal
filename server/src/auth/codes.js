@@ -55,3 +55,8 @@ export async function verifyCode(email, code, kind) {
   await kvDel(failKey);
   return { ok: true };
 }
+
+/** 발급된 코드 조회 — ST/QA(발송 억제 환경) UAT 전용. 호출부(routes/get.js)가 환경을 검사한다. */
+export async function peekCode(email, kind) {
+  return (await kvGet(`${kind}_code_${email}`)) || null;
+}

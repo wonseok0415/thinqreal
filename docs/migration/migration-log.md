@@ -412,3 +412,10 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **산출물**: `uat-checklist.md` v1 — 0 준비 / 1 예약 흐름 15항 / 2 예약 관리 13항 / 3 슬롯 제어 4항 / 4 기타 탭 3항 / 5 설문·대장·방문자·큐레이션 14항 / 6 리포트·ROI 4항 / 7 공개 경로 4항 / 8 정리 / 9 OP·SMTP 이후 6항 + 차이 보고 양식 + 3주 계획. QA 환경 기준, 판정 ○△×, `[UAT]` 접두 테스트 데이터 규칙, 캡처 불가 대비 문구 전사 원칙.
 - 브리핑 §5에 협업자 항(역할 한정·사내 Claude 응대 규칙 3가지), `CLAUDE-gitea.md`에 한 줄 추가 — 사내 Gitea 루트 `CLAUDE.md`는 미러 pull 후 사내 Claude가 갱신(`docs:`).
 - 운영 장치: 1주 마일스톤·15분 주간 체크·"끝의 정의" 문서화. 개인 평가는 기록하지 않음(역할만).
+
+## 작업 내역 (2026-09-21 후속 3 — ⚠ 사내 페이지가 라이브 백엔드 호출 중 발견 → 키트 v4.1: SCRIPT_URL 자동 치환 + 인증 코드 peek)
+
+- **발견**: 담당자 "Gitea의 정적 파일이 구버전" 지적을 계기로 확인 — 설계 §3의 "전환 시점에 SCRIPT_URL 교체" 계획 때문에 반입된 `public/`이 라이브 사본 그대로이며, **ST/QA/OP가 서빙하는 페이지는 라이브 Apps Script를 호출**. QA UAT를 그대로 하면 운영 시트 오염·실제 알림 발송. UAT 착수 전 차단.
+- **구현(키트 v4.1)**: `lib/htmlRewrite.js`(서빙 시 `SCRIPT_URL`→`/api`, `FRONT_API_BASE`/`FRONT_REWRITE`) + `app.js` 마운트 / `auth/codes.js` `peekCode` + GET `auth_code_peek`(outboundSuppressed만, OP 404) — 담당자·협업자가 LENS 없이 QA 인증 코드 확인. 검증: 치환 4경로·privacy·404·peek QA/OP 게이트 통과. 설계 §8-11(⚠ 스펙 대비 변경), api-contract, 브리핑 §2, UAT 체크리스트 0-0·0-3 갱신.
+- **정적 동기화 규칙 확정**: `public/` = 라이브 루트 HTML 7종(`index`·`thinqreal_admin`·`ThinQ_Real_ROI_Tool`·`ThinQ_Real_Visit_Survey`·`ThinQ_Real_Visitor_Survey`·`privacy`·`ThinQ_Real_Visit_Consent`) + `images/` 를 **수정 없이 복사** — 미러 경로 규칙: 퍼블릭 루트 → Gitea `public/`. 키트 v4.1에 포함.
+- LENS 사용법 미숙은 peek로 우회 — LENS는 스케줄러·edge-sync 로그 확인 등 선택 항목으로만 남김.

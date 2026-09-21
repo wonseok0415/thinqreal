@@ -44,6 +44,9 @@ export const config = {
   isProd,
   port: Number(env('PORT', '8080')),
   staticDir: resolveStaticDir(),
+  // 정적 HTML 서빙 시 SCRIPT_URL 치환 (lib/htmlRewrite.js) — off 면 원본(라이브 Apps Script 호출) 그대로
+  frontApiBase: env('FRONT_API_BASE') || '/api',
+  frontRewrite: env('FRONT_REWRITE') !== 'off',
   pubRateLimit: Number(env('PUB_RATE_LIMIT')) || 60, // /pub IP당 분당 요청 상한 (레플리카별)
   // 현행 Apps Script Web App URL — 하이브리드 에지(외부 접점 유지 + 사내 pull) 진단·동기화 대상. 공개 URL이라 기본값 내장
   // 하이브리드 에지 동기화(jobs/edgeSync.js) — LEGACY_AUTH_SECRET = 현행 Apps Script의 AUTH_SECRET(Script Property).
