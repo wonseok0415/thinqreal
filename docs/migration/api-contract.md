@@ -11,6 +11,7 @@
 - 클라이언트(index.html·thinqreal_admin.html·ROI 툴)는 POST를 `mode:'no-cors'`로 호출 → **POST 응답 본문을 읽지 않음** (낙관적 UI + 실패 시 롤백 패턴). 재구현 시 CORS를 정상 허용하면 클라이언트를 응답 확인 방식으로 개선 가능.
 - 날짜는 항상 `YYYY-MM-DD` 문자열 (타임존 Asia/Seoul 기준, `toISOString()` 사용 금지 규칙).
 - 알 수 없는 `type` → `{ "error": "Unknown type" }`.
+- **컨테이너 전용 — 정적 HTML 서빙 시 `SCRIPT_URL` 자동 치환 (2026-09-21)**: 컨테이너는 `public/`의 HTML을 내보낼 때 `const SCRIPT_URL = 'https://script.google.com/…'` 한 줄을 `'/api'`(env `FRONT_API_BASE`)로 바꿔 준다(`lib/htmlRewrite.js`, `FRONT_REWRITE=off`면 원본). 따라서 **`public/`은 라이브 파일과 동일한 사본을 유지**하며, 프론트 파일을 수정하지 않아도 사내 환경의 페이지는 컨테이너 API를 호출한다. (이전까지 ST/QA/OP 페이지가 라이브 Apps Script를 호출하던 상태를 해소.)
 - **컨테이너 전용 — 공개 경로 `/pub` (2026-09-16)**: 사내 ops-gateway의 SSO 예외는 `/api` 전체가 아니라 **`/pub`에만** 걸린다 (BE팀 요청 — 인증 여부에 따라 경로 분리). `/pub`은 **POST 3종만** 통과: `visitor_submit`(외부 방문객 익명 설문) · `health_check`(점검 장비, API 키) · `voc_report`(FieldVoice, API 키+토큰). 그 외 type과 모든 GET은 **HTTP 404 `{ "error": "not_found" }`** — 관리자 type은 토큰이 있어도 404. 같은 3종은 `/api`로도 계속 동작(SSO 뒤 페이지 호환). **요청 빈도 제한(2026-09-17)**: `/pub` 전체에 IP당 분당 `PUB_RATE_LIMIT`건(기본 60, 레플리카별 인메모리 — X-Forwarded-For 첫 IP 기준) 초과 시 **HTTP 429 `{ "error": "rate_limited" }`** + `Retry-After` 헤더. 게이트웨이에 빈도 제한이 없다는 BE팀 답변에 따른 앱 측 방어. 전환 시 `ThinQ_Real_Visitor_Survey.html`·FieldCheck rig `config.json`·FieldVoice 파이프라인의 API 주소만 `/pub`로 바꾼다. Apps Script(현행)에는 없는 개념.
 
 ## 인증 모델
@@ -45,6 +46,7 @@
 | `telegram_test` | — | — | `{ok:true}` 또는 `{ok:false, reason:'not_configured'}` |
 | `calendar_test` | — | — | 캘린더 연동 점검 (테스트 일정 생성 후 즉시 삭제) |
 | `egress_check` | `token` (OP만 필수) | 관리자 (ST/QA는 SSO 뒤라 토큰 생략 허용) | **컨테이너 전용(2026-09-17)** — pod → 인터넷(현행 Apps Script `appliances`) 아웃바운드 진단 `{ok, status, ms, count, proxyEnv}` / 실패 시 `{ok:false, error, proxyEnv}`. 하이브리드 에지 설계의 성립 조건 실측용 |
+| `auth_code_peek` | `email`, `kind=auth\|admin` | **ST/QA(발송 억제 환경) 전용** — OP에서는 404 `not_found` | **컨테이너 전용(2026-09-21)** — 메일이 억제된 환경에서 UAT용으로 발급된 인증 코드를 조회 `{ok, email, kind, code}` / 없으면 `{ok:false, error:'no_pending_code'}`. LENS 로그 대신 사용 |
 | `edge_sync_now` | `token` (OP만 필수) | 관리자 (ST/QA 토큰 생략 허용) | **컨테이너 전용(2026-09-17)** — 하이브리드 에지 동기화 즉시 실행. 현행 Apps Script에서 `health_checks`(무인증)·`survey_data`의 visitors·`voc_reports`(LEGACY_AUTH_SECRET로 자체 발급한 관리자 토큰)를 pull해 id 기준 멱등 병합. 응답 `{health:{fetched,added}, visitors:…, voc:…, errors:[]}`. 스케줄러가 `EDGE_SYNC_EVERY_MIN`(기본 10분) 간격으로 같은 잡 실행 |
 | `survey_data` | `token` | 관리자 | `{responses:[], ledger:[], issues:[], visitors:[], insights:[], articles:[], bestReviewers:[]}` — 설문·대장·이슈·방문자·큐레이션·기사·베스트 리뷰어 이력 통합 조회 (insights·articles 2026-08-03, bestReviewers 2026-08-22 추가). articles 행은 `{month, title, url, source, published_at, summary, thumbnail}` (summary·thumbnail은 수정 모달 프리필용 — 2026-08-26 추가, title·source·summary는 엔티티 디코딩 적용) |
 | `health_checks` | `days=` (선택) | — ⚠ 무인증 | FieldCheck 점검 이력 조회 (관리자 🩺 탭용). ⚠ 토큰 게이트 적용 검토는 FieldCheck 전용 세션에 위임 (2026-07-30 관찰) |

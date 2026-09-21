@@ -396,3 +396,10 @@ Gitea 저장소 원본 검수에서 **HPA min 2 레플리카**가 확인되어(�
 
 **구현 (2026-09-17, 키트 v4)**: `jobs/edgeSync.js`(`runEdgeSyncJob`·`deleteLegacyVisitor`·CLI) / `auth/token.js` `signAuthTokenWith(secret, …)` / `config` `legacyAuthSecret`·`legacyAdminEmail`·`edgeSyncEveryMin`(10)·`edgeSyncDays`(3)·`edgeSyncDisabled` / `lib/scheduler.js` 간격 잡(`INTERVAL_JOBS`, 분 단위 슬롯 락) / `handlers/visitors.js` delete-through / GET `edge_sync_now`(ST/QA 토큰 생략). **검증(2서버 통합 — 현행 역할은 컨테이너 자신)**: 1차 동기화 health 1/1·visitors 2/2·voc 1/1 → 2차 추가 0(멱등) → 사내 `visitor_delete` → 원본 감소·`legacyDeleted:true` → 3차 부활 없음 / OP 모드 무토큰 거부 / 스케줄러 "edge-sync 10분 간격" 기동 로그 / CLI. 사내 실측 선행 결과: `egress_check` ok·200·count 45·proxyEnv none (ST, 9/17).
 **단계적 사내 검증**: ① `LEGACY_AUTH_SECRET` 없이 배포 → health만 동기화(현행 rig 데이터가 ST DB에 보이면 성립) ② sealed-secret으로 `LEGACY_AUTH_SECRET`(현행 Apps Script Script Property `AUTH_SECRET` 값) 주입 → visitors·voc까지.
+
+### 8-11. 정적 HTML 서빙 시 `SCRIPT_URL` 자동 치환 + ST/QA 인증 코드 peek (2026-09-21, 키트 v4.1)
+
+**발견**: §3의 "프론트 `SCRIPT_URL` 3곳 교체는 전환 시점에" 계획 때문에, 키트로 반입된 `public/`이 라이브 사본 그대로라 **ST/QA/OP가 서빙하는 페이지가 라이브 Apps Script를 호출**하고 있었다. 이 상태로 QA에서 UAT를 하면 운영 시트에 테스트 데이터가 들어가고 담당자에게 실제 알림이 나간다.
+**구현**: `lib/htmlRewrite.js` — 정적 미들웨어 앞에서 `.html`(확장자 생략·`/` 포함) 요청을 가로채 `const SCRIPT_URL = 'https://script.google.com/…';` 한 줄을 `'/api'`(`FRONT_API_BASE`)로 치환해 서빙(mtime 캐시, `FRONT_REWRITE=off`로 해제). `public/`은 계속 라이브와 동일 사본 → 정적 동기화는 "복사"만으로 끝나고 전환 시점의 수동 편집 단계가 사라진다. `auth/codes.js` `peekCode` + GET `auth_code_peek`(outboundSuppressed 환경만, OP 404) — 발송 억제 환경에서 LENS 로그 없이 UAT용 인증 코드를 확인.
+**검증**: index/admin/확장자 생략/루트 모두 `SCRIPT_URL = '/api'`, `script.google.com` 0건 / privacy(치환 대상 없음) 200 / 없는 파일 404 / QA 모드 `admin_auth_request` → `auth_code_peek` 코드 반환 / OP 모드 peek 404.
+**⚠ 스펙 대비 변경**: §3·§7 TODO의 "전환 시점에 프론트 `SCRIPT_URL` 3곳 수동 교체"를 **서빙 시 자동 치환**으로 대체. 이유는 위 발견(사내 환경이 라이브 백엔드를 호출) + 라이브 사본 무수정 유지의 운영 이점. 방문자 설문(`ThinQ_Real_Visitor_Survey.html`)도 컨테이너에서는 `/api`를 향하나, 외부 방문객은 GitHub Pages 사본(하이브리드 에지)을 쓰므로 무관.

@@ -16,6 +16,7 @@ import { handleGetSurveyData } from '../handlers/survey.js';
 import { handleGetHealthChecks } from '../handlers/health.js';
 import { handleGetVocReports } from '../handlers/voc.js';
 import { runEdgeSyncJob } from '../jobs/edgeSync.js';
+import { peekCode } from '../auth/codes.js';
 import { verifyAdminToken } from '../auth/token.js';
 import { config } from '../config.js';
 
@@ -68,6 +69,13 @@ export function createGetRouter(store) {
           return res.json(await handleCalendarTest());
         case 'egress_check': // 사내 pod → 인터넷(현행 Apps Script) 아웃바운드 진단 (관리자 토큰)
           return res.json(await handleEgressCheck(q.token));
+        case 'auth_code_peek': { // ST/QA 전용 — 메일이 억제된 환경에서 UAT용 인증 코드 확인. OP에서는 존재하지 않는 type처럼 동작
+          if (!config.outboundSuppressed) return res.status(404).json({ error: 'not_found' });
+          const email = String(q.email || '').trim().toLowerCase();
+          const kind = q.kind === 'admin' ? 'admin' : 'auth';
+          const code = email ? await peekCode(email, kind) : null;
+          return res.json(code ? { ok: true, email, kind, code } : { ok: false, error: 'no_pending_code' });
+        }
         case 'edge_sync_now': { // 하이브리드 에지 동기화 즉시 실행 (ST/QA 토큰 생략 허용, OP 관리자 토큰)
           if (!config.outboundSuppressed) {
             const admin = verifyAdminToken(q.token);
