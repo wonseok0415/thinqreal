@@ -4575,8 +4575,18 @@ function svSubTab(view) {
   svSubTab(v);
 })();
 
+let svAutoRefreshing = false;   // 자동 최신화 중복 조회 방지 (탭 연타 시)
 async function loadSurveyData(force, quiet) {
-  if (surveyData && !force) { renderSurveyTab(); return; }
+  // 캐시 즉시 표시 + 백그라운드 자동 최신화 (2026-09-21 — 예약 탭과 동일한 stale-while-revalidate 원칙).
+  // 구 동작(캐시 있으면 재조회 생략)은 열어 둔 페이지에서 새 설문 응답이 수동 새로고침 전까지
+  // 안 보이는 혼동을 유발 (2026-09-20 이정민 응답 소동). 조용히 갱신하므로 사용감 변화 없음.
+  if (surveyData && !force) {
+    renderSurveyTab();
+    if (svAutoRefreshing) return;
+    svAutoRefreshing = true;
+    try { await loadSurveyData(true, true); } finally { svAutoRefreshing = false; }
+    return;
+  }
   if (!adminTokenValid()) { adminSessionExpired(); return; }
   if (!quiet && !surveyData) {
     document.getElementById('svRespBody').innerHTML =
