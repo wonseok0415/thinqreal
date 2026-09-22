@@ -419,3 +419,8 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **구현(키트 v4.1)**: `lib/htmlRewrite.js`(서빙 시 `SCRIPT_URL`→`/api`, `FRONT_API_BASE`/`FRONT_REWRITE`) + `app.js` 마운트 / `auth/codes.js` `peekCode` + GET `auth_code_peek`(outboundSuppressed만, OP 404) — 담당자·협업자가 LENS 없이 QA 인증 코드 확인. 검증: 치환 4경로·privacy·404·peek QA/OP 게이트 통과. 설계 §8-11(⚠ 스펙 대비 변경), api-contract, 브리핑 §2, UAT 체크리스트 0-0·0-3 갱신.
 - **정적 동기화 규칙 확정**: `public/` = 라이브 루트 HTML 7종(`index`·`thinqreal_admin`·`ThinQ_Real_ROI_Tool`·`ThinQ_Real_Visit_Survey`·`ThinQ_Real_Visitor_Survey`·`privacy`·`ThinQ_Real_Visit_Consent`) + `images/` 를 **수정 없이 복사** — 미러 경로 규칙: 퍼블릭 루트 → Gitea `public/`. 키트 v4.1에 포함.
 - LENS 사용법 미숙은 peek로 우회 — LENS는 스케줄러·edge-sync 로그 확인 등 선택 항목으로만 남김.
+
+## 작업 내역 (2026-09-22 — ✅ 키트 v4.1 배포(0.13.0)·QA 준비 완료, UAT 개시 가능)
+
+- 사내 적용: 코드 5파일 + `public/` 7파일·images 최신화 → 0.13.0. 담당자 실측: 첫 소스 보기에서는 구글 주소(브라우저 캐시) → **시크릿 창에서 `const SCRIPT_URL = '/api'` 확인**, `auth_code_peek` → `no_pending_code`(신규 코드 가동 증거). **QA 페이지가 사내 컨테이너를 호출하는 상태 확정 — 운영 시트 오염 위험 해소.**
+- UAT 체크리스트 0-0 선행 조건 ☑. 협업자에게 인계 가능. 남은 것: 담당자가 0-3(코드 요청→peek→로그인)을 1회 직접 해보고 인계 권장.
