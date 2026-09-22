@@ -442,3 +442,9 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **구현(키트 v4.3, 3파일)**: `app.js` — `/api`·`/pub`·`/healthz` 응답 `Cache-Control: no-store`(ⓑ 원천 차단) / `lib/htmlRewrite.js` — 치환 HTML `Cache-Control: no-cache`+ETag(UAT 0-2 "옛 페이지 캐시" 함정 차단) / `routes/get.js` — `auth_code_peek` 응답에 `pod`·`kv` 동봉(ⓐ 판별). 로컬 검증: 헤더 3종·요청→peek(2회 동일)→오답 `code_mismatch (남은 시도 4회)`→정답 `ok:true` 토큰.
 - **담당자 실측 절차(v4.3 적용 후, QA 한 환경·한 탭·주소창만)**: ① `/healthz` Ctrl+F5 5회 — pod 이름이 바뀌는지, 전부 `kv:shared`인지 ② `admin_auth_request` → `ok:true` ③ peek Ctrl+F5 3회 — `code`·`pod`·`kv` 기록 ④ `admin_auth_verify&code=` → 결과 JSON 전문. 주소창 경로가 `ok:true`면 페이지 경로만 재확인(페이지 [코드 요청] → 즉시 peek Ctrl+F5 → 입력). api-contract·UAT 0-3에 반영.
 - 판정표: ④ `ok:true` → 해결(캐시 원인) / ④ `code_mismatch`인데 ③의 pod가 서로 다르고 `kv`에 `degraded`가 섞임 → ⓐ, BE팀에 해당 pod Valkey 연결 확인 요청 / ④ `code_expired` → 요청과 검증이 다른 저장소(ⓐ 또는 ⓒ) / `too_many_attempts` → 20분 대기 후 재시도.
+
+## 작업 내역 (2026-09-22 후속 4 — ✅ 키트 v4.3 적용, QA 관리자 로그인 통과 → UAT 0-3 종결)
+
+- 담당자 실측(v4.3 적용 후, QA 주소창): `/healthz` `kv:shared` / `admin_auth_request` `ok:true`(재클릭 시 `cooldown` — 정상) / peek 코드 확인(재요청으로 140936→193660 갱신됨) / `admin_auth_verify` → **`ok:true` + token**. 이어서 페이지 경로(시크릿 창 → [인증 코드 받기] 1회 → peek → 입력) → **대시보드 진입.**
+- **결론**: 코드 발급·Valkey 저장·검증·토큰 서명은 QA 멀티 레플리카에서 정상. 이전 "인증 코드 불일치"는 **옛 코드 재사용** — ⓑ GET 응답 캐시(v4.3 `no-store`로 차단) 또는 [코드 요청] 재클릭으로 코드가 갱신된 뒤 먼저 본 코드를 입력한 경우. 레플리카 캐시 미공유(ⓐ)·환경 혼동(ⓒ)은 아님. UAT 0-3에 "[코드 요청]은 한 번만, 재요청 시 이전 코드 무효" 명시 + ☑.
+- 상태: **QA UAT 개시 가능 — 협업자 인계.** 브리핑 §2 갱신. 다음: 담당자 → 현진 선임 인계(0-1~0-7 함께 1회) / DBSUPPORT JIRA 제출 / 박현정 회신(cert). 외부 트랙은 차이 보고(△·×) 대기.
