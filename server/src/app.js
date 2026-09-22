@@ -5,6 +5,8 @@ import { createGetRouter } from './routes/get.js';
 import { createPostRouter, PUB_TYPES } from './routes/post.js';
 import { createRateLimiter } from './lib/rateLimit.js';
 import { createHtmlRewrite } from './lib/htmlRewrite.js';
+import { kvStatus } from './lib/kvcache.js';
+import os from 'node:os';
 
 export function createApp(store) {
   const app = express();
@@ -21,7 +23,8 @@ export function createApp(store) {
   });
 
   // K8s liveness/readiness
-  app.get('/healthz', (req, res) => res.json({ ok: true, backend: store.backend }));
+  // kv: shared 여야 멀티 레플리카에서 인증 코드·토큰 서명 키가 pod 간 공유된다 (degraded/memory면 로그인이 pod에 따라 어긋남)
+  app.get('/healthz', (req, res) => res.json({ ok: true, backend: store.backend, kv: kvStatus(), pod: os.hostname() }));
 
   // API — 단일 경로 + type 라우팅 (api-contract.md 계약 불변)
   app.use('/api', createGetRouter(store));

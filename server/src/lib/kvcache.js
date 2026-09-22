@@ -92,3 +92,11 @@ export async function kvTryLock(key, ttlSec) {
 export function kvSharedMode() {
   return !!config.kvstore.addr;
 }
+
+/** healthz 진단용 — memory(주소 미설정) / shared(Valkey 연결됨) / degraded(주소는 있으나 연결 실패 → 메모리 폴백) / connecting */
+export function kvStatus() {
+  if (!config.kvstore.addr) return 'memory';
+  if (client) return 'shared';
+  if (degradedWarned) return 'degraded';
+  return 'connecting';
+}
