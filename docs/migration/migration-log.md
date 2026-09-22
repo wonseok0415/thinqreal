@@ -434,3 +434,11 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - 담당자 실측: 정순서(페이지 코드 요청 → peek → 2분 내 입력)로도 "인증 코드 불일치". 유력 원인 = **레플리카 간 캐시 미공유**(Valkey 미설정/연결 실패 → 메모리 폴백: 코드는 A pod, 검증은 B pod). 같은 상태면 `AUTH_SECRET`도 pod별 임시 키가 되어 토큰 검증까지 어긋남(auth/secret.js 경고 경로).
 - **구현**: `kvcache.kvStatus()` + `/healthz` → `{ok, backend, kv, pod}`. 브라우저에서 새로고침 몇 번으로 pod 교대·kv 상태를 LENS 없이 확인. 검증: 로컬 `kv:"memory"`, pod 호스트명 표시.
 - 판정 기준: `kv:"shared"`면 다른 원인 추적 / `degraded`·`memory`면 QA deploy의 `KVSTORE_ADDR`·Valkey 연결 문제 → BE팀 문의.
+
+## 작업 내역 (2026-09-22 후속 3 — `kv:shared` 확인으로 레플리카 가설 기각 → 캐시 헤더·peek 진단 보강 (키트 v4.3))
+
+- 담당자 실측(키트 v4.2): `/healthz` → `kv:shared`, `pod:thinq-real-556cd94b45-zl68x`. **"레플리카 간 캐시 미공유" 가설 기각**(적어도 응답한 pod는 Valkey 연결). 코드 대조 결과 `verifyCode`(`stored !== code` 문자열 비교)·`kvGet/kvPut`(Valkey get/set, EX TTL)·페이지 호출 형식(`admin_auth_request`→`admin_auth_verify&email&code`)·이메일 소문자 정규화 모두 정상 — 로컬(memory 모드) 재현 시 요청→peek→검증 `ok:true`.
+- **남은 원인 후보 3건**: ⓐ 다른 레플리카 한 쪽만 `degraded`(healthz는 응답한 pod 하나만 보여줌 — 코드 발급 pod와 검증 pod가 다르면 20분 TTL로 남은 옛 코드와 어긋남) ⓑ **GET 응답 캐시** — 사내 게이트웨이·프록시·브라우저가 `auth_code_peek` JSON을 재사용해 옛 코드를 보여줌(페이지가 새 코드를 발급했는데 peek는 직전 코드) ⓒ 환경 혼동(ST에서 peek·QA에서 로그인 등 — 환경별 Valkey가 다르면 코드가 다름).
+- **구현(키트 v4.3, 3파일)**: `app.js` — `/api`·`/pub`·`/healthz` 응답 `Cache-Control: no-store`(ⓑ 원천 차단) / `lib/htmlRewrite.js` — 치환 HTML `Cache-Control: no-cache`+ETag(UAT 0-2 "옛 페이지 캐시" 함정 차단) / `routes/get.js` — `auth_code_peek` 응답에 `pod`·`kv` 동봉(ⓐ 판별). 로컬 검증: 헤더 3종·요청→peek(2회 동일)→오답 `code_mismatch (남은 시도 4회)`→정답 `ok:true` 토큰.
+- **담당자 실측 절차(v4.3 적용 후, QA 한 환경·한 탭·주소창만)**: ① `/healthz` Ctrl+F5 5회 — pod 이름이 바뀌는지, 전부 `kv:shared`인지 ② `admin_auth_request` → `ok:true` ③ peek Ctrl+F5 3회 — `code`·`pod`·`kv` 기록 ④ `admin_auth_verify&code=` → 결과 JSON 전문. 주소창 경로가 `ok:true`면 페이지 경로만 재확인(페이지 [코드 요청] → 즉시 peek Ctrl+F5 → 입력). api-contract·UAT 0-3에 반영.
+- 판정표: ④ `ok:true` → 해결(캐시 원인) / ④ `code_mismatch`인데 ③의 pod가 서로 다르고 `kv`에 `degraded`가 섞임 → ⓐ, BE팀에 해당 pod Valkey 연결 확인 요청 / ④ `code_expired` → 요청과 검증이 다른 저장소(ⓐ 또는 ⓒ) / `too_many_attempts` → 20분 대기 후 재시도.
