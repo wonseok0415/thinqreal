@@ -428,3 +428,9 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 ## 작업 내역 (2026-09-22 후속 — 0-3 실측: 코드 요청·peek 정상, 일반 창 캐시 함정 확인)
 
 - 담당자 실측: 일반 창 관리자 페이지 [코드 요청] → 메일 없음·peek `no_pending_code` → 원인은 **캐시된 옛 페이지가 구글 백엔드로 요청**. 주소창 직접 `admin_auth_request` → `ok:true`, `auth_code_peek` → 코드 반환 정상. UAT 체크리스트 0-2에 "처음 열 때 Ctrl+F5 / 시크릿 창" 주의 추가.
+
+## 작업 내역 (2026-09-22 후속 2 — 로그인 "코드 불일치" 진단: healthz에 kv·pod 노출 (키트 v4.2)
+
+- 담당자 실측: 정순서(페이지 코드 요청 → peek → 2분 내 입력)로도 "인증 코드 불일치". 유력 원인 = **레플리카 간 캐시 미공유**(Valkey 미설정/연결 실패 → 메모리 폴백: 코드는 A pod, 검증은 B pod). 같은 상태면 `AUTH_SECRET`도 pod별 임시 키가 되어 토큰 검증까지 어긋남(auth/secret.js 경고 경로).
+- **구현**: `kvcache.kvStatus()` + `/healthz` → `{ok, backend, kv, pod}`. 브라우저에서 새로고침 몇 번으로 pod 교대·kv 상태를 LENS 없이 확인. 검증: 로컬 `kv:"memory"`, pod 호스트명 표시.
+- 판정 기준: `kv:"shared"`면 다른 원인 추적 / `degraded`·`memory`면 QA deploy의 `KVSTORE_ADDR`·Valkey 연결 문제 → BE팀 문의.
