@@ -26,6 +26,8 @@ export function createHtmlRewrite({ staticDir, apiBase = '/api', enabled = true 
         hit = { mtimeMs: st.mtimeMs, body: raw.replace(SCRIPT_URL_RE, `const SCRIPT_URL = '${apiBase}';`) };
         cache.set(abs, hit);
       }
+      // 항상 재검증(ETag 304) — 옛 페이지(구글 백엔드 호출본)가 캐시에서 그대로 열리던 함정 차단 (UAT 0-2, 2026-09-22)
+      res.set('Cache-Control', 'no-cache');
       res.type('html').send(hit.body);
     } catch {
       next(); // 없는 파일 등은 정적 미들웨어·404로

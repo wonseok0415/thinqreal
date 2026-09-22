@@ -22,6 +22,13 @@ export function createApp(store) {
     next();
   });
 
+  // API·진단 응답은 어디에도 저장 금지 — 사내 게이트웨이/프록시/브라우저가 GET JSON을 재사용하면
+  // 인증 코드 조회(auth_code_peek)·가용 슬롯 등이 옛 값으로 보인다 (2026-09-22 로그인 불일치 진단에서 추가).
+  app.use(['/api', '/pub', '/healthz'], (req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  });
+
   // K8s liveness/readiness
   // kv: shared 여야 멀티 레플리카에서 인증 코드·토큰 서명 키가 pod 간 공유된다 (degraded/memory면 로그인이 pod에 따라 어긋남)
   app.get('/healthz', (req, res) => res.json({ ok: true, backend: store.backend, kv: kvStatus(), pod: os.hostname() }));

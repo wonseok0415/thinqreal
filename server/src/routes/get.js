@@ -19,6 +19,8 @@ import { runEdgeSyncJob } from '../jobs/edgeSync.js';
 import { peekCode } from '../auth/codes.js';
 import { verifyAdminToken } from '../auth/token.js';
 import { config } from '../config.js';
+import { kvStatus } from '../lib/kvcache.js';
+import os from 'node:os';
 
 export function createGetRouter(store) {
   const router = Router();
@@ -74,7 +76,9 @@ export function createGetRouter(store) {
           const email = String(q.email || '').trim().toLowerCase();
           const kind = q.kind === 'admin' ? 'admin' : 'auth';
           const code = email ? await peekCode(email, kind) : null;
-          return res.json(code ? { ok: true, email, kind, code } : { ok: false, error: 'no_pending_code' });
+          // pod·kv 동봉 — 어느 레플리카가 어떤 캐시 모드로 답했는지 (코드 불일치 진단, 2026-09-22)
+          const diag = { pod: os.hostname(), kv: kvStatus() };
+          return res.json(code ? { ok: true, email, kind, code, ...diag } : { ok: false, error: 'no_pending_code', ...diag });
         }
         case 'edge_sync_now': { // 하이브리드 에지 동기화 즉시 실행 (ST/QA 토큰 생략 허용, OP 관리자 토큰)
           if (!config.outboundSuppressed) {
