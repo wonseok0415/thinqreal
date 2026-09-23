@@ -479,3 +479,9 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - 담당자: 사내 보안 프로그램이 요청서 md의 Gitea 반입을 차단(해결은 담당자가 별도 추진). DB팀 제출이 급하므로 우회: **외부 트랙이 원고 v2에 제출 요청서 값을 채운 Word(.docx)를 직접 생성해 담당자에게 전달** — 사내 식별자가 든 문서의 반입 경로는 9/15 internal-context와 동일(담당자 개인 메일 zip → 사내 PC, docx는 차단 대상 아님). 리포에는 미커밋(스크래치 생성).
 - 문서 구성: 표지 정보(보안 등급·JIRA Summary·담당) / 1 개요 / 2 구성 요소 + 신청 자원 공통값 한 줄 / 3 구성도(표 박스 4개) / 4 Aurora(클러스터·17.7 LTS·writer·풀 5·계정·DDL 권한) / 5 valkey(수정된 Instance 명) / 6 이행 절차 / **7 DB팀 확인 요청 3건**(APP 계정 DDL 권한, writer 엔드포인트·TLS, valkey 엔드포인트). 스키마 검증 통과(docx validate) — 샌드박스 LibreOffice 고장으로 시각 렌더 미확인, 담당자가 Word에서 표 폭·줄바꿈만 눈으로 확인.
 - internal-context §2-a·§2-b 갱신은 파일 없이 진행: 사내 Claude에 **값을 채팅에 직접 붙여 넣어** 갱신 지시(브리핑 §7 압축 양식 — 식별자는 채팅 허용). 요청서 md 반입은 보안 프로그램 해결 후 선택 사항.
+
+## 작업 내역 (2026-09-23 마감 — internal-context 제출본 반영 완료, DB팀 회신 대기)
+
+- 사내 Claude: internal-context §2-a·§2-b를 제출 요청서 값(채팅 붙여넣기)으로 갱신·커밋 완료 — 파일 반입 없이 단일 소스 정합 확보.
+- 오늘 결과: QA 관리자 로그인 통과(UAT 0-3 종결, 협업자 인계 가능) / 키트 v4.2·v4.3 = 0.14.0·0.15.0 / DBSUPPORT JIRA 발행(Aurora PostgreSQL 17 + valkey) / 아키텍처 Word 외부 생성·전달 / 9/21 기록의 사내 식별자 치환.
+- **대기 항목**: ① 담당자 — Word 확인 후 JIRA 첨부, 티켓 번호 전달 ② DB팀 — 확인 요청 3건 회신(APP 계정 DDL 권한 / writer 엔드포인트·TLS / valkey 엔드포인트) → OP env 주입 설계 확정 ③ BE팀 — sealed-secrets cert·SMTP ④ 협업자 UAT 차이 보고. 외부 트랙 다음 코드 작업 = 과제 D 키트 v5(`admin_import`), DB 생성 완료 통보 후 착수.
