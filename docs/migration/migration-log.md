@@ -473,3 +473,9 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 
 - DB팀 확인: ElastiCache Instance 명은 **`-pgsql-aurora` 접미만 삭제**하면 됨(외부 트랙 지적 사항 확인). 담당자가 제출본 `db-request-2026-09-23.md`에 직접 반영 → 리포 기록만 갱신(브리핑 §3-a+b 검토 메모 1건 종결, 나머지 2건은 DB팀 요청 시 대응).
 - 요청서 md는 Gitea `docs/migration/db-request-2026-09-23.md`(사내 전용, internal-context 옆)에 배치 — 사내 Claude가 이를 읽어 internal-context §2-a·§2-b 갱신 후 아키텍처 원고 Word 변환(9/23 프롬프트 2단계). 결과 대기.
+
+## 작업 내역 (2026-09-23 후속 3 — Gitea 파일 반입 차단 → 아키텍처 Word를 외부 트랙이 직접 생성·전달)
+
+- 담당자: 사내 보안 프로그램이 요청서 md의 Gitea 반입을 차단(해결은 담당자가 별도 추진). DB팀 제출이 급하므로 우회: **외부 트랙이 원고 v2에 제출 요청서 값을 채운 Word(.docx)를 직접 생성해 담당자에게 전달** — 사내 식별자가 든 문서의 반입 경로는 9/15 internal-context와 동일(담당자 개인 메일 zip → 사내 PC, docx는 차단 대상 아님). 리포에는 미커밋(스크래치 생성).
+- 문서 구성: 표지 정보(보안 등급·JIRA Summary·담당) / 1 개요 / 2 구성 요소 + 신청 자원 공통값 한 줄 / 3 구성도(표 박스 4개) / 4 Aurora(클러스터·17.7 LTS·writer·풀 5·계정·DDL 권한) / 5 valkey(수정된 Instance 명) / 6 이행 절차 / **7 DB팀 확인 요청 3건**(APP 계정 DDL 권한, writer 엔드포인트·TLS, valkey 엔드포인트). 스키마 검증 통과(docx validate) — 샌드박스 LibreOffice 고장으로 시각 렌더 미확인, 담당자가 Word에서 표 폭·줄바꿈만 눈으로 확인.
+- internal-context §2-a·§2-b 갱신은 파일 없이 진행: 사내 Claude에 **값을 채팅에 직접 붙여 넣어** 갱신 지시(브리핑 §7 압축 양식 — 식별자는 채팅 허용). 요청서 md 반입은 보안 프로그램 해결 후 선택 사항.
