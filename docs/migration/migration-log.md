@@ -468,3 +468,8 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **Aurora 호환 판단**: 앱은 `pg` 드라이버 + 표준 SQL(CREATE TABLE IF NOT EXISTS·ADD COLUMN IF NOT EXISTS·BIGSERIAL)만 사용 → Aurora PostgreSQL 와이어 호환으로 **코드 변경 없음**. 접속은 클러스터 writer 엔드포인트(reader 미사용), TLS on(`DB_SSLMODE` 기본). 외부 검증 16 → 17도 사용 기능 범위 내.
 - 제출본 검토 메모(정정은 DB팀 요청 시): valkey Instance 명에 RDS 접미 잔존(복붙 오기 추정) / Aurora에 20GB·gp3 항목 무의미 / ElastiCache TAG Resource `Database`(가이드 예시 `Cache`).
 - **`service-overview-architecture.md` v2**: 담당자 지시로 **외부 접점(사외 호출자·pull 동기화) 관련 내용 전부 배제** — 구 §6 하이브리드 에지 삭제, 구성도에서 외부 박스·egress 제거, 기능 목록에서 FieldCheck·FieldVoice 문구 제거, 구성 요소 표에서 외부 연동 행 삭제. 엔진 Aurora PostgreSQL 17 반영(writer 엔드포인트·TLS·자동 확장 스토리지). "DB 접근 주체는 앱 컨테이너 하나(별도 ETL·BI·타 시스템 없음)" 문장 추가. 7절로 재편.
+
+## 작업 내역 (2026-09-23 후속 2 — 제출본 정정 1건 확정, 요청서 파일 Gitea 배치)
+
+- DB팀 확인: ElastiCache Instance 명은 **`-pgsql-aurora` 접미만 삭제**하면 됨(외부 트랙 지적 사항 확인). 담당자가 제출본 `db-request-2026-09-23.md`에 직접 반영 → 리포 기록만 갱신(브리핑 §3-a+b 검토 메모 1건 종결, 나머지 2건은 DB팀 요청 시 대응).
+- 요청서 md는 Gitea `docs/migration/db-request-2026-09-23.md`(사내 전용, internal-context 옆)에 배치 — 사내 Claude가 이를 읽어 internal-context §2-a·§2-b 갱신 후 아키텍처 원고 Word 변환(9/23 프롬프트 2단계). 결과 대기.
