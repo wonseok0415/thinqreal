@@ -461,3 +461,10 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - 담당자: DB 생성 JIRA **티켓 발행 완료**(번호·기재 수정분은 추후 전달 예정 — 수신 시 브리핑 §3-a+b에 기록). 추가요청 칸은 9/22 논의(공란 또는 TAG 3종 한 줄) — 최종 선택은 수정분과 함께 확인.
 - DB팀 1차 요청: 서비스 개요·시스템 아키텍처 문서. 판단: **이관 목표 시스템(EKS 컨테이너 + RDS + valkey) 기준**으로 작성 — DB팀의 관심은 "무엇이 어떤 방식·규모로 DB에 붙는가"이므로 현행은 배경 한 줄. 원고 `service-overview-architecture.md` v1(8절: 개요 / 구성 요소 / 구성도(텍스트) / RDS 데이터·접속(표 14개·전 컬럼 TEXT·풀 pod당 5·APP 계정 DDL 권한 필요 명시) / valkey 사용 방식(영속 없음) / 하이브리드 에지(3표는 사내 미러) / 과제 D 절차 / 식별자 채움 목록). 식별자는 `《…》`로 비움 — 완성·Word 변환은 사내 Claude(브리핑 §3-a+b 갱신).
 - 확인 포인트(DB팀과 조율): APP 계정에 CREATE TABLE·ALTER 권한(기동 시 자동 스키마) — 불가면 MGR로 1회 기동 후 APP 전환 절차.
+
+## 작업 내역 (2026-09-23 후속 — 제출된 DB 요청서 반영: Aurora PostgreSQL 17·추가요청 공란, 아키텍처 원고 v2(외부 접점 배제))
+
+- 담당자가 JIRA에 제출한 RDS·ElastiCache 요청서(md 변환본)를 수령. **9/21 검토본과의 차이**: DBMS `Postgre`→**Aurora PostgreSQL 17.x LTS** / TAG System·HQ 값 변경, TAG 4종을 표 안에 기재 / **추가요청 칸 공란**(9/22 논의의 "공란" 안 채택 — TAG가 표 안에 들어가 한 줄 필요성 소멸) / Summary 접두·Instance 명의 account 자리가 조직 약칭 / 오픈 11월. 값 자체는 사내 식별자라 리포 미기재 — **internal-context §2-a·§2-b를 제출본으로 갱신하는 것은 사내 Claude 작업**(브리핑 §3-a+b에 지시).
+- **Aurora 호환 판단**: 앱은 `pg` 드라이버 + 표준 SQL(CREATE TABLE IF NOT EXISTS·ADD COLUMN IF NOT EXISTS·BIGSERIAL)만 사용 → Aurora PostgreSQL 와이어 호환으로 **코드 변경 없음**. 접속은 클러스터 writer 엔드포인트(reader 미사용), TLS on(`DB_SSLMODE` 기본). 외부 검증 16 → 17도 사용 기능 범위 내.
+- 제출본 검토 메모(정정은 DB팀 요청 시): valkey Instance 명에 RDS 접미 잔존(복붙 오기 추정) / Aurora에 20GB·gp3 항목 무의미 / ElastiCache TAG Resource `Database`(가이드 예시 `Cache`).
+- **`service-overview-architecture.md` v2**: 담당자 지시로 **외부 접점(사외 호출자·pull 동기화) 관련 내용 전부 배제** — 구 §6 하이브리드 에지 삭제, 구성도에서 외부 박스·egress 제거, 기능 목록에서 FieldCheck·FieldVoice 문구 제거, 구성 요소 표에서 외부 연동 행 삭제. 엔진 Aurora PostgreSQL 17 반영(writer 엔드포인트·TLS·자동 확장 스토리지). "DB 접근 주체는 앱 컨테이너 하나(별도 ETL·BI·타 시스템 없음)" 문장 추가. 7절로 재편.
