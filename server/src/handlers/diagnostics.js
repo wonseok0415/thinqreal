@@ -1,6 +1,7 @@
 // 진단 엔드포인트 — mail_status / mail_test / telegram_test / teams_test / calendar_test
 import { config } from '../config.js';
 import { verifyAdminToken } from '../auth/token.js';
+import { isAllowedAuthEmail } from '../auth/codes.js';
 import { sendMail, mailMode } from '../mail/mailer.js';
 import { sendTelegramMessage, telegramConfigured } from '../notify/telegram.js';
 import { sendTeamsTest } from '../notify/teams.js';
@@ -17,17 +18,41 @@ export function handleMailStatus() {
     quotaError: null,
     mailMode: mailMode(), // 'smtp' | 'console'
     smtpHost: config.smtp.host || '(미설정 — 콘솔 로그 모드)',
+    smtpPort: config.smtp.port,
+    ignoreTls: config.smtp.ignoreTls,
+    from: config.smtp.from,
+    replyTo: config.smtp.replyTo || null,
+    forceSend: config.mailForceSend,
   };
 }
 
-export async function handleMailTest() {
-  const subject = '[ThinQ Real] 메일 발송 테스트';
-  const body = '이 메일이 도착했다면 알림 시스템이 정상 동작 중입니다.\n\n발송 시각: ' + new Date().toISOString();
-  const result = await sendMail({ to: config.adminAlertTo, cc: config.adminAlertCc, subject, text: body });
-  if (result.ok) {
-    return { success: true, message: '테스트 메일을 발송했습니다.', sentTo: config.adminAlertTo, cc: config.adminAlertCc, mailMode: result.mode };
+/** 실발송이 일어나는 환경(OP, 또는 MAIL_FORCE_SEND 켠 ST)에서는 관리자 토큰 필수 — SSO 뒤라도 아무나 담당자에게 메일을 쏘지 못하게.
+ *  `to`(선택): 단일 @lge.com 주소로만 발송(CC 없음) — 첫 SMTP 실측을 담당자 3인에게 뿌리지 않고 본인 수신으로 확인. */
+export async function handleMailTest(q = {}) {
+  const realSend = !config.outboundSuppressed || config.mailForceSend;
+  if (realSend) {
+    const admin = verifyAdminToken(q.token);
+    if (!admin.ok) return { success: false, error: 'unauthorized', reason: admin.reason || 'invalid_token' };
   }
-  return { success: false, error: result.error, hint: 'SMTP 설정(env SMTP_HOST/PORT/USER/PASS)을 확인해 주세요.' };
+  let to = config.adminAlertTo;
+  let cc = config.adminAlertCc;
+  if (q.to) {
+    const one = String(q.to).trim().toLowerCase();
+    if (!isAllowedAuthEmail(one)) return { success: false, error: 'invalid_to', hint: 'to는 @lge.com 단일 주소만 허용' };
+    to = one;
+    cc = undefined;
+  }
+  const subject = '[ThinQ Real] 메일 발송 테스트';
+  const body = '이 메일이 도착했다면 알림 시스템이 정상 동작 중입니다.\n\n발송 시각: ' + new Date().toISOString()
+    + `\n환경: ${config.environment || 'local'} / 발신: ${config.smtp.from}` + (config.smtp.replyTo ? ` / 회신: ${config.smtp.replyTo}` : '');
+  const result = await sendMail({ to, cc, subject, text: body });
+  if (result.ok) {
+    return {
+      success: true, message: '테스트 메일을 발송했습니다.', sentTo: to, cc: cc || null, mailMode: result.mode,
+      from: config.smtp.from, accepted: result.accepted, rejected: result.rejected, response: result.response,
+    };
+  }
+  return { success: false, error: result.error, mailMode: result.mode, hint: 'SMTP 설정(env SMTP_HOST/PORT/SMTP_IGNORE_TLS/MAIL_FROM)을 확인해 주세요.' };
 }
 
 export async function handleTelegramTest() {

@@ -485,3 +485,13 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - 사내 Claude: internal-context §2-a·§2-b를 제출 요청서 값(채팅 붙여넣기)으로 갱신·커밋 완료 — 파일 반입 없이 단일 소스 정합 확보.
 - 오늘 결과: QA 관리자 로그인 통과(UAT 0-3 종결, 협업자 인계 가능) / 키트 v4.2·v4.3 = 0.14.0·0.15.0 / DBSUPPORT JIRA 발행(Aurora PostgreSQL 17 + valkey) / 아키텍처 Word 외부 생성·전달 / 9/21 기록의 사내 식별자 치환.
 - **대기 항목**: ① 담당자 — Word 확인 후 JIRA 첨부, 티켓 번호 전달 ② DB팀 — 확인 요청 3건 회신(APP 계정 DDL 권한 / writer 엔드포인트·TLS / valkey 엔드포인트) → OP env 주입 설계 확정 ③ BE팀 — sealed-secrets cert·SMTP ④ 협업자 UAT 차이 보고. 외부 트랙 다음 코드 작업 = 과제 D 키트 v5(`admin_import`), DB 생성 완료 통보 후 착수.
+
+## 작업 내역 (2026-09-27 — DBSUPPORT 티켓 진행 중·사내 SMTP 스펙 반영(키트 v4.4)·협업자 할 일 확정)
+
+- 리포 상태: main = #144(9/23 머지 확인), 라이브 델타 0.
+- **DB 자원**: DBSUPPORT JIRA 티켓이 발행되어 DB팀 담당자가 진행 중 — **티켓 번호는 internal-context §2-a에 기록(사내 Claude, 채팅 전달)**, 퍼블릭 리포 미기재. 아키텍처 Word 첨부 여부는 담당자 확인.
+- **사내 SMTP 스펙 수령(BE팀 9/23 Teams + Confluence 가이드)**: 릴레이 호스트:25, 무인증, DNS 이름 사용, 평문 세션 샘플(Python smtplib), 결과 판정 refused_recipients. **제약: KIC-QA는 방화벽으로 발송 불가(TCP는 붙으나 greeting 전 종료 — 해결에 시간), KIC-ST·KIC-OP는 접수 확인됨.** BE팀 담당 휴가 ~10/5(급한 건 Task Leader에게 같은 채널). 호스트·담당자명은 internal-context §2-d·§3(사내 전용).
+- **구현(키트 v4.4, 4파일: `config.js`·`mail/mailer.js`·`handlers/diagnostics.js`·`routes/get.js`)** — 설계 §8-12: `SMTP_IGNORE_TLS`(평문 세션)·`SMTP_TLS_REJECT_UNAUTHORIZED`(기본 false)·`SMTP_EHLO_NAME`·`MAIL_REPLY_TO`·타임아웃 30초 / **`MAIL_FORCE_SEND=true` = 비운영 환경에서 메일만 실발송**(ST SMTP 실측 창구, 텔레그램·Teams 억제 유지) / `sendMail`에 릴레이 응답(accepted·rejected·response) / **`mail_test`는 실발송 환경에서 관리자 토큰 필수 + `to=` 단일 @lge.com 옵션**(첫 실측을 담당자 3인 대신 본인 수신으로) / `mail_status` 필드 확장. 로컬 더미 SMTP(1025, 평문)로 토큰 게이트·to 검증·250 OK 접수·QA 콘솔 모드 확인. api-contract 갱신.
+- **적용 절차(브리핑 §3-g2)**: ST configmap에 SMTP env 6종 + `MAIL_FORCE_SEND=true` → 릴리스 → `mail_test&token&to=본인` → accepted 확인·수신함 확인 → OP에 같은 env(강제 변수 없이) → 동일 확인 → ST의 강제 변수 제거. **QA에는 SMTP env를 넣지 않는다.** 발신 주소는 `thinqreal-noreply@lge.com` 형태로 실측 후 릴레이 거부 시 BE팀 문의(휴가 후).
+- **협업자 할 일(uat-checklist에 표로 추가)**: ① 1~8단계 UAT 전부(QA) ② 차이 보고 ③ **현행 메일 5종 수신본 확보**(9단계 비교 기준) ④ 운영 전환 안내문 초안 ⑤ 9단계는 OP/ST에서 담당자 신호 후. UAT §9에 "QA 불가 → OP 또는 ST, OP는 [UAT] 접두+담당자 고지" 명시. 루트 CLAUDE.md 이관 상태 줄 갱신.
+- 다음: 담당자 — ST/OP SMTP 실측 결과(accepted·발신 주소 거부 여부·Outlook 렌더) / DB팀 회신(APP 계정 DDL 권한·엔드포인트) / 협업자 UAT 착수 신호.

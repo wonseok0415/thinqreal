@@ -36,8 +36,8 @@
 | `bookings` | `token` | 관리자 | `{records:[예약 객체 배열]}` — 개인정보 포함이라 토큰 필수 |
 | `roi_snapshots` | — | — | 스냅샷 목록 (최신순) + `reportPinnedId`(리포트 반영 지정 스냅샷 id — 2026-08-24, 비민감) |
 | `appliances` | — | — | `{count, items:[{category,name,model,maker}]}` (45개) |
-| `mail_status` | — | — | 메일 설정 + 남은 일일 할당량 (진단용) |
-| `mail_test` | — | — | 테스트 메일 1통 발송 |
+| `mail_status` | — | — | 메일 설정 + 남은 일일 할당량 (진단용). **컨테이너 확장(2026-09-27)**: `mailMode`(smtp\|console)·`smtpHost`·`smtpPort`·`ignoreTls`·`from`·`replyTo`·`forceSend` 추가 |
+| `mail_test` | `token`(실발송 환경), `to`(선택) | **실발송이 일어나는 환경(OP, 또는 `MAIL_FORCE_SEND=true`인 ST)은 관리자 토큰 필수** — 콘솔 모드(ST/QA 기본)는 토큰 불필요 | 테스트 메일 1통 발송. **컨테이너 확장(2026-09-27)**: `to`=@lge.com 단일 주소면 그 주소로만(CC 없음) — 첫 SMTP 실측을 본인 수신으로. 응답에 `from`·`accepted`·`rejected`·`response`(릴레이 응답, 가이드의 refused_recipients 대응) 추가. 무토큰 → `{success:false, error:'unauthorized'}` |
 | `monthly_report_preview` | `month=YYYY-MM` (생략 시 이번 달) | — | 리포트 HTML 렌더 + **상단 미리보기 배너** (2026-08-03 §8-6 — 발송 아님 명시) |
 | `monthly_report_send` | `month` (생략 시 전월) | — | **2단계 발송 (2026-08-03 §8-6)**: 파라미터 없음→확인 화면(수신자·기발송 경고·자동 발송 건너뛰기 체크박스·일회용 토큰 버튼 2종) / `confirm=<토큰>`→전체 발송(+`skipauto=1`이면 가드 키 기록) / `test=<토큰>`→`MONTHLY_REPORT_TEST_TO` 1인 테스트([테스트] 접두·무기록) / `confirm=YES` 레거시는 폐기·안내만. 토큰 10분·일회용 |
 | `auth_request` | `email` | — | `{ok:true, ttl:1200}` — @lge.com 한정, 코드 메일 발송 |

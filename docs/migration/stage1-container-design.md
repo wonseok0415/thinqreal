@@ -403,3 +403,16 @@ Gitea 저장소 원본 검수에서 **HPA min 2 레플리카**가 확인되어(�
 **구현**: `lib/htmlRewrite.js` — 정적 미들웨어 앞에서 `.html`(확장자 생략·`/` 포함) 요청을 가로채 `const SCRIPT_URL = 'https://script.google.com/…';` 한 줄을 `'/api'`(`FRONT_API_BASE`)로 치환해 서빙(mtime 캐시, `FRONT_REWRITE=off`로 해제). `public/`은 계속 라이브와 동일 사본 → 정적 동기화는 "복사"만으로 끝나고 전환 시점의 수동 편집 단계가 사라진다. `auth/codes.js` `peekCode` + GET `auth_code_peek`(outboundSuppressed 환경만, OP 404) — 발송 억제 환경에서 LENS 로그 없이 UAT용 인증 코드를 확인.
 **검증**: index/admin/확장자 생략/루트 모두 `SCRIPT_URL = '/api'`, `script.google.com` 0건 / privacy(치환 대상 없음) 200 / 없는 파일 404 / QA 모드 `admin_auth_request` → `auth_code_peek` 코드 반환 / OP 모드 peek 404.
 **⚠ 스펙 대비 변경**: §3·§7 TODO의 "전환 시점에 프론트 `SCRIPT_URL` 3곳 수동 교체"를 **서빙 시 자동 치환**으로 대체. 이유는 위 발견(사내 환경이 라이브 백엔드를 호출) + 라이브 사본 무수정 유지의 운영 이점. 방문자 설문(`ThinQ_Real_Visitor_Survey.html`)도 컨테이너에서는 `/api`를 향하나, 외부 방문객은 GitHub Pages 사본(하이브리드 에지)을 쓰므로 무관.
+
+### 8-12. 사내 SMTP 적용 — 릴레이(25/무인증) 대응 + 메일 전용 강제 발송 + mail_test 토큰 게이트 (2026-09-27, 키트 v4.4)
+
+**입력**: BE팀 SMTP 가이드(2026-09-23 수령 — 값은 internal-context §2-d): 사내 릴레이 호스트:25, 인증 없음, IP 대신 DNS 이름, 샘플은 평문 SMTP 세션(EHLO → send). 제약: **KIC-QA는 TCP 연결 후 greeting 전에 서버가 끊어 발송 불가**(TCN↔SMTP 방화벽, 해결에 시간 소요), **KIC-ST·KIC-OP는 접수 확인됨**. 결과 판정은 refused_recipients(빈 dict = 접수).
+**구현**:
+- `config.smtp`에 `ignoreTls`(`SMTP_IGNORE_TLS=true` → STARTTLS 미시도, 가이드 샘플과 동일한 평문 세션) · `rejectUnauthorized`(`SMTP_TLS_REJECT_UNAUTHORIZED`, 기본 false — 사내 자체 서명 허용) · `ehloName`(`SMTP_EHLO_NAME`) · `replyTo`(`MAIL_REPLY_TO`) 추가, 연결·greeting 타임아웃 30초.
+- `config.mailForceSend`(`MAIL_FORCE_SEND=true`): 비운영 환경에서 **메일만** 실발송(텔레그램·Teams 억제 유지) — ST에서 SMTP 실측하는 창구. `OUTBOUND_FORCE_SEND`는 전체 해제라 이 용도로 쓰지 않는다.
+- `sendMail` 결과에 릴레이 응답(`accepted`/`rejected`/`response`) 동봉 + 로그. `replyTo` 헤더 부착(noreply 발신일 때 담당자 창구).
+- `mail_test`: 실발송 환경(OP, 또는 MAIL_FORCE_SEND ST)은 **관리자 토큰 필수**(SSO 뒤라도 아무나 담당자 3인에게 메일을 쏘지 못하게), `to=` 단일 @lge.com 주소 옵션(CC 없음). `mail_status`에 port·ignoreTls·from·replyTo·forceSend 노출.
+**검증(로컬, 더미 SMTP 127.0.0.1:1025 평문)**: kic-st + MAIL_FORCE_SEND → `mail_status` smtp 모드 / 무토큰 `unauthorized` / `to=외부주소` `invalid_to` / 토큰+`to=본인` → `accepted:[본인] rejected:[] response:"250 OK"` / kic-qa(강제 없음) → console 모드, 토큰 불필요, 실발송 없음.
+**OP 적용 env(비밀 아님 — configmap)**: `SMTP_HOST=<릴레이 DNS>` `SMTP_PORT=25` `SMTP_SECURE=false` `SMTP_IGNORE_TLS=true` `MAIL_FROM=<발신 주소>` `MAIL_REPLY_TO=<담당자 창구>`. USER/PASS 없음.
+**미결(BE팀 휴가 후 10/6~)**: ① 발신 주소 정책 — 가이드 샘플은 앱별 noreply 주소(`*-noreply@lge.com`)라 `thinqreal-noreply@lge.com` 형태로 실측(릴레이가 발신을 거부하면 `rejected`/에러로 드러남), 정식 등록 필요 여부 확인 ② 일 발송 한도·첨부 크기(월간 리포트 PNG 인라인) ③ QA 방화벽 해결 시점 — 그 전까지 UAT §9(메일)는 OP 또는 ST(MAIL_FORCE_SEND)에서.
+**⚠ 스펙 대비 변경**: §4 env 표의 `SMTP_USER/PASS` 전제(인증 SMTP)를 **무인증 릴레이 기본**으로 전환 — 사유는 가이드. 인증 변수는 남겨 두어 정책 변경 시 재사용.

@@ -41,8 +41,8 @@ export function createGetRouter(store) {
           return res.json(handleGetAppliances());
         case 'mail_status':
           return res.json(handleMailStatus());
-        case 'mail_test':
-          return res.json(await handleMailTest());
+        case 'mail_test': // 실발송 환경은 관리자 토큰 필수, to= 단일 주소 옵션 (2026-09-27)
+          return res.json(await handleMailTest(q));
         case 'monthly_report_preview': {
           // 현행과 동일하게 HTML 본문을 브라우저에 그대로 렌더 (유일한 non-JSON 응답)
           const r = await handleMonthlyReportPreview(store, q);
