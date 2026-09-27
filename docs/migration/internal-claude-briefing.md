@@ -11,7 +11,7 @@
 | 프론트 | GitHub Pages 정적 HTML 6종 (`thinqreal.com`) | 같은 HTML을 컨테이너가 `public/`으로 서빙 |
 | 백엔드 | Google Apps Script (`?type=...` GET 19종 + POST 30종) | Node 22 + Express `src/` — **API 계약 100% 동일** (`/api?type=...`) |
 | 데이터 | Google Sheets 탭 14종 | PostgreSQL 테이블 14종 (기동 시 자동 생성·진화) + Valkey(캐시·락) |
-| 메일·알림 | Gmail(Apps Script) + 텔레그램 | SMTP(사내 스펙 대기) — ST/QA는 실발송 억제(콘솔 로그) |
+| 메일·알림 | Gmail(Apps Script) + 텔레그램 | **사내 SMTP 릴레이(25/무인증 — 스펙 9/23 수령, 값은 internal-context §2-d)** — ST/QA는 실발송 억제(콘솔 로그), ST는 `MAIL_FORCE_SEND=true`로 메일만 실측 가능. **QA는 방화벽 문제로 SMTP 발송 불가(BE팀 확인)** |
 | 일일 자동 작업 | Apps Script 시간 트리거 | **인앱 스케줄러**(07:40 점검 요약 / 08:30 월간 리포트·설문 초대) — K8s CronJob 불필요 |
 | 인증 | 앱 자체 이메일 코드(HMAC 토큰) | 당분간 동일 + 전면에 사내 SSO(MS Entra ID, ops-gateway) |
 | 주소 | `thinqreal.com` | **`thinqreal.lge.com`** = OP (사내망 전용, 9/18 CSR 반영 — 구 `kic-op-…thinqcloud.link` URL은 제거됨). ST/QA는 thinqcloud.link 주소 유지 |
@@ -26,7 +26,7 @@
 - **⚠ 9/21 발견·조치**: 키트 반입 `public/`이 라이브 사본이라 ST/QA/OP 페이지가 **라이브 Apps Script를 호출**하고 있었음(전환 시점 교체 계획의 부작용). 키트 v4.1로 해소 — 컨테이너가 HTML 서빙 시 `SCRIPT_URL`을 `/api`로 자동 치환(`lib/htmlRewrite.js`), `public/`은 라이브 사본 유지. 함께 `auth_code_peek`(ST/QA 전용 인증 코드 조회 — LENS 불필요). **키트 v4.1 = 0.13.0 배포·QA 실측 통과(9/22: 시크릿 창 소스에서 `SCRIPT_URL = '/api'`, `auth_code_peek` 응답 정상) → QA 준비 완료, UAT 개시 가능.** 소스 보기는 캐시된 옛 페이지를 보여줄 수 있으니 확인은 시크릿 창에서. **9/22 후속(키트 v4.2·v4.3 = 0.14.0·0.15.0)**: 관리자 로그인 "코드 불일치"는 레플리카 문제가 아니라(`kv:shared`) 옛 코드 재사용(응답 캐시 또는 [코드 요청] 재클릭으로 코드 갱신)이었음 — API 응답 `no-store`·HTML `no-cache`·peek에 `pod/kv` 추가로 조치, **담당자 로그인 통과 → UAT 0-3 종결, 협업자 인계 가능.**
 - **오픈 목표: 2026년 11월(잠정, 담당자 결정 9/21)** — JIRA 오픈 예정 일정 칸에 기재. 자원 생성(수 주) → SMTP → QA 리허설 → 전환.
 - **남은 코드 과제**: **과제 D — 시트→DB 데이터 이행**(전환 직전 1회, 외부 트랙이 키트 제작 예정. OP DB는 수작업 접근이 전용 매체(DB-i/TAAgent)로만 가능하므로 이행은 앱 컨테이너 경유가 기본 설계) + 전환(프론트 `SCRIPT_URL` → `/api`, CSR 등록).
-- **BE팀 대기**: 사내 SMTP 스펙(9/18 "차주") / sealed-secrets cert 파일(요청). CSR 반영 완료(9/18 — OP 주소 `thinqreal.lge.com`, 실측 대기). SSO 예외는 게이트웨이 반영 완료(9/17). 확인된 사실: 예외 경로에 게이트웨이 rate limit 없음(앱이 제한), 예외 경로에는 `x-user-id`가 붙지 않음 → **`/pub`에서 x-user-id 절대 신뢰 금지**(3종 모두 사용자 식별 불필요라 무영향).
+- **BE팀 대기**: ~~사내 SMTP 스펙~~ → **9/23 수령·9/27 반영(키트 v4.4, §3-g2)** / sealed-secrets cert 파일(요청). **BE팀 담당(박현정 책임) 휴가 ~10/5 — 그 전 급한 문의는 BE Architecture개선Task 팀장(Task Leader)에게 같은 채널로**(이름은 internal-context §3). CSR 반영 완료(9/18 — OP 주소 `thinqreal.lge.com`, 실측 대기). SSO 예외는 게이트웨이 반영 완료(9/17). 확인된 사실: 예외 경로에 게이트웨이 rate limit 없음(앱이 제한), 예외 경로에는 `x-user-id`가 붙지 않음 → **`/pub`에서 x-user-id 절대 신뢰 금지**(3종 모두 사용자 식별 불필요라 무영향).
 
 ## 3. OP 전환에 필요한 사내 절차 지도 (왜·순서·상태)
 
@@ -40,6 +40,7 @@
 | e | **CSR — `thinqreal.lge.com` → ops-gateway** | 운영 도메인이 현재 GitHub Pages IP를 가리킴 → OP로 변경 | CNAME 등록(9/17) → BE팀 반영(9/18) → **담당자 실측 통과(9/20)**: `thinqreal.lge.com` = OP 실제 호스트, `/healthz` postgres · `/` SSO · 시크릿 창 예외 5종 적용(`/pub` → not_found) | ✅ 완료 |
 | f | **SSO 예외 경로** | 외부 방문객·장비 경로 개통 | `/api`→`/pub` 분리(9/16) → BE팀 게이트웨이 설정 완료 → **ST 실측 통과(9/17: 예외 5종 로그인 없이 열림, 루트는 SSO 유지)**. 앱 `/pub` 분당 60건/IP 제한(키트 v3.2). **⚠ 신규 발견: `thinqcloud.link`는 사내 전용 DNS(사외 NXDOMAIN)** → SSO 예외만으로는 외부 방문객 QR 경로가 성립하지 않음. `thinqreal.lge.com`의 사외 접속 가능 여부를 BE팀에 문의(§3-i) | SSO 예외 ✅ / 사외 노출 확인 중 |
 | g | **OP env 주입** | a~d의 접속정보 + AUTH_SECRET 등 앱 비밀값을 Vault 경유로 컨테이너에 | a~d 완료 후 | — |
+| g2 | **사내 SMTP 적용** (키트 v4.4) | 릴레이 25/무인증. env 6종(비밀 아님 — configmap): `SMTP_HOST`(릴레이 DNS, internal-context §2-d) `SMTP_PORT=25` `SMTP_SECURE=false` `SMTP_IGNORE_TLS=true` `MAIL_FROM` `MAIL_REPLY_TO`. USER/PASS 없음 | **실측 순서**: ① ST deploy에 위 env + `MAIL_FORCE_SEND=true` → 릴리스 → 관리자 토큰으로 `…/api?type=mail_test&token=<토큰>&to=<본인메일>` → 응답 `accepted:[본인] rejected:[]`·수신함 확인(발신 표시 'ThinQ Real', 회신 주소) ② 통과 시 OP deploy에 같은 env(강제 발송 변수 없이) → OP에서 같은 호출 ③ 발신 주소가 릴레이에 거부되면(`rejected`/에러) BE팀에 발신 주소 정책 문의. **QA는 방화벽으로 불가(BE팀 확인) — QA에 SMTP env 넣지 말 것.** 실측 끝나면 ST의 `MAIL_FORCE_SEND` 제거(ST 예약 데이터로 초대 메일이 실발송되지 않게) | **코드 준비 완료(9/27), ST 실측 대기** |
 | h | **과제 D 이행 + 전환** | 실데이터 이행 → 프론트 API 주소 교체 → 전환일 동결 | g 완료 + 외부 트랙 키트 | — |
 | i | **외부 접점 처리 — 하이브리드 에지** (⚠ 외부 접점은 담당자 개인 Google·GitHub 계정 기반 — 팀 공유 사항. `thinqreal.com` 만료 시 QR 주소만 영향: CNAME 삭제 + 포스터 교체, decisions §6-7) | OP도 사내 전용 DNS 확인(9/17). 담당자 판단: `thinqreal.lge.com` 사외 노출은 B2E 취지상 불가 전제 / FieldCheck 장비는 **사외 Wi-Fi**(의도적) / 방문객은 귀가 후에도 설문 작성 → 태블릿 대안 불가 | **설계 확정(설계서 §8-10)**: 외부 접점(방문객 설문 페이지·`visitor_submit`·`health_check`·`voc_report`)은 **현행 공개 인프라(GitHub Pages + Apps Script + 시트)에 그대로 두고, 사내 컨테이너 스케줄러가 주기적으로 pull**해 PG에 병합. 성립 조건 = pod → script.google.com 아웃바운드 → `egress_check`로 실측(키트 v3.3). BE팀 문의: pod 아웃바운드/프록시, 공식 외부 진입점 패턴 유무 | **최종 설계 확정(9/18 BE팀 답변 — decisions §6-8)**: 아웃바운드는 정책상 제한 없음, 외부 진입점은 등급 상승 부담으로 **추진 안 함** → 하이브리드 에지가 최종. 1단계 실증 완료(0.12.0, health 21건). **2단계(`LEGACY_AUTH_SECRET`)는 cert 확보 대기 — 담당자 지시로 일시 중지(9/20)**: kubeseal 0.40.0 설치됨, `--fetch-cert`는 kubectl 부재로 불가, deploy/ 기존 SealedSecret 3종에 컨트롤러 정보 없음 → BE팀에 cert 파일 요청. 재개 시 `--cert <파일>`로 암호화 → 매니페스트 1줄 → `chore:` 커밋 → 파드 재기동 → `edge_sync_now`에서 visitors·voc 확인 |
 

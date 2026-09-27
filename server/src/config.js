@@ -101,6 +101,12 @@ export const config = {
     sslmode: env('DB_SSLMODE', 'disable'),
   },
 
+  // 사내 SMTP(BE팀 가이드 2026-09-23): 릴레이 호스트:25, 무인증, DNS 이름 사용. 값은 internal-context §2-d(사내 전용).
+  //  - SMTP_IGNORE_TLS=true  → STARTTLS 시도 안 함(가이드 샘플과 동일한 평문 세션 — 사내망 릴레이 전제)
+  //  - SMTP_TLS_REJECT_UNAUTHORIZED=false(기본) → STARTTLS가 붙더라도 사내 자체 서명 인증서 허용
+  //  - SMTP_EHLO_NAME → EHLO 호스트명(미설정 시 nodemailer 기본 = pod 호스트명)
+  //  - MAIL_FROM(발신 주소 — 릴레이 정책 확인 필요) / MAIL_REPLY_TO(회신 주소 — noreply 발신일 때 담당자 창구)
+  //  - MAIL_FORCE_SEND=true → 비운영 환경에서 **메일만** 실발송(텔레그램·Teams 억제는 유지) — ST SMTP 테스트 창구
   smtp: {
     host: env('SMTP_HOST'),
     port: Number(env('SMTP_PORT', '587')),
@@ -108,7 +114,12 @@ export const config = {
     user: env('SMTP_USER'),
     pass: env('SMTP_PASS'),
     from: env('MAIL_FROM', 'thinqreal@example.com'),
+    replyTo: env('MAIL_REPLY_TO'),
+    ignoreTls: env('SMTP_IGNORE_TLS') === 'true',
+    rejectUnauthorized: env('SMTP_TLS_REJECT_UNAUTHORIZED') === 'true',
+    ehloName: env('SMTP_EHLO_NAME'),
   },
+  mailForceSend: env('MAIL_FORCE_SEND') === 'true',
   adminAlertTo: env('ADMIN_ALERT_TO', 'ch275.lee@lge.com, moonsu.seo@lge.com, hj8462.kim@lge.com'),
   adminAlertCc: env('ADMIN_ALERT_CC', 'kang.wonseok@lge.com'),
   // 점검 결과(FieldCheck) 전용 수신자 — 담당자 3명 + 팀장 (2026-09 .gs FC_REPORT_EMAILS 이식).
