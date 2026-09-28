@@ -541,3 +541,20 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **⚠ 즉시 조치 권고 — OP `JOBS_DISABLED=true`**: OP에 SMTP가 살아난 순간부터 OP 컨테이너의 인앱 스케줄러가 실메일을 보낼 수 있다. ① 07:40 FieldCheck 일일 요약은 **점검 기록이 없어도 "점검 기록 없음" 메일을 발송**(`FC_TEST_MODE=true`라 운영자 1인 수신) — 현행 Apps Script와 **중복** ② 08:30 설문 초대는 OP DB의 테스트 예약(확정·방문일 경과·@lge.com)에 실발송 ③ 10/7(첫째 수요일) 월간 리포트(`MONTHLY_REPORT_TO` 미설정이라 스킵 예상이나 미검증) ④ edge-sync 10분 pull은 무해하나 전환 전 OP에서는 불필요. → **전환일까지 OP configmap에 `JOBS_DISABLED=true`**(`index.js`가 스케줄러 자체를 띄우지 않음 — 일일 잡·간격 잡 모두 정지). 전환 D-day 체크리스트에 "OP `JOBS_DISABLED` 제거 + 현행 Apps Script 트리거 삭제"를 세트로.
 - **DB 생성 전 선행 가능 작업(외부 트랙 판단)**: ⓐ **과제 D 키트 v5(`admin_import` + 관리자 「데이터 이행」 패널 + 스냅샷 추출)** — OP DB와 무관하게 구현·**QA 리허설**까지 가능(QA는 PostgreSQL 가동 중). 설계 §8-9 선행조건 중 SMTP·SSO는 충족, OP 자원은 D-day 적재에만 필요 → **착수 가능, 가장 큰 항목** ⓑ 전환(cutover) 계획서 초안 — 동결·이행·검증·안내·롤백·현행 트리거 정지·QR/CNAME 처리 순서 ⓒ 협업자 UAT 1~8 착수(담당자 신호만) ⓓ Vault secret store(절차 c) — DB와 독립, 사내 절차 ⓔ 접속 계정 DBSUPPORT JIRA(절차 d)는 DB 생성 후. 대기: cert(2단계·Teams 웹훅·캘린더 SA 주입), DB팀 회신.
 - **사내 Claude에서 확인받을 사항(담당자 캡처 요청)**: ① Gitea `Dockerfile` 전문(WORKDIR·COPY 순서 — `/healthz version unknown` 원인, APP_VERSION 주입 지점) ② `.gitea/workflows/*.yaml` 릴리스 단계(버전 번호 산출·태그·package.json 갱신 여부·env별 배포 트리거) ③ `deploy/` 트리(base·overlay 파일 목록)와 각 configmap의 **키 이름만**(값 제외) ④ internal-context.md 목차(§2-a 티켓 번호·§2-d SMTP 반영 확인) ⑤ 현재 ST/QA/OP 릴리스 번호(Actions 최신 release 커밋) ⑥ `git log --oneline -15` (사내 커밋 이력 동기화용).
+
+## 작업 내역 (2026-09-28 후속 7 — DBSUPPORT 티켓 1차 회신 대응 + OP 스케줄러 정지 완료)
+
+- **OP `JOBS_DISABLED=true` 반영 완료**(사내 Claude 실행, 담당자 확인) — 전환일까지 OP 인앱 스케줄러 정지(실메일 중복 방지). D-day 체크리스트에 "제거 + 현행 Apps Script 트리거 삭제" 세트 예정.
+- **DB팀 1차 회신(티켓 번호는 internal-context §2-a)** 4건과 담당자 회신(외부 트랙 작성):
+  ① 자원 구성 → **PRD만** 생성(DEV/QA는 BE팀 공용 자원 사용 중)
+  ② 네이밍 → 인프라 표준 네이밍 수용(서비스명 하이픈 제거 형태 — 앱은 env로 주소를 받으므로 무영향, 확정명은 internal-context §2-a·§2-b 갱신 대상)
+  ③ 스펙 → 표준 db.r6g.large 대신 요청대로 **db.t4g.medium 수용**(수천 행·동시 접속 10 이하·읽기 위주 — 근거 회신), 오픈 전 Multi-AZ 별도 요청 유지
+  ④ Extension → **없음**(표준 SQL·TEXT·BIGSERIAL만)
+  + 담당자가 덧붙인 확인 요청 3건: UTF-8 인코딩 / **APP 계정의 CREATE·ALTER 권한**(기동 시 자동 스키마 — 불가 시 MGR 1회 기동 후 APP 전환) / 완료 시 writer 엔드포인트·포트·TLS 방식·Valkey 엔드포인트 전달.
+- 담당자 이해용 설명 기록: 테이블=시트 탭 1:1(14개), 앱이 기동 시 자동 생성·확장(현행 Apps Script의 탭 자동 생성 승계) → APP 계정 DDL 권한 유무에 따라 첫 기동 절차만 달라짐(권한 있음: 무조치 / 없음: MGR로 1회 기동 후 env 2줄 교체 — 이후 컬럼 추가 키트마다 MGR 기동 규칙 발생).
+- 다음: DB팀 2차 회신(권한·엔드포인트) → 접속 계정 DBSUPPORT JIRA(절차 d) → OP env 주입(g, cert 필요). 병행: 과제 D 키트 v5 착수 여부는 담당자 신호.
+
+## 작업 내역 (2026-09-28 후속 8 — 전환 계획서 `cutover-plan.md` v0.1 초안 + Multi-AZ 항목)
+
+- 담당자 질문 "Multi-AZ 전환이 요청서에 있었나" → DB팀 템플릿 가이드 문구(개발 중 PRD/Single → 오픈 전 PRD/Multi-AZ 추가 요청)이지 담당자 기재가 아님. 의미(다른 가용 영역 대기 인스턴스·자동 failover, 비용 ≈ 인스턴스 2대, Aurora 저장소는 어차피 3AZ 복제라 "멈춤 시간" 차이)와 판단(PRD 표준 준수 권고, 비용 소폭) 설명. 담당자 결정: **전환 계획서에 항목으로 넣는다.**
+- **`cutover-plan.md` v0.1 신설**(선행 가능 작업 ⓑ): §0 전제(외부 접점 유지·시트 읽기 전용 보존·한쪽만 켜기) / §1 T-4주~D+7 일정표(**Multi-AZ 요청 = T-1주**, 리허설 후·전환 작업과 안 겹치게) / §2 D-day 10단계(동결→스냅샷→적재→검증→현행 트리거 삭제→OP `JOBS_DISABLED` 제거→현행 사이트 안내→발송→첫 실거래→기록, 단계별 되돌리기) / §3 기능별 스위치 표 / §4 역할 / §5 D-1 사전 조건 / §6 rollback / §7 미결 5건. 브리핑 §3-h·루트 CLAUDE.md 문서 목록에 등재. 담당자 검토 전 초안.
