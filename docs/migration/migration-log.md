@@ -585,3 +585,9 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - 담당자 실측: 키트 v4.7·v4.8 → **0.17.0 릴리스·OP pod 교체 확인**. `/healthz version` 여전히 `unknown` → Gitea package.json에 version 필드 없음 확정(v4.7 폴백 전부 실패) — deployment `version:` 줄 위치 답변 대기(downward API로 해결 예정). OP `env_keys`는 저장 토큰으로 **`bad_signature` 재발**(9/28에 이어 두 번째, 둘 다 롤아웃 직후).
 - 판독: 서명 키의 유일한 저장소가 Valkey라 (a) 키 유실 시 새 키 생성 → 기존 토큰 전부 무효 (b) 부트 직후 연결 실패 시 조용히 pod별 임시 키 폴백. **구현(키트 v4.9, `auth/secret.js`·`lib/kvcache.js`·`index.js`·`app.js`)**: 저장소 app_state 영속 원본 + Valkey 원자적 중재 + 재시도·백그라운드 수렴 + 60초 재대조 + `/healthz authSecret`. 설계 §8-14(⚠ 스펙 대비 변경), api-contract.
 - 담당자 즉시 조치: OP 관리자 페이지 **재로그인**으로 새 토큰(현 상태에선 pod마다 키가 다를 수 있어 호출이 간헐 실패 — 새로고침 재시도). 키트 v4.9는 `fix:` 접두로 적용(0.17.1) → 롤아웃 후 `/healthz` `authSecret:"db"` 두 pod 확인 + 기존 토큰 유지 확인. `JOBS_DISABLED` 반영 여부는 이 롤아웃 뒤 `env_keys`로.
+
+## 작업 내역 (2026-09-29 후속 3 — 키트 v4.9 사내 반영, push rejected 원인, 담당자 치트시트 신설)
+
+- 사내: 키트 v4.9 push 완료(사내 Claude가 `git rebase origin/main`으로 해결) → 0.17.1 릴리스 예상. **push rejected(fetch first) 원인 확정**: 직전 push의 릴리스 봇이 `chore: release` 커밋을 main에 먼저 올려서 다음 push가 non-fast-forward가 됨 — 정상 현상. 표준 해법 `git pull --rebase origin main && git push origin main` 한 줄, 사내 Claude 프롬프트에 push 명령을 이 형태로 달라고 명시.
+- 담당자 요청 "반복 작업 복붙표" → **`ops-cheatsheet.md` v1** 신설: A 사내 PC 명령(미러 pull·rejected 해결) / B 환경별 주소표(healthz·mail_status·env_keys·egress·peek·request·verify·mail_test)와 토큰 얻기·로그인 순서 / C 사내 Claude 프롬프트 템플릿 5종(키트 적용·configmap 변경+config-rev·저장소 확인·internal-context 갱신·막힘) / D 릴리스 후 3분 루틴 / E 규칙 요약. 루트 CLAUDE.md 문서 목록 등재.
+- 대기: 0.17.1 롤아웃 후 OP `/healthz authSecret:"db"`(두 pod)·기존 토큰 유지·`env_keys`의 `JOBS_DISABLED`.
