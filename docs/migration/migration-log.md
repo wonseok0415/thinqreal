@@ -579,3 +579,9 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - `version:"unknown"` 원인: Gitea package.json에 version 필드 부재(워크플로도 갱신 안 함) — 키트 v4.7 `APP_VERSION` env로 해결: deployment.yaml pod template에 downward API(`metadata.labels['app.kubernetes.io/version']` 등 sed가 갱신하는 `version:` 줄이 pod 라벨이면) 또는 워크플로 build-arg. 사내 Claude에 `version:` 줄의 정확한 위치 확인 요청.
 - 사내 측 소스 수정 발견: `fix: SMTP_PORT 기본값 25`(0.15.1) — GitHub `config.js` 기본값도 25로 정합(이번 커밋). 원칙: 사내 측 소스 수정은 보고 후 GitHub에 역반영해 키트 복사가 되돌리지 않게.
 - OP secret `thinq-real-db-svc`(SealedSecret 6키)는 현재 BE 제공 DB — Aurora 전환 시 재봉인 필요 → cert가 OP DB 전환의 선행조건으로 격상(브리핑 §2 대기 항목).
+
+## 작업 내역 (2026-09-29 후속 2 — 0.17.0 롤아웃 확인, `version:unknown` 확정, `bad_signature` 재발 → 서명 키 영속화(키트 v4.9))
+
+- 담당자 실측: 키트 v4.7·v4.8 → **0.17.0 릴리스·OP pod 교체 확인**. `/healthz version` 여전히 `unknown` → Gitea package.json에 version 필드 없음 확정(v4.7 폴백 전부 실패) — deployment `version:` 줄 위치 답변 대기(downward API로 해결 예정). OP `env_keys`는 저장 토큰으로 **`bad_signature` 재발**(9/28에 이어 두 번째, 둘 다 롤아웃 직후).
+- 판독: 서명 키의 유일한 저장소가 Valkey라 (a) 키 유실 시 새 키 생성 → 기존 토큰 전부 무효 (b) 부트 직후 연결 실패 시 조용히 pod별 임시 키 폴백. **구현(키트 v4.9, `auth/secret.js`·`lib/kvcache.js`·`index.js`·`app.js`)**: 저장소 app_state 영속 원본 + Valkey 원자적 중재 + 재시도·백그라운드 수렴 + 60초 재대조 + `/healthz authSecret`. 설계 §8-14(⚠ 스펙 대비 변경), api-contract.
+- 담당자 즉시 조치: OP 관리자 페이지 **재로그인**으로 새 토큰(현 상태에선 pod마다 키가 다를 수 있어 호출이 간헐 실패 — 새로고침 재시도). 키트 v4.9는 `fix:` 접두로 적용(0.17.1) → 롤아웃 후 `/healthz` `authSecret:"db"` 두 pod 확인 + 기존 토큰 유지 확인. `JOBS_DISABLED` 반영 여부는 이 롤아웃 뒤 `env_keys`로.

@@ -5,8 +5,8 @@ import { getStore } from './store/index.js';
 import { createApp } from './app.js';
 import { startScheduler } from './lib/scheduler.js';
 
-await initSharedAuthSecret(); // KVSTORE_ADDR 있으면 전 레플리카 공유 서명 키 확보 (auth/secret.js)
 const store = await getStore();
+await initSharedAuthSecret(store); // 서명 키: env → 저장소 app_state(영속) → Valkey(원자적 생성) → 임시(백그라운드 수렴) (auth/secret.js)
 const app = createApp(store);
 
 app.listen(config.port, () => {

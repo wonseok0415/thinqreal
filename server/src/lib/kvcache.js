@@ -73,16 +73,28 @@ export async function kvDel(key) {
   await c.del(k(key));
 }
 
-/** 없으면 생성해 영구 저장(SET NX) — 전 레플리카가 같은 값을 보게 함 (AUTH_SECRET 공유 등). */
-export async function kvGetOrSet(key, producer) {
-  const c = await shared();
-  if (!c) return producer();
+/** 없으면 생성해 영구 저장(SET NX) — 전 레플리카가 같은 값을 보게 함 (AUTH_SECRET 공유 등).
+ *  Valkey에 붙지 못하면 **null**을 돌려준다(폴백 생성 금지) — 호출자가 재시도해 수렴하게 (auth/secret.js).
+ *  연결 실패 캐시(degradedWarned)를 무시하고 매번 다시 붙어 본다 — 부트 직후 일시 실패가 굳지 않도록. */
+export async function kvGetOrSetShared(key, producer) {
+  if (!config.kvstore.addr) return null;
+  let c;
+  try {
+    c = await getClient();
+  } catch {
+    return null;
+  }
   const existing = await c.get(k(key));
   if (existing) return existing;
   const value = producer();
   const won = await c.set(k(key), value, { NX: true });
   if (won) return value;
-  return (await c.get(k(key))) || value;
+  return (await c.get(k(key))) || null;
+}
+
+/** 구 API — 연결 실패 시 producer() 폴백(공유 안 됨). 서명 키에는 쓰지 말 것 → kvGetOrSetShared. */
+export async function kvGetOrSet(key, producer) {
+  return (await kvGetOrSetShared(key, producer)) ?? producer();
 }
 
 /** 일일 잡 락 — SET NX EX. true = 이 인스턴스가 락 획득 (해당 키로는 유일한 실행자).

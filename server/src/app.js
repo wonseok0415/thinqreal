@@ -6,6 +6,7 @@ import { createPostRouter, PUB_TYPES } from './routes/post.js';
 import { createRateLimiter } from './lib/rateLimit.js';
 import { createHtmlRewrite } from './lib/htmlRewrite.js';
 import { kvStatus } from './lib/kvcache.js';
+import { authSecretSource } from './auth/secret.js';
 import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -58,8 +59,10 @@ export function createApp(store) {
   // K8s liveness/readiness
   // kv: shared 여야 멀티 레플리카에서 인증 코드·토큰 서명 키가 pod 간 공유된다 (degraded/memory면 로그인이 pod에 따라 어긋남)
   // version·env: 릴리스가 실제로 이 환경에 롤아웃됐는지(configmap만 바꾸면 pod는 재시작되지 않음 — 2026-09-28 OP SMTP env 미반영 진단)
+  // authSecret: env(명시 주입) | shared(Valkey 공유) | temp(pod별 임시 → 이 pod가 발급·검증하는 토큰이 다른 pod와 어긋남 — bad_signature 원인)
   app.get('/healthz', (req, res) => res.json({
     ok: true, backend: store.backend, kv: kvStatus(), pod: os.hostname(), version: appVersion, env: config.environment || 'local',
+    authSecret: authSecretSource(),
   }));
 
   // API — 단일 경로 + type 라우팅 (api-contract.md 계약 불변)
