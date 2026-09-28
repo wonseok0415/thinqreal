@@ -534,3 +534,4 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - 중간에 나온 `env_keys` `bad_signature`는 토큰 출처(현행 사이트 탭의 동일 localStorage 키) 또는 pod 간 서명 키 문제 후보였으나, 이후 OP 토큰 호출이 정상 통과해 재현되지 않음 — OP `/healthz` `kv` 값은 다음 기회에 확인(shared여야 함).
 - **키트 v4.7(`app.js`)**: `/healthz` `version`이 ST·OP에서 `unknown` → 사내 이미지의 package.json 위치가 설계 Dockerfile과 다른 것으로 추정. 해결 순서 `APP_VERSION` env → `npm_package_version` → package.json 후보 3경로(../, cwd, src/, /app). 다음 키트에 동봉(단독 적용 불필요).
 - 상태: SMTP 건 종결 → UAT 9단계(메일)는 OP에서 수행 가능(uat-checklist §9 메모). 남은 확인: ST configmap의 `MAIL_FORCE_SEND` 제거 여부, OP `/healthz` kv.
+- **후속 확인 완료(같은 날)**: OP `/healthz` `kv:shared`(pod 간 서명 키 공유 정상 — `bad_signature`는 토큰 출처 문제로 종결) / ST `mail_status` `forceSend:false`(`MAIL_FORCE_SEND` 제거 확인). **SMTP 트랙 열린 항목 0.** 브리핑 §3-g2의 "ST MAIL_FORCE_SEND 제거 확인 필요"는 해소.
