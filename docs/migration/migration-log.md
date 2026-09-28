@@ -512,3 +512,11 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - 담당자 실측: 키트 v4.4 적용 후 ST에서 `mail_test&token&to=본인` → **성공**(릴레이 접수·수신). 사내 SMTP 릴레이(25/무인증/평문) + `thinqreal-noreply@lge.com` 발신이 ST에서 동작 확인 — 발신 주소 정책 문의는 현재 불필요(거부되면 재론).
 - 다음(담당자): ① OP configmap에 같은 env 6종(`MAIL_FORCE_SEND` 없이 — OP는 원래 실발송) → 릴리스 → OP `mail_test&token&to=본인` ② 통과 후 ST의 `MAIL_FORCE_SEND=true` 제거(ST 예약 데이터로 초대·리포트 메일이 실발송되지 않게). ③ OP 통과 시 UAT 9단계 환경·시점 지정 가능. 브리핑 §3-g2 상태 갱신.
 - 미결 유지: 일 발송 한도·첨부 크기(월간 리포트 PNG cid) — OP 6-4 테스트 발송으로 확인, 문제 시 BE팀(휴가 후).
+
+## 작업 내역 (2026-09-28 후속 3 — ⚠ OP SMTP env 미반영: 진단용 `/healthz` version·env 추가 (키트 v4.5))
+
+- 담당자 실측: OP configmap에 SMTP env 6종 추가 후 `mail_test` → `ok:true`이지만 메일 미도착. `mail_status` = `mailMode:console`·`smtpHost:미설정`·`smtpPort:587` → **OP pod가 새 env를 읽지 않음**(콘솔 모드의 ok:true는 실발송 아님). 1차 가설 "configmap만 바뀌면 pod 미재시작" → 새 릴리스로 rollout 유도 → **여전히 console** (pod 교체 여부는 미확인).
+- 남은 후보: ⓐ 릴리스가 OP에 롤아웃되지 않음(ArgoCD OP 자동 sync 아님 / 릴리스가 OP 대상 아님) ⓑ env를 넣은 파일이 OP deployment가 참조하는 configmap이 아님(overlay 경로·이름 불일치, 또는 deployment가 envFrom이 아니라 명시 env 키만 주입 — ST에서 어떻게 넣었는지와 diff 필요) ⓒ configmap 커밋이 main에 없거나 sync 안 됨.
+- **구현(키트 v4.5, `app.js` 1파일)**: `/healthz`에 `version`(package.json — 릴리스 번호)·`env`(ENVIRONMENT) 추가 → 브라우저만으로 "이 환경에 어느 릴리스가 떠 있는가"를 판별(ⓐ 분리). api-contract 갱신. 로컬 검증 `{"version":"0.1.0","env":"kic-op"}`.
+- 사내 Claude 확인 지시(브리핑 §7 양식으로 담당자 전달): ① OP configmap 커밋이 main에 있는지 ② OP deployment(또는 kustomize overlay)가 그 configmap을 envFrom으로 참조하는지, ST와 어떻게 다른지(diff) ③ ArgoCD OP 앱의 sync 정책. LENS·BE팀은 ①~③ 결과가 나온 뒤에만.
+- **원인 확정(같은 날, 사내 Claude 저장소 판독)**: 후보 **3) — ArgoCD OP 앱이 main이 아닌 별도 브랜치·경로(targetRevision)를 추적**. 릴리스 이미지 태그는 그 경로로 갱신되어 pod는 교체됐지만(healthz pod 변경 확인), main에만 넣은 OP configmap 수정은 OP 앱에 도달하지 않음. ST는 main 추적이라 정상. **규칙 추가(gitea-repo-contract 반영 예정)**: OP 매니페스트(configmap·deployment) 변경은 OP 앱이 추적하는 브랜치에 반영해야 하며, configmap만 바뀌면 pod가 재시작되지 않으므로 반영 후 healthz pod 변경을 확인하고 안 바뀌면 새 릴리스로 rollout. 브랜치명·권한(보호 브랜치 여부)은 사내 Claude 확인 → internal-context.
