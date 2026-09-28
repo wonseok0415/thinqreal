@@ -495,3 +495,8 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **적용 절차(브리핑 §3-g2)**: ST configmap에 SMTP env 6종 + `MAIL_FORCE_SEND=true` → 릴리스 → `mail_test&token&to=본인` → accepted 확인·수신함 확인 → OP에 같은 env(강제 변수 없이) → 동일 확인 → ST의 강제 변수 제거. **QA에는 SMTP env를 넣지 않는다.** 발신 주소는 `thinqreal-noreply@lge.com` 형태로 실측 후 릴레이 거부 시 BE팀 문의(휴가 후).
 - **협업자 할 일(uat-checklist에 표로 추가)**: ① 1~8단계 UAT 전부(QA) ② 차이 보고 ③ **현행 메일 5종 수신본 확보**(9단계 비교 기준) ④ 운영 전환 안내문 초안 ⑤ 9단계는 OP/ST에서 담당자 신호 후. UAT §9에 "QA 불가 → OP 또는 ST, OP는 [UAT] 접두+담당자 고지" 명시. 루트 CLAUDE.md 이관 상태 줄 갱신.
 - 다음: 담당자 — ST/OP SMTP 실측 결과(accepted·발신 주소 거부 여부·Outlook 렌더) / DB팀 회신(APP 계정 DDL 권한·엔드포인트) / 협업자 UAT 착수 신호.
+
+## 작업 내역 (2026-09-28 — UAT 환경 결정: 원안(QA) 유지)
+
+- 담당자 질문 "QA가 불안정하니 ST에서 UAT하는 게 낫지 않나" → 판정: **QA는 불안정하지 않음**(BE팀 언급은 SMTP 발송 불가 한 가지, 로그인·DB·Valkey 실측 통과). 외부 트랙은 협업자 편의(1~9단계를 메일 포함 한 환경에서)와 OP 실알림 회피를 이유로 ST 전환을 제안(필요 env: ST `ADMIN_ALERT_TO/CC`를 협업자·담당자로, `MONTHLY_REPORT_TO` 미설정, UAT 기간 ST 키트 동결).
+- **담당자 결정: 원안대로 QA에서 협업자 UAT 진행.** 1~8단계 = QA, 9단계(메일) = 담당자가 시점·환경(OP 또는 ST) 지정 — uat-checklist 현행 문안 그대로. ST는 담당자의 SMTP 실측·키트 검증 전용으로 유지. 체크리스트·브리핑 변경 없음.
