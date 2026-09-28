@@ -7,6 +7,15 @@ import { createRateLimiter } from './lib/rateLimit.js';
 import { createHtmlRewrite } from './lib/htmlRewrite.js';
 import { kvStatus } from './lib/kvcache.js';
 import os from 'node:os';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// 실행 중인 릴리스 번호 — package.json version (Gitea Actions가 릴리스마다 올림). "이 pod가 새 이미지로 떴는가"를 브라우저에서 확인
+let appVersion = 'unknown';
+try {
+  appVersion = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8')).version || 'unknown';
+} catch { /* 패키지 파일이 없으면 unknown */ }
 
 export function createApp(store) {
   const app = express();
@@ -31,7 +40,10 @@ export function createApp(store) {
 
   // K8s liveness/readiness
   // kv: shared 여야 멀티 레플리카에서 인증 코드·토큰 서명 키가 pod 간 공유된다 (degraded/memory면 로그인이 pod에 따라 어긋남)
-  app.get('/healthz', (req, res) => res.json({ ok: true, backend: store.backend, kv: kvStatus(), pod: os.hostname() }));
+  // version·env: 릴리스가 실제로 이 환경에 롤아웃됐는지(configmap만 바꾸면 pod는 재시작되지 않음 — 2026-09-28 OP SMTP env 미반영 진단)
+  app.get('/healthz', (req, res) => res.json({
+    ok: true, backend: store.backend, kv: kvStatus(), pod: os.hostname(), version: appVersion, env: config.environment || 'local',
+  }));
 
   // API — 단일 경로 + type 라우팅 (api-contract.md 계약 불변)
   app.use('/api', createGetRouter(store));
