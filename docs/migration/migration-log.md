@@ -526,3 +526,11 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - 사내 Claude 재확인: **Gitea 저장소 브랜치는 main 하나** → "OP 앱이 다른 브랜치 추적" 판정은 저장소에서 읽은 사실이 아니라 추론이었음(ArgoCD Application 정의는 저장소 밖 — BE팀 플랫폼 소관). 남은 후보: ⓐ targetRevision이 태그·SHA 고정 ⓑ source.path가 `deploy/kic-op`가 아닌 다른 경로·**다른 저장소**(9/1 BE팀이 OP 배포를 직접 수행한 이력과 부합 — OP 매니페스트 사본이 BE 측에 있을 가능성) ⓒ OP kustomization resources에 configmap.yaml 미포함(1차 확인 미실행). 확정된 사실은 둘: 릴리스 이미지는 OP에 도달(pod 교체), main의 OP configmap 수정은 미도달.
 - **구현(키트 v4.6, `diagnostics.js`·`get.js`)**: GET `env_keys` — pod env **이름만**(값 없음) + 그룹 요약(kvstore/db/smtp/authSecret/legacyAuthSecret/environment). OP 관리자 토큰 필수, ST/QA 생략. 로컬 검증: OP 무토큰 unauthorized / ST 그룹 요약·값 미누출 확인. api-contract 추가. **판독법**: OP에서 `groups.kvstore:true`면 base configmap이 OP에 도달 → SMTP env를 `deploy/base/configmap.yaml`로 옮기면 해결(QA·ST는 발송 억제라 무해, `MAIL_FORCE_SEND`는 base 금지) / `kvstore:false`면 base도 미도달 → OP 매니페스트는 BE 측 관리 → BE팀에 "OP 앱 source(repo·path·revision)" 문의 + SMTP env 6종 반영 요청.
 - 사내 Claude 추가 확인 지시: `.gitea/workflows`가 이미지 태그를 **어디에 어떻게** 쓰는지(main의 deploy 파일 커밋? 외부 저장소? ArgoCD API?) — OP 전달 경로의 유일한 저장소 내 단서.
+
+## 작업 내역 (2026-09-28 후속 5 — ✅ OP SMTP 실측 통과, "원인 3" 정정, healthz version 폴백 (키트 v4.7))
+
+- 담당자 실측: OP `mail_test&token&to=본인` → **250 OK·수신**. 사내 SMTP 릴레이 적용은 ST·OP 모두 종결. 키트 v4.5·v4.6 ST·OP 반영 확인(`/healthz` env = kic-st/kic-op).
+- **정정**: 사내 Claude 최종 보고 — OP configmap 미반영은 **ArgoCD sync·rollout 지연**이었고 "별도 브랜치 추적"(후속 3 기록)은 틀린 추론(저장소 브랜치는 main뿐). 후속 3에 적은 "OP 매니페스트는 별도 브랜치에 반영" 규칙은 **폐기**. 대신 브리핑 §4에 교훈 추가: 저장소 밖 설정(ArgoCD 등)은 추론으로 확정하지 말고 진단 엔드포인트 실측 + 시간차 재확인으로 판별. deployment env 이동 우회는 미실시(불필요해짐).
+- 중간에 나온 `env_keys` `bad_signature`는 토큰 출처(현행 사이트 탭의 동일 localStorage 키) 또는 pod 간 서명 키 문제 후보였으나, 이후 OP 토큰 호출이 정상 통과해 재현되지 않음 — OP `/healthz` `kv` 값은 다음 기회에 확인(shared여야 함).
+- **키트 v4.7(`app.js`)**: `/healthz` `version`이 ST·OP에서 `unknown` → 사내 이미지의 package.json 위치가 설계 Dockerfile과 다른 것으로 추정. 해결 순서 `APP_VERSION` env → `npm_package_version` → package.json 후보 3경로(../, cwd, src/, /app). 다음 키트에 동봉(단독 적용 불필요).
+- 상태: SMTP 건 종결 → UAT 9단계(메일)는 OP에서 수행 가능(uat-checklist §9 메모). 남은 확인: ST configmap의 `MAIL_FORCE_SEND` 제거 여부, OP `/healthz` kv.
