@@ -50,6 +50,7 @@
 - 운영구분은 **PRD(OP)**. ST/QA 자원과 섞지 않는다.
 - 주소 등록은 **IP가 아닌 호스트명(ELB 주소)** 이 원칙 — 양식이 IP만 받으면 "확인 필요"로 멈춘다.
 - **저장소 밖 설정은 저장소로 확정할 수 없다(2026-09-28 교훈)**: ArgoCD Application(추적 브랜치·경로·sync 정책)·게이트웨이·네임스페이스 실제 객체는 Gitea 파일에 없다. 이런 것에 대한 판단은 "확정"이 아니라 "가설"로 보고하고, 컨테이너 진단 엔드포인트(`/healthz` pod·env·version, `env_keys`, `mail_status`)와 시간을 두고 재확인한 실측으로 판별한다. 9/28 "OP 앱이 다른 브랜치 추적" 결론은 추론이었고 실제는 sync·rollout 지연이었음.
+- **릴리스·롤아웃 규칙(2026-09-29 구조 보고서로 확정 — gitea-repo-contract §11)**: ① 빌드는 **커밋 메시지 접두로만** 결정된다 — `feat:`→minor, `fix:`/`perf:`→patch, `BREAKING`→major, 그 외(`docs:`·`chore:`)는 **빌드 없음**. 키트 적용 커밋은 반드시 `feat:` 또는 `fix:`. ② `deploy/**`만 바뀐 push는 워크플로가 무시한다 → **configmap만 고치면 pod가 재시작되지 않아 env가 반영되지 않는다.** configmap 변경 뒤에는 반드시 롤아웃(코드 커밋으로 새 릴리스, 또는 `deploy/base/deployment.yaml` pod template 주석 `thinqreal/config-rev` 값 +1)을 같이 넣고, 반영은 `/healthz` pod 변경 + `env_keys`로 확인한다. ③ ST/QA/OP는 **같은 이미지·같은 `deployment.yaml`**을 쓴다(환경 분기 없음) — 환경별 차이는 overlay configmap/secret뿐. 9/28 OP SMTP env 미반영·"원인 3" 오판은 전부 ②였다.
 - 기재값 원문(계정명·VPC·TAG·CIDR·주소)은 **`internal-context.md`** — 거기 없는 값은 추측하지 말고 담당 부서 문의 경로를 안내한다.
 
 ## 4. 과거 결정과 그 이유 (질문이 나올 때 답할 근거)

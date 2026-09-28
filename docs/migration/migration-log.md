@@ -570,3 +570,12 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 
 - 협업자 문의: QA 관리자 구비 가전 탭 "Failed to fetch". 담당자도 인증 코드 미수신. 판독: **옛 페이지(구글 호출본) 캐시**(0-2 함정) — 예약 목록은 localStorage 캐시로 그려져 정상처럼 보이고, 캐시 없는 구비 가전만 실패가 드러남. 담당자 실측: `/api?type=appliances` 직접 호출 45건 정상 → 시크릿 창에서 `SCRIPT_URL='/api'` 확인 → 주소창 `admin_auth_request` ok → peek 코드 → **페이지에서 이메일 재입력·재요청으로 코드 갱신되어 불일치** → peek 재조회 후 입력 → **로그인 성공, 구비 가전 45건 정상**. 컨테이너 결함 아님, 차이 보고 대상 아님.
 - uat-checklist에 「막혔을 때 먼저 볼 표」(증상→원인→해결 4행) 추가 — 협업자가 담당자 없이 자가 해결하도록. 순서 원칙 "페이지 요청 → peek → 입력" 재강조.
+
+## 작업 내역 (2026-09-29 후속 — 사내 구조 보고서 판독: 릴리스 메커니즘 확정, configmap-only 무롤아웃 규칙, OP JOBS_DISABLED 미반영 의심)
+
+- 사내 Claude 구조 보고서(7항목) 수령·판독 → `gitea-repo-contract.md` §11 신설(Dockerfile·release.yml·deploy 트리·ConfigMap 키·릴리스 이력), 브리핑 §4 규칙 추가.
+- **핵심 발견 3건**: ① 빌드는 커밋 접두(`feat`/`fix`/`perf`/`BREAKING`)로만 — `docs`·`chore`는 무빌드 ② **`deploy/**`만 바뀐 push는 워크플로가 무시 → configmap만 고치면 pod 미재시작·env 미반영** — 9/28 OP SMTP env 미반영의 진짜 메커니즘(이후 `fix`·`feat` 릴리스가 롤아웃을 만들며 반영됨). "sync 지연"도 이 결과 ③ 3환경이 같은 이미지·같은 deployment.yaml(환경 분기 없음).
+- **⚠ 즉시 확인**: OP `JOBS_DISABLED=true` 커밋(9/28, `chore:`·deploy만)은 ②에 해당 → **롤아웃이 없었으면 OP 스케줄러가 아직 켜져 있음**(9/29 07:40 FieldCheck 요약 중복 수신 여부로 판별 가능). 담당자에게 `env_keys` names에 `JOBS_DISABLED` 유무 확인 요청 + 없으면 키트 v4.7·v4.8 적용(`feat:` → 0.17.0)으로 롤아웃 유발.
+- `version:"unknown"` 원인: Gitea package.json에 version 필드 부재(워크플로도 갱신 안 함) — 키트 v4.7 `APP_VERSION` env로 해결: deployment.yaml pod template에 downward API(`metadata.labels['app.kubernetes.io/version']` 등 sed가 갱신하는 `version:` 줄이 pod 라벨이면) 또는 워크플로 build-arg. 사내 Claude에 `version:` 줄의 정확한 위치 확인 요청.
+- 사내 측 소스 수정 발견: `fix: SMTP_PORT 기본값 25`(0.15.1) — GitHub `config.js` 기본값도 25로 정합(이번 커밋). 원칙: 사내 측 소스 수정은 보고 후 GitHub에 역반영해 키트 복사가 되돌리지 않게.
+- OP secret `thinq-real-db-svc`(SealedSecret 6키)는 현재 BE 제공 DB — Aurora 전환 시 재봉인 필요 → cert가 OP DB 전환의 선행조건으로 격상(브리핑 §2 대기 항목).
