@@ -424,3 +424,12 @@ Gitea 저장소 원본 검수에서 **HPA min 2 레플리카**가 확인되어(�
 **검증(로컬)**: 문법 통과 / `KVSTORE_ADDR=rediss://` 도달 불가 주소로 기동 → `/healthz` `kv:"connecting"`(기동 차단 없음, 옵션 구성 오류 없음). 실제 TLS 접속은 OP 자원 수령 후 `/healthz` `kv:"shared"`로 실측.
 **OP env(g 단계)**: `KVSTORE_ADDR=<configuration endpoint>:<port>` + `KVSTORE_TLS=true`(configmap) / AUTH 토큰이 있으면 `KVSTORE_PASSWORD`(secret). 
 **DB팀에 함께 확인할 것**: ① AUTH 토큰·RBAC 사용자도 활성인지(있으면 자격 전달 경로) ② configuration endpoint·포트 ③ 인증서가 Amazon 공인 CA인지(자체 CA면 번들 주입 필요).
+
+### 8-14. 토큰 서명 키 영속화·수렴 — 롤아웃 직후 `bad_signature` 재발 대응 (2026-09-29, 키트 v4.9)
+
+**증상**: OP에서 릴리스 롤아웃 직후 기존 관리자 토큰이 `bad_signature`(9/28·9/29 두 차례). 재로그인하면 잠시 정상.
+**원인 후보(둘 다 구조적)**: (a) 서명 키의 유일한 저장소가 Valkey `app:auth-secret`(SET NX, TTL 없음)이라 **공용 kvstore의 축출·재시작으로 키가 사라지면** 새 pod가 새 키를 만들어 기존 토큰 전부 무효 (b) `kvGetOrSet`이 부트 직후 Valkey 연결 실패 시 **조용히 pod별 임시 키를 생성**(폴백)해 pod 간 서명이 어긋남 — 이후 kv 상태는 `shared`로 보여 진단이 안 됨.
+**구현**: `auth/secret.js` 재작성 — 우선순위 env → **저장소 `app_state.auth_secret`(영속 원본)** → Valkey `kvGetOrSetShared`(원자적 첫 생성, 연결 실패 시 null — 폴백 생성 금지) → 얻은 값을 app_state에 영속화(read-back으로 경합 수렴) → 임시 키(부트 4회×2초·시도당 5초 상한 후) + 백그라운드 15초 재시도로 얻는 즉시 교체 + 기동 후 60초마다 저장소 값과 대조(재수렴). `index.js`는 store 생성 후 `initSharedAuthSecret(store)`. `/healthz`에 `authSecret: env|db|shared|temp` 노출.
+**효과**: 키가 DB에 있으므로 Valkey가 비워져도·롤아웃해도 **토큰이 계속 유효**(90일 TTL 그대로). 임시 키 상태는 healthz로 즉시 보이고 스스로 수렴. SealedSecret으로 `AUTH_SECRET`을 주입하면(env) 이 경로는 자동 우회.
+**검증(로컬)**: memory store → `authSecret:"db"` / `AUTH_SECRET` env → `"env"` / Valkey 도달 불가 + memory store → 2초 내 기동·`"db"`(연결 실패가 부트를 막지 않음). 실 Valkey·2 레플리카 수렴은 ST 롤아웃 후 `/healthz` 두 pod 모두 `db` + 기존 토큰 유지로 확인.
+**⚠ 스펙 대비 변경**: §8-6의 "서명 키는 Valkey 공유"를 **저장소 영속 + Valkey 중재**로 확장. app_state에 서명 키를 두는 것은 DB 접근 권한이 곧 토큰 위조 권한이 됨을 뜻하나, 동일 DB에 예약·관리자 데이터가 있어 위협 모델이 넓어지지 않음(정식 경로는 여전히 SealedSecret env).
