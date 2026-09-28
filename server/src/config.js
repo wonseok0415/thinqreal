@@ -116,7 +116,7 @@ export const config = {
   //  - MAIL_FORCE_SEND=true → 비운영 환경에서 **메일만** 실발송(텔레그램·Teams 억제는 유지) — ST SMTP 테스트 창구
   smtp: {
     host: env('SMTP_HOST'),
-    port: Number(env('SMTP_PORT', '587')),
+    port: Number(env('SMTP_PORT', '25')), // 기본 25 = 사내 릴레이 (사내 Gitea 0.15.1 fix와 정합 — 키트 복사로 되돌아가지 않게)
     secure: env('SMTP_SECURE') === 'true',
     user: env('SMTP_USER'),
     pass: env('SMTP_PASS'),
