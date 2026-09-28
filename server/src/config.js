@@ -69,9 +69,16 @@ export const config = {
   environment: env('ENVIRONMENT'),
   // Valkey(KVStore) — HPA 멀티 레플리카(min 2)에서 인증 코드·공유 상태를 레플리카 간 공유.
   // 미설정 시 프로세스 메모리 폴백(단일 인스턴스 전용). 키는 반드시 `${prefix}:` 접두.
+  // OP ElastiCache는 Encryption in transit(TLS) 활성 생성(DB팀 2026-09-28) — KVSTORE_TLS=true 또는 주소가 rediss://면 TLS.
+  // AUTH 토큰/RBAC이 함께 켜지면 KVSTORE_USERNAME/KVSTORE_PASSWORD(secret). ElastiCache 인증서는 공인 CA(Amazon)라 기본 검증 유지,
+  // 사내 자체 서명일 때만 KVSTORE_TLS_REJECT_UNAUTHORIZED=false. ST/QA 공용 extapps-kvstore는 평문(redis://) 그대로.
   kvstore: {
     addr: env('KVSTORE_ADDR'),
     prefix: env('KVSTORE_PREFIX', 'thinq-real'),
+    tls: env('KVSTORE_TLS') === 'true' || /^rediss:\/\//i.test(env('KVSTORE_ADDR') || ''),
+    rejectUnauthorized: env('KVSTORE_TLS_REJECT_UNAUTHORIZED') !== 'false',
+    username: env('KVSTORE_USERNAME'),
+    password: env('KVSTORE_PASSWORD'),
   },
   // 비운영 환경(kic-st/kic-qa)에서는 실제 외부 발송(메일·텔레그램·Teams)을 억제 — kic-op만 실발송.
   // ENVIRONMENT 미설정(로컬)은 억제하지 않음(SMTP 미설정이면 어차피 콘솔 모드). OUTBOUND_FORCE_SEND=true로 해제.

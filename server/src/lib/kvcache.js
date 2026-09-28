@@ -18,10 +18,19 @@ async function getClient() {
     connecting = (async () => {
       // redis 클라이언트는 Valkey 호환 (저장소 README: JS client redis 6.1.0, Cluster 모드)
       const { createCluster } = await import('redis');
-      const c = createCluster({ rootNodes: [{ url: `redis://${config.kvstore.addr}` }] });
+      const kv = config.kvstore;
+      const hostPort = String(kv.addr).replace(/^rediss?:\/\//i, ''); // 스킴은 tls 플래그로 흡수
+      const scheme = kv.tls ? 'rediss' : 'redis';
+      // TLS(ElastiCache Encryption in transit): rootNodes와 클러스터가 알려주는 노드 접속 모두에 socket.tls 적용(defaults)
+      const defaults = {
+        socket: kv.tls ? { tls: true, rejectUnauthorized: kv.rejectUnauthorized } : undefined,
+        username: kv.username || undefined,
+        password: kv.password || undefined,
+      };
+      const c = createCluster({ rootNodes: [{ url: `${scheme}://${hostPort}` }], defaults });
       c.on('error', (e) => console.error('[kvstore] error: ' + e.message));
       await c.connect();
-      console.log('[kvstore] Valkey 연결 — 레플리카 공유 캐시 모드');
+      console.log(`[kvstore] Valkey 연결 — 레플리카 공유 캐시 모드 (${kv.tls ? 'TLS' : '평문'}${kv.username || kv.password ? ', 인증' : ''})`);
       client = c;
       return c;
     })().catch((e) => {

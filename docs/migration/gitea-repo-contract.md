@@ -39,7 +39,7 @@
 | `ENVIRONMENT` | 현재 배포 환경 (예: `kic-st`) |
 | `PORT` | HTTP 수신 포트 (8080) — **우리 컨테이너 기본값과 동일** |
 | `DB_HOST` `DB_PORT` `DB_NAME` `DB_USER` `DB_PASSWORD` `DB_SSLMODE` | PostgreSQL 연결 (환경별 `deploy/<environment>/secret.yaml`에서 주입) |
-| `KVSTORE_ADDR` | Valkey Cluster 접속 주소 |
+| `KVSTORE_ADDR` | Valkey Cluster 접속 주소 (앱 확장 2026-09-28: `KVSTORE_TLS=true` 또는 `rediss://` 접두면 TLS — OP ElastiCache는 Encryption in transit 활성 생성. `KVSTORE_TLS_REJECT_UNAUTHORIZED`(기본 true), AUTH 병행 시 `KVSTORE_USERNAME`/`KVSTORE_PASSWORD`(secret)) |
 | `KVSTORE_PREFIX` | 앱별 key prefix (`thinq-real`) — 뒤에 `:` 붙여 사용 |
 | `KVSTORE_DEFAULT_TTL` | Valkey key 기본 만료 시간(초) |
 

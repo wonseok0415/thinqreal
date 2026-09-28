@@ -558,3 +558,9 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 
 - 담당자 질문 "Multi-AZ 전환이 요청서에 있었나" → DB팀 템플릿 가이드 문구(개발 중 PRD/Single → 오픈 전 PRD/Multi-AZ 추가 요청)이지 담당자 기재가 아님. 의미(다른 가용 영역 대기 인스턴스·자동 failover, 비용 ≈ 인스턴스 2대, Aurora 저장소는 어차피 3AZ 복제라 "멈춤 시간" 차이)와 판단(PRD 표준 준수 권고, 비용 소폭) 설명. 담당자 결정: **전환 계획서에 항목으로 넣는다.**
 - **`cutover-plan.md` v0.1 신설**(선행 가능 작업 ⓑ): §0 전제(외부 접점 유지·시트 읽기 전용 보존·한쪽만 켜기) / §1 T-4주~D+7 일정표(**Multi-AZ 요청 = T-1주**, 리허설 후·전환 작업과 안 겹치게) / §2 D-day 10단계(동결→스냅샷→적재→검증→현행 트리거 삭제→OP `JOBS_DISABLED` 제거→현행 사이트 안내→발송→첫 실거래→기록, 단계별 되돌리기) / §3 기능별 스위치 표 / §4 역할 / §5 D-1 사전 조건 / §6 rollback / §7 미결 5건. 브리핑 §3-h·루트 CLAUDE.md 문서 목록에 등재. 담당자 검토 전 초안.
+
+## 작업 내역 (2026-09-28 후속 9 — DB팀 추가 질의: Valkey TLS 활성 → 앱 대응(키트 v4.8))
+
+- DB팀: OP ElastiCache valkey를 **Encryption in transit(TLS) 활성**으로 생성(클라우드 영향평가 기준) — 수용 가능 여부 문의. 외부 트랙 판단: **수용** — 앱은 node-redis 클러스터 클라이언트라 TLS 지원, 코드에 옵션만 추가하면 됨. 반대로 거절하면 표준 예외가 되어 오히려 일정 위험.
+- **구현(키트 v4.8, `config.js`·`lib/kvcache.js`)**: `KVSTORE_TLS`/`rediss://`·`KVSTORE_TLS_REJECT_UNAUTHORIZED`·`KVSTORE_USERNAME/PASSWORD` → `createCluster.defaults`(socket.tls·자격 — 클러스터 전 노드 적용). 미설정 시 평문 유지(ST/QA 무영향). 설계 §8-13.
+- 담당자 회신문 작성(TLS OK + 확인 3건: AUTH/RBAC 여부·configuration endpoint·인증서 CA). 티켓·값은 internal-context.
