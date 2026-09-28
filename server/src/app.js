@@ -11,11 +11,28 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// 실행 중인 릴리스 번호 — package.json version (Gitea Actions가 릴리스마다 올림). "이 pod가 새 이미지로 떴는가"를 브라우저에서 확인
-let appVersion = 'unknown';
-try {
-  appVersion = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json'), 'utf8')).version || 'unknown';
-} catch { /* 패키지 파일이 없으면 unknown */ }
+// 실행 중인 릴리스 번호 — "이 pod가 새 이미지로 떴는가"를 브라우저에서 확인.
+// 우선순위: env APP_VERSION(이미지 빌드 시 주입 가능) → npm_package_version → package.json 후보 경로 3곳
+// (사내 이미지의 파일 배치가 설계 §2 Dockerfile과 다를 수 있어 후보를 넓힘 — 2026-09-28 OP/ST 'unknown' 실측)
+function resolveAppVersion() {
+  if (process.env.APP_VERSION) return process.env.APP_VERSION;
+  if (process.env.npm_package_version) return process.env.npm_package_version;
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    path.join(here, '..', 'package.json'),          // src/app.js → ../package.json (설계 레이아웃)
+    path.join(process.cwd(), 'package.json'),       // WORKDIR 기준
+    path.join(here, 'package.json'),                // src 안에 함께 복사된 경우
+    '/app/package.json',
+  ];
+  for (const p of candidates) {
+    try {
+      const v = JSON.parse(fs.readFileSync(p, 'utf8')).version;
+      if (v) return v;
+    } catch { /* 다음 후보 */ }
+  }
+  return 'unknown';
+}
+const appVersion = resolveAppVersion();
 
 export function createApp(store) {
   const app = express();
