@@ -416,3 +416,11 @@ Gitea 저장소 원본 검수에서 **HPA min 2 레플리카**가 확인되어(�
 **OP 적용 env(비밀 아님 — configmap)**: `SMTP_HOST=<릴레이 DNS>` `SMTP_PORT=25` `SMTP_SECURE=false` `SMTP_IGNORE_TLS=true` `MAIL_FROM=<발신 주소>` `MAIL_REPLY_TO=<담당자 창구>`. USER/PASS 없음.
 **미결(BE팀 휴가 후 10/6~)**: ① 발신 주소 정책 — 가이드 샘플은 앱별 noreply 주소(`*-noreply@lge.com`)라 `thinqreal-noreply@lge.com` 형태로 실측(릴레이가 발신을 거부하면 `rejected`/에러로 드러남), 정식 등록 필요 여부 확인 ② 일 발송 한도·첨부 크기(월간 리포트 PNG 인라인) ③ QA 방화벽 해결 시점 — 그 전까지 UAT §9(메일)는 OP 또는 ST(MAIL_FORCE_SEND)에서.
 **⚠ 스펙 대비 변경**: §4 env 표의 `SMTP_USER/PASS` 전제(인증 SMTP)를 **무인증 릴레이 기본**으로 전환 — 사유는 가이드. 인증 변수는 남겨 두어 정책 변경 시 재사용.
+
+### 8-13. Valkey TLS(Encryption in transit) 대응 (2026-09-28, 키트 v4.8)
+
+**입력**: DB팀(DBSUPPORT) — 클라우드 영향평가로 OP ElastiCache valkey는 **Encryption in transit(TLS) 활성**으로 생성. 앱 측 수용 가능 여부 문의.
+**구현**: `config.kvstore`에 `tls`(`KVSTORE_TLS=true` 또는 주소가 `rediss://`) · `rejectUnauthorized`(`KVSTORE_TLS_REJECT_UNAUTHORIZED`, 기본 true — ElastiCache 인증서는 공인 CA) · `username`/`password`(`KVSTORE_USERNAME`/`KVSTORE_PASSWORD` — AUTH 토큰·RBAC 병행 시, secret) 추가. `lib/kvcache.js`는 `createCluster({ rootNodes:[{url: rediss://…}], defaults:{ socket:{tls, rejectUnauthorized}, username, password } })` — node-redis 문서대로 **클러스터가 알려주는 모든 노드 접속에 `defaults`가 적용**(TLS·자격은 rootNodes가 아니라 defaults에 둬야 함). 미설정 시 기존 평문 `redis://` 그대로 → ST/QA 공용 extapps-kvstore 무영향.
+**검증(로컬)**: 문법 통과 / `KVSTORE_ADDR=rediss://` 도달 불가 주소로 기동 → `/healthz` `kv:"connecting"`(기동 차단 없음, 옵션 구성 오류 없음). 실제 TLS 접속은 OP 자원 수령 후 `/healthz` `kv:"shared"`로 실측.
+**OP env(g 단계)**: `KVSTORE_ADDR=<configuration endpoint>:<port>` + `KVSTORE_TLS=true`(configmap) / AUTH 토큰이 있으면 `KVSTORE_PASSWORD`(secret). 
+**DB팀에 함께 확인할 것**: ① AUTH 토큰·RBAC 사용자도 활성인지(있으면 자격 전달 경로) ② configuration endpoint·포트 ③ 인증서가 Amazon 공인 CA인지(자체 CA면 번들 주입 필요).
