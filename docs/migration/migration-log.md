@@ -565,3 +565,8 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **구현(키트 v4.8, `config.js`·`lib/kvcache.js`)**: `KVSTORE_TLS`/`rediss://`·`KVSTORE_TLS_REJECT_UNAUTHORIZED`·`KVSTORE_USERNAME/PASSWORD` → `createCluster.defaults`(socket.tls·자격 — 클러스터 전 노드 적용). 미설정 시 평문 유지(ST/QA 무영향). 설계 §8-13.
 - 담당자 회신문 작성(TLS OK + 확인 3건: AUTH/RBAC 여부·configuration endpoint·인증서 CA). 티켓·값은 internal-context.
 - **회신 발송(같은 날)**: 담당자가 DB팀에 "TLS 활성 수용 + 확인 3건(AUTH/RBAC 여부·configuration endpoint·인증서 CA)" 회신. 키트 v4.8은 GitHub 머지(PR #155), 사내 적용은 다음 키트와 동봉(OP 자원 수령 전에는 실측 불가). DB팀 회신 대기 항목: APP 계정 DDL 권한 / Aurora writer 엔드포인트·TLS / valkey endpoint·AUTH 여부·CA.
+
+## 작업 내역 (2026-09-29 — UAT 첫 문의: "구비 가전 Failed to fetch" + 담당자 코드 미수신 → 준비 단계 미적용, 해결)
+
+- 협업자 문의: QA 관리자 구비 가전 탭 "Failed to fetch". 담당자도 인증 코드 미수신. 판독: **옛 페이지(구글 호출본) 캐시**(0-2 함정) — 예약 목록은 localStorage 캐시로 그려져 정상처럼 보이고, 캐시 없는 구비 가전만 실패가 드러남. 담당자 실측: `/api?type=appliances` 직접 호출 45건 정상 → 시크릿 창에서 `SCRIPT_URL='/api'` 확인 → 주소창 `admin_auth_request` ok → peek 코드 → **페이지에서 이메일 재입력·재요청으로 코드 갱신되어 불일치** → peek 재조회 후 입력 → **로그인 성공, 구비 가전 45건 정상**. 컨테이너 결함 아님, 차이 보고 대상 아님.
+- uat-checklist에 「막혔을 때 먼저 볼 표」(증상→원인→해결 4행) 추가 — 협업자가 담당자 없이 자가 해결하도록. 순서 원칙 "페이지 요청 → peek → 입력" 재강조.
