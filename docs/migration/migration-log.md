@@ -564,3 +564,4 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - DB팀: OP ElastiCache valkey를 **Encryption in transit(TLS) 활성**으로 생성(클라우드 영향평가 기준) — 수용 가능 여부 문의. 외부 트랙 판단: **수용** — 앱은 node-redis 클러스터 클라이언트라 TLS 지원, 코드에 옵션만 추가하면 됨. 반대로 거절하면 표준 예외가 되어 오히려 일정 위험.
 - **구현(키트 v4.8, `config.js`·`lib/kvcache.js`)**: `KVSTORE_TLS`/`rediss://`·`KVSTORE_TLS_REJECT_UNAUTHORIZED`·`KVSTORE_USERNAME/PASSWORD` → `createCluster.defaults`(socket.tls·자격 — 클러스터 전 노드 적용). 미설정 시 평문 유지(ST/QA 무영향). 설계 §8-13.
 - 담당자 회신문 작성(TLS OK + 확인 3건: AUTH/RBAC 여부·configuration endpoint·인증서 CA). 티켓·값은 internal-context.
+- **회신 발송(같은 날)**: 담당자가 DB팀에 "TLS 활성 수용 + 확인 3건(AUTH/RBAC 여부·configuration endpoint·인증서 CA)" 회신. 키트 v4.8은 GitHub 머지(PR #155), 사내 적용은 다음 키트와 동봉(OP 자원 수령 전에는 실측 불가). DB팀 회신 대기 항목: APP 계정 DDL 권한 / Aurora writer 엔드포인트·TLS / valkey endpoint·AUTH 여부·CA.
