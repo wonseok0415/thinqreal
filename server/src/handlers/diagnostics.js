@@ -7,6 +7,7 @@ import { sendTelegramMessage, telegramConfigured } from '../notify/telegram.js';
 import { sendTeamsTest } from '../notify/teams.js';
 import { calendarTest } from '../calendar/google.js';
 import { formatDateTimeLocal } from '../lib/dates.js';
+import os from 'node:os';
 
 // MailApp 일일 할당량 개념이 없어 SMTP 설정 상태를 대신 보고 (계약상 remainingDailyQuota 키는 유지)
 export function handleMailStatus() {
@@ -72,6 +73,29 @@ export async function handleCalendarTest() {
 
 // 사내 컨테이너 → 인터넷 아웃바운드 진단 (2026-09-17). 하이브리드 에지 설계(외부 접점은 현행
 // Apps Script, 사내가 주기적으로 pull)의 성립 조건이 "pod가 script.google.com에 나갈 수 있는가"라서
+/** pod에 주입된 환경변수 **이름만** 나열(값은 절대 반환하지 않음) — "어느 configmap/secret이 이 환경에 도달했는가" 판별용
+ *  (2026-09-28 OP SMTP env 미반영 진단: 릴리스는 롤아웃됐는데 main의 configmap 수정이 OP pod에 없었음).
+ *  OP는 관리자 토큰 필수, ST/QA는 SSO 뒤라 생략 허용(egress_check와 동일 규칙). */
+export function handleEnvKeys(token) {
+  if (!config.outboundSuppressed) {
+    const admin = verifyAdminToken(token);
+    if (!admin.ok) return { ok: false, error: 'unauthorized', reason: admin.reason || 'invalid_token' };
+  }
+  const names = Object.keys(process.env).sort();
+  const has = (p) => names.some((n) => n.startsWith(p));
+  return {
+    ok: true,
+    environment: config.environment || 'local',
+    pod: os.hostname(),
+    count: names.length,
+    groups: { // 주입 경로별 도달 여부 요약 — base configmap(KVSTORE_*), 환경 secret(DB_*), 환경 configmap(SMTP_*/MAIL_*), 앱 설정(AUTH_SECRET 등)
+      kvstore: has('KVSTORE_'), db: has('DB_'), smtp: has('SMTP_') || has('MAIL_'), authSecret: names.includes('AUTH_SECRET'),
+      legacyAuthSecret: names.includes('LEGACY_AUTH_SECRET'), environment: names.includes('ENVIRONMENT'),
+    },
+    names, // 값 없음 — 이름만
+  };
+}
+
 // 관리자 토큰으로 실측한다. 대상은 현행 Apps Script의 공개 GET(appliances) — 실제 pull 경로와 동일 호스트.
 // Node fetch는 HTTP(S)_PROXY env를 자동으로 쓰지 않으므로, 실패 시 proxyEnv 값이 다음 판단 근거가 된다.
 export async function handleEgressCheck(token) {
