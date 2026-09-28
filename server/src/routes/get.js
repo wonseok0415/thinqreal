@@ -10,7 +10,7 @@ import {
 } from '../handlers/auth.js';
 import { handleMonthlyReportPreview, handleMonthlyReportSend } from '../handlers/report.js';
 import {
-  handleMailStatus, handleMailTest, handleTelegramTest, handleTeamsTest, handleCalendarTest, handleEgressCheck,
+  handleMailStatus, handleMailTest, handleTelegramTest, handleTeamsTest, handleCalendarTest, handleEgressCheck, handleEnvKeys,
 } from '../handlers/diagnostics.js';
 import { handleGetSurveyData } from '../handlers/survey.js';
 import { handleGetHealthChecks } from '../handlers/health.js';
@@ -71,6 +71,8 @@ export function createGetRouter(store) {
           return res.json(await handleCalendarTest());
         case 'egress_check': // 사내 pod → 인터넷(현행 Apps Script) 아웃바운드 진단 (관리자 토큰)
           return res.json(await handleEgressCheck(q.token));
+        case 'env_keys': // pod에 주입된 env 이름만(값 없음) — 어느 configmap/secret이 도달했는지 판별 (OP 토큰 필수, 2026-09-28)
+          return res.json(handleEnvKeys(q.token));
         case 'auth_code_peek': { // ST/QA 전용 — 메일이 억제된 환경에서 UAT용 인증 코드 확인. OP에서는 존재하지 않는 type처럼 동작
           if (!config.outboundSuppressed) return res.status(404).json({ error: 'not_found' });
           const email = String(q.email || '').trim().toLowerCase();
