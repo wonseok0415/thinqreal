@@ -34,8 +34,9 @@
 
 **토큰 얻기**: `<HOST>/thinqreal_admin.html` 로그인(ST·QA는 코드를 peek로) → 같은 탭 F12 → Console → 아래 붙여넣기 → 출력 문자열 복사. 90일 유효. **반드시 그 환경 탭에서** — 현행 사이트(thinqreal.com) 탭의 토큰은 컨테이너에서 `bad_signature`.
 ```
-localStorage.getItem('thinqreal_admin_token')
+copy(localStorage.getItem('thinqreal_admin_token'))
 ```
+`copy(...)`는 따옴표 없이 클립보드에 넣는다. 화면에 찍힌 `'…'`를 드래그해 복사하면 **따옴표가 딸려와 `bad_signature`**가 난다(9/29 실사례). 붙여 넣은 토큰은 `eyJ`로 시작하고 따옴표·공백이 없어야 한다.
 
 **로그인 순서(ST·QA)**: 시크릿 창 → 이메일 → [인증 코드 받기] **한 번** → 새 탭 peek → 6자리 입력. 코드를 본 뒤 [받기]를 다시 누르면 새 코드로 바뀜.
 
