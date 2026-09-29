@@ -639,3 +639,8 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **릴리스 후 확인**: `/healthz` version·pod 교체 → ST에서 `…/api?type=db_probe`(토큰 없이) → `error:"no_target"`이 아니라 ST 공용 DB·kvstore 2건 `ok:true`면 정상(ST는 env에 DB_HOST·KVSTORE_ADDR가 있음). OP는 토큰 + `host=`·`port=` 지정 호출로 Next Spoc 완료 후 실측.
 - **번호 정정**: 착수 메모(9/29 마감)의 "설계 §8-16 기록"은 과제 D가 아니라 이 항목이 차지 → 과제 D는 **§8-17**.
 - 문서: api-contract(`db_probe` 행)·ops-cheatsheet(B 주소표 행·E 규칙)·설계 §8-16·브리핑 §3-d(완료 후 검증 절차).
+
+## 작업 내역 (2026-09-29 후속 9 — ✅ 키트 v4.12 사내 반영, ST `db_probe` `ok:true`)
+
+- 담당자: PR #165 머지 → 키트 v4.12(4파일, v4.11 `DB_SCHEMA` 포함) Gitea 적용 → 릴리스 → ST `…/api?type=db_probe`(토큰 없이) **`ok:true`** 확인. ST 공용 DB·kvstore 2건 TCP 도달 = 엔드포인트·마스킹·인증 생략 규칙 전부 실환경에서 동작. v4.11 `DB_SCHEMA`도 같은 릴리스에 포함(미설정이라 ST/QA 동작 불변).
+- **다음 실측**: Next Spoc(DB계정·SG) 완료 통보 후 OP에서 토큰 + `host=`·`port=`로 RDS 5432·valkey 6379 두 번(치트시트 B). 그 전까지 외부 트랙 대기 항목은 "과제 D 시작" 신호뿐.
