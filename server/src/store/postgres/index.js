@@ -81,6 +81,18 @@ export async function createPostgresStore() {
     ssl: config.db.sslmode === 'disable' ? undefined : { rejectUnauthorized: false },
     max: 5,
   });
+  if (config.db.schema) {
+    // 풀의 모든 커넥션에 search_path 고정 — 테이블 생성·조회가 지정 스키마 안에서만 일어난다 (DB_SCHEMA, 2026-09-29)
+    const schemaIdent = q(config.db.schema);
+    pool.on('connect', (client) => { client.query(`SET search_path TO ${schemaIdent}`).catch((e) => console.error('[store:postgres] search_path 설정 실패: ' + e.message)); });
+    // 첫 커넥션에서 즉시 확인 — 스키마가 없거나 권한이 없으면 기동 단계에서 드러나게
+    const probe = await pool.connect();
+    try {
+      await probe.query(`SET search_path TO ${schemaIdent}`);
+      const r = await probe.query('SELECT current_schema() AS s');
+      console.log(`[store:postgres] search_path = ${r.rows[0]?.s} (DB_SCHEMA=${config.db.schema})`);
+    } finally { probe.release(); }
+  }
   await ensureSchema(pool);
   console.log('[store:postgres] 스키마 확인 완료 (테이블 ' + (TABLES.length + 1) + '종)');
 

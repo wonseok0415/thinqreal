@@ -433,3 +433,11 @@ Gitea 저장소 원본 검수에서 **HPA min 2 레플리카**가 확인되어(�
 **효과**: 키가 DB에 있으므로 Valkey가 비워져도·롤아웃해도 **토큰이 계속 유효**(90일 TTL 그대로). 임시 키 상태는 healthz로 즉시 보이고 스스로 수렴. SealedSecret으로 `AUTH_SECRET`을 주입하면(env) 이 경로는 자동 우회.
 **검증(로컬)**: memory store → `authSecret:"db"` / `AUTH_SECRET` env → `"env"` / Valkey 도달 불가 + memory store → 2초 내 기동·`"db"`(연결 실패가 부트를 막지 않음). 실 Valkey·2 레플리카 수렴은 ST 롤아웃 후 `/healthz` 두 pod 모두 `db` + 기존 토큰 유지로 확인.
 **⚠ 스펙 대비 변경**: §8-6의 "서명 키는 Valkey 공유"를 **저장소 영속 + Valkey 중재**로 확장. app_state에 서명 키를 두는 것은 DB 접근 권한이 곧 토큰 위조 권한이 됨을 뜻하나, 동일 DB에 예약·관리자 데이터가 있어 위협 모델이 넓어지지 않음(정식 경로는 여전히 SealedSecret env).
+
+### 8-15. `DB_SCHEMA` — OP Aurora 별도 스키마 대응 (2026-09-29, 키트 v4.11)
+
+**배경**: DB팀이 OP Aurora·valkey 생성과 접속 계정 발급을 완료(9/29 — 값은 사내 전용, 담당자가 사내 Claude에 전달해 internal-context §2-a·§2-b에 기록). 요청서의 "Database Schema" 칸 값이 별도 스키마로 생성됐을 수 있어, 앱이 `CREATE TABLE`을 계정 기본 search_path(보통 public)에 만들면 권한 오류나 엉뚱한 위치 생성이 가능.
+**구현**: `config.db.schema`(`DB_SCHEMA`) 지정 시 pg Pool `connect` 이벤트로 모든 커넥션에 `SET search_path TO "<schema>"`, 기동 시 첫 커넥션에서 `current_schema()` 확인 로그(스키마 부재·권한 문제를 기동 단계에서 노출). 미설정 시 동작 불변(ST/QA 공용 DB).
+**OP env 확정 목록(절차 g)** — secret(SealedSecret, cert 필요): `DB_HOST`(writer 엔드포인트) `DB_PORT` `DB_NAME` `DB_USER`(APP 계정) `DB_PASSWORD` / `KVSTORE_PASSWORD`(AUTH 토큰 있을 때) / `AUTH_SECRET`(권장 — 있으면 app_state 경로 우회) / `LEGACY_AUTH_SECRET`(하이브리드 에지 2단계). configmap: `DB_SSLMODE=require` `DB_SCHEMA=<스키마명>`(별도 스키마일 때만) `KVSTORE_ADDR=<configuration endpoint:port>` `KVSTORE_TLS=true` `KVSTORE_PREFIX=thinq-real`.
+**첫 기동 절차**: APP 계정에 CREATE·ALTER 권한 있음 → 그대로 기동(표 14개 자동 생성). 없음 → `DB_USER/PASSWORD`를 MGR로 1회 기동 → 표 생성 확인(`/healthz backend:postgres`) → APP으로 교체·롤아웃. 이후 컬럼 추가 키트마다 같은 절차.
+**선행조건**: OP secret 교체는 SealedSecret 재봉인 → **cert 확보(BE팀, 10/6~)**. 그 전엔 OP DB 전환 불가 — 값은 internal-context에 보관만.
