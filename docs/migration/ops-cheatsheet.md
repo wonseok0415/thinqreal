@@ -26,6 +26,7 @@
 | 메일 설정 | `<HOST>/api?type=mail_status` | OP `mailMode:"smtp"`·`smtpPort:25` / ST·QA `console` / `forceSend:false` |
 | pod에 들어온 env 이름 | `<HOST>/api?type=env_keys&token=<토큰>` | `groups`의 db·kvstore·smtp·environment true. `names`에서 Ctrl+F로 키 이름 확인 |
 | 인터넷 아웃바운드 | `<HOST>/api?type=egress_check&token=<토큰>` | `ok:true`, `count:45` |
+| DB·valkey에 pod가 닿나(SG 확인, 키트 v4.12~) | `<HOST>/api?type=db_probe&token=<토큰>&host=<RDS 엔드포인트>&port=5432` (valkey는 `host=<valkey 엔드포인트>&port=6379`) | `results[0].ok:true`. `ETIMEDOUT`이면 SG 미허용, `ENOTFOUND`면 주소 오타. 엔드포인트는 internal-context §2-a·§2-b 값(꺾쇠 없이). 응답의 host는 마스킹되어 있으니 외부 보고에 그대로 붙여도 됨 |
 | 구비 가전(백엔드 살아 있나) | `<HOST>/api?type=appliances` | `count:45` |
 | 인증 코드 보기(ST·QA만) | `<HOST>/api?type=auth_code_peek&kind=admin&email=<본인메일>` | `code` 6자리. OP는 404가 정상(메일로 옴) |
 | 코드 요청(주소창, 페이지 안 될 때) | `<HOST>/api?type=admin_auth_request&email=<본인메일>` | `ok:true` (60초 내 재요청은 `cooldown`) |
@@ -62,5 +63,5 @@ copy(localStorage.getItem('thinqreal_admin_token'))
 - `docs:`·`chore:` 커밋은 **빌드 없음**. 코드 반영은 `feat:`/`fix:`.
 - configmap만 바꾸면 **pod 재시작 없음** → 반드시 롤아웃 유발(config-rev 또는 코드 커밋).
 - QA는 메일 없음(peek), SMTP 불가. ST는 메일 억제(콘솔). OP만 실발송.
-- OP 호출은 토큰 필수, ST·QA는 SSO 뒤라 토큰 생략 가능(`env_keys`·`egress_check`·`edge_sync_now`·`mail_test`).
+- OP 호출은 토큰 필수, ST·QA는 SSO 뒤라 토큰 생략 가능(`env_keys`·`egress_check`·`db_probe`·`edge_sync_now`·`mail_test`).
 - 사내 식별자·값은 GitHub 어디에도 적지 않음(internal-context만).

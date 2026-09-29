@@ -8,6 +8,7 @@ import { sendTeamsTest } from '../notify/teams.js';
 import { calendarTest } from '../calendar/google.js';
 import { formatDateTimeLocal } from '../lib/dates.js';
 import os from 'node:os';
+import net from 'node:net';
 
 // MailApp 일일 할당량 개념이 없어 SMTP 설정 상태를 대신 보고 (계약상 remainingDailyQuota 키는 유지)
 export function handleMailStatus() {
@@ -94,6 +95,72 @@ export function handleEnvKeys(token) {
     },
     names, // 값 없음 — 이름만
   };
+}
+
+// ── db_probe (키트 v4.12, 2026-09-29) — pod → RDS·valkey TCP 도달 진단 ──
+// 목적: DB계정(Next Spoc) 절차의 SG 허용이 실제로 pod에 적용됐는지를 cert·secret 없이 확인한다.
+// 연결만 열고 닫는다(인증 없음). 값이 없어도 되므로 configmap·secret 변경 없이 주소창으로 실측 가능.
+// 대상: host&port 지정(AWS 엔드포인트 접미사만 허용 — 임의 호스트 스캔 방지) 또는 미지정 시 현재 env의 DB_HOST:DB_PORT·KVSTORE_ADDR.
+// 응답의 host는 마스킹(마지막 4레이블만) — 담당자가 결과 JSON을 외부 채팅에 붙여도 인스턴스명이 새지 않게.
+const PROBE_HOST_ALLOW = /\.amazonaws\.com$/i;
+const PROBE_TIMEOUT_MS = 5000;
+const PROBE_HINTS = {
+  ETIMEDOUT: 'SG 미허용 또는 접속 IP 대역 불일치 유력(패킷이 버려짐) — Next Spoc SG 허용 결과 확인',
+  ECONNREFUSED: '호스트에는 도달, 포트가 닫힘 — 포트 번호 확인',
+  ENOTFOUND: 'DNS 실패 — 엔드포인트 이름 오타 또는 이 VPC에서 해석 불가',
+  EAI_AGAIN: 'DNS 일시 실패 — 재시도',
+  EHOSTUNREACH: '라우팅 없음 — VPC·서브넷 연결 확인',
+  ENETUNREACH: '라우팅 없음 — VPC·서브넷 연결 확인',
+};
+
+function maskHost(host) {
+  const labels = String(host).split('.');
+  return labels.length > 4 ? '….' + labels.slice(-4).join('.') : host;
+}
+
+function parseKvAddr(addr) {
+  if (!addr) return null;
+  let s = String(addr).replace(/^rediss?:\/\//i, '');
+  const at = s.lastIndexOf('@'); // user:pass@host:port 형태면 자격은 버림
+  if (at >= 0) s = s.slice(at + 1);
+  const m = /^\[?([^\]/]+?)\]?(?::(\d+))?(?:\/.*)?$/.exec(s);
+  if (!m) return null;
+  return { host: m[1], port: Number(m[2] || 6379) };
+}
+
+function probeTcp(t) {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    let done = false;
+    const finish = (r) => { if (done) return; done = true; sock.destroy(); resolve({ ...t, host: maskHost(t.host), ...r, ms: Date.now() - started }); };
+    const sock = net.connect({ host: t.host, port: t.port });
+    sock.setTimeout(PROBE_TIMEOUT_MS);
+    sock.on('connect', () => finish({ ok: true }));
+    sock.on('timeout', () => finish({ ok: false, error: 'ETIMEDOUT', hint: PROBE_HINTS.ETIMEDOUT }));
+    sock.on('error', (e) => { const code = e?.code || 'ERROR'; finish({ ok: false, error: code, hint: PROBE_HINTS[code] || String(e?.message || e) }); });
+  });
+}
+
+export async function handleDbProbe(q) {
+  if (!config.outboundSuppressed) { // OP는 관리자 토큰 필수, ST/QA는 SSO 뒤라 생략 허용 (egress_check와 동일 규칙)
+    const admin = verifyAdminToken(q.token);
+    if (!admin.ok) return { error: 'unauthorized', reason: admin.reason || 'invalid_token' };
+  }
+  const targets = [];
+  if (q.host) {
+    const host = String(q.host).trim().toLowerCase().replace(/^[<"'`]+|[>"'`]+$/g, '');
+    const port = Number(String(q.port || '').trim());
+    if (!PROBE_HOST_ALLOW.test(host)) return { ok: false, error: 'host_not_allowed', hint: 'amazonaws.com 엔드포인트만 허용' };
+    if (!Number.isInteger(port) || port < 1 || port > 65535) return { ok: false, error: 'bad_port', hint: 'port=5432 또는 6379' };
+    targets.push({ target: 'custom', host, port, clusterCfg: /^clustercfg\./.test(host) });
+  } else {
+    if (config.db.host) targets.push({ target: 'db', host: config.db.host, port: config.db.port });
+    const kv = parseKvAddr(config.kvstore.addr);
+    if (kv) targets.push({ target: 'kvstore', ...kv, clusterCfg: /^clustercfg\./i.test(kv.host) });
+  }
+  if (!targets.length) return { ok: false, error: 'no_target', hint: 'host=&port= 지정 또는 DB_HOST/KVSTORE_ADDR env 필요' };
+  const results = await Promise.all(targets.map(probeTcp));
+  return { ok: results.every((r) => r.ok), pod: os.hostname(), env: config.environment || 'local', results };
 }
 
 // 관리자 토큰으로 실측한다. 대상은 현행 Apps Script의 공개 GET(appliances) — 실제 pull 경로와 동일 호스트.
