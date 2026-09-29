@@ -106,6 +106,9 @@ export const config = {
     user: env('DB_USER'),
     password: env('DB_PASSWORD'),
     sslmode: env('DB_SSLMODE', 'disable'),
+    // OP Aurora는 DB팀이 "Database Schema"를 별도 이름으로 만들 수 있음(요청서 기재) — 지정 시 모든 세션의 search_path를 그 스키마로.
+    // 미설정이면 계정 기본 search_path(보통 public) — ST/QA 공용 DB 동작 불변.
+    schema: env('DB_SCHEMA'),
   },
 
   // 사내 SMTP(BE팀 가이드 2026-09-23): 릴레이 호스트:25, 무인증, DNS 이름 사용. 값은 internal-context §2-d(사내 전용).
