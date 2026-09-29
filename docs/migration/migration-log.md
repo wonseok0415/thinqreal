@@ -630,3 +630,12 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **후속 6의 구조 질문 5건 재배치**: ①(DB명=스키마명)·②(APP CREATE/ALTER)는 자원 회신으로는 답이 안 나오고 **Next Spoc 요청의 결과로 확정**되는 항목 → 요청서에 넣는다(브리핑 §3-d 요청 내용 4건). ③(Aurora TLS)은 회신 미언급 = 강제 아님으로 보고 `DB_SSLMODE`로 대응(첫 기동 실측) / ④(valkey)는 TLS 활성 확정(9/25 회신), AUTH·cluster 모드는 엔드포인트 이름(`clustercfg`)·Next Spoc 회신으로 / ⑤ Single(템플릿 표준).
 - **Next Spoc 요청 골자(담당자 작성용, 값은 internal-context)**: Instance=완료 통보의 RDS·valkey 인스턴스명 / 접속 IP=OP 클러스터 대역(§2-c) + "TCN EKS KIC-OP thinq-real pod" 병기 / DB-i 미적용 / 요청 ① `<서비스명>_APP` 계정(스키마 CREATE·ALTER 포함) ② 사용 스키마명 확정 ③ SG 허용 5432·6379 ④ valkey 사용자·AUTH 발급 여부. MGR·DB-i는 보류(사람 직접 접근 필요 시 추가).
 - **판단**: 외부 트랙에 지금 필요한 값은 없음. 다음 실측 관문은 Next Spoc 완료 후 "pod → RDS/valkey TCP 도달"(SG 확인)인데 현재 진단 엔드포인트(`egress_check`)는 Apps Script 고정이라 **키트 v4.12 후보: `db_probe`(관리자 토큰, 호스트는 `*.amazonaws.com`만, TCP connect 결과)** — cert 전에 SG를 검증할 수 있는 유일한 수단. 담당자 신호 시 v4.11과 묶어 제공. 과제 D 키트 v5 착수 메모는 그대로 유효.
+
+## 작업 내역 (2026-09-29 후속 8 — 키트 v4.12 `db_probe`: pod → RDS·valkey TCP 도달 진단, v4.11과 묶음 제공)
+
+- **동기**: 후속 7의 판단대로 Next Spoc(DB계정·SG 허용) 완료 뒤 cert 전에 SG 적용 여부를 볼 수단이 없어 신설. 담당자 지시 "v4.12 만들어".
+- **구현**(설계 §8-16): `GET /api?type=db_probe&token=&host=&port=` — TCP connect만(인증 없음, secret 불필요). `host` 허용은 `*.amazonaws.com` 접미사만, 미지정 시 env `DB_HOST:DB_PORT`·`KVSTORE_ADDR`. 5초 상한, 소켓 코드별 한국어 `hint`, 호스트 입력 꺾쇠·따옴표 제거(토큰과 동일 규칙), **응답 host 마스킹(마지막 4레이블)** → 결과 JSON을 외부에 붙여도 사내 식별자 비노출. `clusterCfg` 판독 동봉. 인증 규칙 `egress_check`와 동일. 로컬 검증 7케이스 통과(허용 외 호스트·포트 검증·env 대상 2종·ECONNREFUSED·ENOTFOUND·연결 성공·OP 무토큰 거부).
+- **키트 v4.12 파일(미러 → Gitea `src/` 같은 경로, v4.11 미적용분 포함 4개)**: `src/handlers/diagnostics.js` · `src/routes/get.js` (v4.12) + `src/config.js` · `src/store/postgres/index.js` (v4.11 `DB_SCHEMA`). 커밋 접두 `feat:` → 0.18.0 예상. env 변경 없음(롤아웃은 코드 커밋이 유발).
+- **릴리스 후 확인**: `/healthz` version·pod 교체 → ST에서 `…/api?type=db_probe`(토큰 없이) → `error:"no_target"`이 아니라 ST 공용 DB·kvstore 2건 `ok:true`면 정상(ST는 env에 DB_HOST·KVSTORE_ADDR가 있음). OP는 토큰 + `host=`·`port=` 지정 호출로 Next Spoc 완료 후 실측.
+- **번호 정정**: 착수 메모(9/29 마감)의 "설계 §8-16 기록"은 과제 D가 아니라 이 항목이 차지 → 과제 D는 **§8-17**.
+- 문서: api-contract(`db_probe` 행)·ops-cheatsheet(B 주소표 행·E 규칙)·설계 §8-16·브리핑 §3-d(완료 후 검증 절차).
