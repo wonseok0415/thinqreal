@@ -674,3 +674,4 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **리드타임**: DB인프라 요청은 **작업 완료 시점 기준 최소 7일 전** → cutover-plan Multi-AZ 요청을 T-1주 → **T-2주**로 당기고 §0에 리드타임·창구 3종 원칙 추가. T-4주 행도 "Next Spoc 계정 → JIRA SG·권한" 순서로 정정.
 - **절차 확정(브리핑 §3-d)**: ① Next SPoC 동기화 1~2일 대기 → ② Next SPoC `thinqreal_APP` 생성(요청 사항에 스키마 소유/DDL 권한 필요 기재) → ③ JIRA DB계정(변경승인요청) SG 허용(RDS 비표준 포트·valkey 6379, OP 클러스터 대역) + 필요 시 권한부여 → ④ OP `db_probe`.
 - **플랜 B 준비**: 앱 계정의 DDL(기동 시 테이블 자동 생성)이 DB팀 정책상 불허될 가능성에 대비해 상수에서 생성한 **`docs/migration/schema-ddl.sql`**(13표 + app_state, 전 컬럼 TEXT, GRANT 주석) 추가 — JIRA 첨부용. 컬럼 추가 키트 때 같은 커밋에서 갱신 규칙. SEAgent는 사람 PC용이라 앱 무관.
+- **9/30 사내 반영**: 사내 클로드가 internal-context §2-a(RDS)·§2-b(valkey)를 DB팀 회신 원문(op-db.txt) 기준으로 갱신·커밋 완료(담당자 보고). 이로써 OP env 값 중 미확정은 APP 계정명·비밀번호(Next SPoC)뿐. 다음 신호: Next SPoC 동기화(1~2일) → 브리핑 §3-d ②③ 신청.
