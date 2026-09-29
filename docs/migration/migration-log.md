@@ -644,3 +644,13 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 
 - 담당자: PR #165 머지 → 키트 v4.12(4파일, v4.11 `DB_SCHEMA` 포함) Gitea 적용 → 릴리스 → ST `…/api?type=db_probe`(토큰 없이) **`ok:true`** 확인. ST 공용 DB·kvstore 2건 TCP 도달 = 엔드포인트·마스킹·인증 생략 규칙 전부 실환경에서 동작. v4.11 `DB_SCHEMA`도 같은 릴리스에 포함(미설정이라 ST/QA 동작 불변).
 - **다음 실측**: Next Spoc(DB계정·SG) 완료 통보 후 OP에서 토큰 + `host=`·`port=`로 RDS 5432·valkey 6379 두 번(치트시트 B). 그 전까지 외부 트랙 대기 항목은 "과제 D 시작" 신호뿐.
+
+## 작업 내역 (2026-09-29 후속 10 — 과제 D 키트 v5: `POST /api/import` + 「데이터 이행」 패널, 설계 §8-17)
+
+- 담당자 "과제 D 시작". 착수 메모(9/29 마감)대로 설계 §8-9·§8-15·cutover-plan §2·data-schema·api-contract 기준으로 구현.
+- **핵심 결정 3건**: ① **입력 = 구글 시트 xlsx 다운로드본 1파일**(별도 추출 도구·`.gs` 변경 없음, manifest는 패널 검사가 대신) ② **적재는 Store 계약 위 레지스트리**(어댑터 무수정, memory/postgres 동일) ③ **패널은 서버가 HTML 직접 서빙**(`admin_import_page` — public/·라이브 admin HTML 무수정, Dockerfile 차이 무관). 상세·⚠스펙 대비 변경은 설계 §8-17.
+- **구현 파일**: `src/handlers/importData.js`(파싱·inspect/import/verify/purge_extra/state) · `src/handlers/importPage.js`(패널 HTML) · `src/routes/post.js`(`/import` 라우트, 40MB, /pub 미마운트) · `src/routes/get.js`(`admin_import_page`) · `package.json`(+`exceljs`). 검증: memory E2E 14케이스 + Chromium 패널 클릭 스모크(검사 14행·적재·검증 ✓·상태값) — 스크린샷으로 레이아웃 확인.
+- **문서**: api-contract(`POST /api/import` 절)·설계 §8-17·uat-checklist §10(QA 리허설 9항목 — 담당자 수행)·cutover-plan §2 2·3단계 갱신·ops-cheatsheet B 행·브리핑 §3-h·gitea-repo-contract 의존성 이력·CLAUDE.md 상태 줄.
+- **키트 v5 파일(미러 → Gitea)**: `src/handlers/importData.js` · `src/handlers/importPage.js` · `src/routes/post.js` · `src/routes/get.js` + **Gitea `package.json` dependencies에 `"exceljs": "^4.4.0"` 한 줄 추가**(파일 통째 복사 대신 — Gitea 쪽 package.json은 version 필드 등 상이할 수 있음). 커밋 `feat:` → 0.19.0 예상. env 변경 없음.
+- **릴리스 후 확인**: `/healthz` version → ST에서 `…/api?type=admin_import_page` 열림(「토큰 있음/없음」 표시) → 첫 빌드 로그에서 exceljs 설치 확인(사내 미러). 실데이터 리허설은 QA에서 uat-checklist §10.
+- **미결 이월**: §8-9 ⓐ 동결 시간대 ⓑ 리다이렉트 유지 기간 / 게이트웨이 본문 상한·구글 xlsx 날짜 셀 형식은 QA 리허설 실측.

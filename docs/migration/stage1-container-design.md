@@ -447,3 +447,20 @@ Gitea 저장소 원본 검수에서 **HPA min 2 레플리카**가 확인되어(�
 **배경**: §8-15 선행조건 ①(DB계정·SG 허용)이 끝나도 ②(cert)가 없으면 secret을 넣을 수 없어, "SG가 실제로 pod에 적용됐는가"를 확인할 수단이 없었다. 기존 `egress_check`는 Apps Script 고정. SG 오류는 cert 이후 첫 기동에서야 드러나면 DB팀 왕복이 한 번 더 늘어난다.
 **구현**(`handlers/diagnostics.js handleDbProbe`, `routes/get.js`): `net.connect`로 TCP 연결만 열고 즉시 닫는다(인증·프로토콜 없음 → 계정·비밀번호 불필요, configmap·secret 변경 없이 주소창 실측). 대상은 `host=&port=` 지정(**`*.amazonaws.com` 접미사만** — 임의 호스트 스캔 방지) 또는 미지정 시 env의 `DB_HOST:DB_PORT`·`KVSTORE_ADDR`(스킴·자격 제거 후 host:port). 5초 상한. 소켓 에러 코드에 한국어 `hint`(`ETIMEDOUT`=SG 미허용 유력 / `ECONNREFUSED`=포트 / `ENOTFOUND`=DNS·오타 / `EHOSTUNREACH`=라우팅). 호스트 입력은 토큰과 같은 규칙으로 양끝 꺾쇠·따옴표 제거. **응답의 host는 마지막 4레이블만 남기고 마스킹** — 담당자가 결과 JSON을 외부 채팅에 그대로 붙여도 인스턴스명이 새지 않게(사내 식별자 규칙). `clusterCfg`(호스트가 `clustercfg.`로 시작)로 valkey cluster 모드 여부도 함께 판독. 인증 규칙은 `egress_check`와 동일(OP 토큰 필수, ST/QA 생략).
 **사용 시점**: Next Spoc(DB계정) 완료 통보 직후 OP에서 RDS 5432·valkey 6379 두 번 호출 → 둘 다 `ok:true`면 cert 이후 첫 기동은 인증·권한 문제만 남는다. `ETIMEDOUT`이면 접속 IP 대역(internal-context §2-c) 재확인 후 DB팀 재요청. 검증(로컬): 허용 외 호스트 거부·포트 검증·env 대상 2종·ECONNREFUSED·ENOTFOUND·연결 성공·OP 무토큰 거부.
+
+### 8-17. 과제 D 구현 — 시트 스냅샷(xlsx) → 저장소 이행 `POST /api/import` + 「데이터 이행」 패널 (2026-09-29, 키트 v5)
+
+**§8-9 설계 대비 확정 사항**
+- **입력 = 구글 시트 「파일 → 다운로드 → Microsoft Excel(.xlsx)」 1파일** (13탭 전체, 1행 헤더). §8-9 ①의 "외부 추출 스크립트(탭별 JSON + manifest)"는 **만들지 않는다** — 담당자가 다운로드 한 번으로 끝나고, 현행 `.gs` 변경(운영 세션 협의)도 불필요. manifest 역할은 패널 ① 검사(탭별 행수·고유 id)가 대신한다. Script Properties 2값은 패널 ⑤에서 손입력.
+- **적재는 Store 계약 위에서만**: `handlers/importData.js`의 테이블 레지스트리가 13표 각각의 `list/append/remove`를 기존 어댑터 메서드로 묶는다(`bookings.append`·`survey.appendResponse`·`articles.append` 등). 어댑터 수정 없음 → memory/postgres 동일 동작, PG에서는 `insertRow` 경로 그대로(rid = 적재 순서 = 파일 행 순서, articles는 append가 ord 부여).
+- **파싱은 서버(exceljs)** — 클라이언트 라이브러리(CDN) 의존을 두지 않기 위해. 새 의존성 `exceljs ^4.4.0`(package.json). 셀 변환 규칙: 숫자→문자열(13자리 id 정수 정확), 날짜 셀→`YYYY-MM-DD`(시각 있으면 ` HH:mm:ss`, exceljs는 UTC 필드가 시트 표시값), 수식→결과, 하이퍼링크→텍스트, 리치텍스트→연결. 날짜·월 컬럼(`date/visit_date/confirmed_date/published_at/month`)은 적재 전 `normalizeDate/Month`.
+- **멱등 키** = 표별 id 컬럼, `monthly_articles`만 `month+url`(id 컬럼 없음). `mode=skip`(기본, 재실행 안전) / `replace`(리허설 재적재). 빈 id·파일 내 중복은 건너뛰고 건수로 보고.
+- **검증**은 건수 대조를 넘어 id 집합 차이 + 양쪽 있는 행의 컬럼 값 비교(정규화 후) — §8-9 ③의 "raw_json 샘플 대조"를 전 행으로 확장. 초과 행 삭제(`purge_extra`)는 **ST·QA 전용**(kic-op 서버 거부) — OP는 빈 DB에서 시작하므로 초과가 있으면 원인 조사 대상.
+- **패널은 서버가 HTML을 직접 서빙**(`GET /api?type=admin_import_page`, `handlers/importPage.js`) — `public/`이나 라이브 `thinqreal_admin.html`에 손대지 않고, GitHub·Gitea의 Dockerfile 차이(정적 파일 복사 방식)에도 영향이 없다. 토큰은 같은 오리진 관리자 페이지의 localStorage 재사용, 모든 호출은 서버 토큰 게이트 재통과. SSO 뒤 `/api`라 사외 비노출, `/pub`에는 마운트하지 않음.
+- **본문 상한 40MB**(`express.raw`) — 현행 시트 전체 xlsx는 수 MB 예상. 게이트웨이 상한은 QA 리허설에서 실측(초과 시 413 → 탭을 나눠 두 파일로).
+
+**검증(로컬, memory 백엔드 E2E + Chromium 패널 클릭)**: 페이지 200 / 무토큰 거부 / `/pub/import` 404 / 비xlsx 거부 / inspect(미지 컬럼·빈 id·중복 id·미지 탭 판독) / import skip → 재실행 시 전부 건너뜀 / verify 전 표 일치 / 초과 행 삽입 후 verify `extraInDb:1` → confirm 없이 거부 → `삭제`로 1건 제거 / replace 2건 교체 / state 저장 / 저장값 확인(숫자 id 문자열, Date 셀·"2026. 5. 29." 모두 `YYYY-MM-DD`, ISO timestamp 원문 유지, articles month Date 셀 → `2026-06`). 패널: 검사표 14행·적재·검증 ✓·상태값 저장, 콘솔 오류 없음.
+
+**⚠ 스펙 대비 변경**: §8-9 ① "탭별 JSON + manifest 암호 zip 반입" → xlsx 원본 1파일(암호 zip은 반입 절차의 문제라 담당자가 파일 자체를 암호 zip으로 옮기면 됨, 적재 입력 형식과 무관). §8-9 ② "탭 단위 청크 업로드" → 파일 전체를 매 요청 전송(레플리카 간 상태 공유 불필요, 표 단위 호출은 패널이 순차 수행). §8-9 ② "dry-run" = `inspect`(건수·충돌·헤더 차이). 미결 ⓐⓑ는 그대로.
+
+**남은 것**: QA 리허설(uat-checklist §10) — 게이트웨이 본문 상한·구글 xlsx의 날짜 셀 실제 형식(GAS 자동 변환 잔재) 실측, 큰 탭(`health_checks`) 적재 시간. 전환일 절차는 cutover-plan §2 2·3단계에 반영.

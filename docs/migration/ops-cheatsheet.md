@@ -28,6 +28,7 @@
 | 인터넷 아웃바운드 | `<HOST>/api?type=egress_check&token=<토큰>` | `ok:true`, `count:45` |
 | DB·valkey에 pod가 닿나(SG 확인, 키트 v4.12~) | `<HOST>/api?type=db_probe&token=<토큰>&host=<RDS 엔드포인트>&port=5432` (valkey는 `host=<valkey 엔드포인트>&port=6379`) | `results[0].ok:true`. `ETIMEDOUT`이면 SG 미허용, `ENOTFOUND`면 주소 오타. 엔드포인트는 internal-context §2-a·§2-b 값(꺾쇠 없이). 응답의 host는 마스킹되어 있으니 외부 보고에 그대로 붙여도 됨 |
 | 구비 가전(백엔드 살아 있나) | `<HOST>/api?type=appliances` | `count:45` |
+| 데이터 이행 패널(키트 v5~) | 같은 브라우저에서 `<HOST>/thinqreal_admin.html` 로그인 후 `<HOST>/api?type=admin_import_page` | 상단 「토큰 있음」. 순서 ① 검사 → ② 적재 → ③ 검증(전 테이블 일치). 입력 파일은 구글 시트 「파일 → 다운로드 → Microsoft Excel(.xlsx)」 |
 | 인증 코드 보기(ST·QA만) | `<HOST>/api?type=auth_code_peek&kind=admin&email=<본인메일>` | `code` 6자리. OP는 404가 정상(메일로 옴) |
 | 코드 요청(주소창, 페이지 안 될 때) | `<HOST>/api?type=admin_auth_request&email=<본인메일>` | `ok:true` (60초 내 재요청은 `cooldown`) |
 | 코드 검증(주소창) | `<HOST>/api?type=admin_auth_verify&email=<본인메일>&code=<6자리>` | `ok:true` + token |

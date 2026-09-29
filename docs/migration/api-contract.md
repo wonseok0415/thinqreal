@@ -96,6 +96,22 @@
 
 ⚠️ ROI 2종은 토큰 미적용 — ROI 툴이 별창으로도 열려 토큰 전달 경로가 없음 (저위험 판단, 현행 유지). **사내 이전 시 세션 기반 인증으로 보호 권장.**
 
+### 데이터 이행 — `POST /api/import` (컨테이너 전용, 2026-09-29 키트 v5, 설계 §8-17)
+
+`/api?type=` 라우팅이 아니라 **별도 경로** — 본문이 JSON이 아니라 xlsx 바이트(최대 40MB)이기 때문. `/pub`에는 없음(404). 인증은 query `token`(관리자 토큰) 필수. 파라미터는 전부 query: `action` · `tables`(쉼표, 생략=전 테이블) · `mode` · `confirm`. 서버는 파일을 보관하지 않는다(레플리카 무관, 매 요청 재전송).
+
+| action | 쓰기 | 동작 | 응답 |
+|---|---|---|---|
+| `inspect` | 없음 | 탭↔테이블 매칭(탭명 = 테이블명 13종), 헤더 차이(누락=''로 채움 / 미지=무시), id 통계(빈 id·파일 내 중복·저장소 기존과 겹침·신규) | `{ok, backend, env, tables:[{table, inFile, idField, rows, headerMissing[], headerUnknown[], emptyId, dupInFile, uniqueIds, dbRows, overlap, newIds}], unknownSheets[], state{}}` |
+| `import` | append/remove | `mode=skip`(기본): 저장소에 없는 id만 append / `mode=replace`: 같은 id 삭제 후 append. 빈 id·파일 내 중복(첫 행만)은 건너뜀. 날짜·월 컬럼(`date/visit_date/confirmed_date/published_at/month`)은 `normalizeDate/Month` 선적용. 완료 시 `export_log`에 `[데이터 이행] mode=… 표(+추가 ↺교체 =건너뜀)` 기록 | `{ok, mode, results:[{table, rows, inserted, replaced, skipped, emptyId, dupInFile, errors[]}], totalInserted}` |
+| `verify` | 없음 | 파일 ↔ 저장소 id 대조: 파일에만(`missingInDb`)·저장소에만(`extraInDb`)·양쪽 있는 행의 컬럼 값 불일치(정규화 후 비교, 행당 첫 불일치) | `{ok, allMatch, results:[{table, fileRows, dbRows, missingInDb, missingInDbIds[≤50], extraInDb, extraInDbIds[≤50], mismatchRows, mismatches[≤20], match}]}` |
+| `purge_extra` | remove | 저장소에만 있는 id 삭제(ST·QA 리허설 초기화). `confirm=삭제` 필수. **kic-op에서는 `forbidden_in_op` 거부** | `{ok, results:[{table, removed}]}` |
+| `state` | app_state | body JSON `{pairs:[{key,value}]}` → `app_state` set (Script Properties 이식: `monthly_report_last_sent_month`·`roi_report_snapshot_id`) | `{ok, applied[], state{}}` |
+
+id 기준(멱등 키): bookings·roi·slot_blocks·insights·best·export_log·health·voc = `id` / survey = `response_id` / ledger = `ledger_id` / issue = `issue_id` / visitors = `response_id` / **monthly_articles = `month+url`**. 오류: `unauthorized`·`file_required`·`not_xlsx`·`unknown_table`·`unknown_action`·`confirm_required`·`forbidden_in_op`·`import_failed`.
+
+패널: `GET /api?type=admin_import_page` — 서버가 직접 서빙하는 HTML(라이브 `thinqreal_admin.html` 무수정). 토큰은 같은 오리진 관리자 페이지의 localStorage 값 재사용. 순서 ① 검사 → ② 적재(테이블 체크·모드) → ③ 검증 → (ST·QA) 초과 행 삭제 → 상태값.
+
 ### `booking` 요청 body 주요 필드
 ```
 type, timestamp(ISO), date, slots(number[]), slot, slotLabel,

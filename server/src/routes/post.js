@@ -24,6 +24,7 @@ import {
 import { handleExportLog } from '../handlers/exportLog.js';
 import { handleBestReviewerSend } from '../handlers/best.js';
 import { handleRoiReportPin } from '../handlers/roi.js';
+import { handleImport } from '../handlers/importData.js';
 
 const ADMIN_TYPES = new Set([
   'update', 'booking_delete', 'slot_block', 'slot_unblock',
@@ -43,6 +44,19 @@ export const PUB_TYPES = new Set(['visitor_submit', 'health_check', 'voc_report'
 
 export function createPostRouter(store, { onlyTypes } = {}) {
   const router = Router();
+
+  // 데이터 이행(과제 D, §8-17) — POST /api/import?action=&token=&tables=&mode=&confirm= , body = xlsx 바이트(action=state는 JSON).
+  // 관리자 토큰 필수. /pub(onlyTypes)에는 마운트하지 않는다 — SSO 예외 경로에 이행 기능이 노출되지 않게.
+  // 본문 상한 40MB(시트 전체 xlsx 수 MB 전제) — 게이트웨이 상한은 사내 실측(가이드 §11 기록).
+  if (!onlyTypes) {
+    router.post('/import', express.raw({ type: '*/*', limit: '40mb' }), async (req, res, next) => {
+      try {
+        const admin = verifyAdminToken(req.query.token);
+        if (!admin.ok) return res.json({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
+        return res.json(await handleImport(store, req.query.action, req.query, req.body, admin.email));
+      } catch (e) { next(e); }
+    });
+  }
 
   // 프론트가 mode:'no-cors'로 보내는 POST는 Content-Type이 text/plain으로 강제되므로
   // 타입 무관 raw로 받아 JSON.parse (Apps Script doPost(e.postData.contents)와 동일 동작)
