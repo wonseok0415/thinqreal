@@ -659,3 +659,11 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 
 - 담당자: PR #167 머지 → 키트 v5(4파일 + Gitea `package.json`에 `exceljs` 한 줄) 적용 → 릴리스 → ST에서 데이터 이행 패널 정상 동작 확인. 사내 빌드에서 `exceljs` 설치가 통과한 것이므로 사내 레지스트리 미러 경유 신규 의존성 추가는 가능한 절차로 확정(gitea-repo-contract 의존성 이력에 근거 추가).
 - **다음**: QA 리허설(uat-checklist §10, 담당자 수행) — 실데이터 xlsx로 검사·적재·검증, 소요 시간·게이트웨이 본문 상한·날짜 셀 형식 실측 → 결과로 cutover-plan §2 확정. 외부 트랙은 리허설 보고와 Next Spoc·cert 신호 대기.
+
+## 작업 내역 (2026-09-30 — DB팀 접속정보 원문(op-db.txt) 판독 → OP env 목록 확정, 구조 질문 5건 종결)
+
+- 담당자가 DB팀 회신 텍스트(op-db.txt) 캡처 2장을 공유. **값(엔드포인트·SG·VPC 식별자)은 이 리포에 기재하지 않음** — 사내 클로드가 internal-context §2-a·§2-b에 원문 그대로 기록. 외부 트랙은 구조 사실만 판독.
+- **구조 사실(후속 6의 질문 5건 답)**: ① DB명 = 스키마명(서비스명, 별도 스키마) → `DB_SCHEMA` **지정 필요**(키트 v4.11이 대비한 경우) ② APP 계정·권한은 회신에 없음 → Next Spoc(DB계정)에서 확정, "RDS 생성 후 Next Spoc 동기화 1~2일" 안내 → 신청은 동기화 뒤 가능 ③ Aurora TLS 강제 여부 미언급 → `DB_SSLMODE=require`(pool은 rejectUnauthorized:false) 유지 ④ valkey: **Cluster Mode Enabled**(2 nodes/1 shard, `clustercfg.` 엔드포인트), TLS 활성, **AUTH·RBAC 미사용**, 서버 인증서 Amazon 공인 CA → `KVSTORE_ADDR=<clustercfg>:6379`·`KVSTORE_TLS=true`, USERNAME/PASSWORD 없음, 인증서 검증 기본값 유지 ⑤ Single-AZ.
+- **⚠ 발견**: RDS 포트가 **표준 5432가 아님** — `DB_PORT` 반드시 지정, 치트시트 `db_probe` 행의 `port=5432` 예시 정정. 앱은 **Cluster Endpoint(Writer)** 사용(DB팀 안내: Instance Endpoint는 DB-i 수동매핑용, Reader는 미사용).
+- 문서: 설계 §8-15 OP env 목록 확정(위 내용), 브리핑 §3-a 상태, ops-cheatsheet B. **외부 트랙에 더 필요한 값 없음** — 남은 미확정은 APP 계정명·비밀번호(Next Spoc)뿐.
+- 다음: 담당자 → 사내 클로드에 op-db.txt 내용으로 internal-context §2-a·§2-b 갱신(비밀값 없음 — 전부 프롬프트 가능) / Next Spoc 동기화(1~2일) 후 DB계정 신청(브리핑 §3-d 4건) / 완료 시 OP `db_probe`(RDS는 비표준 포트로).
