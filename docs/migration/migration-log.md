@@ -612,3 +612,13 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - 담당자: DBSUPPORT에서 Aurora·valkey 생성 및 접속 계정 발급 완료, 접속 정보 수령(사내 캡처 불가 → 외부 전달 불가). **외부 트랙 판단: 값은 외부에 필요 없음** — 사내 클로드가 internal-context §2-a·§2-b에 기록하면 됨(비밀값은 별도 보관 `55-credentials`, internal-context에는 호스트·계정명·포트·TLS/AUTH 여부만). 외부 트랙에 필요한 것은 **구조 사실 5건(예/아니오·이름 없이)**: ① DB명과 스키마명이 같은가 ② APP 계정에 CREATE TABLE·ALTER 권한 ③ Aurora TLS 필수 여부·CA 번들 필요 여부 ④ valkey AUTH 토큰 유무·cluster 모드(configuration endpoint) 여부·포트 표준 여부 ⑤ Multi-AZ 현재 상태(Single).
 - **구현(키트 v4.11, `config.js`·`store/postgres/index.js`)**: `DB_SCHEMA` — 별도 스키마로 생성됐을 경우 search_path 고정·기동 시 확인 로그. 설계 §8-15에 OP env 확정 목록·첫 기동 절차(APP 권한 유무 분기)·선행조건(cert) 기록. gitea-repo-contract env 표 갱신.
 - **진행 판단**: OP DB 전환은 SealedSecret 재봉인이 필요해 **cert(BE팀 10/6~)가 선행** — 값이 있어도 지금은 넣을 수 없음. 따라서 외부 트랙은 **과제 D 키트 v5(`admin_import` + 관리자 「데이터 이행」 패널 + 스냅샷 추출) 착수**가 최선의 선행 작업(QA 리허설까지 cert 무관). 담당자 승인 시 바로 시작.
+
+## 작업 내역 (2026-09-29 마감 — 세션 종료, 다음 세션 착수 메모: 과제 D 키트 v5)
+
+- **접속 정보 전달 방식 확정**: 사내 Claude도 JIRA를 직접 못 읽음 → 담당자가 프롬프트에 타이핑. **비밀값(DB 비밀번호·valkey AUTH 토큰)은 프롬프트에도 넣지 않고** `55-credentials` 별도 파일에 담당자가 직접 저장, internal-context §2-a·§2-b에는 비밀 아닌 값(엔드포인트·포트·DB명·스키마명·계정명·TLS/AUTH 여부)만 + "55-credentials 참조". 외부 트랙에는 구조 예/아니오 5건만.
+- **세션 마감 사유**: 컨텍스트 63% + 새 주제(과제 D)는 새 세션이 유리. 상태는 전부 리포에 있음(아래).
+- **다음 세션 착수 메모 — 과제 D 키트 v5** (담당자 "시작" 신호 후):
+  - 읽을 것: 루트 `CLAUDE.md` 이관 트랙 절 → `migration-log.md` 마지막 3항목 → `stage1-container-design.md` §8-9(설계 확정본)·§8-15(OP env·첫 기동) → `cutover-plan.md` §2(D-day 순서) → `data-schema.md`(14표 컬럼) → `api-contract.md`(admin 토큰 규칙).
+  - 만들 것: ① 스냅샷 추출(현행 시트 14탭 → 탭별 JSON + manifest 건수 — 현행 Apps Script에 `export_snapshot`(관리자 토큰) 추가는 **운영 세션 협의 사항**이라, 1차는 관리자 페이지 CSV/JSONL 내보내기 산출물 또는 시트 다운로드(xlsx→JSON 변환 도구)로 입력 받는 것을 우선 검토) ② 컨테이너 POST `admin_import`(관리자 토큰, 탭별 JSON 업로드, `dry_run` → 건수·컬럼 검증 리포트, 실적재는 id 기준 멱등 upsert, 표별 결과) ③ 관리자 페이지 「데이터 이행」 패널 — **컨테이너 서빙본에만 노출**(htmlRewrite로 주입하거나 `public/` 별도 페이지 `admin_import.html` — 라이브 HTML은 건드리지 않음) ④ QA 리허설 절차(uat-checklist 8단계 뒤 또는 별도 절) ⑤ api-contract·data-schema·설계 §8-16 기록.
+  - 제약: 라이브 파일 무수정 원칙, 사내 식별자 미기재, `docs:`·`chore:`는 무빌드(키트는 `feat:`), configmap 변경 시 롤아웃 유발, 민감 단가 grep.
+  - 대기 신호: DB팀 구조 답 5건 / cert(10/6~) / deployment `version:` 줄 위치 / 협업자 UAT 차이 보고.
