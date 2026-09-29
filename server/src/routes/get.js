@@ -13,6 +13,7 @@ import {
   handleMailStatus, handleMailTest, handleTelegramTest, handleTeamsTest, handleCalendarTest, handleEgressCheck, handleEnvKeys, handleDbProbe,
 } from '../handlers/diagnostics.js';
 import { handleGetSurveyData } from '../handlers/survey.js';
+import { renderImportPage } from '../handlers/importPage.js';
 import { handleGetHealthChecks } from '../handlers/health.js';
 import { handleGetVocReports } from '../handlers/voc.js';
 import { runEdgeSyncJob } from '../jobs/edgeSync.js';
@@ -73,6 +74,8 @@ export function createGetRouter(store) {
           return res.json(await handleEgressCheck(q.token));
         case 'env_keys': // pod에 주입된 env 이름만(값 없음) — 어느 configmap/secret이 도달했는지 판별 (OP 토큰 필수, 2026-09-28)
           return res.json(handleEnvKeys(q.token));
+        case 'admin_import_page': // 관리자 「데이터 이행」 패널 (컨테이너 전용 HTML — 라이브 admin HTML 무수정, §8-17). SSO 뒤, 동작은 /api/import 토큰 게이트
+          return res.type('html').send(renderImportPage());
         case 'db_probe': // pod → RDS·valkey TCP 도달(SG 허용) 진단 — host&port 지정(amazonaws.com만) 또는 env 대상 (OP 토큰 필수, 키트 v4.12)
           return res.json(await handleDbProbe(q));
         case 'auth_code_peek': { // ST/QA 전용 — 메일이 억제된 환경에서 UAT용 인증 코드 확인. OP에서는 존재하지 않는 type처럼 동작
