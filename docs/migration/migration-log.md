@@ -591,3 +591,10 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - 사내: 키트 v4.9 push 완료(사내 Claude가 `git rebase origin/main`으로 해결) → 0.17.1 릴리스 예상. **push rejected(fetch first) 원인 확정**: 직전 push의 릴리스 봇이 `chore: release` 커밋을 main에 먼저 올려서 다음 push가 non-fast-forward가 됨 — 정상 현상. 표준 해법 `git pull --rebase origin main && git push origin main` 한 줄, 사내 Claude 프롬프트에 push 명령을 이 형태로 달라고 명시.
 - 담당자 요청 "반복 작업 복붙표" → **`ops-cheatsheet.md` v1** 신설: A 사내 PC 명령(미러 pull·rejected 해결) / B 환경별 주소표(healthz·mail_status·env_keys·egress·peek·request·verify·mail_test)와 토큰 얻기·로그인 순서 / C 사내 Claude 프롬프트 템플릿 5종(키트 적용·configmap 변경+config-rev·저장소 확인·internal-context 갱신·막힘) / D 릴리스 후 3분 루틴 / E 규칙 요약. 루트 CLAUDE.md 문서 목록 등재.
 - 대기: 0.17.1 롤아웃 후 OP `/healthz authSecret:"db"`(두 pod)·기존 토큰 유지·`env_keys`의 `JOBS_DISABLED`.
+
+## 작업 내역 (2026-09-29 후속 4 — 0.17.1 롤아웃 후 `authSecret:"db"` 확인, 새 토큰도 `bad_signature` → 토큰 복사 형식 의심·서버 측 정규화(키트 v4.10))
+
+- 담당자 실측: 0.17.1 롤아웃(pod 교체) 후 OP `/healthz authSecret:"db"`. 롤아웃 전 토큰은 `bad_signature`(예상 — 임시 키 서명). **롤아웃 후 재로그인한 새 토큰도 `bad_signature`** → 서명 키 불일치보다 **토큰 문자열 오염** 의심: DevTools Console의 `localStorage.getItem(...)` 출력은 따옴표(`'…'`)를 포함해 표시되며 그대로 복사해 주소에 붙이면 payload·서명 양끝에 따옴표가 붙어 HMAC 불일치 → 정확히 `bad_signature`. 로컬 재현: 정상 토큰 ok / 따옴표 포함 → 실패.
+- **구현(키트 v4.10, `auth/token.js` 1줄)**: `verifyAuthToken`이 양끝 따옴표(`'` `"` `` ` ``)·공백을 제거 후 검증 — 복사 실수를 서버가 흡수. 담당자 안내: Console에서 `copy(localStorage.getItem('thinqreal_admin_token'))`로 복사하면 따옴표 없이 클립보드에 들어감(치트시트 반영).
+- **원인 확정(같은 날)**: 담당자가 안내문의 자리표시 `<토큰>`을 **꺾쇠까지 포함해** 붙여 넣었음 — 꺾쇠를 빼자 즉시 통과. 서명 키 문제 아님(0.17.1 이후 재로그인 토큰 정상). v4.10 정규화에 꺾쇠(`<` `>`)도 추가. 교훈: 안내문의 `<…>` 자리표시는 기호까지 바꿔 넣는 것임을 치트시트 상단에 명시.
+- 잔여 후보(정규화 후에도 실패 시): 두 pod의 DB 키 불일치(60초 재수렴 전) → `env_keys` 5회 반복 호출로 간헐성 확인 + `/healthz` 두 pod `authSecret` 대조.

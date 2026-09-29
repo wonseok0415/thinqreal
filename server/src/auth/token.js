@@ -25,6 +25,11 @@ function constantTimeEquals(a, b) {
 
 /** 서명·만료 검증. 유효하면 {ok:true, email, admin}, 아니면 {ok:false, reason} */
 export function verifyAuthToken(token) {
+  if (typeof token === 'string') {
+    // 주소창에 붙여 넣을 때 딸려오는 따옴표·꺾쇠·공백 제거 — 안내문의 자리표시 `<토큰>`을 꺾쇠째 붙이거나
+    // DevTools 콘솔 출력('…')을 그대로 복사하면 bad_signature가 나던 것(2026-09-29 UAT 실사례: 꺾쇠)
+    token = token.trim().replace(/^["'`<]+|["'`>]+$/g, '').trim();
+  }
   if (!token || typeof token !== 'string' || token.indexOf('.') < 0) {
     return { ok: false, reason: 'no_token' };
   }
