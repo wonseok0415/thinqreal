@@ -23,7 +23,7 @@
   - **Dockerfile**: 현재 `COPY src ./src`, `CMD ["node", "src/server.js"]`. 소스 경로·실행 파일이 바뀌면 COPY·빌드 대상·CMD/ENTRYPOINT를 새 코드에 맞게 변경.
   - **release workflow**: 현재 테스트 명령 `node --check src/server.js` (`.gitea/workflows/release.yml`). 구조 변경 시 테스트 명령도 변경.
   - **의존성**: 새 라이브러리 추가 시 Dockerfile에서 설치하도록 변경 + release workflow에서도 테스트 전 의존성 설치.
-  - **의존성 추가 이력**: `exceljs ^4.4.0`(키트 v5, 2026-09-29 — 데이터 이행 xlsx 파싱). Gitea `package.json` dependencies에 한 줄 추가 — Dockerfile `npm install --omit=dev`가 설치. 사내 레지스트리 미러에서 받을 수 있는지 첫 빌드 로그로 확인.
+  - **의존성 추가 이력**: `exceljs ^4.4.0`(키트 v5, 2026-09-29 — 데이터 이행 xlsx 파싱). Gitea `package.json` dependencies에 한 줄 추가 — Dockerfile `npm install --omit=dev`가 설치. 사내 레지스트리 미러에서 받을 수 있는지 첫 빌드 로그로 확인. → **9/29 ST 릴리스 성공으로 확인됨**(신규 의존성 추가 절차 성립).
 
 ## 3. 제공 인프라 (Runtime)
 - **Kubernetes**: app 전용 Deployment·Service 일체. 네임스페이스 `ns-extapps`. **Istio sidecar가 모든 pod에 자동 설치** (트래픽 제어·통신 보안·관찰성).

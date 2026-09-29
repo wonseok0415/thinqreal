@@ -654,3 +654,8 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **키트 v5 파일(미러 → Gitea)**: `src/handlers/importData.js` · `src/handlers/importPage.js` · `src/routes/post.js` · `src/routes/get.js` + **Gitea `package.json` dependencies에 `"exceljs": "^4.4.0"` 한 줄 추가**(파일 통째 복사 대신 — Gitea 쪽 package.json은 version 필드 등 상이할 수 있음). 커밋 `feat:` → 0.19.0 예상. env 변경 없음.
 - **릴리스 후 확인**: `/healthz` version → ST에서 `…/api?type=admin_import_page` 열림(「토큰 있음/없음」 표시) → 첫 빌드 로그에서 exceljs 설치 확인(사내 미러). 실데이터 리허설은 QA에서 uat-checklist §10.
 - **미결 이월**: §8-9 ⓐ 동결 시간대 ⓑ 리다이렉트 유지 기간 / 게이트웨이 본문 상한·구글 xlsx 날짜 셀 형식은 QA 리허설 실측.
+
+## 작업 내역 (2026-09-29 후속 11 — ✅ 키트 v5 사내 반영, ST `admin_import_page` 정상 동작)
+
+- 담당자: PR #167 머지 → 키트 v5(4파일 + Gitea `package.json`에 `exceljs` 한 줄) 적용 → 릴리스 → ST에서 데이터 이행 패널 정상 동작 확인. 사내 빌드에서 `exceljs` 설치가 통과한 것이므로 사내 레지스트리 미러 경유 신규 의존성 추가는 가능한 절차로 확정(gitea-repo-contract 의존성 이력에 근거 추가).
+- **다음**: QA 리허설(uat-checklist §10, 담당자 수행) — 실데이터 xlsx로 검사·적재·검증, 소요 시간·게이트웨이 본문 상한·날짜 셀 형식 실측 → 결과로 cutover-plan §2 확정. 외부 트랙은 리허설 보고와 Next Spoc·cert 신호 대기.
