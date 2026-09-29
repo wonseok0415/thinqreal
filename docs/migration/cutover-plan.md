@@ -11,18 +11,20 @@
 - **되돌리기 가능 구간**: D-day에 현행 트리거를 삭제하기 **전까지**는 아무것도 되돌릴 필요가 없다(현행이 그대로 살아 있음). 삭제 후 되돌리려면 §6.
 - **메일 이중 발송 금지**: 같은 날 두 시스템이 같은 메일을 보내면 안 된다 — OP 스케줄러(`JOBS_DISABLED`)와 현행 트리거는 **한쪽만** 켜져 있어야 한다.
 
+**DB팀 요청 리드타임(9/30 가이드)**: DB인프라(자원·계정) 요청은 **작업 완료 시점 기준 최소 7일 전** 접수. 창구 3종 — Next SPoC(계정 생성/삭제/연장/암호초기화) · JIRA(그 외 전부: SG 허용·권한·스키마·파라미터·Multi-AZ·데이터 추출/이관) · DBDIP(Object 반영관리 — 주요 서비스 QA 권역 이상만, 우리는 해당 없음 → JIRA).
+
 ## 1. 단계별 일정 (D = 전환일, 평일 오전 권장)
 
 | 시점 | 할 일 | 담당 | 끝의 정의 |
 |---|---|---|---|
-| **T-4주** | OP 자원 완료: Aurora·valkey 생성(DBSUPPORT) → 접속 계정 JIRA → 엔드포인트·계정 수령 | 담당자·DB팀 | internal-context §2-a·§2-b에 엔드포인트·계정명 기록 |
+| **T-4주** | OP 자원 완료: Aurora·valkey 생성(DBSUPPORT JIRA — ✅ 9/29) → **APP 계정 생성(Next Spoc) → 서비스 계정 SG 허용·권한(JIRA DB계정 변경승인요청, 작업일 최소 7일 전)** → 엔드포인트·계정 수령 | 담당자·DB팀 | internal-context §2-a·§2-b에 엔드포인트·계정명 기록 |
 | T-4주 | OP env 주입(DB_*·KVSTORE_*·AUTH_SECRET·LEGACY_AUTH_SECRET 등 — sealed-secret/Vault) | 담당자·사내 Claude·BE팀(cert) | OP `/healthz` `backend:"postgres"`·`kv:"shared"` |
 | T-4주 | 과제 D 키트 v5 배포(`admin_import` + 관리자 「데이터 이행」 패널) | 외부 트랙·사내 Claude | QA에서 스냅샷 업로드 dry-run 통과 |
 | **T-3주** | 협업자 UAT 1~8 완료(QA) + 차이 보고 판독·수정 키트 반영 | 협업자·외부 트랙 | 차이 항목 0 또는 "무해" 합의 |
 | T-3주 | **QA 리허설**: 현행 시트 스냅샷 → QA 적재 → 건수·샘플 대조 → 관리자 페이지 확인 | 담당자·협업자 | 14표 건수 일치, 샘플 5건 필드 일치 |
 | **T-2주** | UAT 9단계(메일)를 OP에서 — `[UAT]` 접두, 담당자 3인 사전 고지 | 협업자 | 9-1~9-6 판정 기입 |
 | T-2주 | 운영 전환 안내문 확정(주소 변경·SSO 로그인·달라지는 점 없음·문의처) | 협업자 초안 → 담당자 확정 | 발송 대상·시점 확정(D-3 예고, D-day 본문) |
-| **T-1주** | **Multi-AZ 전환 요청** — DBSUPPORT에 "PRD/Single → PRD/Multi-AZ" 요청(DB팀 템플릿 표준: 개발 중 Single, 오픈 전 Multi-AZ). 리허설이 끝난 뒤 넣어 전환 작업 중 인스턴스 교체가 겹치지 않게 | 담당자 → DB팀 | DB팀 완료 통보, OP `/healthz` `backend:"postgres"` 재확인(엔드포인트 불변 확인) |
+| **T-2주** | **Multi-AZ 전환 요청** — JIRA DB자원(변경승인요청)에 **작업 완료 희망일 최소 7일 전**(DB팀 요청 시점 규칙, 9/30 가이드 확인)으로 "PRD/Single → PRD/Multi-AZ" 요청(DB팀 템플릿 표준: 개발 중 Single, 오픈 전 Multi-AZ). 리허설이 끝난 뒤 넣어 전환 작업 중 인스턴스 교체가 겹치지 않게 | 담당자 → DB팀 | DB팀 완료 통보, OP `/healthz` `backend:"postgres"` 재확인(엔드포인트 불변 확인) |
 | T-1주 | 전환일 확정·공지(팀장·담당자 3인·협업자), 현행 예약 접수 동결 시각 합의 | 담당자 | 캘린더 공지 |
 | T-1주 | OP 사전 점검: SSO·예외 경로 5종·`mail_status` smtp·`egress_check`·`env_keys`(smtp/db/kvstore true) | 담당자 | 전부 정상 |
 | **D-1** | 현행 사이트에 "내일 HH:MM부터 새 주소로 이전" 배너(운영 세션에 요청) / 관리자에게 D-day 동안 시트·관리자 페이지 편집 금지 고지 | 담당자·운영 세션 | 배너 게시 |
@@ -74,7 +76,7 @@
 - [ ] OP `/healthz`: `backend:postgres`·`kv:shared`·`env:kic-op`·`version` 최신
 - [ ] OP `env_keys`: db·kvstore·smtp·authSecret·legacyAuthSecret 전부 true
 - [ ] OP `mail_status` smtp / `egress_check` ok / SSO 예외 5종 로그인 없이 열림
-- [ ] Multi-AZ 전환 완료 통보(§1 T-1주)
+- [ ] Multi-AZ 전환 완료 통보(§1 T-2주 요청)
 - [ ] QA 리허설 건수 일치 기록 있음
 - [ ] UAT 1~9 판정 기입, △·× 처리 완료
 - [ ] 전환 안내문 확정, 발송 대상 목록

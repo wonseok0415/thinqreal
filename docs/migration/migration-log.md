@@ -667,3 +667,10 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **⚠ 발견**: RDS 포트가 **표준 5432가 아님** — `DB_PORT` 반드시 지정, 치트시트 `db_probe` 행의 `port=5432` 예시 정정. 앱은 **Cluster Endpoint(Writer)** 사용(DB팀 안내: Instance Endpoint는 DB-i 수동매핑용, Reader는 미사용).
 - 문서: 설계 §8-15 OP env 목록 확정(위 내용), 브리핑 §3-a 상태, ops-cheatsheet B. **외부 트랙에 더 필요한 값 없음** — 남은 미확정은 APP 계정명·비밀번호(Next Spoc)뿐.
 - 다음: 담당자 → 사내 클로드에 op-db.txt 내용으로 internal-context §2-a·§2-b 갱신(비밀값 없음 — 전부 프롬프트 가능) / Next Spoc 동기화(1~2일) 후 DB계정 신청(브리핑 §3-d 4건) / 완료 시 OP `db_probe`(RDS는 비표준 포트로).
+
+## 작업 내역 (2026-09-30 후속 — 사내 DB운영가이드 판독: DB계정 창구가 Next SPoC + JIRA 둘로 갈림, 리드타임 7일, 플랜 B DDL)
+
+- 담당자가 사내 DB운영가이드(DBTok) 캡처 4장 공유. **정정**: 후속 7·브리핑 §3-d에서 "DB계정 = Next Spoc"으로 적었으나 가이드 표는 **Next SPoC = 계정 생성/삭제/연장/암호초기화만**, **권한부여·SG 허용요청·스키마 생성/삭제·권한 회수·사용자 확인은 JIRA DB계정(변경승인요청)**(단순 문의는 문의및검토). 아이콘 지도에서도 「DB 계정 생성 요청」=NEXTSPOC, 「서비스 계정 Security Group 허용 신청」=JIRA, 「DB System 권한 요청」=JIRA, 「DB Object 권한 요청」=DBDIP. 요청 시스템 3종: Next SPoC(계정)·JIRA(변경관리)·DBDIP(품질 고도화 — SDP 등 주요 서비스 QA 권역 이상만, 나머지는 JIRA → 우리는 JIRA).
+- **리드타임**: DB인프라 요청은 **작업 완료 시점 기준 최소 7일 전** → cutover-plan Multi-AZ 요청을 T-1주 → **T-2주**로 당기고 §0에 리드타임·창구 3종 원칙 추가. T-4주 행도 "Next Spoc 계정 → JIRA SG·권한" 순서로 정정.
+- **절차 확정(브리핑 §3-d)**: ① Next SPoC 동기화 1~2일 대기 → ② Next SPoC `thinqreal_APP` 생성(요청 사항에 스키마 소유/DDL 권한 필요 기재) → ③ JIRA DB계정(변경승인요청) SG 허용(RDS 비표준 포트·valkey 6379, OP 클러스터 대역) + 필요 시 권한부여 → ④ OP `db_probe`.
+- **플랜 B 준비**: 앱 계정의 DDL(기동 시 테이블 자동 생성)이 DB팀 정책상 불허될 가능성에 대비해 상수에서 생성한 **`docs/migration/schema-ddl.sql`**(13표 + app_state, 전 컬럼 TEXT, GRANT 주석) 추가 — JIRA 첨부용. 컬럼 추가 키트 때 같은 커밋에서 갱신 규칙. SEAgent는 사람 PC용이라 앱 무관.
