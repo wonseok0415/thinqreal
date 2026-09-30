@@ -464,3 +464,12 @@ Gitea 저장소 원본 검수에서 **HPA min 2 레플리카**가 확인되어(�
 **⚠ 스펙 대비 변경**: §8-9 ① "탭별 JSON + manifest 암호 zip 반입" → xlsx 원본 1파일(암호 zip은 반입 절차의 문제라 담당자가 파일 자체를 암호 zip으로 옮기면 됨, 적재 입력 형식과 무관). §8-9 ② "탭 단위 청크 업로드" → 파일 전체를 매 요청 전송(레플리카 간 상태 공유 불필요, 표 단위 호출은 패널이 순차 수행). §8-9 ② "dry-run" = `inspect`(건수·충돌·헤더 차이). 미결 ⓐⓑ는 그대로.
 
 **남은 것**: QA 리허설(uat-checklist §10) — 게이트웨이 본문 상한·구글 xlsx의 날짜 셀 실제 형식(GAS 자동 변환 잔재) 실측, 큰 탭(`health_checks`) 적재 시간. 전환일 절차는 cutover-plan §2 2·3단계에 반영.
+
+### 8-18. OP 계정 분리 대응 — APP(DML)·MGR(DDL) + 형상 검증 모드 (2026-09-30, 키트 v5.1)
+
+**배경**: Next SPoC 계정 신청 중 DB팀 답변 — 서비스 계정 `thinqreal_APP`에는 **DDL 권한을 부여하지 않음**(표 형상 변경이 서비스 이슈를 낳으므로 DML·조회만이 기본). 형상 변경은 관리자 계정 `thinqreal_MGR`(DB-i 적용 — 사람이 PC에서 접속)로. 컨테이너는 기동 시 `CREATE TABLE IF NOT EXISTS`·`ADD COLUMN IF NOT EXISTS`를 실행하는 설계(§3)였고, PostgreSQL은 IF NOT EXISTS라도 스키마 CREATE 권한·테이블 소유권을 먼저 검사하므로 APP 계정으로는 첫 문장에서 `42501 permission denied`로 기동이 죽는다.
+**구현**(`store/postgres/index.js`): `ensureSchema` = ① `applyDdl` 시도 → 성공이면 `schemaMode='ddl'`(ST/QA 소유자 계정, 동작 불변) ② 권한 오류(42501·permission denied·must be owner)면 **형상 검증 모드**: `findSchemaGaps`가 `information_schema.columns`(current_schema)로 상수 대비 테이블 14종·전 컬럼·`monthly_articles.ord`·`app_state` 존재를 대조 → 누락 0이면 `schemaMode='verified'`로 정상 기동, 누락이 있으면 **누락 목록을 담은 오류로 기동 실패**(담당자가 MGR로 `schema-ddl.sql` 또는 델타를 먼저 실행해야 함을 메시지가 말해줌). 권한 외 오류는 종전대로 throw. `/healthz`에 `schema` 필드 추가(`app.js`).
+**`docs/migration/schema-ddl.sql`**: 상수에서 생성한 14표 DDL + **APP GRANT**(스키마 USAGE·표 DML·시퀀스 USAGE — `rid BIGSERIAL`의 nextval에 필요) + `ALTER DEFAULT PRIVILEGES`(MGR이 앞으로 만드는 표·시퀀스에 자동 부여) + 델타 절. 치환 2곳(`<스키마명>`·`<APP 계정>`).
+**검증(로컬 PostgreSQL 16, 역할 2개 실측)**: ① APP·표 없음 → 기동 실패, 메시지에 누락 14건 ② MGR이 `schema-ddl.sql` 실행 → APP 기동 `schema:"verified"`, `admin_booking_create` INSERT 성공(시퀀스 권한 확인)·조회 일치 ③ 컬럼 1개 삭제 후 APP 기동 → "누락 1건: bookings.applicant" ④ MGR로 기동 → `schema:"ddl"`.
+**운영 규칙(gitea-repo-contract에 등재)**: 컬럼·표를 추가하는 키트는 같은 커밋에서 `schema-ddl.sql` 델타를 추가하고, OP 롤아웃 전에 MGR이 델타를 실행. 델타 없이 롤아웃되면 새 pod만 기동 실패하고 롤링 업데이트가 구 pod를 유지하므로 서비스 중단은 없다(단 `/healthz`·Gitea Actions로 감지 필요).
+**⚠ 스펙 대비 변경**: §3 "스키마는 기동 시 자동 생성/진화 — 별도 마이그레이션 도구 불필요" → OP에 한해 **MGR 수동 DDL(파일) + 앱 형상 검증**으로 변경. ST/QA는 종전 유지. DB팀 정책이 사유이며, 자동 생성 경로는 코드에 그대로 남아 권한이 있는 환경에서는 여전히 동작한다.

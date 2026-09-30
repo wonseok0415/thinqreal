@@ -675,3 +675,13 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **절차 확정(브리핑 §3-d)**: ① Next SPoC 동기화 1~2일 대기 → ② Next SPoC `thinqreal_APP` 생성(요청 사항에 스키마 소유/DDL 권한 필요 기재) → ③ JIRA DB계정(변경승인요청) SG 허용(RDS 비표준 포트·valkey 6379, OP 클러스터 대역) + 필요 시 권한부여 → ④ OP `db_probe`.
 - **플랜 B 준비**: 앱 계정의 DDL(기동 시 테이블 자동 생성)이 DB팀 정책상 불허될 가능성에 대비해 상수에서 생성한 **`docs/migration/schema-ddl.sql`**(13표 + app_state, 전 컬럼 TEXT, GRANT 주석) 추가 — JIRA 첨부용. 컬럼 추가 키트 때 같은 커밋에서 갱신 규칙. SEAgent는 사람 PC용이라 앱 무관.
 - **9/30 사내 반영**: 사내 클로드가 internal-context §2-a(RDS)·§2-b(valkey)를 DB팀 회신 원문(op-db.txt) 기준으로 갱신·커밋 완료(담당자 보고). 이로써 OP env 값 중 미확정은 APP 계정명·비밀번호(Next SPoC)뿐. 다음 신호: Next SPoC 동기화(1~2일) → 브리핑 §3-d ②③ 신청.
+
+## 작업 내역 (2026-09-30 후속 2 — DB팀 정책 "APP 계정 DDL 불가" → 키트 v5.1 형상 검증 모드 + MGR용 DDL 파일 확정)
+
+- **담당자 전달(Next SPoC 담당자 답변)**: `thinqreal_APP`은 DDL 권한 없음(서비스 계정은 데이터 핸들링 DML·조회가 기본 — 형상 변경이 서비스 이슈를 낳음), 형상 변경은 `thinqreal_MGR`(**DB-i 적용**으로 신청). 이전 제안(APP 대신 MGR)은 기록에 없어 이번에 처음 반영.
+- **판단**: 정책 수용. 앱은 pod에서 돌고 MGR은 DB-i(사람 PC)로만 접속 가능하므로 "앱이 MGR로 기동"은 불가 → **앱을 DDL 없이 기동 가능하게**(키트 v5.1) + **DDL은 MGR이 파일로 1회 실행**(어제 준비한 플랜 B가 정식 경로가 됨).
+- **구현(키트 v5.1 — `src/store/postgres/index.js`·`src/app.js`, 커밋 `fix:` → 0.19.1 예상)**: DDL 권한 오류 시 information_schema로 형상 검증 → 완전하면 기동(`/healthz schema:"verified"`), 누락 있으면 누락 목록과 함께 기동 실패. ST/QA는 `schema:"ddl"`로 동작 불변. **로컬 PostgreSQL 16에 역할 2개(APP DML만/MGR 소유자)를 만들어 4시나리오 실측 통과**(설계 §8-18).
+- **`schema-ddl.sql` 확정본**: 14표 + APP GRANT(표 DML·시퀀스 USAGE) + ALTER DEFAULT PRIVILEGES + 델타 절. 치환 2곳. 운영 규칙(컬럼 추가 키트 = 델타 동봉 + MGR 선실행)을 gitea-repo-contract에 등재.
+- **절차 갱신(브리핑 §3-d)**: Next SPoC에 APP(DB-i 미적용·OP 대역)·MGR(DB-i 적용) 둘 다 신청 → JIRA SG 허용 → MGR로 DB-i 접속해 `schema-ddl.sql` 실행 → `db_probe` → cert 후 첫 기동. 담당자 PC에 SEAgent·DB-i 매핑 1회 필요(DB운영가이드 절차).
+- 문서: 설계 §8-18(⚠스펙 대비 변경 — §3 자동 생성 → OP는 MGR 수동 DDL), api-contract healthz `schema`, cheatsheet healthz 행, cutover-plan T-4주 DDL 행·D-1 체크, CLAUDE.md 상태 줄.
+- **키트 v5.1 파일(미러 → Gitea)**: `src/store/postgres/index.js` · `src/app.js`. env 변경 없음. 릴리스 후 ST `/healthz`에 `schema:"ddl"`이 보이면 적용 확인.

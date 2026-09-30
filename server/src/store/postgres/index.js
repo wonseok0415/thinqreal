@@ -43,7 +43,11 @@ const TABLES = [
   [VOC_SHEET_NAME, VOC_HEADERS],
 ];
 
-async function ensureSchema(pool) {
+// 기동 시 DDL. OP(DB팀 정책, 2026-09-30): 서비스 계정 `*_APP`은 DML·조회만 — DDL(CREATE/ALTER)은 관리자 계정 `*_MGR`(DB-i 경유, 사람)만.
+// 따라서 DDL이 권한 오류(42501)로 거부되면 예외로 죽지 않고 **형상 검증 모드**로 넘어간다: information_schema로 테이블·컬럼 존재를
+// 확인해 전부 있으면 정상 기동(schemaMode='verified'), 하나라도 없으면 누락 목록을 메시지에 담아 실패 —
+// 담당자가 MGR로 docs/migration/schema-ddl.sql(또는 델타)을 먼저 실행해야 한다는 뜻(설계 §8-18). ST/QA(소유자 계정)는 종전대로 DDL 적용(schemaMode='ddl').
+async function applyDdl(pool) {
   for (const [table, headers] of TABLES) {
     const cols = headers.map((h) => `${q(h)} TEXT`).join(', ');
     await pool.query(`CREATE TABLE IF NOT EXISTS ${q(table)} (rid BIGSERIAL PRIMARY KEY, ${cols})`);
@@ -54,6 +58,45 @@ async function ensureSchema(pool) {
   }
   await pool.query(`ALTER TABLE ${q(ARTICLES_SHEET_NAME)} ADD COLUMN IF NOT EXISTS ord BIGINT`);
   await pool.query(`CREATE TABLE IF NOT EXISTS ${q(STATE_SHEET_NAME)} ("key" TEXT PRIMARY KEY, "value" TEXT)`);
+}
+
+/** 상수 대비 현재 스키마(current_schema)의 누락 테이블·컬럼 목록. 비어 있으면 형상 완전. (pool.query만 사용 — 테스트에서 대체 가능) */
+export async function findSchemaGaps(pool) {
+  const res = await pool.query('SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = current_schema()');
+  const have = new Map();
+  for (const r of res.rows) {
+    if (!have.has(r.table_name)) have.set(r.table_name, new Set());
+    have.get(r.table_name).add(r.column_name);
+  }
+  const missing = [];
+  for (const [table, headers] of TABLES) {
+    const cols = have.get(table);
+    if (!cols) { missing.push(`${table} (테이블 없음)`); continue; }
+    for (const h of headers) if (!cols.has(h)) missing.push(`${table}.${h}`);
+  }
+  if (have.get(ARTICLES_SHEET_NAME) && !have.get(ARTICLES_SHEET_NAME).has('ord')) missing.push(`${ARTICLES_SHEET_NAME}.ord`);
+  const st = have.get(STATE_SHEET_NAME);
+  if (!st) missing.push(`${STATE_SHEET_NAME} (테이블 없음)`);
+  else for (const c of ['key', 'value']) if (!st.has(c)) missing.push(`${STATE_SHEET_NAME}.${c}`);
+  return missing;
+}
+
+const isPrivilegeError = (e) => e?.code === '42501' || /permission denied|must be owner/i.test(String(e?.message || ''));
+
+/** @returns {Promise<'ddl'|'verified'>} */
+async function ensureSchema(pool) {
+  try {
+    await applyDdl(pool);
+    return 'ddl';
+  } catch (e) {
+    if (!isPrivilegeError(e)) throw e;
+    console.warn(`[store:postgres] DDL 권한 없음(서비스 계정) → 형상 검증 모드: ${e.message}`);
+    const missing = await findSchemaGaps(pool);
+    if (missing.length) {
+      throw new Error(`DDL 권한이 없고 형상이 불완전합니다 — MGR 계정(DB-i)으로 docs/migration/schema-ddl.sql을 먼저 실행하세요. 누락 ${missing.length}건: ${missing.join(', ')}`);
+    }
+    return 'verified';
+  }
 }
 
 const sv = (v) => (v == null ? '' : String(v)); // 저장은 전부 문자열 (시트 동작 승계)
@@ -93,8 +136,8 @@ export async function createPostgresStore() {
       console.log(`[store:postgres] search_path = ${r.rows[0]?.s} (DB_SCHEMA=${config.db.schema})`);
     } finally { probe.release(); }
   }
-  await ensureSchema(pool);
-  console.log('[store:postgres] 스키마 확인 완료 (테이블 ' + (TABLES.length + 1) + '종)');
+  const schemaMode = await ensureSchema(pool);
+  console.log(`[store:postgres] 스키마 확인 완료 (테이블 ${TABLES.length + 1}종, mode=${schemaMode})`);
 
   async function listRows(table, headers, opts) {
     const res = await pool.query(`SELECT * FROM ${q(table)} ORDER BY rid`);
@@ -152,6 +195,7 @@ export async function createPostgresStore() {
 
   return {
     backend: 'postgres',
+    schemaMode, // 'ddl'(앱이 DDL 적용 — ST/QA) | 'verified'(DDL 권한 없음, 형상 검증만 통과 — OP APP 계정)
 
     bookings: {
       async getById(id) {
