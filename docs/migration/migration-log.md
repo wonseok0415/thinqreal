@@ -685,3 +685,4 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **절차 갱신(브리핑 §3-d)**: Next SPoC에 APP(DB-i 미적용·OP 대역)·MGR(DB-i 적용) 둘 다 신청 → JIRA SG 허용 → MGR로 DB-i 접속해 `schema-ddl.sql` 실행 → `db_probe` → cert 후 첫 기동. 담당자 PC에 SEAgent·DB-i 매핑 1회 필요(DB운영가이드 절차).
 - 문서: 설계 §8-18(⚠스펙 대비 변경 — §3 자동 생성 → OP는 MGR 수동 DDL), api-contract healthz `schema`, cheatsheet healthz 행, cutover-plan T-4주 DDL 행·D-1 체크, CLAUDE.md 상태 줄.
 - **키트 v5.1 파일(미러 → Gitea)**: `src/store/postgres/index.js` · `src/app.js`. env 변경 없음. 릴리스 후 ST `/healthz`에 `schema:"ddl"`이 보이면 적용 확인.
+- **9/30 사내 반영**: PR #172 머지 → 키트 v5.1 적용·릴리스 → ST `/healthz` **`schema:"ddl"`** 확인(담당자). ST/QA 동작 불변 검증 완료. OP `schema:"verified"` 경로는 MGR DDL 실행 후 첫 기동에서 확인.
