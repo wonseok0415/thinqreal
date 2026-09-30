@@ -23,6 +23,7 @@
   - **Dockerfile**: 현재 `COPY src ./src`, `CMD ["node", "src/server.js"]`. 소스 경로·실행 파일이 바뀌면 COPY·빌드 대상·CMD/ENTRYPOINT를 새 코드에 맞게 변경.
   - **release workflow**: 현재 테스트 명령 `node --check src/server.js` (`.gitea/workflows/release.yml`). 구조 변경 시 테스트 명령도 변경.
   - **의존성**: 새 라이브러리 추가 시 Dockerfile에서 설치하도록 변경 + release workflow에서도 테스트 전 의존성 설치.
+  - **OP 스키마 변경 규칙(2026-09-30, DB팀 정책 — APP 계정 DDL 불가)**: 상수 배열에 컬럼·표를 추가하는 키트는 **같은 커밋에서 `docs/migration/schema-ddl.sql` 델타 절에 ALTER/CREATE를 추가**하고, OP 롤아웃 **전에** 담당자가 MGR(DB-i)로 델타를 실행한다. 앱은 DDL 권한이 없으면 형상 검증만 하므로(`/healthz schema:"verified"`) 델타 미실행 상태로 롤아웃하면 새 pod가 누락 컬럼명을 찍고 기동 실패 → 구 pod가 유지됨(롤링 업데이트). ST/QA는 소유자 계정이라 종전대로 앱이 DDL 적용.
   - **의존성 추가 이력**: `exceljs ^4.4.0`(키트 v5, 2026-09-29 — 데이터 이행 xlsx 파싱). Gitea `package.json` dependencies에 한 줄 추가 — Dockerfile `npm install --omit=dev`가 설치. 사내 레지스트리 미러에서 받을 수 있는지 첫 빌드 로그로 확인. → **9/29 ST 릴리스 성공으로 확인됨**(신규 의존성 추가 절차 성립).
 
 ## 3. 제공 인프라 (Runtime)

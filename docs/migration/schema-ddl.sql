@@ -1,7 +1,9 @@
--- ThinQ Real 컨테이너 저장소 DDL (플랜 B — 앱 계정의 자동 생성이 불허될 때 DB팀 JIRA 첨부용)
--- 생성 기준: server/src/lib/constants.js 상수 + store/postgres/index.js ensureSchema (2026-09-30). 전 컬럼 TEXT, rid BIGSERIAL PK — 설계 §3·§8-15.
--- 스키마명은 DB팀 생성값(internal-context §2-a)으로 치환. 앱은 기동 시 CREATE TABLE IF NOT EXISTS / ADD COLUMN IF NOT EXISTS를 다시 실행하므로 미리 만들어 두어도 무해.
--- 컬럼이 늘어나는 키트가 나오면 이 파일도 같은 커밋에서 갱신(앱 계정에 ALTER 권한이 없으면 매번 JIRA).
+-- ThinQ Real 컨테이너 저장소 DDL — OP 초기 형상 (MGR 계정이 DB-i로 1회 실행, 설계 §8-18)
+-- 생성 기준: server/src/lib/constants.js 상수 + store/postgres/index.js applyDdl (2026-09-30). 전 컬럼 TEXT, rid BIGSERIAL PK — 설계 §3·§8-15.
+-- DB팀 정책(9/30): 서비스 계정 thinqreal_APP은 DML·조회만(DDL 없음) → 테이블 생성·컬럼 추가는 MGR이 이 파일로 수행.
+-- 앱은 기동 시 DDL을 시도하다 권한 오류가 나면 형상 검증 모드로 넘어간다(/healthz schema:"verified") — 누락이 있으면 기동 실패 메시지에 목록이 찍힌다.
+-- 실행 전 치환 2곳: <스키마명> → internal-context §2-a의 DB 스키마명, <APP 계정> → Next SPoC로 발급된 서비스 계정명.
+-- 컬럼이 늘어나는 키트가 나오면 이 파일 하단 「델타」 절에 ALTER를 추가하고, 롤아웃 전에 MGR이 델타를 먼저 실행한다(gitea-repo-contract 규칙).
 
 SET search_path TO "<스키마명>";
 
@@ -226,7 +228,13 @@ CREATE TABLE IF NOT EXISTS "voc_reports" (
 
 CREATE TABLE IF NOT EXISTS "app_state" ("key" TEXT PRIMARY KEY, "value" TEXT);
 
--- 앱 계정 권한(플랜 B에서 DB팀에 함께 요청): 스키마 USAGE + 위 14표 SELECT/INSERT/UPDATE/DELETE + 시퀀스 USAGE
--- GRANT USAGE ON SCHEMA "<스키마명>" TO "<APP 계정>";
--- GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "<스키마명>" TO "<APP 계정>";
--- GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA "<스키마명>" TO "<APP 계정>";
+-- ── APP 계정 권한 (MGR이 테이블 소유자이므로 MGR이 직접 실행 가능) ──
+GRANT USAGE ON SCHEMA "<스키마명>" TO "<APP 계정>";
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA "<스키마명>" TO "<APP 계정>";
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA "<스키마명>" TO "<APP 계정>";  -- rid BIGSERIAL(nextval)에 필요
+-- MGR이 앞으로 만드는 표·시퀀스에도 자동 부여 (델타 실행 때 GRANT를 잊어도 안전)
+ALTER DEFAULT PRIVILEGES FOR ROLE CURRENT_USER IN SCHEMA "<스키마명>" GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO "<APP 계정>";
+ALTER DEFAULT PRIVILEGES FOR ROLE CURRENT_USER IN SCHEMA "<스키마명>" GRANT USAGE, SELECT ON SEQUENCES TO "<APP 계정>";
+
+-- ── 델타 (컬럼 추가 키트마다 아래에 append — 실행한 항목은 날짜·릴리스 주석) ──
+-- (없음)

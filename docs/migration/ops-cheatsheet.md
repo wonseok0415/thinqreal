@@ -22,7 +22,7 @@
 
 | 확인할 것 | 주소 | 정상 |
 |---|---|---|
-| 릴리스·pod·캐시·서명 키 | `<HOST>/healthz` | `version`=최신 릴리스, `env`=환경명, `kv:"shared"`, `authSecret:"db"`(또는 `env`). `temp`면 문제 |
+| 릴리스·pod·캐시·서명 키·DDL 모드 | `<HOST>/healthz` | `version`=최신 릴리스, `env`=환경명, `schema:"ddl"`(ST·QA) 또는 `"verified"`(OP — APP 계정, MGR이 DDL 선반영), `kv:"shared"`, `authSecret:"db"`(또는 `env`). `temp`면 문제 |
 | 메일 설정 | `<HOST>/api?type=mail_status` | OP `mailMode:"smtp"`·`smtpPort:25` / ST·QA `console` / `forceSend:false` |
 | pod에 들어온 env 이름 | `<HOST>/api?type=env_keys&token=<토큰>` | `groups`의 db·kvstore·smtp·environment true. `names`에서 Ctrl+F로 키 이름 확인 |
 | 인터넷 아웃바운드 | `<HOST>/api?type=egress_check&token=<토큰>` | `ok:true`, `count:45` |

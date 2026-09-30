@@ -18,6 +18,7 @@
 | 시점 | 할 일 | 담당 | 끝의 정의 |
 |---|---|---|---|
 | **T-4주** | OP 자원 완료: Aurora·valkey 생성(DBSUPPORT JIRA — ✅ 9/29) → **APP 계정 생성(Next Spoc) → 서비스 계정 SG 허용·권한(JIRA DB계정 변경승인요청, 작업일 최소 7일 전)** → 엔드포인트·계정 수령 | 담당자·DB팀 | internal-context §2-a·§2-b에 엔드포인트·계정명 기록 |
+| T-4주 | **MGR(DB-i)로 `schema-ddl.sql` 1회 실행**(테이블 14종 + APP GRANT — 앱 첫 기동 전 필수, 설계 §8-18) | 담당자(SEAgent+DB-i)·DB팀 | `SELECT count(*) FROM information_schema.tables WHERE table_schema='<스키마명>'` = 14 |
 | T-4주 | OP env 주입(DB_*·KVSTORE_*·AUTH_SECRET·LEGACY_AUTH_SECRET 등 — sealed-secret/Vault) | 담당자·사내 Claude·BE팀(cert) | OP `/healthz` `backend:"postgres"`·`kv:"shared"` |
 | T-4주 | 과제 D 키트 v5 배포(`admin_import` + 관리자 「데이터 이행」 패널) | 외부 트랙·사내 Claude | QA에서 스냅샷 업로드 dry-run 통과 |
 | **T-3주** | 협업자 UAT 1~8 완료(QA) + 차이 보고 판독·수정 키트 반영 | 협업자·외부 트랙 | 차이 항목 0 또는 "무해" 합의 |
@@ -75,6 +76,7 @@
 
 - [ ] OP `/healthz`: `backend:postgres`·`kv:shared`·`env:kic-op`·`version` 최신
 - [ ] OP `env_keys`: db·kvstore·smtp·authSecret·legacyAuthSecret 전부 true
+- [ ] OP `/healthz` `backend:"postgres"`·`schema:"verified"`(APP 계정으로 형상 검증 통과)
 - [ ] OP `mail_status` smtp / `egress_check` ok / SSO 예외 5종 로그인 없이 열림
 - [ ] Multi-AZ 전환 완료 통보(§1 T-2주 요청)
 - [ ] QA 리허설 건수 일치 기록 있음
