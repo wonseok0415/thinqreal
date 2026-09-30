@@ -686,3 +686,11 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - 문서: 설계 §8-18(⚠스펙 대비 변경 — §3 자동 생성 → OP는 MGR 수동 DDL), api-contract healthz `schema`, cheatsheet healthz 행, cutover-plan T-4주 DDL 행·D-1 체크, CLAUDE.md 상태 줄.
 - **키트 v5.1 파일(미러 → Gitea)**: `src/store/postgres/index.js` · `src/app.js`. env 변경 없음. 릴리스 후 ST `/healthz`에 `schema:"ddl"`이 보이면 적용 확인.
 - **9/30 사내 반영**: PR #172 머지 → 키트 v5.1 적용·릴리스 → ST `/healthz` **`schema:"ddl"`** 확인(담당자). ST/QA 동작 불변 검증 완료. OP `schema:"verified"` 경로는 MGR DDL 실행 후 첫 기동에서 확인.
+
+## 작업 내역 (2026-09-30 후속 3 — Next SPoC MGR 건 승인 문구 판독: "DB-i 매핑 연장 + Vault 개인계정" → 사람 접속 모델 확인 질문 3건)
+
+- **승인 문구**: "DB-I 매핑 연장으로 승인합니다. 실제 DB 접속은 CATOZ에서 승인 받으신 Vault 개인계정으로 사용해 주세요."
+- **판독(추정 — DB담당자 확인 전)**: ① Next SPoC는 MGR 요청을 "담당자 PC가 이 인스턴스에 DB-i로 붙을 수 있게 매핑(연장)"으로 처리 ② 실제 로그인 자격은 공용 `thinqreal_MGR` 비밀번호가 아니라 **개인 계정** — CATOZ(사내 권한/CSR 시스템, 가이드의 「IAM(Catoz CSR연계)」)에서 승인받아 **Vault**가 발급하는 개인 자격 ③ 즉 사람의 DDL 경로 = 개인 Vault 계정 → DB-i → Aurora. 우리 절차(브리핑 §3-d ④ "MGR로 DB-i 접속해 schema-ddl.sql 실행")는 "개인 계정으로"로 바뀔 뿐 파일·순서는 동일.
+- **열린 위험 1건**: Vault 개인 자격이 **임시(동적) 계정**이면 그 계정이 만든 테이블의 소유자가 사라져 이후 ALTER·GRANT가 막힐 수 있음 → 테이블 소유자는 **고정 역할(thinqreal_MGR)**이어야 하고, 개인 계정이 그 역할을 상속(`SET ROLE`)하는 구조인지 확인 필요. 확인되면 `schema-ddl.sql` 첫 줄에 `SET ROLE "thinqreal_MGR";` 추가.
+- **DB담당자 확인 질문 3건(담당자 발송)**: ① `thinqreal_MGR` 역할(계정)이 실제로 생성되었는가, 개인 Vault 계정으로 접속했을 때 그 역할의 권한(스키마 소유·DDL)을 어떻게 쓰는가(SET ROLE·멤버십) ② Vault 개인계정은 어디서 어떻게 신청하는가(CATOZ 절차·소요일) — 아직 없다면 지금 신청 ③ 개인 계정으로 만든 객체의 소유자를 고정 역할로 두는 표준이 있는가(있으면 그 방식대로 DDL 파일 조정).
+- APP 계정 건은 별도 진행 중(변화 없음). 브리핑 §3-d 상태 갱신.
