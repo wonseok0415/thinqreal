@@ -697,3 +697,11 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **APP 건 승인(9/30)**: 코멘트 "thinqreal_APP 계정에 대하여 권한 및 pod SG 요청 확인합니다" — 계정 생성 완료, 요청서에 적은 권한(DML)·pod 대역 SG 허용을 DB팀이 인지했다는 문구. SG가 별도 JIRA 없이 함께 처리됐는지는 문구만으로 확정하지 않고 **OP `db_probe` 실측으로 판정**(키트 v4.12가 이 시점을 위해 준비된 것). 비밀번호는 55-credentials에만 보관(채팅·프롬프트 금지). **OP env 미확정 값 0건** — 남은 선행조건은 cert(BE팀 10/6~)와 DDL 실행(개인 Vault 계정 경로 확인 중)뿐.
 - **10/1 OP `db_probe` 실측(담당자)**: RDS(Cluster Writer·비표준 포트) **`ok:true`** — pod → Aurora SG 허용 확인, JIRA SG 티켓 불필요. valkey는 주소 입력 시 브라우저가 검색창으로 넘어감(URL로 인식 안 됨 — 공백·줄바꿈 혼입 유력) → 재시도 안내.
 - **10/1 valkey `db_probe` `ok:true`**(재시도 — 첫 시도의 검색창 전환은 URL 공백 혼입) → **pod → Aurora·valkey 양쪽 SG 허용 확인 완료**. 브리핑 §3-d의 "JIRA SG 허용 신청" 단계는 불필요로 종결(Next SPoC APP 승인에 포함 처리됨). OP DB 전환 남은 선행조건: ① DDL 실행(개인 Vault 계정 경로 — DB담당자 답변 대기) ② cert(BE팀 10/6~) → secret 주입·첫 기동.
+
+## 작업 내역 (2026-10-01 후속 — DB팀 메일·Teams 판독: 계정 2개 비밀번호 발급, RDS SG Open 경위, valkey SG JIRA, NEXT-ITSM 재요청, 비밀번호 노출 주의)
+
+- **Teams(플랫폼DB팀)**: APP 계정 SG Open에는 IP 대역이 필요하다 하여 담당자가 BE팀(9/17)이 알려준 KIC-OP CIDR 4개(internal-context §2-c)를 전달 → "해당 대역으로 open" 회신. 추가 대역은 DBSUPPORT-JIRA.
+- **메일(RITM 2건 완료)**: 인스턴스 `…-aurora-1` 대상으로 `THINQREAL_MGR`·`THINQREAL_APP` **둘 다 ID·PW 발급**. 후속 3의 추정(공용 MGR 비밀번호 없음) 정정 — MGR도 실제 로그인 계정. "Vault 개인계정"은 DB-i 도구 접속 주체이고 DB 로그인은 발급 계정으로 하는 구조로 보임(DB-i 첫 접속에서 실측). RDS SG는 CIDR 4개로 Open 완료(= `db_probe` RDS ok:true와 일치). **valkey SG는 DBSUPPORT-JIRA로 요청하라는 안내** — 실측은 이미 ok:true이나 명시 규칙이 없으면 추후 SG 정리 때 끊길 수 있어 **JIRA 발행 권장**(CIDR 4개·6379). **NEXT-ITSM 시스템 오류**로 기존 요청 2건은 반려 예정 → **10/2(금) 13시 이후 동일 내용 재요청**(작업 완료 상태, 프로세스만).
+- **⚠ 비밀번호 취급**: 담당자가 공유한 메일 캡처에 두 계정의 비밀번호가 평문으로 포함되어 있었음(외부 세션으로 전달됨). 리포·문서·채팅 어디에도 옮기지 않았고 캡처는 세션 임시 공간에만 존재. **권고**: OP 전환 전 Next SPoC 「암호 초기화」로 두 계정 비밀번호를 한 번 교체(DB계정 범주 기본 메뉴) — 외부 경로를 거친 값을 운영 값으로 쓰지 않기 위함. 교체 후 값은 55-credentials에만.
+- **계정명 대소문자**: 메일 표기는 대문자. PostgreSQL 역할명은 생성 방식에 따라 소문자일 수 있어 `schema-ddl.sql` 0번에 `pg_roles` 확인 쿼리 추가 — 그 결과가 `DB_USER`·GRANT 치환값(설계 §8-15 보강).
+- **후속 3 질문 3건 상태**: ① MGR 존재 → 답(존재, PW 있음) ② Vault 개인계정 절차 → DB-i 접속 시 확인 ③ 소유자 고정 역할 → MGR이 실제 계정이므로 MGR로 DDL 실행하면 해결(개인 계정 소유 문제 소멸).
