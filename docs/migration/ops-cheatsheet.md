@@ -27,6 +27,7 @@
 | pod에 들어온 env 이름 | `<HOST>/api?type=env_keys&token=<토큰>` | `groups`의 db·kvstore·smtp·environment true. `names`에서 Ctrl+F로 키 이름 확인 |
 | 인터넷 아웃바운드 | `<HOST>/api?type=egress_check&token=<토큰>` | `ok:true`, `count:45` |
 | DB·valkey에 pod가 닿나(SG 확인, 키트 v4.12~) | `<HOST>/api?type=db_probe&token=<토큰>&host=<RDS Cluster Writer 엔드포인트>&port=<RDS 포트>` (⚠ RDS 포트는 표준 5432가 아님 — internal-context §2-a 값. valkey는 `host=<clustercfg 엔드포인트>&port=6379`) | `results[0].ok:true`. `ETIMEDOUT`이면 SG 미허용, `ENOTFOUND`면 주소 오타. 엔드포인트는 internal-context §2-a·§2-b 값(꺾쇠 없이). 응답의 host는 마스킹되어 있으니 외부 보고에 그대로 붙여도 됨 |
+| 텔레그램 연동(OP, secret 주입 후) | `<HOST>/api?type=telegram_test` | `ok:true` + 그룹에 테스트 메시지. `reason:"not_configured"`면 env 미주입 |
 | 구비 가전(백엔드 살아 있나) | `<HOST>/api?type=appliances` | `count:45` |
 | 데이터 이행 패널(키트 v5~) | 같은 브라우저에서 `<HOST>/thinqreal_admin.html` 로그인 후 `<HOST>/api?type=admin_import_page` | 상단 「토큰 있음」. 순서 ① 검사 → ② 적재 → ③ 검증(전 테이블 일치). 입력 파일은 구글 시트 「파일 → 다운로드 → Microsoft Excel(.xlsx)」 |
 | 인증 코드 보기(ST·QA만) | `<HOST>/api?type=auth_code_peek&kind=admin&email=<본인메일>` | `code` 6자리. OP는 404가 정상(메일로 옴) |
