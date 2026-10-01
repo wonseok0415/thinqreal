@@ -77,6 +77,7 @@
 - [ ] OP `/healthz`: `backend:postgres`·`kv:shared`·`env:kic-op`·`version` 최신
 - [ ] OP `env_keys`: db·kvstore·smtp·authSecret·legacyAuthSecret 전부 true
 - [ ] OP `/healthz` `backend:"postgres"`·`schema:"verified"`(APP 계정으로 형상 검증 통과)
+- [ ] OP `telegram_test` `{ok:true}` (secret의 `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID` 주입 + pod → api.telegram.org 아웃바운드 — 그룹에 테스트 메시지 1건 도착 확인)
 - [ ] OP `mail_status` smtp / `egress_check` ok / SSO 예외 5종 로그인 없이 열림
 - [ ] Multi-AZ 전환 완료 통보(§1 T-2주 요청)
 - [ ] QA 리허설 건수 일치 기록 있음

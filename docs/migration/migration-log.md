@@ -706,3 +706,4 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **계정명 대소문자**: 메일 표기는 대문자. PostgreSQL 역할명은 생성 방식에 따라 소문자일 수 있어 `schema-ddl.sql` 0번에 `pg_roles` 확인 쿼리 추가 — 그 결과가 `DB_USER`·GRANT 치환값(설계 §8-15 보강).
 - **후속 3 질문 3건 상태**: ① MGR 존재 → 답(존재, PW 있음) ② Vault 개인계정 절차 → DB-i 접속 시 확인 ③ 소유자 고정 역할 → MGR이 실제 계정이므로 MGR로 DDL 실행하면 해결(개인 계정 소유 문제 소멸).
 - **10/1 비밀값 보관 포맷 확정**: `docs/migration/credentials-format.md` 신설 — 55-credentials의 `thinqreal-credentials.txt` 블록 11키(키·용도·대상·계정·값·발급일·출처·주입·교체 주기·교체 이력·비고) + 초기 블록 7개(op-db-app·op-db-mgr·op-valkey(비밀값 없음 기록)·op-auth-secret·legacy-auth-secret·telegram-bot·fc-api-key) + 전환 시 꺼내 쓰는 순서. 값은 전부 자리표시자. CLAUDE.md 문서 목록·치트시트 E에 등재.
+- **10/1 담당자 질문 "텔레그램 봇 값도 필요한가"** → 필요. 컨테이너는 신규 예약·확정/거절·설문 제출 시 텔레그램을 보내며 env `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID`를 읽는다(현행 Script Property와 같은 값 — 외부 접점은 Apps Script가 계속 같은 봇 사용). 지금은 55-credentials 블록만 채워 두고, cert 후 secret 주입 → D-1 체크에 `telegram_test` 추가(cutover-plan §5·치트시트 B).
