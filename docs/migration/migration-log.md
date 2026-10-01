@@ -705,3 +705,4 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **⚠ 비밀번호 취급**: 담당자가 공유한 메일 캡처에 두 계정의 비밀번호가 평문으로 포함되어 있었음(외부 세션으로 전달됨). 리포·문서·채팅 어디에도 옮기지 않았고 캡처는 세션 임시 공간에만 존재. **권고**: OP 전환 전 Next SPoC 「암호 초기화」로 두 계정 비밀번호를 한 번 교체(DB계정 범주 기본 메뉴) — 외부 경로를 거친 값을 운영 값으로 쓰지 않기 위함. 교체 후 값은 55-credentials에만.
 - **계정명 대소문자**: 메일 표기는 대문자. PostgreSQL 역할명은 생성 방식에 따라 소문자일 수 있어 `schema-ddl.sql` 0번에 `pg_roles` 확인 쿼리 추가 — 그 결과가 `DB_USER`·GRANT 치환값(설계 §8-15 보강).
 - **후속 3 질문 3건 상태**: ① MGR 존재 → 답(존재, PW 있음) ② Vault 개인계정 절차 → DB-i 접속 시 확인 ③ 소유자 고정 역할 → MGR이 실제 계정이므로 MGR로 DDL 실행하면 해결(개인 계정 소유 문제 소멸).
+- **10/1 비밀값 보관 포맷 확정**: `docs/migration/credentials-format.md` 신설 — 55-credentials의 `thinqreal-credentials.txt` 블록 11키(키·용도·대상·계정·값·발급일·출처·주입·교체 주기·교체 이력·비고) + 초기 블록 7개(op-db-app·op-db-mgr·op-valkey(비밀값 없음 기록)·op-auth-secret·legacy-auth-secret·telegram-bot·fc-api-key) + 전환 시 꺼내 쓰는 순서. 값은 전부 자리표시자. CLAUDE.md 문서 목록·치트시트 E에 등재.
