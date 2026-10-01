@@ -696,3 +696,4 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - APP 계정 건은 별도 진행 중(변화 없음). 브리핑 §3-d 상태 갱신.
 - **APP 건 승인(9/30)**: 코멘트 "thinqreal_APP 계정에 대하여 권한 및 pod SG 요청 확인합니다" — 계정 생성 완료, 요청서에 적은 권한(DML)·pod 대역 SG 허용을 DB팀이 인지했다는 문구. SG가 별도 JIRA 없이 함께 처리됐는지는 문구만으로 확정하지 않고 **OP `db_probe` 실측으로 판정**(키트 v4.12가 이 시점을 위해 준비된 것). 비밀번호는 55-credentials에만 보관(채팅·프롬프트 금지). **OP env 미확정 값 0건** — 남은 선행조건은 cert(BE팀 10/6~)와 DDL 실행(개인 Vault 계정 경로 확인 중)뿐.
 - **10/1 OP `db_probe` 실측(담당자)**: RDS(Cluster Writer·비표준 포트) **`ok:true`** — pod → Aurora SG 허용 확인, JIRA SG 티켓 불필요. valkey는 주소 입력 시 브라우저가 검색창으로 넘어감(URL로 인식 안 됨 — 공백·줄바꿈 혼입 유력) → 재시도 안내.
+- **10/1 valkey `db_probe` `ok:true`**(재시도 — 첫 시도의 검색창 전환은 URL 공백 혼입) → **pod → Aurora·valkey 양쪽 SG 허용 확인 완료**. 브리핑 §3-d의 "JIRA SG 허용 신청" 단계는 불필요로 종결(Next SPoC APP 승인에 포함 처리됨). OP DB 전환 남은 선행조건: ① DDL 실행(개인 Vault 계정 경로 — DB담당자 답변 대기) ② cert(BE팀 10/6~) → secret 주입·첫 기동.
