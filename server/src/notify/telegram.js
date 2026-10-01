@@ -1,5 +1,6 @@
-// 텔레그램 알림 — 과도기 유지 (Teams 안정화 후 제거 예정, decisions §2-⑦).
-// env 미설정 시 silent skip. 실패는 try/catch 격리 — 예약 저장·메일에 영향 없음.
+// 텔레그램 알림 — 이관 후에도 Teams와 병존(2026-10-01 절충안, 설계 §8-19): OP에서는 config.telegram.redact가 켜져
+// 성명·소속·연락처·주제·고객사를 싣지 않는 **비식별 요약**만 보낸다(사외 메신저로 개인정보가 나가지 않게).
+// 상세는 Teams 카드·관리자 페이지. env 미설정 시 silent skip. 실패는 try/catch 격리 — 예약 저장·메일에 영향 없음.
 import { config } from '../config.js';
 import { escapeTelegramHtml as esc } from '../lib/html.js';
 import { SUBJ_LABELS } from '../lib/constants.js';
@@ -40,8 +41,19 @@ export async function sendTelegramMessage(text) {
   }
 }
 
+const R = () => config.telegram.redact;
+
 export function buildNewBookingMessage(data, id) {
   const slotLabel = data.slotLabel || (data.slot ? data.slot + '회차' : '');
+  if (R()) {
+    // 비식별: 날짜·회차·목적·인원·관리자 링크만
+    const lines = ['🆕 <b>새 예약 신청</b>', ''];
+    lines.push('📅 ' + esc(data.date) + '  ' + esc(slotLabel));
+    lines.push('🎯 ' + esc(data.purpose || '') + (data.count ? '  ·  ' + esc(data.count) + '명' : ''));
+    lines.push('');
+    lines.push(`<a href="${config.adminPageUrl}">관리자 페이지에서 상세·승인/거절</a>`);
+    return lines.join('\n');
+  }
   const subjLabel = SUBJ_LABELS[data.purposeKey] || '제목';
   const subject = data.subject || data.org || '';
   const company = data.clientCompany || '';
@@ -71,7 +83,7 @@ export function buildSurveyMessage(data, track, ledgerCount, issueCount) {
   lines.push('📝 <b>설문 접수</b> [' + esc(trackLabel) + ']');
   lines.push('');
   lines.push('📅 방문일 ' + esc(data.visit_date || '-') + (data.visit_count ? ' · ' + esc(data.visit_count) : ''));
-  lines.push('👤 ' + esc(data.name || '-') + ' (' + esc(data.dept || '-') + ')');
+  if (!R()) lines.push('👤 ' + esc(data.name || '-') + ' (' + esc(data.dept || '-') + ')'); // 비식별 모드에서는 응답자 생략
   if (data.satisfaction) lines.push('⭐ ' + esc(data.satisfaction));
   if (ledgerCount) lines.push('📒 성과 추적 대장 +' + ledgerCount + '건 (후보)');
   if (issueCount) lines.push('⚠ IoT 이슈 로그 +' + issueCount + '건');
@@ -93,7 +105,9 @@ export function buildStatusChangeMessage(booking, status) {
   const lines = [header, ''];
   lines.push('📅 ' + esc(date) + '  ' + esc(slotLabel));
   if (purpose) lines.push('🎯 ' + esc(purpose));
-  if (subject) lines.push('📝 ' + esc(subject));
-  if (name) lines.push('👤 ' + esc(name));
+  if (!R()) { // 비식별 모드에서는 주제·성명 생략
+    if (subject) lines.push('📝 ' + esc(subject));
+    if (name) lines.push('👤 ' + esc(name));
+  }
   return lines.join('\n');
 }

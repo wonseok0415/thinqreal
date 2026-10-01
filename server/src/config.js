@@ -155,6 +155,9 @@ export const config = {
   telegram: {
     token: env('TELEGRAM_BOT_TOKEN'),
     chatId: env('TELEGRAM_CHAT_ID'),
+    // 비식별 요약 모드(2026-10-01 절충안, 설계 §8-19): 사외 메신저에는 성명·소속·연락처·주제·고객사를 싣지 않고
+    // 건수·날짜·회차·목적·트랙·만족도만 보낸다. 상세는 Teams·관리자 페이지. kic-op 기본 켜짐, TELEGRAM_REDACT=false로만 해제.
+    redact: env('TELEGRAM_REDACT') ? env('TELEGRAM_REDACT') === 'true' : env('ENVIRONMENT') === 'kic-op',
   },
 
   serperApiKey: env('SERPER_API_KEY'),

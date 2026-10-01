@@ -108,7 +108,7 @@
 값        : ******** (토큰) / 채팅 ID: ********
 발급일    : -
 출처      : Script Properties TELEGRAM_BOT_TOKEN·TELEGRAM_CHAT_ID
-주입      : TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID (OP SealedSecret — 전환 시)
+주입      : TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID (OP SealedSecret — 전환 시. OP는 비식별 요약 모드 자동, 키트 v5.2)
 교체 주기 : -
 교체 이력 : -
 비고      : 전환 후에도 현행 Apps Script가 외부 접점 알림에 계속 사용 — 양쪽 동일 값.
@@ -124,7 +124,7 @@
 주입      : TEAMS_WEBHOOK_URL (OP SealedSecret)
 교체 주기 : -
 교체 이력 : -
-비고      : 설정하면 컨테이너는 텔레그램과 Teams 양쪽에 보냄(둘 다 env 없으면 skip). OP는 Teams만 두는 것이 원칙 — TELEGRAM_* 미주입.
+비고      : 컨테이너는 텔레그램과 Teams 양쪽에 보냄(env 없는 쪽 skip). 2026-10-01 절충안: OP는 Teams(상세) + 텔레그램(비식별 요약) 병행.
 
 =====
 키        : fc-api-key
@@ -145,7 +145,7 @@
 1. `op-db-app`의 계정·값 → `DB_USER`·`DB_PASSWORD`
 2. `op-auth-secret` 생성·기록 → `AUTH_SECRET`
 3. `legacy-auth-secret` → `LEGACY_AUTH_SECRET`
-4. `teams-webhook` → `TEAMS_WEBHOOK_URL` (OP 알림은 Teams만 — `telegram-bot`은 외부 접점용 Apps Script에 남기고 OP에는 주입하지 않음, 2026-10-01 결정)
+4. `teams-webhook` → `TEAMS_WEBHOOK_URL` + `telegram-bot` → `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID` (절충안 2026-10-01: Teams는 상세, 텔레그램은 비식별 요약 — 키트 v5.2가 kic-op에서 자동 적용)
 5. 봉인(kubeseal) → 매니페스트 커밋 → 롤아웃 → `/healthz` `backend:"postgres"`·`schema:"verified"`·`authSecret:"env"`
 
 위 순서 외의 값(SERPER·CSE·CALENDAR·SURVEY_CAS_JSON 등 Script Properties)은 전환 범위에 따라 같은 포맷으로 블록을 추가한다.

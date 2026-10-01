@@ -57,7 +57,7 @@
 | 월간 리포트·설문 초대(일일 잡) | 현행 트리거 2종 | OP 인앱 스케줄러(`JOBS_DISABLED` 제거) |
 | FieldCheck 일일 요약 | 현행(`FC_TEST_MODE`) | OP 스케줄러 07:40 — **현행 쪽 요약 발송 함수가 별도 트리거면 함께 정지**(FieldCheck 세션 확인) |
 | 방문객 QR 설문·FieldCheck 장비·FieldVoice | Apps Script `visitor_submit`·`health_check`·`voc_report` | **동일(유지)** + 사내 edge-sync pull |
-| 담당자 메신저 알림 | 텔레그램(현행 Apps Script) | **OP = Teams 웹훅만**(`TEAMS_WEBHOOK_URL`, 2026-10-01 결정 — `TELEGRAM_*`은 OP에 미주입). 텔레그램은 외부 접점(방문객 설문·FieldCheck·FieldVoice) 제출 알림에만 잔존(Apps Script) — Teams로 합치려면 운영 세션이 `.gs`에 Teams 웹훅 호출 추가(별도 협의) |
+| 담당자 메신저 알림 | 텔레그램(현행 Apps Script, 상세) | **OP = Teams 웹훅(상세) + 텔레그램(비식별 요약 — 성명·소속·연락처·주제·고객사 없음, 키트 v5.2 kic-op 자동)** — 절충안 2026-10-01. 외부 접점(방문객 설문·FieldCheck·FieldVoice) 제출 알림은 Apps Script가 텔레그램으로 계속 |
 | 데이터 저장 | Google Sheets | Aurora PostgreSQL(외부 접점 3탭은 시트 원본 + DB 미러) |
 
 ## 4. 역할
@@ -77,7 +77,8 @@
 - [ ] OP `/healthz`: `backend:postgres`·`kv:shared`·`env:kic-op`·`version` 최신
 - [ ] OP `env_keys`: db·kvstore·smtp·authSecret·legacyAuthSecret 전부 true
 - [ ] OP `/healthz` `backend:"postgres"`·`schema:"verified"`(APP 계정으로 형상 검증 통과)
-- [ ] OP `teams_test` `{ok:true}` (secret의 `TEAMS_WEBHOOK_URL` 주입 — 채널에 테스트 카드 1건 도착). `telegram_test`는 OP에 텔레그램을 주입하지 않기로 했으므로 `not_configured`가 정상
+- [ ] OP `teams_test` `{ok:true}` (secret의 `TEAMS_WEBHOOK_URL` 주입 — 채널에 테스트 카드 1건 도착)
+- [ ] OP `telegram_test` `{ok:true}` (secret의 `TELEGRAM_*` 주입 + pod → api.telegram.org 아웃바운드 실측 — 차단이면 텔레그램 병행 포기, Teams만) + 예약 1건으로 비식별 요약 형식 확인(성명 없음)
 - [ ] OP `mail_status` smtp / `egress_check` ok / SSO 예외 5종 로그인 없이 열림
 - [ ] Multi-AZ 전환 완료 통보(§1 T-2주 요청)
 - [ ] QA 리허설 건수 일치 기록 있음

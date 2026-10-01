@@ -708,3 +708,11 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **10/1 비밀값 보관 포맷 확정**: `docs/migration/credentials-format.md` 신설 — 55-credentials의 `thinqreal-credentials.txt` 블록 11키(키·용도·대상·계정·값·발급일·출처·주입·교체 주기·교체 이력·비고) + 초기 블록 7개(op-db-app·op-db-mgr·op-valkey(비밀값 없음 기록)·op-auth-secret·legacy-auth-secret·telegram-bot·fc-api-key) + 전환 시 꺼내 쓰는 순서. 값은 전부 자리표시자. CLAUDE.md 문서 목록·치트시트 E에 등재.
 - **10/1 담당자 질문 "텔레그램 봇 값도 필요한가"** → 필요. 컨테이너는 신규 예약·확정/거절·설문 제출 시 텔레그램을 보내며 env `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID`를 읽는다(현행 Script Property와 같은 값 — 외부 접점은 Apps Script가 계속 같은 봇 사용). 지금은 55-credentials 블록만 채워 두고, cert 후 secret 주입 → D-1 체크에 `telegram_test` 추가(cutover-plan §5·치트시트 B).
 - **10/1 담당자 질문 "이관 후엔 Teams 아닌가"** → 맞음(decisions §⑤ 텔레그램 → Teams 웹훅 전환, 코드는 `notify/index.js`가 두 채널 병존·env 없는 쪽 skip). **결정: OP 담당자 알림은 Teams 웹훅만** — `TEAMS_WEBHOOK_URL`만 secret에 주입, `TELEGRAM_*`은 OP 미주입(사외 메신저로 예약자 성명이 나가지 않게). 텔레그램은 외부 접점 제출 알림(Apps Script)에만 잔존 — Teams로 합치려면 운영 세션이 `.gs`에 웹훅 호출 추가(별도 협의). **웹훅 URL은 담당자가 Teams 채널 → 워크플로에서 직접 생성**(BE팀 불필요) → credentials `teams-webhook` 블록(신설). cutover-plan §3·§5·§7, 치트시트 B, credentials-format 갱신. 직전 항목의 "telegram-bot 블록 채우기"는 참고용으로만(OP 주입 아님).
+
+## 작업 내역 (2026-10-01 후속 2 — 담당자 알림 절충안: Teams(상세) + 텔레그램(비식별 요약), 키트 v5.2)
+
+- 담당자 "절충안으로 진행". 직전 "OP는 Teams만" 결정을 **병행**으로 변경(설계 §8-19 ⚠스펙 대비 변경 — decisions §⑤).
+- **구현(키트 v5.2 — `src/config.js`·`src/notify/telegram.js`, `fix:`)**: `config.telegram.redact`(`TELEGRAM_REDACT` 또는 kic-op 자동) → 빌더 3종이 성명·신청자·본부·부서·연락처·주제·고객사를 생략하고 날짜·회차·목적·인원·트랙·만족도·건수만 발송. 검증: kic-op 출력에 개인정보 문자열 7종 부재, kic-st는 종전 상세. 관리자 링크용 `ADMIN_PAGE_URL`을 OP configmap 목록에 추가(§8-15).
+- 문서: credentials-format(telegram-bot 블록 OP 주입 복원·순서), cutover-plan §3·§5(`telegram_test` 복원 + 아웃바운드 실측 조건), 치트시트 B, gitea-repo-contract env 표, CLAUDE.md 상태 줄.
+- **운영 조건**: pod → api.telegram.org 도달은 cert 후 `telegram_test`로 실측 — 차단이면 `TELEGRAM_*` 미주입으로 Teams 단독(코드 변경 없음). 외부 접점 알림은 Apps Script 텔레그램 그대로.
+- **키트 v5.2 파일**: `src/config.js` · `src/notify/telegram.js`. ST 적용 확인은 ST가 발송 억제 환경이라 화면으로는 불가 — `/healthz` 버전 교체만 확인(동작 검증은 OP `telegram_test` + 예약 1건).
