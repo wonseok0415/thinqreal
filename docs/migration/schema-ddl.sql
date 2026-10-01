@@ -5,6 +5,11 @@
 -- 실행 전 치환 2곳: <스키마명> → internal-context §2-a의 DB 스키마명, <APP 계정> → Next SPoC로 발급된 서비스 계정명.
 -- 컬럼이 늘어나는 키트가 나오면 이 파일 하단 「델타」 절에 ALTER를 추가하고, 롤아웃 전에 MGR이 델타를 먼저 실행한다(gitea-repo-contract 규칙).
 
+-- 0) 먼저 실행 — 발급 계정의 실제 역할명(대소문자)을 확인한다. DB팀 메일은 대문자(THINQREAL_APP)로 표기하지만
+--    PostgreSQL은 따옴표 없이 만들면 소문자로 저장되므로, 아래 결과의 rolname을 "<APP 계정>" 치환값으로 그대로 쓴다(따옴표 안이라 대소문자 정확히).
+--    같은 값이 OP secret의 DB_USER가 된다.
+SELECT rolname FROM pg_roles WHERE rolname ILIKE 'thinqreal%';
+
 SET search_path TO "<스키마명>";
 
 CREATE TABLE IF NOT EXISTS "bookings" (
