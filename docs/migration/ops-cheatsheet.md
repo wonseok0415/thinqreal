@@ -66,3 +66,4 @@ copy(localStorage.getItem('thinqreal_admin_token'))
 - QA는 메일 없음(peek), SMTP 불가. ST는 메일 억제(콘솔). OP만 실발송.
 - OP 호출은 토큰 필수, ST·QA는 SSO 뒤라 토큰 생략 가능(`env_keys`·`egress_check`·`db_probe`·`edge_sync_now`·`mail_test`).
 - 사내 식별자·값은 GitHub 어디에도 적지 않음(internal-context만).
+- 비밀번호·토큰은 55-credentials 폴더의 `thinqreal-credentials.txt` 한 파일에만 — 포맷은 `credentials-format.md`(블록 11키). 채팅·프롬프트·캡처 금지, 다른 문서엔 "55-credentials 참조"만.
