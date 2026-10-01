@@ -57,7 +57,7 @@
 | 월간 리포트·설문 초대(일일 잡) | 현행 트리거 2종 | OP 인앱 스케줄러(`JOBS_DISABLED` 제거) |
 | FieldCheck 일일 요약 | 현행(`FC_TEST_MODE`) | OP 스케줄러 07:40 — **현행 쪽 요약 발송 함수가 별도 트리거면 함께 정지**(FieldCheck 세션 확인) |
 | 방문객 QR 설문·FieldCheck 장비·FieldVoice | Apps Script `visitor_submit`·`health_check`·`voc_report` | **동일(유지)** + 사내 edge-sync pull |
-| 텔레그램 알림 | 현행 | 전환 후 Teams 웹훅(설정 시) — 텔레그램은 외부 접점 제출 알림에만 잔존 |
+| 담당자 메신저 알림 | 텔레그램(현행 Apps Script) | **OP = Teams 웹훅만**(`TEAMS_WEBHOOK_URL`, 2026-10-01 결정 — `TELEGRAM_*`은 OP에 미주입). 텔레그램은 외부 접점(방문객 설문·FieldCheck·FieldVoice) 제출 알림에만 잔존(Apps Script) — Teams로 합치려면 운영 세션이 `.gs`에 Teams 웹훅 호출 추가(별도 협의) |
 | 데이터 저장 | Google Sheets | Aurora PostgreSQL(외부 접점 3탭은 시트 원본 + DB 미러) |
 
 ## 4. 역할
@@ -77,7 +77,7 @@
 - [ ] OP `/healthz`: `backend:postgres`·`kv:shared`·`env:kic-op`·`version` 최신
 - [ ] OP `env_keys`: db·kvstore·smtp·authSecret·legacyAuthSecret 전부 true
 - [ ] OP `/healthz` `backend:"postgres"`·`schema:"verified"`(APP 계정으로 형상 검증 통과)
-- [ ] OP `telegram_test` `{ok:true}` (secret의 `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID` 주입 + pod → api.telegram.org 아웃바운드 — 그룹에 테스트 메시지 1건 도착 확인)
+- [ ] OP `teams_test` `{ok:true}` (secret의 `TEAMS_WEBHOOK_URL` 주입 — 채널에 테스트 카드 1건 도착). `telegram_test`는 OP에 텔레그램을 주입하지 않기로 했으므로 `not_configured`가 정상
 - [ ] OP `mail_status` smtp / `egress_check` ok / SSO 예외 5종 로그인 없이 열림
 - [ ] Multi-AZ 전환 완료 통보(§1 T-2주 요청)
 - [ ] QA 리허설 건수 일치 기록 있음
@@ -97,6 +97,6 @@
 
 - 전환일(11월 중 평일) · 예약 접수 동결 시간 · 안내문 발송 대상(전 임직원? 최근 방문자?) — 담당자
 - FieldCheck 일일 요약의 현행 트리거 존재 여부·정지 방법 — FieldCheck 세션 확인
-- Teams 웹훅 URL 주입 시점(cert) — BE팀
+- Teams 웹훅 URL: **담당자가 Teams 채널 → 워크플로에서 직접 생성 가능**(BE팀 불필요, Power Automate 템플릿 「웹후크 요청을 받으면 채널에 게시」) → 55-credentials `teams-webhook` 블록 → cert 후 secret 주입 → D-1 `teams_test`. 외부 접점 알림의 Teams 통합 여부는 운영 세션 협의
 - 시트 보존 기간·접근 권한 정리(개인정보 보유 3년 규칙과 정합) — 담당자·법무
 - `thinqreal.com` 만료일과 QR 교체 일정 — 운영 세션

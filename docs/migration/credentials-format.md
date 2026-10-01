@@ -114,6 +114,19 @@
 비고      : 전환 후에도 현행 Apps Script가 외부 접점 알림에 계속 사용 — 양쪽 동일 값.
 
 =====
+키        : teams-webhook
+용도      : OP 담당자 알림 — MS Teams 워크플로 웹훅(전환 후 메인 채널, decisions §⑤)
+대상      : 담당자 Teams 채널(워크플로 「웹후크 요청을 받으면 채널에 게시」)
+계정      : -
+값        : ******** (웹훅 URL 전체 — URL 자체가 비밀값)
+발급일    : -
+출처      : 담당자가 Teams 채널 → 워크플로에서 직접 생성
+주입      : TEAMS_WEBHOOK_URL (OP SealedSecret)
+교체 주기 : -
+교체 이력 : -
+비고      : 설정하면 컨테이너는 텔레그램과 Teams 양쪽에 보냄(둘 다 env 없으면 skip). OP는 Teams만 두는 것이 원칙 — TELEGRAM_* 미주입.
+
+=====
 키        : fc-api-key
 용도      : FieldCheck 점검 장비 키
 대상      : Apps Script Script Property FC_API_KEY ↔ rig config.json
@@ -132,7 +145,7 @@
 1. `op-db-app`의 계정·값 → `DB_USER`·`DB_PASSWORD`
 2. `op-auth-secret` 생성·기록 → `AUTH_SECRET`
 3. `legacy-auth-secret` → `LEGACY_AUTH_SECRET`
-4. `telegram-bot` → `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID`
+4. `teams-webhook` → `TEAMS_WEBHOOK_URL` (OP 알림은 Teams만 — `telegram-bot`은 외부 접점용 Apps Script에 남기고 OP에는 주입하지 않음, 2026-10-01 결정)
 5. 봉인(kubeseal) → 매니페스트 커밋 → 롤아웃 → `/healthz` `backend:"postgres"`·`schema:"verified"`·`authSecret:"env"`
 
 위 순서 외의 값(SERPER·CSE·CALENDAR·SURVEY_CAS_JSON 등 Script Properties)은 전환 범위에 따라 같은 포맷으로 블록을 추가한다.
