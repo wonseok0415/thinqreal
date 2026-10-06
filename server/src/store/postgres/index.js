@@ -124,6 +124,10 @@ export async function createPostgresStore() {
     ssl: config.db.sslmode === 'disable' ? undefined : { rejectUnauthorized: false },
     max: 5,
   });
+  // Aurora failover(가용성 테스트·Multi-AZ 전환) 중 유휴 커넥션이 끊기면 pg Pool이 'error'를 emit한다.
+  // 핸들러가 없으면 프로세스가 죽어 pod 재시작(수십 초 공백)이 되므로 로그만 남기고 풀이 해당 클라이언트를 버리게 둔다 —
+  // 다음 쿼리는 Cluster Writer 엔드포인트의 새 writer로 재연결된다 (설계 §8-20, 2026-10-06).
+  pool.on('error', (e) => console.warn('[store:postgres] idle client error (failover?): ' + (e?.code || '') + ' ' + e.message));
   if (config.db.schema) {
     // 풀의 모든 커넥션에 search_path 고정 — 테이블 생성·조회가 지정 스키마 안에서만 일어난다 (DB_SCHEMA, 2026-09-29)
     const schemaIdent = q(config.db.schema);

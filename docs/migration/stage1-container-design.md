@@ -481,3 +481,10 @@ Gitea 저장소 원본 검수에서 **HPA min 2 레플리카**가 확인되어(�
 **검증**: kic-op에서 빌더 3종 출력에 성명·신청자·본부·부서·연락처·주제·고객사 7개 문자열 모두 부재 / kic-st는 종전 상세 유지.
 **운영 조건**: pod → api.telegram.org 아웃바운드는 cert 후 `telegram_test`로 실측(차단이면 Teams만). 외부 접점 제출 알림(방문객 설문·FieldCheck·FieldVoice)은 Apps Script가 텔레그램으로 계속 — 방문자 설문은 익명이라 현행 형식 유지.
 **⚠ 스펙 대비 변경**: decisions §⑤ "텔레그램 → Teams 웹훅으로 전환" → **병행(텔레그램은 비식별 요약)**. 사유: 담당자 운용 선호 + 개인정보 비노출 조건 충족. 정보보호 점검에서 사외 메신저 전송 자체가 문제되면 `TELEGRAM_*` 미주입으로 즉시 Teams 단독 전환 가능(코드 변경 없음).
+
+### 8-20. Aurora failover 내성 — pg Pool `error` 핸들러 (2026-10-06, 키트 v5.3)
+
+**배경**: DB팀 안내(10/6) "PRD는 최초 Single Instance, 서비스 오픈 2주 전에 reader instance 추가 및 가용성 테스트 요청". reader를 다른 AZ에 추가하면 Multi-AZ가 되고, 가용성 테스트는 DB팀이 writer를 강제 failover시켜 서비스가 살아남는지 보는 절차다. 앱은 Cluster Writer 엔드포인트를 쓰므로 DNS는 새 writer로 자동 전환되지만, **failover 순간 풀의 유휴 커넥션이 서버 쪽에서 끊기면 node-postgres Pool이 `error` 이벤트를 emit**하고, 핸들러가 없으면 Node 프로세스가 죽어 pod 재시작(수십 초 공백)이 된다.
+**구현**(`store/postgres/index.js`): `pool.on('error', …)`로 로그만 남기고 풀이 해당 클라이언트를 폐기하게 둔다. 다음 쿼리는 새 커넥션으로 새 writer에 붙는다. 진행 중이던 쿼리는 그 요청만 500으로 실패(재시도는 사용자 몫 — 저트래픽 B2E라 수용).
+**검증(로컬 PostgreSQL 16)**: 앱 기동 → `pg_terminate_backend`로 앱 커넥션 전부 강제 종료(failover 흉내) → 로그에 `idle client error (failover?): 57P01` → `/healthz` 200 유지(프로세스 생존) → `availability` 조회 정상(재연결). 핸들러 없는 종전 코드였다면 프로세스 종료.
+**운영**: T-2주 reader 추가·failover 테스트 때 OP `/healthz`의 `pod` 이름이 바뀌지 않으면(재시작 없음) 통과. cutover-plan §1·§5 갱신.

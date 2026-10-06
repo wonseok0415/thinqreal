@@ -25,7 +25,7 @@
 | T-3주 | **QA 리허설**: 현행 시트 스냅샷 → QA 적재 → 건수·샘플 대조 → 관리자 페이지 확인 | 담당자·협업자 | 14표 건수 일치, 샘플 5건 필드 일치 |
 | **T-2주** | UAT 9단계(메일)를 OP에서 — `[UAT]` 접두, 담당자 3인 사전 고지 | 협업자 | 9-1~9-6 판정 기입 |
 | T-2주 | 운영 전환 안내문 확정(주소 변경·SSO 로그인·달라지는 점 없음·문의처) | 협업자 초안 → 담당자 확정 | 발송 대상·시점 확정(D-3 예고, D-day 본문) |
-| **T-2주** | **Multi-AZ 전환 요청** — JIRA DB자원(변경승인요청)에 **작업 완료 희망일 최소 7일 전**(DB팀 요청 시점 규칙, 9/30 가이드 확인)으로 "PRD/Single → PRD/Multi-AZ" 요청(DB팀 템플릿 표준: 개발 중 Single, 오픈 전 Multi-AZ). 리허설이 끝난 뒤 넣어 전환 작업 중 인스턴스 교체가 겹치지 않게 | 담당자 → DB팀 | DB팀 완료 통보, OP `/healthz` `backend:"postgres"` 재확인(엔드포인트 불변 확인) |
+| **T-2주** | **Reader instance 추가 + 가용성(failover) 테스트 요청** — DB팀 안내(10/6): "PRD는 최초 Single Instance, 서비스 오픈 2주 전에 reader instance 추가 및 가용성 테스트 요청". JIRA DB자원(변경승인요청)에 **작업 완료 희망일 최소 7일 전**으로 ① Aurora reader instance 1대 추가(다른 AZ = Multi-AZ 성립) ② DB팀 주관 failover 테스트 일정 요청. 앱은 Cluster Writer 엔드포인트라 failover 시 엔드포인트가 새 writer로 자동 전환, pg Pool은 끊긴 커넥션을 버리고 재연결(키트 v5.3, 설계 §8-20). 리허설이 끝난 뒤 넣어 전환 작업과 겹치지 않게 | 담당자 → DB팀 | DB팀 완료 통보 + **failover 테스트 중 OP `/healthz` 계속 200·테스트 후 예약 조회 정상**(pod 재시작 없음 — `pod` 이름 불변) |
 | T-1주 | 전환일 확정·공지(팀장·담당자 3인·협업자), 현행 예약 접수 동결 시각 합의 | 담당자 | 캘린더 공지 |
 | T-1주 | OP 사전 점검: SSO·예외 경로 5종·`mail_status` smtp·`egress_check`·`env_keys`(smtp/db/kvstore true) | 담당자 | 전부 정상 |
 | **D-1** | 현행 사이트에 "내일 HH:MM부터 새 주소로 이전" 배너(운영 세션에 요청) / 관리자에게 D-day 동안 시트·관리자 페이지 편집 금지 고지 | 담당자·운영 세션 | 배너 게시 |
@@ -81,7 +81,7 @@
 - [ ] OP `teams_test` `{ok:true}` (secret의 `TEAMS_WEBHOOK_URL` 주입 — 채널에 테스트 카드 1건 도착)
 - [ ] OP `telegram_test` `{ok:true}` (secret의 `TELEGRAM_*` 주입 + pod → api.telegram.org 아웃바운드 실측 — 차단이면 텔레그램 병행 포기, Teams만) + 예약 1건으로 비식별 요약 형식 확인(성명 없음)
 - [ ] OP `mail_status` smtp / `egress_check` ok / SSO 예외 5종 로그인 없이 열림
-- [ ] Multi-AZ 전환 완료 통보(§1 T-2주 요청)
+- [ ] Reader instance 추가·failover 테스트 완료 통보(§1 T-2주 요청) — 테스트 중 `/healthz` pod 이름 불변 확인
 - [ ] QA 리허설 건수 일치 기록 있음
 - [ ] UAT 1~9 판정 기입, △·× 처리 완료
 - [ ] 전환 안내문 확정, 발송 대상 목록
