@@ -716,3 +716,8 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - 문서: credentials-format(telegram-bot 블록 OP 주입 복원·순서), cutover-plan §3·§5(`telegram_test` 복원 + 아웃바운드 실측 조건), 치트시트 B, gitea-repo-contract env 표, CLAUDE.md 상태 줄.
 - **운영 조건**: pod → api.telegram.org 도달은 cert 후 `telegram_test`로 실측 — 차단이면 `TELEGRAM_*` 미주입으로 Teams 단독(코드 변경 없음). 외부 접점 알림은 Apps Script 텔레그램 그대로.
 - **키트 v5.2 파일**: `src/config.js` · `src/notify/telegram.js`. ST 적용 확인은 ST가 발송 억제 환경이라 화면으로는 불가 — `/healthz` 버전 교체만 확인(동작 검증은 OP `telegram_test` + 예약 1건).
+
+## 작업 내역 (2026-10-06 — 운영 세션 PR #181 판독(월간 리포트 수신 체계 전환) → 전환 스위치 표에 반영, 리포 상태 점검)
+
+- **운영 세션(10/6)**: `MONTHLY_REPORT_TO`를 운영자 1인으로 축소하고 사내 계정에서 리더 DL(56명)로 전달하는 체계로 전환 — 사유는 외부 Gmail 발신이 사내 DL 정책에 걸려 조용히 유실될 위험. "이관 완료 후 컨테이너 env에 DL 직접 등록으로 복귀" 항목을 남김. 이관 트랙 대응: cutover-plan §3에 「월간 리포트 수신자」 스위치 행 추가 — OP는 사내 SMTP 발신이라 DL 직접 등록 가능, 전환 전 OP `[테스트]` 발송으로 DL 수신 실측. 코드 변경 없음(컨테이너 env `MONTHLY_REPORT_TO` 기존 지원).
+- 리포 상태: main = PR #181(운영 세션)까지, 라이브 델타 0, 브랜치 재정렬. 키트 v5.2 사내 적용 보고는 아직 없음(ST `/healthz` 버전 확인 대기).
