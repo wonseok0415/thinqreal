@@ -728,3 +728,4 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - cutover-plan §1 T-2주 행을 "reader 추가 + failover 테스트 요청"으로 재정의, §5 체크에 "테스트 중 pod 이름 불변" 추가.
 - **담당자 회신 문안(채팅으로 전달)**: 안내 수용, 오픈일 확정 시 2주 전 JIRA 발행, 테스트 시 앱 측 확인 항목(`/healthz`·예약 조회) 동시 수행.
 - **키트 v5.3 파일**: `src/store/postgres/index.js`(`fix:`). v5.2와 묶어 적용 가능(아직 미적용이면 세 파일 한 번에: `src/config.js`·`src/notify/telegram.js`·`src/store/postgres/index.js`).
+- **10/6 마감** — 담당자가 DB팀에 회신(오픈 2주 전 reader 추가·failover 테스트 요청 예정). 키트 v5.2·v5.3 사내 적용은 내일(프롬프트 전달 완료). **내일 체크리스트(담당자)**: ① 사내 클로드 ①② 프롬프트 → ST `/healthz` 버전 보고 ② Next SPoC 재요청 2건(10/2 13시 이후분) ③ valkey SG DBSUPPORT-JIRA(CIDR 4개·6379) ④ Teams 웹훅 URL 생성 → credentials `teams-webhook` ⑤ DB-i·SEAgent 준비 → MGR로 `schema-ddl.sql`(0번 쿼리부터) ⑥ cert 요청(BE팀 복귀) ⑦ QA 리허설(uat §10). 외부 트랙 미결 없음.
