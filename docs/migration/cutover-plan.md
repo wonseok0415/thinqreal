@@ -25,7 +25,7 @@
 | T-3주 | **QA 리허설**: 현행 시트 스냅샷 → QA 적재 → 건수·샘플 대조 → 관리자 페이지 확인 | 담당자·협업자 | 14표 건수 일치, 샘플 5건 필드 일치 |
 | **T-2주** | UAT 9단계(메일)를 OP에서 — `[UAT]` 접두, 담당자 3인 사전 고지 | 협업자 | 9-1~9-6 판정 기입 |
 | T-2주 | 운영 전환 안내문 확정(주소 변경·SSO 로그인·달라지는 점 없음·문의처) | 협업자 초안 → 담당자 확정 | 발송 대상·시점 확정(D-3 예고, D-day 본문) |
-| **T-2주** | **Multi-AZ 전환 요청** — JIRA DB자원(변경승인요청)에 **작업 완료 희망일 최소 7일 전**(DB팀 요청 시점 규칙, 9/30 가이드 확인)으로 "PRD/Single → PRD/Multi-AZ" 요청(DB팀 템플릿 표준: 개발 중 Single, 오픈 전 Multi-AZ). 리허설이 끝난 뒤 넣어 전환 작업 중 인스턴스 교체가 겹치지 않게 | 담당자 → DB팀 | DB팀 완료 통보, OP `/healthz` `backend:"postgres"` 재확인(엔드포인트 불변 확인) |
+| **T-2주** | **Reader instance 추가 + 가용성(failover) 테스트 요청** — DB팀 안내(10/6): "PRD는 최초 Single Instance, 서비스 오픈 2주 전에 reader instance 추가 및 가용성 테스트 요청". JIRA DB자원(변경승인요청)에 **작업 완료 희망일 최소 7일 전**으로 ① Aurora reader instance 1대 추가(다른 AZ = Multi-AZ 성립) ② DB팀 주관 failover 테스트 일정 요청. 앱은 Cluster Writer 엔드포인트라 failover 시 엔드포인트가 새 writer로 자동 전환, pg Pool은 끊긴 커넥션을 버리고 재연결(키트 v5.3, 설계 §8-20). 리허설이 끝난 뒤 넣어 전환 작업과 겹치지 않게 | 담당자 → DB팀 | DB팀 완료 통보 + **failover 테스트 중 OP `/healthz` 계속 200·테스트 후 예약 조회 정상**(pod 재시작 없음 — `pod` 이름 불변) |
 | T-1주 | 전환일 확정·공지(팀장·담당자 3인·협업자), 현행 예약 접수 동결 시각 합의 | 담당자 | 캘린더 공지 |
 | T-1주 | OP 사전 점검: SSO·예외 경로 5종·`mail_status` smtp·`egress_check`·`env_keys`(smtp/db/kvstore true) | 담당자 | 전부 정상 |
 | **D-1** | 현행 사이트에 "내일 HH:MM부터 새 주소로 이전" 배너(운영 세션에 요청) / 관리자에게 D-day 동안 시트·관리자 페이지 편집 금지 고지 | 담당자·운영 세션 | 배너 게시 |
@@ -55,6 +55,7 @@
 |---|---|---|
 | 예약 접수·확정 메일·캘린더 | 현행 Apps Script | 사내 컨테이너 |
 | 월간 리포트·설문 초대(일일 잡) | 현행 트리거 2종 | OP 인앱 스케줄러(`JOBS_DISABLED` 제거) |
+| 월간 리포트 수신자 | Script Property `MONTHLY_REPORT_TO` = 운영자 1인(10/6 전환 — 외부 Gmail 발신이라 사내 DL 직접 투입 보류, 운영자가 사내 계정에서 전달) | OP configmap `MONTHLY_REPORT_TO`에 **DL(`DL-pbc-leaderonly`)+개인 명단 직접 등록** — 사내 SMTP 발신이라 DL 정책 통과 가능. 전환 전 OP에서 `[테스트]` 발송으로 DL 수신 실측(운영 세션 10/6 기록의 "이관 완료 후 복원" 항목) |
 | FieldCheck 일일 요약 | 현행(`FC_TEST_MODE`) | OP 스케줄러 07:40 — **현행 쪽 요약 발송 함수가 별도 트리거면 함께 정지**(FieldCheck 세션 확인) |
 | 방문객 QR 설문·FieldCheck 장비·FieldVoice | Apps Script `visitor_submit`·`health_check`·`voc_report` | **동일(유지)** + 사내 edge-sync pull |
 | 담당자 메신저 알림 | 텔레그램(현행 Apps Script, 상세) | **OP = Teams 웹훅(상세) + 텔레그램(비식별 요약 — 성명·소속·연락처·주제·고객사 없음, 키트 v5.2 kic-op 자동)** — 절충안 2026-10-01. 외부 접점(방문객 설문·FieldCheck·FieldVoice) 제출 알림은 Apps Script가 텔레그램으로 계속 |
@@ -80,7 +81,7 @@
 - [ ] OP `teams_test` `{ok:true}` (secret의 `TEAMS_WEBHOOK_URL` 주입 — 채널에 테스트 카드 1건 도착)
 - [ ] OP `telegram_test` `{ok:true}` (secret의 `TELEGRAM_*` 주입 + pod → api.telegram.org 아웃바운드 실측 — 차단이면 텔레그램 병행 포기, Teams만) + 예약 1건으로 비식별 요약 형식 확인(성명 없음)
 - [ ] OP `mail_status` smtp / `egress_check` ok / SSO 예외 5종 로그인 없이 열림
-- [ ] Multi-AZ 전환 완료 통보(§1 T-2주 요청)
+- [ ] Reader instance 추가·failover 테스트 완료 통보(§1 T-2주 요청) — 테스트 중 `/healthz` pod 이름 불변 확인
 - [ ] QA 리허설 건수 일치 기록 있음
 - [ ] UAT 1~9 판정 기입, △·× 처리 완료
 - [ ] 전환 안내문 확정, 발송 대상 목록

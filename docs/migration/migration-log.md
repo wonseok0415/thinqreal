@@ -716,3 +716,15 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - 문서: credentials-format(telegram-bot 블록 OP 주입 복원·순서), cutover-plan §3·§5(`telegram_test` 복원 + 아웃바운드 실측 조건), 치트시트 B, gitea-repo-contract env 표, CLAUDE.md 상태 줄.
 - **운영 조건**: pod → api.telegram.org 도달은 cert 후 `telegram_test`로 실측 — 차단이면 `TELEGRAM_*` 미주입으로 Teams 단독(코드 변경 없음). 외부 접점 알림은 Apps Script 텔레그램 그대로.
 - **키트 v5.2 파일**: `src/config.js` · `src/notify/telegram.js`. ST 적용 확인은 ST가 발송 억제 환경이라 화면으로는 불가 — `/healthz` 버전 교체만 확인(동작 검증은 OP `telegram_test` + 예약 1건).
+
+## 작업 내역 (2026-10-06 — 운영 세션 PR #181 판독(월간 리포트 수신 체계 전환) → 전환 스위치 표에 반영, 리포 상태 점검)
+
+- **운영 세션(10/6)**: `MONTHLY_REPORT_TO`를 운영자 1인으로 축소하고 사내 계정에서 리더 DL(56명)로 전달하는 체계로 전환 — 사유는 외부 Gmail 발신이 사내 DL 정책에 걸려 조용히 유실될 위험. "이관 완료 후 컨테이너 env에 DL 직접 등록으로 복귀" 항목을 남김. 이관 트랙 대응: cutover-plan §3에 「월간 리포트 수신자」 스위치 행 추가 — OP는 사내 SMTP 발신이라 DL 직접 등록 가능, 전환 전 OP `[테스트]` 발송으로 DL 수신 실측. 코드 변경 없음(컨테이너 env `MONTHLY_REPORT_TO` 기존 지원).
+- 리포 상태: main = PR #181(운영 세션)까지, 라이브 델타 0, 브랜치 재정렬. 키트 v5.2 사내 적용 보고는 아직 없음(ST `/healthz` 버전 확인 대기).
+## 작업 내역 (2026-10-06 후속 — DB팀 "오픈 2주 전 reader instance 추가·가용성 테스트" 안내 판독 → cutover T-2주 항목 재정의 + failover 내성(키트 v5.3))
+
+- **의미**: PRD Aurora가 writer 1대(Single)로 생성됐고, 오픈 2주 전에 ① reader instance를 추가(다른 AZ → Multi-AZ·자동 failover 성립) ② DB팀이 writer를 강제 전환하는 가용성 테스트를 하자는 것 — 우리 계획의 "T-2주 Multi-AZ 요청"과 같은 항목이며 DB팀 쪽 용어로 재확인된 셈. 창구는 JIRA DB자원(변경승인요청), 리드타임 7일.
+- **앱 영향 점검**: Cluster Writer 엔드포인트 사용이라 failover 시 접속 주소는 그대로. 다만 pg Pool에 `error` 핸들러가 없어 failover로 유휴 커넥션이 끊기면 **프로세스가 죽을 수 있음** → **키트 v5.3**(`src/store/postgres/index.js` 한 줄): 핸들러 추가. 로컬 PG에서 커넥션 강제 종료로 재현 — 종전엔 종료 위험, 적용 후 `/healthz` 200 유지·다음 조회 재연결 확인(설계 §8-20).
+- cutover-plan §1 T-2주 행을 "reader 추가 + failover 테스트 요청"으로 재정의, §5 체크에 "테스트 중 pod 이름 불변" 추가.
+- **담당자 회신 문안(채팅으로 전달)**: 안내 수용, 오픈일 확정 시 2주 전 JIRA 발행, 테스트 시 앱 측 확인 항목(`/healthz`·예약 조회) 동시 수행.
+- **키트 v5.3 파일**: `src/store/postgres/index.js`(`fix:`). v5.2와 묶어 적용 가능(아직 미적용이면 세 파일 한 번에: `src/config.js`·`src/notify/telegram.js`·`src/store/postgres/index.js`).
