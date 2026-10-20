@@ -736,3 +736,4 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **운영 세션 변경 판독**: 9월분 리포트 전달 배포 첫 실측에서 데스크톱 Outlook(Word 엔진)이 범례의 빈 `<span>`+배경색 점을 버리고 가운데 정렬을 깨뜨림 → `.gs` 범례를 색 글자 `●` + `align="center"` 속성 병기 + `&nbsp;` 조인으로 수정. **컨테이너 템플릿(`src/mail/templates/monthlyReport.js`)에 같은 블록이 그대로 있어 동일하게 이식** — 전환 후 OP가 사내 SMTP로 보내는 리포트도 Outlook 수신이라 같은 증상이 재현될 것이기 때문. 렌더 검증: memory 저장소에 확정 3건 → collect → 템플릿 → `●` 존재·`align="center"` 3곳·구 빈 span 점 없음.
 - **키트 v5.4 파일**: `src/mail/templates/monthlyReport.js`(`fix:`). 미적용 v5.2·v5.3과 묶어 4파일 한 번에: `src/config.js`·`src/notify/telegram.js`·`src/store/postgres/index.js`·`src/mail/templates/monthlyReport.js`.
 - 운영 협조 규칙 재확인: `.gs` 변경은 api-contract·data-schema 반영이 요청 사항이나, 렌더 마크업처럼 계약 밖 변경도 이관 세션이 주기적으로 `.gs` diff를 보고 동기 이식한다(이번처럼).
+- **10/20 마감** — PR #185 머지, 담당자가 사내 클로드로 키트 v5.2~v5.4 적용 + internal-context 갱신 진행 완료 보고(ST `/healthz` 버전은 다음 세션에 확인). 남은 체크리스트는 10/6 마감 항목 ②~⑦ 그대로(Next SPoC 재요청·valkey SG JIRA·Teams 웹훅·DDL 실행·cert·QA 리허설).
