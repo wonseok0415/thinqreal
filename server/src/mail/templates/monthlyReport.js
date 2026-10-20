@@ -247,17 +247,21 @@ export function buildMonthlyReportHtml(d, chartSrc = () => null) {
     purposeBody = '<div style="font-size:14px;color:#aeaeb2;padding:8px 0;">해당 없음</div>';
   } else if (donutSrc) {
     const dist = purposeDist(d);
+    // 범례 색 표기는 빈 span+배경색이 아니라 **색 글자 '●'** — 데스크톱 Outlook(Word 엔진)이 빈 인라인
+    // 요소의 크기·배경을 버려서 열람·[전달] 재작성 시 색 점이 소실됐던 문제 대응 (.gs 2026-10-07 동기 이식, 키트 v5.4).
+    // 정렬도 CSS text-align과 HTML align 속성 병기 — Word는 속성 기반 정렬을 보존. 칩 사이 간격은
+    // margin(브라우저 엔진용)과 &nbsp; 조인(Word용) 이중으로 확보.
     const legend = dist.map((x) =>
-      '<span style="display:inline-block;margin:3px 9px;font-size:12.5px;color:#3a3a3c;white-space:nowrap;">' +
-        '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:' + x.color + ';margin-right:5px;"></span>' +
+      '<span style="margin:3px 9px;font-size:12.5px;color:#3a3a3c;white-space:nowrap;">' +
+        '<span style="color:' + x.color + ';font-size:11px;">&#9679;</span>&nbsp;' +
         escapeHtml(x.label) + ' <strong>' + x.count + '건</strong> <span style="color:#8e8e93;">(' + x.pct + '%)</span>' +
-      '</span>').join('');
+      '</span>').join('&nbsp;&nbsp; ');
     purposeBody =
-      '<div style="text-align:center;">' +
+      '<div align="center" style="text-align:center;">' +
         '<img src="' + donutSrc + '" width="180" alt="방문 목적별 분포" style="width:180px;height:auto;display:inline-block;" />' +
       '</div>' +
-      '<div style="text-align:center;margin-top:6px;line-height:1.7;">' + legend + '</div>' +
-      '<div style="font-size:13px;color:#6e6e73;text-align:center;margin-top:5px;">총 ' + purposeTotal + '건 (확정 기준)</div>';
+      '<div align="center" style="text-align:center;margin-top:6px;line-height:1.7;">' + legend + '</div>' +
+      '<div align="center" style="font-size:13px;color:#6e6e73;text-align:center;margin-top:5px;">총 ' + purposeTotal + '건 (확정 기준)</div>';
   } else {
     // 막대 폴백 — 도넛 렌더 실패 시에도 분포는 항상 표시
     const dist = purposeDist(d);
