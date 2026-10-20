@@ -729,3 +729,10 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **담당자 회신 문안(채팅으로 전달)**: 안내 수용, 오픈일 확정 시 2주 전 JIRA 발행, 테스트 시 앱 측 확인 항목(`/healthz`·예약 조회) 동시 수행.
 - **키트 v5.3 파일**: `src/store/postgres/index.js`(`fix:`). v5.2와 묶어 적용 가능(아직 미적용이면 세 파일 한 번에: `src/config.js`·`src/notify/telegram.js`·`src/store/postgres/index.js`).
 - **10/6 마감** — 담당자가 DB팀에 회신(오픈 2주 전 reader 추가·failover 테스트 요청 예정). 키트 v5.2·v5.3 사내 적용은 내일(프롬프트 전달 완료). **내일 체크리스트(담당자)**: ① 사내 클로드 ①② 프롬프트 → ST `/healthz` 버전 보고 ② Next SPoC 재요청 2건(10/2 13시 이후분) ③ valkey SG DBSUPPORT-JIRA(CIDR 4개·6379) ④ Teams 웹훅 URL 생성 → credentials `teams-webhook` ⑤ DB-i·SEAgent 준비 → MGR로 `schema-ddl.sql`(0번 쿼리부터) ⑥ cert 요청(BE팀 복귀) ⑦ QA 리허설(uat §10). 외부 트랙 미결 없음.
+
+## 작업 내역 (2026-10-20 — 리포 점검: 운영 세션 PR #184(.gs 범례 Word-안전 마크업) 컨테이너 동기 이식, 키트 v5.4)
+
+- **리포 상태**: main = PR #184(운영 세션 10/7)까지. 10/6 이후 이관 트랙 변경 없음, 라이브 델타 0. 키트 v5.2·v5.3 사내 적용 보고는 아직 없음(10/6 체크리스트 ①~⑦ 전부 미보고).
+- **운영 세션 변경 판독**: 9월분 리포트 전달 배포 첫 실측에서 데스크톱 Outlook(Word 엔진)이 범례의 빈 `<span>`+배경색 점을 버리고 가운데 정렬을 깨뜨림 → `.gs` 범례를 색 글자 `●` + `align="center"` 속성 병기 + `&nbsp;` 조인으로 수정. **컨테이너 템플릿(`src/mail/templates/monthlyReport.js`)에 같은 블록이 그대로 있어 동일하게 이식** — 전환 후 OP가 사내 SMTP로 보내는 리포트도 Outlook 수신이라 같은 증상이 재현될 것이기 때문. 렌더 검증: memory 저장소에 확정 3건 → collect → 템플릿 → `●` 존재·`align="center"` 3곳·구 빈 span 점 없음.
+- **키트 v5.4 파일**: `src/mail/templates/monthlyReport.js`(`fix:`). 미적용 v5.2·v5.3과 묶어 4파일 한 번에: `src/config.js`·`src/notify/telegram.js`·`src/store/postgres/index.js`·`src/mail/templates/monthlyReport.js`.
+- 운영 협조 규칙 재확인: `.gs` 변경은 api-contract·data-schema 반영이 요청 사항이나, 렌더 마크업처럼 계약 밖 변경도 이관 세션이 주기적으로 `.gs` diff를 보고 동기 이식한다(이번처럼).
