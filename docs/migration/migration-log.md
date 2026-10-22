@@ -737,3 +737,9 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **키트 v5.4 파일**: `src/mail/templates/monthlyReport.js`(`fix:`). 미적용 v5.2·v5.3과 묶어 4파일 한 번에: `src/config.js`·`src/notify/telegram.js`·`src/store/postgres/index.js`·`src/mail/templates/monthlyReport.js`.
 - 운영 협조 규칙 재확인: `.gs` 변경은 api-contract·data-schema 반영이 요청 사항이나, 렌더 마크업처럼 계약 밖 변경도 이관 세션이 주기적으로 `.gs` diff를 보고 동기 이식한다(이번처럼).
 - **10/20 마감** — PR #185 머지, 담당자가 사내 클로드로 키트 v5.2~v5.4 적용 + internal-context 갱신 진행 완료 보고(ST `/healthz` 버전은 다음 세션에 확인). 남은 체크리스트는 10/6 마감 항목 ②~⑦ 그대로(Next SPoC 재요청·valkey SG JIRA·Teams 웹훅·DDL 실행·cert·QA 리허설).
+
+## 작업 내역 (2026-10-22 — 키트 v5.2~v5.4 롤아웃 확인(pod 교체), `version:"unknown"` 해소 착수)
+
+- ST `/healthz`: `version:"unknown"`, `pod` 이름 교체 확인 → 키트 v5.2~v5.4 릴리스·롤아웃은 된 것(예상 0.19.2). `version`은 9/29부터 열린 문제(Gitea package.json에 version 필드 없음·워크플로 미갱신) 그대로.
+- **해소 방법(설계 §8-15·키트 v4.7 전제)**: 앱은 env `APP_VERSION`을 최우선으로 읽는다. 릴리스 워크플로가 sed로 갱신하는 `deploy/base/deployment.yaml`의 `version:` 줄을 **downward API**로 pod env에 넣으면 코드 변경 없이 해결 — `version:`이 pod template 라벨이면 `valueFrom.fieldRef.fieldPath: metadata.labels['version']`, deployment 상단 라벨에만 있으면 template 라벨에도 같은 줄을 추가(워크플로 sed가 전역이면 함께 갱신됨 — 사내 클로드가 release.yml의 sed 패턴을 읽고 판단). `deploy/**`만 바뀌는 `chore:` 커밋이라 빌드는 없고 ArgoCD sync로 pod 재시작(template 변경) → 그 자체가 롤아웃.
+- 사내 클로드 프롬프트 전달(저장소 파일만 읽고 판단·수정, 값 마스킹). 결과는 `/healthz version`이 숫자로 바뀌는 것으로 판정.
