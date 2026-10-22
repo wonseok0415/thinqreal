@@ -27,13 +27,21 @@ label.chk{display:inline-flex;align-items:center;gap:6px;margin:4px 12px 4px 0;m
 .hidden{display:none}
 </style></head><body><div class="wrap">
 <h1>데이터 이행 <span id="envBadge" class="badge">…</span></h1>
-<div class="sub">구글 시트 스냅샷(.xlsx) → 이 환경의 저장소. 순서: ① 검사 → ② 적재 → ③ 검증. 파일은 매 단계 다시 전송됩니다(서버에 보관하지 않음).</div>
+<div class="sub">현행 시스템(또는 .xlsx) → 이 환경의 저장소. 순서: ① 검사 → ② 적재 → ③ 검증. 소스는 매 단계 다시 읽습니다(서버에 보관하지 않음).</div>
 
 <div class="card" id="tokenCard"><h2>0. 관리자 토큰</h2><div id="tokenMsg" class="note">확인 중…</div></div>
 
-<div class="card"><h2>1. 스냅샷 파일 · 검사</h2>
-<div class="note">구글 시트에서 <b>파일 → 다운로드 → Microsoft Excel(.xlsx)</b> 로 받은 파일(탭 전체 포함). 검사는 쓰기가 없습니다.</div>
-<div class="row" style="margin-top:10px"><input type="file" id="file" accept=".xlsx"><button class="btn" id="btnInspect" disabled>① 검사</button></div>
+<div class="card"><h2>1. 스냅샷 소스 · 검사</h2>
+<div class="row"><label class="chk"><input type="radio" name="source" value="legacy" checked> 현행 시스템에서 직접 가져오기 (권장)</label><label class="chk"><input type="radio" name="source" value="xlsx"> .xlsx 파일</label></div>
+<div id="srcLegacy">
+<div class="note">서버가 현행 Apps Script에서 12표를 직접 읽습니다(export_log 제외). 필요한 것은 <b>현행 관리자 토큰</b> 하나 — <a href="https://thinqreal.com/thinqreal_admin.html" target="_blank">thinqreal.com 관리자 페이지</a> 로그인 → F12 → Console → <code>copy(localStorage.getItem('thinqreal_admin_token'))</code> → 아래에 붙여넣기(따옴표·꺾쇠 없이). 토큰은 저장·기록하지 않습니다.</div>
+<div class="row" style="margin-top:8px"><input type="password" id="legacyToken" placeholder="현행 관리자 토큰 (eyJ…)" style="flex:1;min-width:280px" autocomplete="off"></div>
+</div>
+<div id="srcXlsx" class="hidden">
+<div class="note">구글 시트에서 <b>파일 → 다운로드 → Microsoft Excel(.xlsx)</b> 로 받은 파일(탭 전체 포함). 사내 PC에서 업로드가 차단되면 위 「현행 시스템에서 직접」을 쓰세요.</div>
+<div class="row" style="margin-top:8px"><input type="file" id="file" accept=".xlsx"></div>
+</div>
+<div class="row" style="margin-top:10px"><button class="btn" id="btnInspect" disabled>① 검사</button><span class="note">검사는 쓰기가 없습니다.</span></div>
 <div id="inspectOut"></div></div>
 
 <div class="card"><h2>2. 적재</h2>
@@ -69,20 +77,27 @@ function log(m){const el=$('#log');el.textContent+=(new Date()).toLocaleTimeStri
 function esc(s){return String(s??'').replace(/[&<>"]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function cls(n,goodWhenZero){return goodWhenZero?(n?'bad':'ok'):(n?'ok':'')}
 function file(){return $('#file').files[0]||null}
-async function call(action,extra,jsonBody){const f=file();const qs=new URLSearchParams({action,token,...(extra||{})});
- const r=await fetch('/api/import?'+qs.toString(),{method:'POST',body:jsonBody!=null?jsonBody:f,headers:{'Content-Type':jsonBody!=null?'application/json':'application/octet-stream'}});
+function source(){return document.querySelector('input[name=source]:checked').value}
+function legacyToken(){return ($('#legacyToken').value||'').trim().replace(/^["'\`<]+|["'\`>]+$/g,'')}
+function srcReady(){return source()==='legacy'?!!legacyToken():!!file()}
+async function call(action,extra,jsonBody){const qs=new URLSearchParams({action,token,...(extra||{})});
+ if(jsonBody==null&&source()==='legacy')jsonBody=JSON.stringify({legacy_token:legacyToken()});
+ const body=jsonBody!=null?jsonBody:file();
+ const r=await fetch('/api/import?'+qs.toString(),{method:'POST',body,headers:{'Content-Type':jsonBody!=null?'application/json':'application/octet-stream'}});
  const j=await r.json(); if(j.error) log(action+' → 오류: '+j.error+(j.reason?' ('+j.reason+')':'')+(j.hint?' — '+j.hint:'')+(j.message?' — '+j.message:'')); return j}
 function selectedTables(){return [...document.querySelectorAll('#tableChecks input:checked')].map((i)=>i.value)}
 function mode(){return document.querySelector('input[name=mode]:checked').value}
-function enable(){const has=!!file()&&!!token;$('#btnInspect').disabled=!has;$('#btnVerify').disabled=!has;$('#btnImport').disabled=!(has&&inspected);$('#btnPurge').disabled=!(has&&inspected&&env!=='kic-op')}
+function enable(){const has=srcReady()&&!!token;$('#btnInspect').disabled=!has;$('#btnVerify').disabled=!has;$('#btnImport').disabled=!(has&&inspected);$('#btnPurge').disabled=!(has&&inspected&&env!=='kic-op')}
 
 (async()=>{try{const h=await (await fetch('/healthz')).json();env=h.env||'';$('#envBadge').textContent=(h.env||'local')+' · '+h.backend+' · '+(h.version||'');if(env==='kic-op')$('#purgeCard').classList.add('hidden')}catch{$('#envBadge').textContent='healthz 실패'}
  $('#tokenMsg').innerHTML=token?'<span class="ok">토큰 있음</span> — 같은 브라우저에서 <a href="/thinqreal_admin.html" target="_blank">관리자 페이지</a>에 로그인한 값을 사용합니다.':'<span class="bad">토큰 없음</span> — 먼저 <a href="/thinqreal_admin.html" target="_blank">관리자 페이지</a>에 로그인한 뒤 이 화면을 새로고침하세요.';
  $('#stateForm').innerHTML=STATE_KEYS.map((k)=>'<div class="row" style="margin-top:6px"><code style="min-width:260px">'+esc(k)+'</code><input type="text" data-key="'+esc(k)+'" placeholder="(현재: 검사 후 표시)" style="flex:1"></div>').join('');
  enable()})();
-$('#file').addEventListener('change',()=>{inspected=null;$('#tableChecks').textContent='검사 후 표가 나타납니다.';enable()});
+const resetInspect=()=>{inspected=null;$('#tableChecks').textContent='검사 후 표가 나타납니다.';enable()};
+$('#file').addEventListener('change',resetInspect);$('#legacyToken').addEventListener('input',resetInspect);
+document.querySelectorAll('input[name=source]').forEach((r)=>r.addEventListener('change',()=>{$('#srcLegacy').classList.toggle('hidden',source()!=='legacy');$('#srcXlsx').classList.toggle('hidden',source()!=='xlsx');resetInspect()}));
 
-$('#btnInspect').onclick=async()=>{log('검사 시작: '+file().name+' ('+Math.round(file().size/1024)+'KB)');const j=await call('inspect');if(!j.ok)return;inspected=j;
+$('#btnInspect').onclick=async()=>{log('검사 시작: '+(source()==='legacy'?'현행 시스템 직접 조회':file().name+' ('+Math.round(file().size/1024)+'KB)'));const j=await call('inspect');if(!j.ok)return;inspected=j;if((j.notes||[]).length)log('참고: '+j.notes.join(' / '));
  const rows=j.tables.map((t)=>t.inFile?'<tr><td>'+t.table+'</td><td class="num">'+t.rows+'</td><td class="num">'+t.uniqueIds+'</td><td class="num '+cls(t.emptyId,true)+'">'+t.emptyId+'</td><td class="num '+cls(t.dupInFile,true)+'">'+t.dupInFile+'</td><td class="num">'+t.dbRows+'</td><td class="num">'+t.overlap+'</td><td class="num">'+t.newIds+'</td><td>'+(t.headerMissing.length?'<span class="warn">누락 '+esc(t.headerMissing.join(', '))+'</span>':'')+(t.headerUnknown.length?' <span class="note">무시 '+esc(t.headerUnknown.join(', '))+'</span>':'')+'</td></tr>'
   :'<tr><td>'+t.table+'</td><td colspan="8" class="note">파일에 이 탭이 없음</td></tr>').join('');
  $('#inspectOut').innerHTML='<table><tr><th>테이블</th><th>파일 행</th><th>고유 id</th><th>빈 id</th><th>파일 중복</th><th>저장소 기존</th><th>겹침</th><th>신규</th><th>헤더</th></tr>'+rows+'</table>'+(j.unknownSheets.length?'<div class="note" style="margin-top:8px">테이블에 대응하지 않는 탭(건너뜀): '+esc(j.unknownSheets.join(', '))+'</div>':'');

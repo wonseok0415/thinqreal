@@ -488,3 +488,11 @@ Gitea 저장소 원본 검수에서 **HPA min 2 레플리카**가 확인되어(�
 **구현**(`store/postgres/index.js`): `pool.on('error', …)`로 로그만 남기고 풀이 해당 클라이언트를 폐기하게 둔다. 다음 쿼리는 새 커넥션으로 새 writer에 붙는다. 진행 중이던 쿼리는 그 요청만 500으로 실패(재시도는 사용자 몫 — 저트래픽 B2E라 수용).
 **검증(로컬 PostgreSQL 16)**: 앱 기동 → `pg_terminate_backend`로 앱 커넥션 전부 강제 종료(failover 흉내) → 로그에 `idle client error (failover?): 57P01` → `/healthz` 200 유지(프로세스 생존) → `availability` 조회 정상(재연결). 핸들러 없는 종전 코드였다면 프로세스 종료.
 **운영**: T-2주 reader 추가·failover 테스트 때 OP `/healthz`의 `pod` 이름이 바뀌지 않으면(재시작 없음) 통과. cutover-plan §1·§5 갱신.
+
+### 8-17-b. 이행 소스 추가 — 현행 Apps Script 직접 pull (2026-10-22, 키트 v5.5)
+
+**배경**: QA 리허설 첫 시도에서 **사내 PC의 파일 업로드 차단 정책**으로 xlsx를 패널에 올릴 수 없음이 확인됨(§8-17의 xlsx 전제가 사내에서 성립하지 않음).
+**구현**: `POST /api/import` body가 JSON `{legacy_token}`이면 서버가 현행 Apps Script GET 6종(`bookings`·`survey_data`·`roi_snapshots`·`slot_blocks`·`health_checks`(days 미지정=전체)·`voc_reports`)을 호출해 12표의 `{sheets}`를 만들고, 이후 inspect/import/verify/purge는 xlsx와 동일 코드로 동작(`parseWorkbook` 결과와 같은 구조). 토큰은 담당자가 현행 관리자 페이지에서 복사한 것을 패널 입력란(password)에 넣으며, 서버는 저장·로그하지 않는다(E2E에서 로그 누출 없음 확인). `export_log`는 현행에 조회 경로가 없어 제외(`notes`로 안내 — 감사 로그는 전환 후 새로 쌓임). pod → script.google.com 아웃바운드는 하이브리드 에지(`egress_check`)로 이미 실측됨.
+**효과**: 전환일 절차에서 **파일 다운로드·반입·삭제 단계가 사라짐** — 동결 직후 OP 패널이 현행을 직접 읽어 적재(cutover-plan §2 2·3 갱신). 개인정보 파일이 PC에 남지 않음.
+**검증**: 가짜 Apps Script 서버 + memory 저장소 E2E — 잘못된 현행 토큰 거부, inspect 12표(export_log 미포함 안내), import 전표 적재, verify 전 테이블 일치, 재적재 전부 건너뜀, 저장값 정규화(`2026. 5. 29.` → `2026-05-29`), 토큰 로그 누출 없음, 패널 소스 선택 UI 존재.
+**⚠ 스펙 대비 변경**: §8-17 "입력 = xlsx 1파일" → **기본 = 현행 직접 pull, xlsx는 예비**. 사유: 사내 업로드 차단 정책.
