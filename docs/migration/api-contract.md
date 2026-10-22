@@ -98,7 +98,7 @@
 
 ### 데이터 이행 — `POST /api/import` (컨테이너 전용, 2026-09-29 키트 v5, 설계 §8-17)
 
-`/api?type=` 라우팅이 아니라 **별도 경로** — 본문이 JSON이 아니라 xlsx 바이트(최대 40MB)이기 때문. `/pub`에는 없음(404). 인증은 query `token`(관리자 토큰) 필수. 파라미터는 전부 query: `action` · `tables`(쉼표, 생략=전 테이블) · `mode` · `confirm`. 서버는 파일을 보관하지 않는다(레플리카 무관, 매 요청 재전송).
+`/api?type=` 라우팅이 아니라 **별도 경로** — 본문이 xlsx 바이트(최대 40MB) 또는 JSON이기 때문. **소스 2종(2026-10-22 키트 v5.5)**: ① body = xlsx 바이트 ② body = JSON `{legacy_token}` → 서버가 **현행 Apps Script**의 `bookings`·`survey_data`·`roi_snapshots`·`slot_blocks`·`health_checks`·`voc_reports`를 그 토큰(현행 관리자 토큰, 저장·로그 안 함)으로 읽어 12표를 구성(`export_log`는 현행 조회 경로 없음 → `notes`에 명시). 사내 PC 파일 업로드 차단 정책 때문에 ②가 기본 경로. 응답에 `source:"xlsx"|"legacy"`·`notes[]` 추가, `export_log` reason에 `source=` 기록. `/pub`에는 없음(404). 인증은 query `token`(관리자 토큰) 필수. 파라미터는 전부 query: `action` · `tables`(쉼표, 생략=전 테이블) · `mode` · `confirm`. 서버는 파일을 보관하지 않는다(레플리카 무관, 매 요청 재전송).
 
 | action | 쓰기 | 동작 | 응답 |
 |---|---|---|---|

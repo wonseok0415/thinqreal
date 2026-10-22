@@ -746,3 +746,10 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **10/22 후속**: 사내 클로드가 브리핑 §5 역할 경계("코드 변경 전부 외부")를 근거로 deployment.yaml 수정을 거부(분석만, worklog 커밋). 판단은 옳았음 — 표가 "적용"과 "설계"를 구분하지 않았던 것이 원인. **§5에 행 추가**: 외부 트랙이 글로 지정한 `deploy/**`·`src/` 변경의 **적용**은 사내 ✅, **설계·결정**은 외부 ⛔. 지정 문서 형식으로 `docs/migration/kits/` 신설, 첫 키트 **M1(manifest-app-version.md)** = APP_VERSION downward API(pod template 라벨 + env, 검증표 포함).
 - **✅ 10/22 `version:"unknown"` 종결**: 사내 클로드가 키트 M1 적용(deployment.yaml pod template `version` 라벨 + `APP_VERSION` downward API) → ST `env_keys`에 `APP_VERSION`, `/healthz version:"0.19.3"`. 9/29부터 열려 있던 항목 종결. 예상 0.19.2가 아닌 0.19.3인 것은 사내 측 커밋이 하나 더 있었던 것으로 보임(무해 — 릴리스 번호는 Gitea가 단일 소스). 이제 치트시트 D "릴리스 후 3분 루틴"의 `version` 확인이 실제로 동작. gitea-repo-contract §11 (c) 갱신.
 - **10/22 체크리스트 ② 완료**: Next SPoC 계정 요청 2건(APP·MGR) — NEXT-ITSM 오류 반려 건 재처리 완료(담당자). 남은 체크리스트: ③ valkey SG JIRA ④ Teams 웹훅 ⑤ DB-i·DDL ⑥ cert ⑦ QA 리허설.
+
+## 작업 내역 (2026-10-22 후속 — QA 리허설 첫 시도: 사내 PC 파일 업로드 차단 → 이행 소스를 「현행 직접 pull」로 전환(키트 v5.5))
+
+- 담당자: xlsx 다운로드·Script Properties 메모·QA 패널 진입(토큰 있음·배지)까지 완료했으나 **사내 파일 차단 정책으로 업로드 불가** → §8-17 xlsx 전제 붕괴.
+- **구현(키트 v5.5 — `src/handlers/importData.js`·`src/handlers/importPage.js`, `feat:`)**: body JSON `{legacy_token}`이면 서버가 현행 Apps Script GET 6종을 읽어 12표 구성(export_log 제외·안내). 패널에 소스 선택(현행 직접=기본 / xlsx=예비)·현행 토큰 입력란(password, 저장·로그 안 함). 가짜 현행 서버 E2E 8항목 통과(설계 §8-17-b).
+- **부수 효과**: 전환일에 파일 반입 단계 소멸 — 동결 직후 OP가 현행을 직접 읽음. cutover-plan §2 2·3, uat §10 준비·10-2, api-contract, 치트시트 갱신. 담당자의 xlsx 다운로드본은 개인정보 포함이므로 삭제 권고.
+- **다음**: PR 머지 → 키트 v5.5 사내 적용(2파일) → ST `/healthz` version 상승 확인 → QA 리허설 재개(현행 토큰으로).

@@ -178,9 +178,8 @@ function fileStats(t, sheet) {
 }
 
 // ── actions ──────────────────────────────────────────────
-export async function inspectSnapshot(store, buffer) {
+export async function inspectSnapshot(store, sheets, source = {}) {
   const reg = registry(store);
-  const { sheets } = await parseWorkbook(buffer);
   const tables = [];
   for (const name of IMPORT_TABLES) {
     const t = reg[name]; const sheet = sheets[name];
@@ -199,15 +198,14 @@ export async function inspectSnapshot(store, buffer) {
   const unknownSheets = Object.keys(sheets).filter((n) => !IMPORT_TABLES.includes(n));
   const state = {};
   for (const k of STATE_KEYS) state[k] = await store.state.get(k);
-  return { ok: true, backend: store.backend, env: config.environment || 'local', tables, unknownSheets, state };
+  return { ok: true, backend: store.backend, env: config.environment || 'local', source: source.kind || 'xlsx', notes: source.notes || [], tables, unknownSheets, state };
 }
 
-export async function importSnapshot(store, buffer, { tables, mode }, byEmail) {
+export async function importSnapshot(store, sheets, { tables, mode }, byEmail, source = {}) {
   const reg = registry(store);
   const m = mode === 'replace' ? 'replace' : 'skip';
   const sel = parseTables(tables, IMPORT_TABLES);
   if (sel.unknown.length) return { ok: false, error: 'unknown_table', unknown: sel.unknown };
-  const { sheets } = await parseWorkbook(buffer);
   const results = []; let totalInserted = 0;
   for (const name of sel.list) {
     const t = reg[name]; const sheet = sheets[name];
@@ -238,16 +236,15 @@ export async function importSnapshot(store, buffer, { tables, mode }, byEmail) {
   const summary = results.filter((r) => r.inFile).map((r) => `${r.table}(+${r.inserted}${r.replaced ? ` ↺${r.replaced}` : ''}${r.skipped ? ` =${r.skipped}` : ''})`).join(' ');
   await store.exportLog.append({
     id: String(Date.now()), timestamp: new Date().toISOString(), email: byEmail,
-    reason: `[데이터 이행] mode=${m} ${summary}`.slice(0, 500), rowCount: totalInserted,
+    reason: `[데이터 이행] source=${source.kind || 'xlsx'} mode=${m} ${summary}`.slice(0, 500), rowCount: totalInserted,
   });
   return { ok: true, mode: m, results, totalInserted };
 }
 
-export async function verifySnapshot(store, buffer, { tables }) {
+export async function verifySnapshot(store, sheets, { tables }) {
   const reg = registry(store);
   const sel = parseTables(tables, IMPORT_TABLES);
   if (sel.unknown.length) return { ok: false, error: 'unknown_table', unknown: sel.unknown };
-  const { sheets } = await parseWorkbook(buffer);
   const results = [];
   for (const name of sel.list) {
     const t = reg[name]; const sheet = sheets[name];
@@ -280,13 +277,12 @@ export async function verifySnapshot(store, buffer, { tables }) {
   return { ok: true, allMatch: results.every((r) => !r.inFile || r.match), results };
 }
 
-export async function purgeExtra(store, buffer, { tables, confirm }) {
+export async function purgeExtra(store, sheets, { tables, confirm }) {
   if (config.environment === 'kic-op') return { ok: false, error: 'forbidden_in_op', hint: '운영 DB의 초과 행은 삭제하지 않고 원인을 확인한다' };
   if (String(confirm || '') !== '삭제') return { ok: false, error: 'confirm_required', hint: "confirm='삭제'" };
   const reg = registry(store);
   const sel = parseTables(tables, IMPORT_TABLES);
   if (sel.unknown.length) return { ok: false, error: 'unknown_table', unknown: sel.unknown };
-  const { sheets } = await parseWorkbook(buffer);
   const results = [];
   for (const name of sel.list) {
     const t = reg[name]; const sheet = sheets[name];
@@ -314,22 +310,77 @@ export async function setState(store, pairs) {
   return { ok: true, applied, state };
 }
 
-// 라우터 진입점 — query: action, tables, mode, confirm / body: xlsx 바이트(state는 JSON 텍스트)
+// ── 현행 시스템(Apps Script)에서 직접 가져오기 (2026-10-22, 키트 v5.5) ──
+// 사내 PC의 파일 업로드 차단 정책으로 xlsx 경로가 막혀 추가. 담당자가 현행 관리자 페이지(thinqreal.com)에서 복사한
+// 관리자 토큰을 넘기면 서버가 현행 GET 6종(bookings·survey_data·roi_snapshots·slot_blocks·health_checks·voc_reports)을
+// 호출해 xlsx와 같은 {sheets} 구조로 만든다. 토큰은 저장·로그하지 않는다. export_log는 현행 조회 경로가 없어 제외.
+const LEGACY_TIMEOUT_MS = 90000;
+async function legacyGet(params) {
+  const qs = new URLSearchParams(params).toString();
+  const r = await fetch(config.legacyScriptUrl + '?' + qs, { redirect: 'follow', signal: AbortSignal.timeout(LEGACY_TIMEOUT_MS) });
+  const text = await r.text();
+  let j; try { j = JSON.parse(text); } catch { throw new Error(`현행 응답이 JSON이 아님(type=${params.type}, HTTP ${r.status})`); }
+  if (j && j.error) throw new Error(`현행 ${params.type}: ${j.error}${j.reason ? ' (' + j.reason + ')' : ''}`);
+  return j;
+}
+const asRows = (arr) => (Array.isArray(arr) ? arr.map((r) => { const o = {}; for (const [k, v] of Object.entries(r || {})) o[k] = v == null ? '' : String(v); return o; }) : []);
+function sheetOf(rows, headers) { return { headers: headers.slice(), rows }; }
+
+export async function pullLegacySnapshot(token) {
+  const t = String(token || '').trim().replace(/^["'`<]+|["'`>]+$/g, '');
+  if (!t) return { error: 'legacy_token_required' };
+  const notes = [];
+  const [bk, sd, roi, sb, hc, voc] = await Promise.all([
+    legacyGet({ type: 'bookings', token: t }),
+    legacyGet({ type: 'survey_data', token: t }),
+    legacyGet({ type: 'roi_snapshots' }),
+    legacyGet({ type: 'slot_blocks' }),
+    legacyGet({ type: 'health_checks' }),          // days 미지정 = 전체
+    legacyGet({ type: 'voc_reports', token: t }),  // days 미지정 = 전체
+  ]);
+  const sheets = {
+    [SHEET_NAME]: sheetOf(asRows(bk.records), BOOKING_HEADERS),
+    [SURVEY_SHEET_NAME]: sheetOf(asRows(sd.responses), SURVEY_HEADERS),
+    [LEDGER_SHEET_NAME]: sheetOf(asRows(sd.ledger), LEDGER_HEADERS),
+    [ISSUE_SHEET_NAME]: sheetOf(asRows(sd.issues), ISSUE_HEADERS),
+    [VISITOR_SHEET_NAME]: sheetOf(asRows(sd.visitors), VISITOR_HEADERS),
+    [INSIGHTS_SHEET_NAME]: sheetOf(asRows(sd.insights), INSIGHTS_HEADERS),
+    [ARTICLES_SHEET_NAME]: sheetOf(asRows(sd.articles), ARTICLES_HEADERS),
+    [BEST_SHEET_NAME]: sheetOf(asRows(sd.bestReviewers), BEST_HEADERS),
+    [ROI_SHEET_NAME]: sheetOf(asRows(roi.records), ROI_HEADERS),
+    [SLOT_BLOCKS_SHEET_NAME]: sheetOf(asRows(sb.blocks), SLOT_BLOCKS_HEADERS),
+    [HEALTH_SHEET_NAME]: sheetOf(asRows(hc.records), HEALTH_HEADERS),
+    [VOC_SHEET_NAME]: sheetOf(asRows(voc.records), VOC_HEADERS),
+  };
+  notes.push(`${EXPORT_LOG_SHEET_NAME}: 현행에 조회 경로가 없어 가져오지 않음(감사 로그 — 전환 후 새로 쌓임)`);
+  return { sheets, notes };
+}
+
+// 라우터 진입점 — query: action, tables, mode, confirm / body: xlsx 바이트, 또는 JSON {legacy_token}(현행 직접), 또는 JSON {pairs}(state)
 export async function handleImport(store, action, query, body, byEmail) {
   const a = String(action || '').trim();
-  if (a === 'state') {
-    let data; try { data = JSON.parse(Buffer.isBuffer(body) ? body.toString('utf8') : String(body || '')); } catch { return { ok: false, error: 'invalid_json' }; }
-    return setState(store, data?.pairs);
-  }
-  if (!Buffer.isBuffer(body) || body.length < 100) return { ok: false, error: 'file_required', hint: 'xlsx 파일을 body로 보낸다' };
-  if (body[0] !== 0x50 || body[1] !== 0x4b) return { ok: false, error: 'not_xlsx', hint: '구글 시트 → 파일 → 다운로드 → Microsoft Excel(.xlsx)' };
+  const bodyText = Buffer.isBuffer(body) ? body.toString('utf8') : String(body || '');
+  let json = null;
+  if (bodyText.trim().startsWith('{')) { try { json = JSON.parse(bodyText); } catch { return { ok: false, error: 'invalid_json' }; } }
+  if (a === 'state') return json ? setState(store, json.pairs) : { ok: false, error: 'invalid_json' };
+
+  let sheets, source;
   try {
-    if (a === 'inspect') return await inspectSnapshot(store, body);
-    if (a === 'import') return await importSnapshot(store, body, query, byEmail);
-    if (a === 'verify') return await verifySnapshot(store, body, query);
-    if (a === 'purge_extra') return await purgeExtra(store, body, query);
+    if (json && json.legacy_token != null) {
+      const pulled = await pullLegacySnapshot(json.legacy_token);
+      if (pulled.error) return { ok: false, error: pulled.error, hint: '현행 관리자 페이지(thinqreal.com)에서 복사한 토큰' };
+      sheets = pulled.sheets; source = { kind: 'legacy', notes: pulled.notes };
+    } else {
+      if (!Buffer.isBuffer(body) || body.length < 100) return { ok: false, error: 'file_required', hint: 'xlsx 파일을 body로 보내거나 JSON {legacy_token}으로 현행에서 직접 가져온다' };
+      if (body[0] !== 0x50 || body[1] !== 0x4b) return { ok: false, error: 'not_xlsx', hint: '구글 시트 → 파일 → 다운로드 → Microsoft Excel(.xlsx)' };
+      sheets = (await parseWorkbook(body)).sheets; source = { kind: 'xlsx', notes: [] };
+    }
+    if (a === 'inspect') return await inspectSnapshot(store, sheets, source);
+    if (a === 'import') return await importSnapshot(store, sheets, query, byEmail, source);
+    if (a === 'verify') return await verifySnapshot(store, sheets, query);
+    if (a === 'purge_extra') return await purgeExtra(store, sheets, query);
   } catch (e) {
-    console.error('[import] failed:', e);
+    console.error('[import] failed:', e?.message || e);
     return { ok: false, error: 'import_failed', message: String(e?.message || e) };
   }
   return { ok: false, error: 'unknown_action', actions: ['inspect', 'import', 'verify', 'purge_extra', 'state'] };
