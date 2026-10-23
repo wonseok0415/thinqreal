@@ -22,7 +22,7 @@
 | T-4주 | OP env 주입(DB_*·KVSTORE_*·AUTH_SECRET·LEGACY_AUTH_SECRET 등 — sealed-secret/Vault) | 담당자·사내 Claude·BE팀(cert) | OP `/healthz` `backend:"postgres"`·`kv:"shared"` |
 | T-4주 | 과제 D 키트 v5 배포(`admin_import` + 관리자 「데이터 이행」 패널) | 외부 트랙·사내 Claude | QA에서 스냅샷 업로드 dry-run 통과 |
 | **T-3주** | 협업자 UAT 1~8 완료(QA) + 차이 보고 판독·수정 키트 반영 | 협업자·외부 트랙 | 차이 항목 0 또는 "무해" 합의 |
-| T-3주 | **QA 리허설**: 현행 시트 스냅샷 → QA 적재 → 건수·샘플 대조 → 관리자 페이지 확인 | 담당자·협업자 | 14표 건수 일치, 샘플 5건 필드 일치 |
+| T-3주 | **QA 리허설** — **✅ 2026-10-23 통과**: 현행 직접 pull(키트 v5.5·5.6) → 12표 적재 **2분 이내·오류 0** → 검증 전 테이블 일치(QA 테스트 행 2건은 초과 행 삭제로 정리). 건수: bookings 150·survey 37·visitors 105·articles 18·insights 25·best 9·ledger 9·roi 2·slot_blocks 30·health 612 | 담당자 | D-day 적재 예상 소요 ≤5분(현행 건수 증가분 포함) |
 | **T-2주** | UAT 9단계(메일)를 OP에서 — `[UAT]` 접두, 담당자 3인 사전 고지 | 협업자 | 9-1~9-6 판정 기입 |
 | T-2주 | 운영 전환 안내문 확정(주소 변경·SSO 로그인·달라지는 점 없음·문의처) | 협업자 초안 → 담당자 확정 | 발송 대상·시점 확정(D-3 예고, D-day 본문) |
 | **T-2주** | **Reader instance 추가 + 가용성(failover) 테스트 요청** — DB팀 안내(10/6): "PRD는 최초 Single Instance, 서비스 오픈 2주 전에 reader instance 추가 및 가용성 테스트 요청". JIRA DB자원(변경승인요청)에 **작업 완료 희망일 최소 7일 전**으로 ① Aurora reader instance 1대 추가(다른 AZ = Multi-AZ 성립) ② DB팀 주관 failover 테스트 일정 요청. 앱은 Cluster Writer 엔드포인트라 failover 시 엔드포인트가 새 writer로 자동 전환, pg Pool은 끊긴 커넥션을 버리고 재연결(키트 v5.3, 설계 §8-20). 리허설이 끝난 뒤 넣어 전환 작업과 겹치지 않게 | 담당자 → DB팀 | DB팀 완료 통보 + **failover 테스트 중 OP `/healthz` 계속 200·테스트 후 예약 조회 정상**(pod 재시작 없음 — `pod` 이름 불변) |
