@@ -753,3 +753,4 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **구현(키트 v5.5 — `src/handlers/importData.js`·`src/handlers/importPage.js`, `feat:`)**: body JSON `{legacy_token}`이면 서버가 현행 Apps Script GET 6종을 읽어 12표 구성(export_log 제외·안내). 패널에 소스 선택(현행 직접=기본 / xlsx=예비)·현행 토큰 입력란(password, 저장·로그 안 함). 가짜 현행 서버 E2E 8항목 통과(설계 §8-17-b).
 - **부수 효과**: 전환일에 파일 반입 단계 소멸 — 동결 직후 OP가 현행을 직접 읽음. cutover-plan §2 2·3, uat §10 준비·10-2, api-contract, 치트시트 갱신. 담당자의 xlsx 다운로드본은 개인정보 포함이므로 삭제 권고.
 - **다음**: PR 머지 → 키트 v5.5 사내 적용(2파일) → ST `/healthz` version 상승 확인 → QA 리허설 재개(현행 토큰으로).
+- **10/23 키트 v5.6 — 현행 로그인 대행**: 담당자가 개발자 도구에서 현행 토큰 복사에 반복 실패(콘솔이 구글 탭에 붙음·시크릿 창도 동일) → 패널에서 메일 → [코드 받기] → 6자리 → [로그인]으로 현행 토큰 확보(서버는 현행 `admin_auth_request/verify`를 대행만, 토큰 미보관). E2E 4항목 + Chromium 스모크 통과(설계 §8-17-b 보강). uat §10 준비·10-2, api-contract, 치트시트 갱신. 파일: `src/handlers/importData.js`·`src/handlers/importPage.js`(`feat:`).
