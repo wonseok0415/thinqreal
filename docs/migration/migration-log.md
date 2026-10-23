@@ -761,3 +761,10 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **판정**: 과제 D 이행 경로 성립. 게이트웨이 본문 상한·xlsx 날짜 셀 형식 실측 항목은 pull 방식으로 **무관해져 종결**. D-day 적재 예상 ≤5분. cutover-plan §1 T-3주 행 ✅, 브리핑 §3-h, CLAUDE.md 상태 갱신.
 - 개발자 도구 복사 실패 원인 정정: 담당자는 로그인 후 F12를 눌렀음 — 개발자 도구가 관리자 페이지 창이 아닌 다른 창(구글)에 붙은 것으로 추정(사내 브라우저 정책·창 분리). v5.6으로 그 단계 자체를 제거했으므로 추가 조사 불필요.
 - 남은 체크리스트: ③ valkey SG JIRA ④ Teams 웹훅 ⑤ DB-i·DDL ⑥ cert(또는 박현정 책임이 준 봉인 링크 확인).
+
+## 작업 내역 (2026-10-23 후속 — 체크리스트 ③ 보류·④ Teams 웹훅 완료·⑤ SEAgent 착수)
+
+- **③ valkey SG JIRA → 보류(담당자 결정)**: db_probe가 10/1에 valkey `ok:true`였으므로 KIC-OP 대역 허용 규칙은 이미 valkey SG에 있는 것으로 판단(TCP 연결은 SG가 막으면 ETIMEDOUT). DB팀의 "별도 JIRA" 안내는 SG 오픈 전 시점 안내였거나 RDS 건 처리 때 함께 열린 것으로 보임. 발행 대신 DB 담당자에게 Teams 한 줄 확인("별도 요청 불필요로 이해해도 되는지") 문안 전달 — 답에 따라 종결 또는 발행. 가이드의 SEAgent는 사람 경로(PC → DB-i → Vault → RDS)이고 valkey는 pod 경로(SG만)라 서로 무관함을 정리.
+- **④ Teams 웹훅 ✅**: 담당자가 Teams 워크플로 앱에서 직접 생성 — 템플릿 이름은 현재 「채널에 웹후크 알림 보내기」/「채팅에 웹후크 알림 보내기」(구 「웹후크 요청을 받으면 채널에 게시」, 기능 동일·컨테이너 `notify/teams.js` 카드 형식 호환). **팀(Team) 만들기가 테넌트 정책으로 막혀 있어**("10000명 미만 그룹 소유" 문구만, 입력 불가) 담당자 3명+운영자 **그룹 채팅 「ThinQ Real 알림」에 채팅 웹훅**으로 채택. 워크플로 이름 「ThinQ Real 알림」. URL은 55-credentials `teams-webhook` 블록에만. 소유자=운영자 계정(단일 지점 — 팀 채널 확보 시 URL 교체로 해소, 운영 지장 없음). credentials-format 블록·cutover §5·§7 갱신.
+- **⑤ 착수**: SEAgent 설치 완료 → Next SPoC 「SE에이전트 신규 계정 요청」 제출(요청자·EP 계정·DB 서버(§2-a 엔드포인트)+THINQREAL_MGR·목적(오픈 전 DDL 14표+APP GRANT 1회, 이후 스키마 변경·점검)·수동매핑양식은 DB접근제어 담당자 문의 후 첨부). 양식 안내 회신 대기. 승인 후 순서: DB-i 로그인(Vault 개인계정) → `schema-ddl.sql` 0번 `pg_roles` 쿼리로 APP 역할명 대소문자 확인 → 사내 클로드가 치환본 로컬 생성(Gitea 미커밋) → 실행 → `information_schema.tables` 14 확인.
+- 남은 것: ⑤ 회신·DDL 실행, ⑥ cert(박현정 책임 봉인 링크 확인 → secret·configmap 주입 → OP `/healthz schema:"verified"` → `teams_test`·`telegram_test`).
