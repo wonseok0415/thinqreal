@@ -34,8 +34,9 @@ label.chk{display:inline-flex;align-items:center;gap:6px;margin:4px 12px 4px 0;m
 <div class="card"><h2>1. 스냅샷 소스 · 검사</h2>
 <div class="row"><label class="chk"><input type="radio" name="source" value="legacy" checked> 현행 시스템에서 직접 가져오기 (권장)</label><label class="chk"><input type="radio" name="source" value="xlsx"> .xlsx 파일</label></div>
 <div id="srcLegacy">
-<div class="note">서버가 현행 Apps Script에서 12표를 직접 읽습니다(export_log 제외). 필요한 것은 <b>현행 관리자 토큰</b> 하나 — <a href="https://thinqreal.com/thinqreal_admin.html" target="_blank">thinqreal.com 관리자 페이지</a> 로그인 → F12 → Console → <code>copy(localStorage.getItem('thinqreal_admin_token'))</code> → 아래에 붙여넣기(따옴표·꺾쇠 없이). 토큰은 저장·기록하지 않습니다.</div>
-<div class="row" style="margin-top:8px"><input type="password" id="legacyToken" placeholder="현행 관리자 토큰 (eyJ…)" style="flex:1;min-width:280px" autocomplete="off"></div>
+<div class="note">서버가 현행 Apps Script에서 12표를 직접 읽습니다(export_log 제외). 먼저 <b>현행 관리자 로그인</b>을 여기서 합니다 — 관리자 메일 입력 → [코드 받기] → 현행 시스템(ThinQ Real)이 보낸 메일의 6자리 → [로그인]. 받은 토큰은 이 화면 메모리에만 있고 서버는 저장·기록하지 않습니다.</div>
+<div class="row" style="margin-top:8px"><input type="text" id="legacyEmail" placeholder="관리자 메일 (…@lge.com)" style="min-width:260px" autocomplete="off"><button class="btn secondary" id="btnLegacyCode">코드 받기</button><input type="text" id="legacyCode" placeholder="6자리" maxlength="6" style="width:110px" autocomplete="off"><button class="btn secondary" id="btnLegacyLogin">로그인</button><span id="legacyStatus" class="note">현행 토큰 없음</span></div>
+<details style="margin-top:6px"><summary class="note">토큰을 직접 붙여넣기(개발자 도구로 복사한 경우)</summary><div class="row" style="margin-top:6px"><input type="password" id="legacyToken" placeholder="현행 관리자 토큰 (eyJ…)" style="flex:1;min-width:280px" autocomplete="off"></div></details>
 </div>
 <div id="srcXlsx" class="hidden">
 <div class="note">구글 시트에서 <b>파일 → 다운로드 → Microsoft Excel(.xlsx)</b> 로 받은 파일(탭 전체 포함). 사내 PC에서 업로드가 차단되면 위 「현행 시스템에서 직접」을 쓰세요.</div>
@@ -122,6 +123,10 @@ $('#btnPurge').onclick=async()=>{const ts=selectedTables();const c=$('#purgeConf
  log('초과 행 삭제: '+ts.join(', '));const j=await call('purge_extra',{tables:ts.join(','),confirm:c});if(!j.ok)return;
  $('#purgeOut').innerHTML='<table><tr><th>테이블</th><th>삭제</th></tr>'+j.results.map((r)=>'<tr><td>'+r.table+'</td><td class="num">'+r.removed+'</td></tr>').join('')+'</table>';$('#purgeConfirm').value='';log('삭제 완료')};
 
+$('#btnLegacyCode').onclick=async()=>{const email=$('#legacyEmail').value.trim();if(!email){log('관리자 메일을 입력하세요');return}
+ const j=await call('legacy_code',{},JSON.stringify({email}));if(!j.ok)return;$('#legacyStatus').textContent='인증 메일 발송됨 — 6자리 입력';log('현행 인증 코드 요청: '+email+' (60초 내 재요청은 cooldown)')};
+$('#btnLegacyLogin').onclick=async()=>{const email=$('#legacyEmail').value.trim(),code=$('#legacyCode').value.trim();if(!email||!code){log('메일과 6자리를 입력하세요');return}
+ const j=await call('legacy_login',{},JSON.stringify({email,code}));if(!j.ok)return;$('#legacyToken').value=j.legacy_token;$('#legacyCode').value='';$('#legacyStatus').innerHTML='<span class="ok">현행 토큰 확보</span>'+(j.exp?' (만료 '+new Date(j.exp).toLocaleDateString('ko-KR')+')':'');log('현행 로그인 성공 — 이제 ① 검사');resetInspect()};
 $('#btnState').onclick=async()=>{const pairs=[...document.querySelectorAll('#stateForm input')].filter((i)=>i.value.trim()).map((i)=>({key:i.dataset.key,value:i.value.trim()}));if(!pairs.length){log('입력된 상태값 없음');return}
  const j=await call('state',{},JSON.stringify({pairs}));if(!j.ok)return;$('#stateOut').innerHTML='<div class="note" style="margin-top:8px">'+Object.entries(j.state).map(([k,v])=>'<code>'+esc(k)+'</code> = '+esc(v||'(없음)')).join('<br>')+'</div>';log('상태값 저장: '+j.applied.join(', '))};
 </script></body></html>`;

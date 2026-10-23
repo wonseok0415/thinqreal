@@ -315,16 +315,37 @@ export async function setState(store, pairs) {
 // 관리자 토큰을 넘기면 서버가 현행 GET 6종(bookings·survey_data·roi_snapshots·slot_blocks·health_checks·voc_reports)을
 // 호출해 xlsx와 같은 {sheets} 구조로 만든다. 토큰은 저장·로그하지 않는다. export_log는 현행 조회 경로가 없어 제외.
 const LEGACY_TIMEOUT_MS = 90000;
-async function legacyGet(params) {
+async function legacyGetRaw(params) {
   const qs = new URLSearchParams(params).toString();
   const r = await fetch(config.legacyScriptUrl + '?' + qs, { redirect: 'follow', signal: AbortSignal.timeout(LEGACY_TIMEOUT_MS) });
   const text = await r.text();
-  let j; try { j = JSON.parse(text); } catch { throw new Error(`현행 응답이 JSON이 아님(type=${params.type}, HTTP ${r.status})`); }
+  try { return JSON.parse(text); } catch { throw new Error(`현행 응답이 JSON이 아님(type=${params.type}, HTTP ${r.status})`); }
+}
+async function legacyGet(params) {
+  const j = await legacyGetRaw(params);
   if (j && j.error) throw new Error(`현행 ${params.type}: ${j.error}${j.reason ? ' (' + j.reason + ')' : ''}`);
   return j;
 }
 const asRows = (arr) => (Array.isArray(arr) ? arr.map((r) => { const o = {}; for (const [k, v] of Object.entries(r || {})) o[k] = v == null ? '' : String(v); return o; }) : []);
 function sheetOf(rows, headers) { return { headers: headers.slice(), rows }; }
+
+// 현행 로그인 대행(2026-10-23, 키트 v5.6): 담당자가 개발자 도구 없이 패널에서 현행 관리자 코드 인증을 끝내게 한다.
+// 서버는 현행 공개 GET(admin_auth_request / admin_auth_verify)을 그대로 호출하고 토큰을 브라우저에 돌려줄 뿐 저장하지 않는다.
+const isLgeEmail = (e) => /^[a-z0-9._%+-]+@lge\.com$/i.test(String(e || '').trim());
+export async function legacyAuthRequest(email) {
+  const e = String(email || '').trim().toLowerCase();
+  if (!isLgeEmail(e)) return { ok: false, error: 'bad_email', hint: '@lge.com 관리자 메일' };
+  const j = await legacyGetRaw({ type: 'admin_auth_request', email: e }); // 현행의 {ok:false,error}를 그대로 전달
+  return { ok: !!j.ok, ...(j.ok ? {} : { error: j.error || 'request_failed', reason: j.reason }), hint: j.ok ? '현행 시스템(ThinQ Real)이 보낸 인증 메일의 6자리' : undefined };
+}
+export async function legacyAuthVerify(email, code) {
+  const e = String(email || '').trim().toLowerCase();
+  const c = String(code || '').trim();
+  if (!isLgeEmail(e) || !/^\d{6}$/.test(c)) return { ok: false, error: 'bad_input', hint: '메일 + 6자리 코드' };
+  const j = await legacyGetRaw({ type: 'admin_auth_verify', email: e, code: c });
+  if (!j.ok || !j.token) return { ok: false, error: j.error || 'verify_failed', reason: j.reason };
+  return { ok: true, legacy_token: j.token, exp: j.exp || null };
+}
 
 export async function pullLegacySnapshot(token) {
   const t = String(token || '').trim().replace(/^["'`<]+|["'`>]+$/g, '');
@@ -363,6 +384,8 @@ export async function handleImport(store, action, query, body, byEmail) {
   let json = null;
   if (bodyText.trim().startsWith('{')) { try { json = JSON.parse(bodyText); } catch { return { ok: false, error: 'invalid_json' }; } }
   if (a === 'state') return json ? setState(store, json.pairs) : { ok: false, error: 'invalid_json' };
+  if (a === 'legacy_code') { try { return await legacyAuthRequest(json?.email); } catch (e) { return { ok: false, error: 'legacy_unreachable', message: String(e?.message || e) }; } }
+  if (a === 'legacy_login') { try { return await legacyAuthVerify(json?.email, json?.code); } catch (e) { return { ok: false, error: 'legacy_unreachable', message: String(e?.message || e) }; } }
 
   let sheets, source;
   try {
@@ -383,7 +406,7 @@ export async function handleImport(store, action, query, body, byEmail) {
     console.error('[import] failed:', e?.message || e);
     return { ok: false, error: 'import_failed', message: String(e?.message || e) };
   }
-  return { ok: false, error: 'unknown_action', actions: ['inspect', 'import', 'verify', 'purge_extra', 'state'] };
+  return { ok: false, error: 'unknown_action', actions: ['inspect', 'import', 'verify', 'purge_extra', 'state', 'legacy_code', 'legacy_login'] };
 }
 
 export { STATE_SHEET_NAME };
