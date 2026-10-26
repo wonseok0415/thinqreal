@@ -75,8 +75,8 @@ TELEGRAM_CHAT_ID=<telegram-bot 계정/채팅 ID>
 | 항목 | 결과 | 내용 |
 |---|---|---|
 | pod 전달 방식 | ✅ 확인 | **ArgoCD Vault Plugin(AVP)**: Secret YAML의 자리표시자 `<키 \| base64encode>`를 sync 시 Vault 값으로 치환해 **일반 Secret 생성** → `envFrom.secretRef`로 env 주입(가이드 4장③ `sample_app.yaml`). 우리 앱(env만 읽음)과 정합 — 코드·deployment 변경 없음 |
-| 생성 창구(Vault 경로·Token) | ⏳ 4장① EC2 Case에 있음 | 4장③이 "Token 발급은 EC2 Case와 동일하여 생략" — **Vault Cloud Key CSR Req 신청·Token 발급** 절차는 4장① 판독 필요 |
-| CIDR/role 규칙 | ⏳ 다른 장 | 2장(SSH 접근제어)·4장③에는 없음. KIC-OP Allowed Bound CIDR(internal-context §2-c, 9/15 BE팀 안내)의 출처 장을 목차에서 찾아 판독 |
+| 생성 창구(Vault 경로·Token) | ✅ 확인(2차, 4장①) | **Catoz 「Vault Cloud Key CSR Req」** — CSR Type(`key_service`=kv_aws·kv v2 / `key_kvstore`=kv_api·kv v1) 선택 + Allowed Bound CIDR 입력 → 승인 후 **Token + CSR 경로** 수령. 2장식 role 이름은 없음 |
+| CIDR/role 규칙 | ✅ 칸 확인 / 값은 §2-c | Allowed Bound CIDR 칸 = CSR Req 폼. 넣을 값은 **internal-context §2-c의 KIC-OP 4개 대역** — 9/15 BE팀이 바로 "Vault 가이드의 KIC-OP Allowed Bound CIDR"로 준 값이라 용도 일치(사내 Claude는 가이드만으로 확정 불가로 표기 — 신청 시 인프라팀에 "KIC-OP EKS pod 대역"이라고 병기해 검증받음) |
 | 기존 SealedSecret 처리 | **외부 트랙 결정(아래)** | 가이드 범위 밖 |
 
 **결정 — `deploy/kic-op/secret.yaml` 처리(외부 트랙, 10/26)**: 파일 이름·kustomization `resources`·deployment `envFrom.secretRef: thinq-real-db-svc`는 **그대로 두고, 파일 내용만** SealedSecret(BE 제공 DB용 6키) → **일반 `Secret` + AVP 자리표시자 10키**로 교체한다. Secret 이름이 같으므로 매니페스트 다른 곳은 무변경. BE 제공 OP DB는 Aurora 전환과 함께 사용 종료. 형식(가이드 4장③ 예시에 맞춰 사내 Claude가 작성 — `avp.kubernetes.io/path` 주석의 경로 값은 Cloud Key 발급 결과):
@@ -101,7 +101,17 @@ data:
   TELEGRAM_BOT_TOKEN: <TELEGRAM_BOT_TOKEN | base64encode>
   TELEGRAM_CHAT_ID: <TELEGRAM_CHAT_ID | base64encode>
 ```
-Vault 쪽 키 이름은 env 이름과 **동일하게** 등록(치환 실수 방지). 값 등록은 담당자가 Vault UI/CLI에서 55-credentials를 보고 직접.
+Vault 쪽 키 이름은 env 이름과 **동일하게** 등록(치환 실수 방지). 값 등록은 담당자가 Vault UI/CLI에서 55-credentials를 보고 직접. **주석 보강(2차 판독)**: CSR Type이 `key_kvstore`(kv v1)로 승인되면 `annotations`에 `avp.kubernetes.io/kv-version: "1"` 한 줄 추가(없으면 AVP가 kv v2로 해석해 경로에 `/data/`를 끼워 넣어 실패). `key_service`(kv v2)면 불필요. 어느 쪽인지는 CSR 승인 결과로 확정. data 키 10개는 가이드의 멀티키 실사례와 같은 패턴이라 문제 없음.
+
+**CSR Req 기재안(담당자가 Catoz에서 작성 — 값은 internal-context·55-credentials)**:
+| 칸 | 적을 것 |
+|---|---|
+| CSR Type | **인프라팀 권고에 따름** — 용도 문구에 "애플리케이션 환경변수 비밀값 저장(KV), ArgoCD Vault Plugin으로 읽음"을 적고 어느 Type이 맞는지 확인 요청(둘 중 하나로 임의 선택하지 않음) |
+| Allowed Bound CIDR | internal-context §2-c KIC-OP 4개 대역 + "TCN EKS KIC-OP 클러스터 thinq-real pod(ns-extapps) 대역" 병기 |
+| 용도/서비스 | ThinQ Real(`thinqreal.lge.com`) OP 컨테이너 — DB 접속(Aurora)·앱 서명 키·Teams 웹훅·텔레그램 토큰 등 env 10키 |
+| 승인 후 받을 것 | Token · CSR 경로(→ `avp.kubernetes.io/path`) · kv 버전(→ `kv-version` 주석 여부) |
+
+**열린 질문(3차)**: 승인 후 받은 **Token을 어디에 등록**하는가 — ArgoCD 쪽(AVP 자격: Application plugin env / argocd 네임스페이스 secret)이면 BE팀 영역, 가이드 4장③에 등록 단계가 있으면 그대로. 이것이 BE팀 확인 ①과 맞물린다.
 
 **BE팀 확인 2건(박현정 책임)**: ① OP ArgoCD Application에 AVP가 이미 적용돼 있는지(configmap 방식/sidecar 방식 중 무엇, 우리가 Application 쪽을 건드릴 필요가 있는지 — 9월 안내 "ArgoCD 섹션 skip, plugin 기설치"의 범위 확인) ② AVP가 Vault를 읽을 때 쓰는 인증(Token/Cloud Key)이 Application 공용인지, 서비스별로 우리가 발급해 등록해야 하는지.
 
