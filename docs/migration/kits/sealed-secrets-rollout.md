@@ -70,11 +70,40 @@ TEAMS_WEBHOOK_URL=<teams-webhook 값>
 TELEGRAM_BOT_TOKEN=<telegram-bot 값>
 TELEGRAM_CHAT_ID=<telegram-bot 계정/채팅 ID>
 ```
-**Vault 가이드(`tcn.guide.k8s.secret-with-vault`)에서 확정할 것** — 사내 Claude가 판독해 보고:
-1. secret store 생성 창구(포털/JIRA/인프라팀 요청)·승인 주체·리드타임.
-2. pod에 전달되는 **방식**: (a) ArgoCD vault plugin이 매니페스트의 자리표시자를 sync 시 치환해 일반 Secret 생성 (b) Vault Agent sidecar가 파일로 마운트 (c) External Secrets 등. 앱은 **env만** 읽으므로 (a) 또는 "Secret 리소스 생성" 방식이어야 하고, deployment의 `envFrom.secretRef` 이름을 그 Secret에 맞춘다. (b)면 매니페스트 키트(파일→env 변환)가 추가로 필요 — 외부 트랙에 보고.
-3. Allowed Bound CIDR(KIC-OP, internal-context §2-c)·역할(role)·path 네이밍 규칙.
-4. `deploy/kic-op/secret.yaml`을 어떻게 바꾸는지(삭제·치환) — kustomization `resources` 조정 포함.
+**Vault 가이드 판독 결과(사내 Claude, 10/26 — 2장·4장③ 기준)**:
+
+| 항목 | 결과 | 내용 |
+|---|---|---|
+| pod 전달 방식 | ✅ 확인 | **ArgoCD Vault Plugin(AVP)**: Secret YAML의 자리표시자 `<키 \| base64encode>`를 sync 시 Vault 값으로 치환해 **일반 Secret 생성** → `envFrom.secretRef`로 env 주입(가이드 4장③ `sample_app.yaml`). 우리 앱(env만 읽음)과 정합 — 코드·deployment 변경 없음 |
+| 생성 창구(Vault 경로·Token) | ⏳ 4장① EC2 Case에 있음 | 4장③이 "Token 발급은 EC2 Case와 동일하여 생략" — **Vault Cloud Key CSR Req 신청·Token 발급** 절차는 4장① 판독 필요 |
+| CIDR/role 규칙 | ⏳ 다른 장 | 2장(SSH 접근제어)·4장③에는 없음. KIC-OP Allowed Bound CIDR(internal-context §2-c, 9/15 BE팀 안내)의 출처 장을 목차에서 찾아 판독 |
+| 기존 SealedSecret 처리 | **외부 트랙 결정(아래)** | 가이드 범위 밖 |
+
+**결정 — `deploy/kic-op/secret.yaml` 처리(외부 트랙, 10/26)**: 파일 이름·kustomization `resources`·deployment `envFrom.secretRef: thinq-real-db-svc`는 **그대로 두고, 파일 내용만** SealedSecret(BE 제공 DB용 6키) → **일반 `Secret` + AVP 자리표시자 10키**로 교체한다. Secret 이름이 같으므로 매니페스트 다른 곳은 무변경. BE 제공 OP DB는 Aurora 전환과 함께 사용 종료. 형식(가이드 4장③ 예시에 맞춰 사내 Claude가 작성 — `avp.kubernetes.io/path` 주석의 경로 값은 Cloud Key 발급 결과):
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: thinq-real-db-svc
+  namespace: ns-extapps
+  annotations:
+    avp.kubernetes.io/path: "<Vault 경로 — 가이드·발급 결과>"
+type: Opaque
+data:
+  DB_HOST: <DB_HOST | base64encode>
+  DB_PORT: <DB_PORT | base64encode>
+  DB_NAME: <DB_NAME | base64encode>
+  DB_USER: <DB_USER | base64encode>
+  DB_PASSWORD: <DB_PASSWORD | base64encode>
+  AUTH_SECRET: <AUTH_SECRET | base64encode>
+  LEGACY_AUTH_SECRET: <LEGACY_AUTH_SECRET | base64encode>
+  TEAMS_WEBHOOK_URL: <TEAMS_WEBHOOK_URL | base64encode>
+  TELEGRAM_BOT_TOKEN: <TELEGRAM_BOT_TOKEN | base64encode>
+  TELEGRAM_CHAT_ID: <TELEGRAM_CHAT_ID | base64encode>
+```
+Vault 쪽 키 이름은 env 이름과 **동일하게** 등록(치환 실수 방지). 값 등록은 담당자가 Vault UI/CLI에서 55-credentials를 보고 직접.
+
+**BE팀 확인 2건(박현정 책임)**: ① OP ArgoCD Application에 AVP가 이미 적용돼 있는지(configmap 방식/sidecar 방식 중 무엇, 우리가 Application 쪽을 건드릴 필요가 있는지 — 9월 안내 "ArgoCD 섹션 skip, plugin 기설치"의 범위 확인) ② AVP가 Vault를 읽을 때 쓰는 인증(Token/Cloud Key)이 Application 공용인지, 서비스별로 우리가 발급해 등록해야 하는지.
 
 **configmap(Vault와 무관, 같은 커밋)**: `deploy/kic-op/configmap.yaml`에 `DB_SSLMODE=require` `DB_SCHEMA=<스키마명, internal-context §2-a>` `KVSTORE_ADDR=<clustercfg 엔드포인트>:6379` `KVSTORE_TLS=true` `KVSTORE_PREFIX=thinq-real` `ADMIN_PAGE_URL=https://thinqreal.lge.com/thinqreal_admin.html` + `config-rev` +1.
 
