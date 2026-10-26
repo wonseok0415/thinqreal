@@ -18,26 +18,29 @@
 ## 2. 공통 명령 (Windows cmd — 가이드 경로·이름으로 치환)
 도구는 `D:\workspace\50-resources\58-tools`(kubeseal 0.40.0·kubectl 1.31.0, 10/26 확인). cmd 창마다 먼저 `set PATH=%PATH%;D:\workspace\50-resources\58-tools`.
 ```
-:: (1) 이 환경의 cert 파일 — 가이드 Appendix A에서 환경별 다운로드(ST용·QA용 구분), 58-tools 옆에 <환경>-cert.pem으로 저장. kubeconfig 불필요
+:: (0) cmd 창(PowerShell 아님 — PowerShell의 > 는 UTF-16으로 써서 kubeseal이 "no secrets found … UTF-8"로 실패)
+set PATH=%PATH%;D:\workspace\50-resources\58-tools
+cd /d D:\workspace\50-resources\58-tools
 
-:: (2) 평문 env 파일 — 메모장으로 작성, KEY=VALUE 한 줄씩, 따옴표·공백 없이 (값은 55-credentials에서)
-::     예: secrets.env
-::       LEGACY_AUTH_SECRET=...
+:: (1) 이 환경의 cert 파일 — 가이드 Appendix A에서 환경별 다운로드(실제 파일명 예: kic-st-pub-cert.pem), 58-tools에 저장. kubeconfig 불필요
 
-:: (3) 평문 Secret 초안(클러스터에 안 올라감: --dry-run=client)
-kubectl create secret generic thinq-real-db-svc -n ns-extapps --from-env-file=secrets.env --dry-run=client -o yaml > plain.yaml
+:: (2) 평문 env 파일 — notepad secrets.env → 한 줄 KEY=VALUE(따옴표·공백 없이, 값은 55-credentials) → 「다른 이름으로 저장」 파일 형식 "모든 파일"·인코딩 ANSI(또는 UTF-8) → dir secrets.env 로 존재 확인
+::     LEGACY_AUTH_SECRET=...
 
-:: (4) 기존 SealedSecret 파일에 병합 (54번 폴더 = Gitea 저장소)
-kubeseal --cert <환경>-cert.pem --format yaml --merge-into D:\workspace\50-resources\54-thinq-real\deploy\<환경>\secret.yaml < plain.yaml
+:: (3)+(4) 평문 초안을 파일 없이 파이프로 바로 병합 (54번 폴더 = Gitea 저장소, 먼저 git pull --rebase origin main)
+kubectl create secret generic thinq-real-db-svc -n ns-extapps --from-env-file=secrets.env --dry-run=client -o yaml | kubeseal --cert kic-<환경>-pub-cert.pem --format yaml --merge-into D:\workspace\50-resources\54-thinq-real\deploy\kic-<환경>\secret.yaml
 
-:: (5) 평문 삭제
-del secrets.env plain.yaml
+:: (5) 병합 확인 — 반드시 삭제 전에
+findstr /c:"LEGACY_AUTH_SECRET" D:\workspace\50-resources\54-thinq-real\deploy\kic-<환경>\secret.yaml
+
+:: (6) 평문 삭제 (findstr에 키가 보인 뒤)
+del secrets.env
 ```
-`<환경>`은 `kic-st`·`kic-qa`·`kic-op`. (4) 뒤 `secret.yaml`을 열면 `spec.encryptedData`에 키가 늘어 있고 값은 `Ag…` 암호문이어야 한다.
+`<환경>`은 `st`·`qa`. 아무 출력 없음 = 성공이지만 **입력 파일이 없어도 조용히 지나가므로 (5)로 꼭 확인**(10/26 실사례: `secrets.env` 부재 상태에서 무출력 → secret.yaml 무변경). `git status --short`에 ` M deploy/kic-<환경>/secret.yaml` 한 줄만 보여야 한다.
 
-## 3. ST 리허설 (⑤ 무관 — 지금 가능)
+## 3. ST 리허설 — ✅ 2026-10-26 통과
 목적: 봉인 절차 검증 + 하이브리드 에지 2단계(`LEGACY_AUTH_SECRET`, 9/20 중지분) 재개.
-1. §2 (1)~(5)를 `kic-st`로, `secrets.env`는 `LEGACY_AUTH_SECRET=<55-credentials legacy-auth-secret 값>` 1줄.
+1. §2 (0)~(6)을 `st`로, `secrets.env`는 `LEGACY_AUTH_SECRET=<55-credentials legacy-auth-secret 값>` 1줄.
 2. 사내 Claude: `deploy/base/deployment.yaml` `thinqreal/config-rev` +1(없으면 `"1"` 신설) → 커밋 `chore: ST LEGACY_AUTH_SECRET 봉인 + config-rev` → `git pull --rebase origin main && git push origin main`.
 3. 검증(담당자, 몇 분 뒤):
 
@@ -48,6 +51,8 @@ del secrets.env plain.yaml
 | 2단계 동작 | `<ST>/api?type=edge_sync_now` | `visitors`·`voc` 건수가 0이 아님(현행 visitor_responses 105건 기준) |
 
 실패 시: `env_keys`에 없으면 컨트롤러가 복호화하지 못한 것(cert가 다른 클러스터 것이거나 name/namespace 불일치 — `kubectl get sealedsecret -n ns-extapps thinq-real-db-svc -o yaml`의 status 인용) / 있는데 `edge_sync_now`가 `bad_signature`면 값 오타(따옴표·공백).
+
+**결과(10/26)**: `env_keys`에 `LEGACY_AUTH_SECRET`, pod 교체, `edge_sync_now` → `visitors fetched 105 / added 105`, `voc 0/0`(현행에 VOC 없음 — 정상), `errors: []`. 하이브리드 에지 2단계(9/20 중지분) 종결.
 
 ## 4. OP 주입 — Vault (⑤ 완료 후, 세부는 Vault 가이드 판독 후 확정)
 **BE팀 확인(10/26)**: OP는 kubeseal이 아니라 **인프라팀 제공 Vault(secret store)**로 주입(브리핑 §3-c, decisions §6-1 ⑥). 현재 OP의 `deploy/kic-op/secret.yaml`(SealedSecret, BE 제공 DB용 6키)은 Vault 전환 시 대체된다.
