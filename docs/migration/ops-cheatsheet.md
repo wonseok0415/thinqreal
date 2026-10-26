@@ -11,6 +11,9 @@
 | 사내 클로드가 준 push가 **rejected (fetch first)** | `cd /d D:\workspace\50-resources\54-thinq-real && git pull --rebase origin main && git push origin main` | 릴리스 봇이 `chore: release` 커밋을 먼저 올려서 생기는 정상 현상. 이 한 줄이면 끝. PowerShell은 `&&` 대신 `;` |
 | push 전에 미리 막기 | `git pull --rebase origin main` 을 push 직전에 한 번 | 사내 클로드 프롬프트에 "push 명령은 `git pull --rebase origin main && git push origin main` 로 줘" 라고 적어 두면 됨 |
 | 지금 어느 커밋인지 | `git log --oneline -5` | |
+| 봉인 도구 쓰기 전(cmd 창마다 1회) | `set PATH=%PATH%;D:\workspace\50-resources\58-tools` | 58-tools에 `kubeseal.exe`(0.40.0)·`kubectl.exe`(1.31.0). `setx` 영구 등록은 PATH 잘림 사고 있어 안 씀. 확인: `kubeseal --version` · `kubectl version --client` |
+| 클러스터에 붙나(kubeconfig 적용 후) | `kubectl config get-contexts` | context 이름이 나오면 연결. 파일을 `%USERPROFILE%\.kube\config` 밖에 뒀으면 `set KUBECONFIG=<파일 경로>` 먼저 |
+| SealedSecret 봉인 | 키트 M2 `kits/sealed-secrets-rollout.md` §2 그대로 | 평문 파일은 봉인 직후 `del` |
 
 ## B. 브라우저 주소 (환경별 — `<HOST>`만 바꿈)
 

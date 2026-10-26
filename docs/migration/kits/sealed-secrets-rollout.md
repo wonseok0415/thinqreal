@@ -19,6 +19,7 @@
 - **OP의 DB 키 교체는 ⑤(MGR DDL 실행, 14표 확인) 이후에만** — APP 계정은 DDL 권한이 없어 표가 없으면 기동 실패(형상 검증 모드).
 
 ## 2. 공통 명령 (Windows cmd — 가이드 경로·이름으로 치환)
+도구는 `D:\workspace\50-resources\58-tools`(kubeseal 0.40.0·kubectl 1.31.0, 10/26 확인). cmd 창마다 먼저 `set PATH=%PATH%;D:\workspace\50-resources\58-tools`.
 ```
 :: (1) 이 환경의 cert 받기 — 환경마다 1회
 kubectl config use-context <환경 context>
