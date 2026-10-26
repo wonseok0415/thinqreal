@@ -13,7 +13,7 @@
 | 지금 어느 커밋인지 | `git log --oneline -5` | |
 | 봉인 도구 쓰기 전(cmd 창마다 1회) | `set PATH=%PATH%;D:\workspace\50-resources\58-tools` | 58-tools에 `kubeseal.exe`(0.40.0)·`kubectl.exe`(1.31.0). `setx` 영구 등록은 PATH 잘림 사고 있어 안 씀. 확인: `kubeseal --version` · `kubectl version --client` |
 | 클러스터에 붙나(kubeconfig 적용 후) | `kubectl config get-contexts` | context 이름이 나오면 연결. 파일을 `%USERPROFILE%\.kube\config` 밖에 뒀으면 `set KUBECONFIG=<파일 경로>` 먼저 |
-| SealedSecret 봉인 | 키트 M2 `kits/sealed-secrets-rollout.md` §2 그대로 | 평문 파일은 봉인 직후 `del` |
+| SealedSecret 봉인(ST·QA) | 키트 M2 `kits/sealed-secrets-rollout.md` §2 — **cmd 창**, cert 파일(`kic-<환경>-pub-cert.pem`)은 58-tools, kubectl→kubeseal **파이프 한 줄**, `findstr`로 키 확인 **후** `del secrets.env` | 무출력=성공이지만 입력 파일이 없어도 무출력이라 findstr 확인 필수. OP는 kubeseal 아님(Vault) |
 
 ## B. 브라우저 주소 (환경별 — `<HOST>`만 바꿈)
 
