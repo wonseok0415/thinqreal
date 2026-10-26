@@ -78,7 +78,7 @@
 - [ ] OP `/healthz`: `backend:postgres`·`kv:shared`·`env:kic-op`·`version` 최신
 - [ ] OP `env_keys`: db·kvstore·smtp·authSecret·legacyAuthSecret 전부 true
 - [ ] OP `/healthz` `backend:"postgres"`·`schema:"verified"`(APP 계정으로 형상 검증 통과)
-- [ ] OP `teams_test` `{ok:true}` (secret의 `TEAMS_WEBHOOK_URL` 주입 — 그룹 채팅 「ThinQ Real 알림」에 테스트 카드 1건 도착)
+- [ ] OP `teams_test` `{ok:true}` (secret의 `TEAMS_WEBHOOK_URL` 주입 — 담당자 팀 채널에 테스트 카드 1건 도착)
 - [ ] OP `telegram_test` `{ok:true}` (secret의 `TELEGRAM_*` 주입 + pod → api.telegram.org 아웃바운드 실측 — 차단이면 텔레그램 병행 포기, Teams만) + 예약 1건으로 비식별 요약 형식 확인(성명 없음)
 - [ ] OP `mail_status` smtp / `egress_check` ok / SSO 예외 5종 로그인 없이 열림
 - [ ] Reader instance 추가·failover 테스트 완료 통보(§1 T-2주 요청) — 테스트 중 `/healthz` pod 이름 불변 확인
@@ -99,6 +99,6 @@
 
 - 전환일(11월 중 평일) · 예약 접수 동결 시간 · 안내문 발송 대상(전 임직원? 최근 방문자?) — 담당자
 - FieldCheck 일일 요약의 현행 트리거 존재 여부·정지 방법 — FieldCheck 세션 확인
-- Teams 웹훅 URL: **✅ 2026-10-23 생성 완료** — 담당자가 Teams 워크플로 앱에서 직접 생성(BE팀 불필요, 템플릿 「채팅에 웹후크 알림 보내기」 — 팀 생성이 테넌트 정책으로 불가해 담당자 그룹 채팅 「ThinQ Real 알림」 대상, 팀 채널 확보 시 URL만 교체) → 55-credentials `teams-webhook` 블록 → cert 후 secret 주입 → D-1 `teams_test`. 외부 접점 알림의 Teams 통합 여부는 운영 세션 협의
+- Teams 웹훅 URL: **✅ 2026-10-23 생성 완료** — 담당자가 Teams 워크플로 앱에서 직접 생성(BE팀 불필요, 템플릿 「채널에 웹후크 알림 보내기」 — 담당자 Teams 팀 채널 대상, 10/26 재생성) → 55-credentials `teams-webhook` 블록 → cert 후 secret 주입 → D-1 `teams_test`. 외부 접점 알림의 Teams 통합 여부는 운영 세션 협의
 - 시트 보존 기간·접근 권한 정리(개인정보 보유 3년 규칙과 정합) — 담당자·법무
 - `thinqreal.com` 만료일과 QR 교체 일정 — 운영 세션

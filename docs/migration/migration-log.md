@@ -768,3 +768,9 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **④ Teams 웹훅 ✅**: 담당자가 Teams 워크플로 앱에서 직접 생성 — 템플릿 이름은 현재 「채널에 웹후크 알림 보내기」/「채팅에 웹후크 알림 보내기」(구 「웹후크 요청을 받으면 채널에 게시」, 기능 동일·컨테이너 `notify/teams.js` 카드 형식 호환). **팀(Team) 만들기가 테넌트 정책으로 막혀 있어**("10000명 미만 그룹 소유" 문구만, 입력 불가) 담당자 3명+운영자 **그룹 채팅 「ThinQ Real 알림」에 채팅 웹훅**으로 채택. 워크플로 이름 「ThinQ Real 알림」. URL은 55-credentials `teams-webhook` 블록에만. 소유자=운영자 계정(단일 지점 — 팀 채널 확보 시 URL 교체로 해소, 운영 지장 없음). credentials-format 블록·cutover §5·§7 갱신.
 - **⑤ 착수**: SEAgent 설치 완료 → Next SPoC 「SE에이전트 신규 계정 요청」 제출(요청자·EP 계정·DB 서버(§2-a 엔드포인트)+THINQREAL_MGR·목적(오픈 전 DDL 14표+APP GRANT 1회, 이후 스키마 변경·점검)·수동매핑양식은 DB접근제어 담당자 문의 후 첨부). 양식 안내 회신 대기. 승인 후 순서: DB-i 로그인(Vault 개인계정) → `schema-ddl.sql` 0번 `pg_roles` 쿼리로 APP 역할명 대소문자 확인 → 사내 클로드가 치환본 로컬 생성(Gitea 미커밋) → 실행 → `information_schema.tables` 14 확인.
 - 남은 것: ⑤ 회신·DDL 실행, ⑥ cert(박현정 책임 봉인 링크 확인 → secret·configmap 주입 → OP `/healthz schema:"verified"` → `teams_test`·`telegram_test`).
+
+## 작업 내역 (2026-10-26 — ④ Teams 웹훅을 팀 채널로 재생성(그룹 채팅 임시안 폐기))
+
+- 10/23 "팀 만들기" 화면이 막혀 그룹 채팅 웹훅으로 갔으나, 담당자가 다른 경로로 **Teams 팀·채널 생성에 성공** → 「채널에 웹후크 알림 보내기」로 웹훅 재생성, 55-credentials `teams-webhook` 블록 값·대상·교체 이력 갱신 완료. 채팅용 워크플로는 삭제(불필요한 URL 잔존 방지). 팀 소유자에 담당자 포함 → 10/23 기록의 "소유자=운영자 단일 지점"은 소멸.
+- credentials-format 블록·cutover §5·§7을 채널 기준으로 되돌림. ④ 최종 종결.
+- 남은 체크리스트: ⑤ Next SPoC SE에이전트 계정(수동매핑양식 회신 대기) → MGR DDL / ⑥ cert(봉인 링크 확인) → secret·configmap 주입 → OP `/healthz schema:"verified"` → `teams_test`·`telegram_test`. ③ valkey SG는 보류(DB 담당자 확인 문안 전달 상태).
