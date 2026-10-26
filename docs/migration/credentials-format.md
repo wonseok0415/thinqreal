@@ -146,6 +146,6 @@
 2. `op-auth-secret` 생성·기록 → `AUTH_SECRET`
 3. `legacy-auth-secret` → `LEGACY_AUTH_SECRET`
 4. `teams-webhook` → `TEAMS_WEBHOOK_URL` + `telegram-bot` → `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID` (절충안 2026-10-01: Teams는 상세, 텔레그램은 비식별 요약 — 키트 v5.2가 kic-op에서 자동 적용)
-5. 봉인(kubeseal) → 매니페스트 커밋 → 롤아웃 → `/healthz` `backend:"postgres"`·`schema:"verified"`·`authSecret:"env"`
+5. 봉인(kubeseal — 절차는 `kits/sealed-secrets-rollout.md`) → 매니페스트 커밋 → 롤아웃 → `/healthz` `backend:"postgres"`·`schema:"verified"`·`authSecret:"env"`
 
 위 순서 외의 값(SERPER·CSE·CALENDAR·SURVEY_CAS_JSON 등 Script Properties)은 전환 범위에 따라 같은 포맷으로 블록을 추가한다.
