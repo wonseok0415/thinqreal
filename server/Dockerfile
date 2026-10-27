@@ -3,9 +3,10 @@
 #   docker build -f server/Dockerfile -t thinqreal:local .
 #   docker run --rm -p 8080:8080 --env-file server/.env thinqreal:local
 # Docker Hub 접근이 제한된 네트워크에서는 미러로 교체 가능:
-#   --build-arg BASE_IMAGE=mirror.gcr.io/library/node:22-slim
+#   --build-arg BASE_IMAGE=mirror.gcr.io/library/node:22.23.4-slim
 # (사내 이관 시에는 사내 도커 이미지 저장소의 베이스로 교체 — decisions §2-②)
-ARG BASE_IMAGE=node:22-slim
+# 2026-10-27 BE팀 Node.js RCE 패치 요청 — 사내 Dockerfile은 node:22.23.4-alpine 고정(0.21.1). 여기도 같은 패치 레벨로 고정.
+ARG BASE_IMAGE=node:22.23.4-slim
 FROM ${BASE_IMAGE}
 
 # 한글 차트 라벨용 폰트 (chartjs-node-canvas가 시스템 폰트 사용)
