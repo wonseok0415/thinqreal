@@ -10,6 +10,14 @@
 --    같은 값이 OP secret의 DB_USER가 된다.
 SELECT rolname FROM pg_roles WHERE rolname ILIKE 'thinqreal%';
 
+-- 0-b) Vault DB_CREDENTIAL(-ddl Role, TTL 1일 임시 계정)로 접속해 실행하는 경우에만 — 임시 계정이 만든 표는 소유자가 그 계정이 되어
+--      계정 만료·회수 시 ALTER·GRANT가 막힐 수 있다(2026-09-30 열린 위험). 아래로 현재 계정이 상속하는 고정 역할을 확인하고,
+--      결과에 thinqreal_MGR(대소문자는 0번 결과)이 있으면 바로 다음 줄의 SET ROLE을 실행한 뒤 DDL을 진행한다.
+--      없으면 이 경로로 DDL을 실행하지 말고 MGR 계정(SEAgent/DB-i)으로 실행한다.
+SELECT current_user, r.rolname AS inherited_role FROM pg_roles r WHERE pg_has_role(current_user, r.oid, 'member') AND r.rolname <> current_user;
+-- SET ROLE "<MGR 역할명 — 0번 결과 그대로>";
+-- 실행 후 소유자 확인(14표 모두 MGR이어야 함): SELECT tablename, tableowner FROM pg_tables WHERE schemaname = '<스키마명>';
+
 SET search_path TO "<스키마명>";
 
 CREATE TABLE IF NOT EXISTS "bookings" (
