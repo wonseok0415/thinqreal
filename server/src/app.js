@@ -63,6 +63,7 @@ export function createApp(store) {
   app.get('/healthz', (req, res) => res.json({
     ok: true, backend: store.backend, schema: store.schemaMode || null, kv: kvStatus(), pod: os.hostname(), version: appVersion, env: config.environment || 'local',
     authSecret: authSecretSource(),
+    node: process.version, // 런타임 패치 레벨 (2026-10-27 BE팀 Node.js RCE 패치 — 베이스 이미지 고정이 실제 롤아웃됐는지 kubectl 없이 확인)
   }));
 
   // API — 단일 경로 + type 라우팅 (api-contract.md 계약 불변)
