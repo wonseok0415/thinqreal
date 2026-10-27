@@ -54,81 +54,29 @@ del secrets.env
 
 **결과(10/26)**: `env_keys`에 `LEGACY_AUTH_SECRET`, pod 교체, `edge_sync_now` → `visitors fetched 105 / added 105`, `voc 0/0`(현행에 VOC 없음 — 정상), `errors: []`. 하이브리드 에지 2단계(9/20 중지분) 종결.
 
-## 4. OP 주입 — Vault (⑤ 완료 후, 세부는 Vault 가이드 판독 후 확정)
-**BE팀 확인(10/26)**: OP는 kubeseal이 아니라 **인프라팀 제공 Vault(secret store)**로 주입(브리핑 §3-c, decisions §6-1 ⑥). 현재 OP의 `deploy/kic-op/secret.yaml`(SealedSecret, BE 제공 DB용 6키)은 Vault 전환 시 대체된다.
+## 4. OP 주입 — Vault (⑤ 완료 후 매니페스트 교체, CSR·값 등록은 지금)
+**절차표 단일 소스: `docs/migration/vault-avp-procedure.md`**(사내 Claude, 가이드 v1.44 전문 근거, 10/27). 아래는 그 위에 얹는 **외부 트랙 결정**과 요약.
 
-**넣을 값(55-credentials에서, 10키)** — 방식과 무관하게 동일:
-```
-DB_HOST=<op-db-app 대상: Cluster Writer 엔드포인트>
-DB_PORT=<op-db-app 포트 — 5432 아님>
-DB_NAME=<DB명>
-DB_USER=<op-db-app 계정 — ⑤ 0번 쿼리로 확인한 대소문자 그대로>
-DB_PASSWORD=<op-db-app 값 — 전환 전 Next SPoC 암호 초기화 후의 값>
-AUTH_SECRET=<op-auth-secret 값 — 없으면 생성: Git Bash에서 openssl rand -hex 32, 블록에 먼저 기록>
-LEGACY_AUTH_SECRET=<legacy-auth-secret 값>
-TEAMS_WEBHOOK_URL=<teams-webhook 값>
-TELEGRAM_BOT_TOKEN=<telegram-bot 값>
-TELEGRAM_CHAT_ID=<telegram-bot 계정/채팅 ID>
-```
-**Vault 가이드 판독 결과(사내 Claude, 10/26 — 2장·4장③ 기준)**:
+**⚠ 10/27 사실 정정**: 10/27 승인된 Catoz CSR은 `DB_CREDENTIAL`(가이드 5장 — `database/` 엔진 Role ddl/dml/exe/read, **사람이 OP Aurora에 접속하는 TTL 1일 임시 계정**)이지 앱 env용 KV 경로가 아니다. 앱 env 10키용 KV 경로는 **아직 미신청** — 「Vault Cloud Key CSR Req」(`key_kvstore`)를 새로 신청해야 한다.
 
-| 항목 | 결과 | 내용 |
+**결정(외부 트랙, 10/27)**
+| # | 항목 | 결정 |
 |---|---|---|
-| pod 전달 방식 | ✅ 확인 | **ArgoCD Vault Plugin(AVP)**: Secret YAML의 자리표시자 `<키 \| base64encode>`를 sync 시 Vault 값으로 치환해 **일반 Secret 생성** → `envFrom.secretRef`로 env 주입(가이드 4장③ `sample_app.yaml`). 우리 앱(env만 읽음)과 정합 — 코드·deployment 변경 없음 |
-| 생성 창구(Vault 경로·Token) | ✅ 확인(2차, 4장①) | **Catoz 「Vault Cloud Key CSR Req」** — CSR Type(`key_service`=kv_aws·kv v2 / `key_kvstore`=kv_api·kv v1) 선택 + Allowed Bound CIDR 입력 → 승인 후 **Token + CSR 경로** 수령. 2장식 role 이름은 없음 |
-| CIDR/role 규칙 | ✅ 칸 확인 / 값은 §2-c | Allowed Bound CIDR 칸 = CSR Req 폼. 넣을 값은 **internal-context §2-c의 KIC-OP 4개 대역** — 9/15 BE팀이 바로 "Vault 가이드의 KIC-OP Allowed Bound CIDR"로 준 값이라 용도 일치(사내 Claude는 가이드만으로 확정 불가로 표기 — 신청 시 인프라팀에 "KIC-OP EKS pod 대역"이라고 병기해 검증받음) |
-| 기존 SealedSecret 처리 | **외부 트랙 결정(아래)** | 가이드 범위 밖 |
+| 1 | CSR Type | **`key_kvstore`**(가이드 p.28: "API·App Key를 K/V Store로 사용" — 우리 10키가 정확히 이 용도). `key_service`는 AWS 키 전용이라 해당 없음 |
+| 2 | Depth1 | **`thinq-real`** 사용 → 경로 `kv_api/thinq-real/csr-NNNNN`(서비스 식별이 경로에 남아 운영·감사 시 명확) |
+| 3 | `kv-version` 주석 | 절차표 §4 완성본대로 **`"1"` 기본 포함**, 등록 후 UI Version 컬럼으로 v2 확인되면 삭제 |
+| 4 | Allowed Bound CIDR | 절차표 0a대로 **CSR 전에** BE팀에 ArgoCD repo-server egress 대역 + 인프라팀에 값 입력 PC/HUB 처리 방식을 확인 → KIC-OP 대역(§2-c)에 그 답을 더해 기재. 틀리면 Token으로 값 입력 자체가 막히므로 선확인 필수 |
+| 5 | Token 전달 | 서비스별 Token이면 BE팀 등록용 — **평문 Teams·메일 금지**, 전달 채널은 BE팀과 합의(사내 암호화 파일 공유 등). 공용이면 전달 불요 |
+| 6 | `deploy/kic-op/secret.yaml` | 절차표 §4 완성본 채택(이름·kustomization·deployment 무변경, `sealedsecrets.bitnami.com/managed` 주석 제거). 적용 시점은 **⑤ 14표 확인 후**, 같은 커밋에 configmap 6키 + `config-rev` +1 |
+| 7 | 값 등록 방식 | **Vault UI 우선**(CLI는 쉘 히스토리에 값이 남음). Token 정책 밖 403 배너는 정상 거부 — 경로로 직접 진입 |
+| 8 | ⑤ DDL 실행 경로 | **두 경로 병행 허용**: (A) MGR 계정 + SEAgent/DB-i(Next SPoC 진행 중) (B) **Vault `-ddl` Role 임시 자격증명(10/27 발급 성공)** — 단 임시 계정이 만든 표의 **소유자 문제**(9/30 열린 위험) 때문에 `schema-ddl.sql` 0-b 쿼리로 고정 역할 멤버십을 확인하고 `SET ROLE`이 되는 경우에만 (B) 사용. 안 되면 (A) |
 
-**결정 — `deploy/kic-op/secret.yaml` 처리(외부 트랙, 10/26)**: 파일 이름·kustomization `resources`·deployment `envFrom.secretRef: thinq-real-db-svc`는 **그대로 두고, 파일 내용만** SealedSecret(BE 제공 DB용 6키) → **일반 `Secret` + AVP 자리표시자 10키**로 교체한다. Secret 이름이 같으므로 매니페스트 다른 곳은 무변경. BE 제공 OP DB는 Aurora 전환과 함께 사용 종료. 형식(가이드 4장③ 예시에 맞춰 사내 Claude가 작성 — `avp.kubernetes.io/path` 주석의 경로 값은 Cloud Key 발급 결과):
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: thinq-real-db-svc
-  namespace: ns-extapps
-  annotations:
-    avp.kubernetes.io/path: "<Vault 경로 — 가이드·발급 결과>"
-type: Opaque
-data:
-  DB_HOST: <DB_HOST | base64encode>
-  DB_PORT: <DB_PORT | base64encode>
-  DB_NAME: <DB_NAME | base64encode>
-  DB_USER: <DB_USER | base64encode>
-  DB_PASSWORD: <DB_PASSWORD | base64encode>
-  AUTH_SECRET: <AUTH_SECRET | base64encode>
-  LEGACY_AUTH_SECRET: <LEGACY_AUTH_SECRET | base64encode>
-  TEAMS_WEBHOOK_URL: <TEAMS_WEBHOOK_URL | base64encode>
-  TELEGRAM_BOT_TOKEN: <TELEGRAM_BOT_TOKEN | base64encode>
-  TELEGRAM_CHAT_ID: <TELEGRAM_CHAT_ID | base64encode>
-```
-Vault 쪽 키 이름은 env 이름과 **동일하게** 등록(치환 실수 방지). 값 등록은 담당자가 Vault UI/CLI에서 55-credentials를 보고 직접. **주석 보강(2차 판독)**: CSR Type이 `key_kvstore`(kv v1)로 승인되면 `annotations`에 `avp.kubernetes.io/kv-version: "1"` 한 줄 추가(없으면 AVP가 kv v2로 해석해 경로에 `/data/`를 끼워 넣어 실패). `key_service`(kv v2)면 불필요. 어느 쪽인지는 CSR 승인 결과로 확정. data 키 10개는 가이드의 멀티키 실사례와 같은 패턴이라 문제 없음.
+**순서(현재 기준)**: ⓐ BE팀 확인 a·b·c·g·h(절차표 §6, 문안은 migration-log 10/27) → ⓑ Catoz 「Vault Cloud Key CSR Req」 신청(`key_kvstore`·Depth1 `thinq-real`·CIDR) → ⓒ 승인 Token·CSR 번호 → 55-credentials `vault-kv-token` 블록(신설) + internal-context §2-e(경로·kv 버전) → ⓓ Vault UI에서 10키 등록(값은 55-credentials; `AUTH_SECRET`은 `openssl rand -hex 32`로 선생성·블록 기록; `DB_PASSWORD`는 Next SPoC 암호 초기화 후 값) → ⓔ BE팀 Token 등록(서비스별인 경우) → ⓕ ⑤ 14표 확인 → ⓖ `secret.yaml`+configmap+config-rev 커밋 → ⓗ 검증: `/healthz` `authSecret:"env"`·`schema:"verified"`·`backend:"postgres"` → `env_keys` 10키 → `teams_test`·`telegram_test`.
 
-**CSR Req 기재안(담당자가 Catoz에서 작성 — 값은 internal-context·55-credentials)**:
-| 칸 | 적을 것 |
-|---|---|
-| CSR Type | **인프라팀 권고에 따름** — 용도 문구에 "애플리케이션 환경변수 비밀값 저장(KV), ArgoCD Vault Plugin으로 읽음"을 적고 어느 Type이 맞는지 확인 요청(둘 중 하나로 임의 선택하지 않음) |
-| Allowed Bound CIDR | internal-context §2-c KIC-OP 4개 대역 + "TCN EKS KIC-OP 클러스터 thinq-real pod(ns-extapps) 대역" 병기 |
-| 용도/서비스 | ThinQ Real(`thinqreal.lge.com`) OP 컨테이너 — DB 접속(Aurora)·앱 서명 키·Teams 웹훅·텔레그램 토큰 등 env 10키 |
-| 승인 후 받을 것 | Token · CSR 경로(→ `avp.kubernetes.io/path`) · kv 버전(→ `kv-version` 주석 여부) |
-
-**열린 질문(3차)**: 승인 후 받은 **Token을 어디에 등록**하는가 — ArgoCD 쪽(AVP 자격: Application plugin env / argocd 네임스페이스 secret)이면 BE팀 영역, 가이드 4장③에 등록 단계가 있으면 그대로. 이것이 BE팀 확인 ①과 맞물린다.
-
-**BE팀 확인 2건(박현정 책임)**: ① OP ArgoCD Application에 AVP가 이미 적용돼 있는지(configmap 방식/sidecar 방식 중 무엇, 우리가 Application 쪽을 건드릴 필요가 있는지 — 9월 안내 "ArgoCD 섹션 skip, plugin 기설치"의 범위 확인) ② AVP가 Vault를 읽을 때 쓰는 인증(Token/Cloud Key)이 Application 공용인지, 서비스별로 우리가 발급해 등록해야 하는지.
-
-**configmap(Vault와 무관, 같은 커밋)**: `deploy/kic-op/configmap.yaml`에 `DB_SSLMODE=require` `DB_SCHEMA=<스키마명, internal-context §2-a>` `KVSTORE_ADDR=<clustercfg 엔드포인트>:6379` `KVSTORE_TLS=true` `KVSTORE_PREFIX=thinq-real` `ADMIN_PAGE_URL=https://thinqreal.lge.com/thinqreal_admin.html` + `config-rev` +1.
-
-검증(cutover-plan §5 D-1 체크와 동일):
-
-| 확인 | 주소 | 정상 |
-|---|---|---|
-| 기동 | `<OP>/healthz` | `backend:"postgres"` `schema:"verified"` `kv:"shared"` `authSecret:"env"` `pod` 교체 |
-| env | `<OP>/api?type=env_keys&token=` | 위 10키 + configmap 6키 |
-| Teams | `<OP>/api?type=teams_test` | `ok:true` + 팀 채널 카드 |
-| 텔레그램 | `<OP>/api?type=telegram_test` | `ok:true`(차단이면 `exception` → Teams 단독, `TELEGRAM_*` 제거) |
-
-`schema`가 `"verified"`가 아니고 pod가 CrashLoop이면 ⑤ 누락 표 목록이 로그에 있음(LENS) — 그 목록 보고. 이 시점부터 OP는 Aurora 데이터(빈 표)이며, 실데이터는 D-day 패널 적재(cutover §2).
+**넣을 값(10키, 55-credentials)**: `DB_HOST`(Cluster Writer) `DB_PORT`(비표준) `DB_NAME` `DB_USER`(0번 쿼리 대소문자) `DB_PASSWORD`(초기화 후) `AUTH_SECRET`(신규) `LEGACY_AUTH_SECRET` `TEAMS_WEBHOOK_URL` `TELEGRAM_BOT_TOKEN` `TELEGRAM_CHAT_ID`. Vault 키 이름 = env 이름 동일 철자.
 
 ## 5. 하지 않는 것
 - `deploy/kic-qa/secret.yaml`은 건드리지 않는다(QA는 BE 제공 DB 그대로, 리허설 완료). **OP에 kubeseal을 쓰지 않는다**(BE팀 정책).
+- Vault `DB_CREDENTIAL`(사람용 임시 DB 계정)을 앱 env에 쓰지 않는다 — TTL 1일이라 pod가 하루 뒤 접속 불가. 앱은 Next SPoC 발급 `THINQREAL_APP` 고정 계정만.
 - SealedSecret 이름 변경·`envFrom` 추가·`optional:` 도입 금지(병합 방식으로 충분).
 - cert 파일(`*-cert.pem`)은 공개키라 비밀은 아니지만 Gitea·GitHub에 커밋하지 않는다(55-credentials 옆 보관).

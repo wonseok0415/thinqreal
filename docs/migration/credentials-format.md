@@ -127,6 +127,19 @@
 비고      : 컨테이너는 텔레그램과 Teams 양쪽에 보냄(env 없는 쪽 skip). 2026-10-01 절충안: OP는 Teams(상세) + 텔레그램(비식별 요약) 병행.
 
 =====
+키        : vault-kv-token
+용도      : OP 앱 env용 Vault KV 경로의 읽기/쓰기 Token (Catoz 「Vault Cloud Key CSR Req」 key_kvstore 승인 메일로 수령 — vault-avp-procedure.md 1단계)
+대상      : Vault 경로 kv_api/thinq-real/csr-<번호> (경로·CSR 번호·kv 버전은 internal-context §2-e)
+계정      : -
+값        : ******** (Token 전체)
+발급일    : -
+출처      : Catoz 승인 메일
+주입      : - (앱에 직접 주입하지 않음. 담당자가 Vault UI 값 등록에 사용 + ArgoCD AVP credentials는 BE팀 등록 — 서비스별 Token이면 보안 채널로 전달)
+교체 주기 : Catoz 정책(만료 시 재발급)
+교체 이력 : -
+비고      : 평문 Teams·메일 금지. Vault DB_CREDENTIAL(사람용 임시 DB 계정, TTL 1일)은 이 파일에 기록하지 않음 — 매번 Vault에서 발급.
+
+=====
 키        : fc-api-key
 용도      : FieldCheck 점검 장비 키
 대상      : Apps Script Script Property FC_API_KEY ↔ rig config.json
