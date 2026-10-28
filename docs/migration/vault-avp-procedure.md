@@ -82,6 +82,9 @@ data:
 
 ## 6. 확인 필요 항목과 창구
 
+> **외부 트랙 갱신(2026-10-28)** — BE팀 회신·ArgoCD UI 실측으로 닫힌 항목: **a ✅** OP Application은 `plugin: name: op_vault_plugin`(CMP가 kustomize 빌드+AVP 치환 일괄 처리 — 우리는 자리표시자만) / **d ✅** OP Application 존재(`path: deploy/kic-op`, `targetRevision: main`, README 서술 낡음) / **e ✅** ST·QA·OP ArgoCD UI 링크 수령(열람 가능 — Sync·Refresh 등 조작 금지) / **h ✅**(=e). **b 재질의**: `op_vault_plugin` Token의 Vault 네임스페이스가 우리 Catoz Account 네임스페이스의 `kv_api/thinq-real/csr-N`을 읽을 수 있는지(AVP는 네임스페이스를 자리표시자가 아니라 플러그인 자격으로 정함). **c**: 값 등록은 LDAP 개인 로그인이라 PC IP 불요 — CIDR은 KIC-OP 대역(ArgoCD가 같은 클러스터면 repo-server 포함). **CSR 신청 완료(10/28, `key_kvstore`·Depth1 `thinq-real`) — 승인 시 메일로 Token.**
+
+
 | | 항목 | 왜 | 창구 |
 |---|---|---|---|
 | a | extapps ArgoCD가 **kustomize 오버레이 + AVP**를 어떻게 결합하는지 — 가이드 cmp는 `argocd-vault-plugin generate ./`(평문 YAML 디렉터리 전제), 우리는 `deploy/kic-op` kustomize 오버레이 | 결합 방식이 다르면 자리표시자가 치환되지 않음 | BE팀 — 키트 M2 "BE팀 확인 ①" |
