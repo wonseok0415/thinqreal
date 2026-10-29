@@ -58,8 +58,8 @@ metadata:
   name: thinq-real-db-svc
   namespace: ns-extapps
   annotations:
-    avp.kubernetes.io/path: "kv_api/thinq-real/csr-NNNNN"   # Depth1 미사용 시 "kv_api/csr-NNNNN"
-    avp.kubernetes.io/kv-version: "1"                       # 4단계에서 kv v2로 확인되면 이 줄 삭제
+    avp.kubernetes.io/path: "kv_api/data/tcn/thinq-real/csr-N"   # 10/29 실발급 경로 형태(kv v2 — /data/ 포함, CSR 번호는 internal-context §2-e)
+    # avp.kubernetes.io/kv-version: "2"   # 기본값이 v2라 생략 가능. 10/29 실측 kv v2 → "1" 조건 폐기
 type: Opaque
 data:
   DB_HOST: <DB_HOST | base64encode>
