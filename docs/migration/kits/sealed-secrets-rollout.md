@@ -63,15 +63,15 @@ del secrets.env
 | # | 항목 | 결정 |
 |---|---|---|
 | 1 | CSR Type | **`key_kvstore`**(가이드 p.28: "API·App Key를 K/V Store로 사용" — 우리 10키가 정확히 이 용도). `key_service`는 AWS 키 전용이라 해당 없음 |
-| 2 | Depth1 | **`thinq-real`** 사용 → 경로 `kv_api/thinq-real/csr-NNNNN`(서비스 식별이 경로에 남아 운영·감사 시 명확) |
-| 3 | `kv-version` 주석 | 절차표 §4 완성본대로 **`"1"` 기본 포함**, 등록 후 UI Version 컬럼으로 v2 확인되면 삭제 |
+| 2 | Depth1 | **`thinq-real`** 사용 → **실제 발급 경로(10/29): `kv_api/data/tcn/thinq-real/csr-N`**(`tcn/` 접두는 Catoz가 부여, `/data/`는 kv v2 API 세그먼트 — AVP 주석에도 그대로 포함. CSR 번호는 internal-context §2-e) |
+| 3 | `kv-version` 주석 | **✅ 10/29 실측 kv v2** → `kv-version: "1"` 조건 **폐기**. 주석 생략(AVP 기본 v2) 또는 `"2"` 명시. 절차표 §4 완성본의 `kv-version: "1"` 줄은 삭제하고 path에 `/data/` 포함 |
 | 4 | Allowed Bound CIDR | 절차표 0a대로 **CSR 전에** BE팀에 ArgoCD repo-server egress 대역 + 인프라팀에 값 입력 PC/HUB 처리 방식을 확인 → KIC-OP 대역(§2-c)에 그 답을 더해 기재. 틀리면 Token으로 값 입력 자체가 막히므로 선확인 필수 |
 | 5 | Token 전달 | 서비스별 Token이면 BE팀 등록용 — **평문 Teams·메일 금지**, 전달 채널은 BE팀과 합의(사내 암호화 파일 공유 등). 공용이면 전달 불요 |
 | 6 | `deploy/kic-op/secret.yaml` | 절차표 §4 완성본 채택(이름·kustomization·deployment 무변경, `sealedsecrets.bitnami.com/managed` 주석 제거). 적용 시점은 **⑤ 14표 확인 후**, 같은 커밋에 configmap 6키 + `config-rev` +1 |
 | 7 | 값 등록 방식 | **Vault UI 우선**(CLI는 쉘 히스토리에 값이 남음). Token 정책 밖 403 배너는 정상 거부 — 경로로 직접 진입 |
 | 8 | ⑤ DDL 실행 경로 | **두 경로 병행 허용**: (A) MGR 계정 + SEAgent/DB-i(Next SPoC 진행 중) (B) **Vault `-ddl` Role 임시 자격증명(10/27 발급 성공)** — 단 임시 계정이 만든 표의 **소유자 문제**(9/30 열린 위험) 때문에 `schema-ddl.sql` 0-b 쿼리로 고정 역할 멤버십을 확인하고 `SET ROLE`이 되는 경우에만 (B) 사용. 안 되면 (A) |
 
-**순서(현재 기준)**: ⓐ BE팀 확인 a·b·c·g·h(절차표 §6, 문안은 migration-log 10/27) → ⓑ Catoz 「Vault Cloud Key CSR Req」 신청(`key_kvstore`·Depth1 `thinq-real`·CIDR) → ⓒ 승인 Token·CSR 번호 → 55-credentials `vault-kv-token` 블록(신설) + internal-context §2-e(경로·kv 버전) → ⓓ Vault UI에서 10키 등록(값은 55-credentials; `AUTH_SECRET`은 `openssl rand -hex 32`로 선생성·블록 기록; `DB_PASSWORD`는 Next SPoC 암호 초기화 후 값) → ⓔ BE팀 Token 등록(서비스별인 경우) → ⓕ ⑤ 14표 확인 → ⓖ `secret.yaml`+configmap+config-rev 커밋 → ⓗ 검증: `/healthz` `authSecret:"env"`·`schema:"verified"`·`backend:"postgres"` → `env_keys` 10키 → `teams_test`·`telegram_test`.
+**순서(현재 기준)**: ⓐ BE팀 확인 a·b·c·g·h(절차표 §6, 문안은 migration-log 10/27) → ⓑ Catoz 「Vault Cloud Key CSR Req」 신청(`key_kvstore`·Depth1 `thinq-real`·CIDR) → ⓒ ✅(10/29) 승인 Token·CSR 번호 → 55-credentials `vault-kv-token` + internal-context §2-e → ⓓ ✅(10/29) Vault UI(LDAP)에서 10키 등록, kv v2 실측(`DB_PASSWORD`는 기존 값 — 암호 초기화 생략 결정 10/28; 등록값 정확성은 ⓗ `env_keys`·`/healthz`로 사후 검증) → ⓔ BE팀 Token 등록(서비스별인 경우) → ⓕ ⑤ 14표 확인 → ⓖ `secret.yaml`+configmap+config-rev 커밋 → ⓗ 검증: `/healthz` `authSecret:"env"`·`schema:"verified"`·`backend:"postgres"` → `env_keys` 10키 → `teams_test`·`telegram_test`.
 
 **넣을 값(10키, 55-credentials)**: `DB_HOST`(Cluster Writer) `DB_PORT`(비표준) `DB_NAME` `DB_USER`(0번 쿼리 대소문자) `DB_PASSWORD`(초기화 후) `AUTH_SECRET`(신규) `LEGACY_AUTH_SECRET` `TEAMS_WEBHOOK_URL` `TELEGRAM_BOT_TOKEN` `TELEGRAM_CHAT_ID`. Vault 키 이름 = env 이름 동일 철자.
 

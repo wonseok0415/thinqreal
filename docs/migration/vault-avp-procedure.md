@@ -58,8 +58,8 @@ metadata:
   name: thinq-real-db-svc
   namespace: ns-extapps
   annotations:
-    avp.kubernetes.io/path: "kv_api/thinq-real/csr-NNNNN"   # Depth1 미사용 시 "kv_api/csr-NNNNN"
-    avp.kubernetes.io/kv-version: "1"                       # 4단계에서 kv v2로 확인되면 이 줄 삭제
+    avp.kubernetes.io/path: "kv_api/data/tcn/thinq-real/csr-N"   # 10/29 실발급 경로 형태(kv v2 — /data/ 포함, CSR 번호는 internal-context §2-e)
+    # avp.kubernetes.io/kv-version: "2"   # 기본값이 v2라 생략 가능. 10/29 실측 kv v2 → "1" 조건 폐기
 type: Opaque
 data:
   DB_HOST: <DB_HOST | base64encode>
@@ -81,6 +81,9 @@ data:
 `/healthz`의 `authSecret:"env"`(AUTH_SECRET이 env로 들어온 직접 증거) + `schema:"verified"`(DB 5키 정상) → `env_keys`로 10키 이름 → Lens에서 Secret 객체 키 10개(값은 보지 않음) → `teams_test`·`telegram_test`. ArgoCD UI Manifest·Sync 상태는 BE팀(또는 우리 열람 권한 — §6-h).
 
 ## 6. 확인 필요 항목과 창구
+
+> **외부 트랙 갱신(2026-10-28)** — BE팀 회신·ArgoCD UI 실측으로 닫힌 항목: **a ✅** OP Application은 `plugin: name: op_vault_plugin`(CMP가 kustomize 빌드+AVP 치환 일괄 처리 — 우리는 자리표시자만) / **d ✅** OP Application 존재(`path: deploy/kic-op`, `targetRevision: main`, README 서술 낡음) / **e ✅** ST·QA·OP ArgoCD UI 링크 수령(열람 가능 — Sync·Refresh 등 조작 금지) / **h ✅**(=e). **b 재질의**: `op_vault_plugin` Token의 Vault 네임스페이스가 우리 Catoz Account 네임스페이스의 `kv_api/thinq-real/csr-N`을 읽을 수 있는지(AVP는 네임스페이스를 자리표시자가 아니라 플러그인 자격으로 정함). **c**: 값 등록은 LDAP 개인 로그인이라 PC IP 불요 — CIDR은 KIC-OP 대역(ArgoCD가 같은 클러스터면 repo-server 포함). **CSR 신청 완료(10/28, `key_kvstore`·Depth1 `thinq-real`) — 승인 시 메일로 Token.**
+
 
 | | 항목 | 왜 | 창구 |
 |---|---|---|---|
