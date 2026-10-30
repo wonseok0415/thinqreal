@@ -19,7 +19,7 @@
 |---|---|---|---|
 | **T-4주** | OP 자원 완료: Aurora·valkey 생성(DBSUPPORT JIRA — ✅ 9/29) → **APP 계정 생성(Next Spoc) → 서비스 계정 SG 허용·권한(JIRA DB계정 변경승인요청, 작업일 최소 7일 전)** → 엔드포인트·계정 수령 | 담당자·DB팀 | internal-context §2-a·§2-b에 엔드포인트·계정명 기록 |
 | T-4주 | **MGR(DB-i)로 `schema-ddl.sql` 1회 실행** — **✅ 2026-10-29 완료**(DBeaver, `SET ROLE` 선행, 14표·오류 0·APP DML 확인. 이후 델타 ALTER도 같은 방식 — DB팀 지침) | 담당자(SEAgent+DB-i)·DB팀 | 14표 확인됨 |
-| T-4주 | OP env 주입 — **secret 10키는 Vault(인프라팀 secret store, BE팀 10/26 확인: OP는 kubeseal 불가)**, configmap 6키는 overlay. 절차는 키트 M2 §4(Vault 가이드 판독 후 확정). ST 리허설(`LEGACY_AUTH_SECRET`, SealedSecret cert 파일 방식) **✅ 10/26 통과 — 에지 2단계 가동** | 담당자·사내 Claude·인프라팀(Vault) | OP `/healthz` `backend:"postgres"`·`schema:"verified"`·`kv:"shared"`·`authSecret:"env"` |
+| T-4주 | OP env 주입 — **✅ 2026-10-30 완료**: secret 10키 Vault KV(`key_kvstore`, kv v2) + ArgoCD `op_vault_plugin` 치환, configmap 6키, 옛 SealedSecret prune·Secret 재생성. `/healthz` postgres·verified·env, teams·telegram ok. **잔여: `kv:degraded`(valkey SG → ③ JIRA)** | 담당자·사내 Claude | OP `/healthz` `backend:"postgres"`·`schema:"verified"`·`authSecret:"env"` ✅ / `kv:"shared"` 대기 |
 | T-4주 | 과제 D 키트 v5 배포(`admin_import` + 관리자 「데이터 이행」 패널) | 외부 트랙·사내 Claude | QA에서 스냅샷 업로드 dry-run 통과 |
 | **T-3주** | 협업자 UAT 1~8 완료(QA) + 차이 보고 판독·수정 키트 반영 | 협업자·외부 트랙 | 차이 항목 0 또는 "무해" 합의 |
 | T-3주 | **QA 리허설** — **✅ 2026-10-23 통과**: 현행 직접 pull(키트 v5.5·5.6) → 12표 적재 **2분 이내·오류 0** → 검증 전 테이블 일치(QA 테스트 행 2건은 초과 행 삭제로 정리). 건수: bookings 150·survey 37·visitors 105·articles 18·insights 25·best 9·ledger 9·roi 2·slot_blocks 30·health 612 | 담당자 | D-day 적재 예상 소요 ≤5분(현행 건수 증가분 포함) |
@@ -75,11 +75,11 @@
 
 ## 5. 사전 조건 체크(D-1 저녁까지 전부 ☑)
 
-- [ ] OP `/healthz`: `backend:postgres`·`kv:shared`·`env:kic-op`·`version` 최신
+- [~] OP `/healthz`: `backend:postgres` ✅(10/30)·`kv:shared` **✗ degraded(valkey SG — DBSUPPORT-JIRA 발행, ③ 재개)**·`env:kic-op` ✅·`version` 최신 ✅
 - [ ] OP `env_keys`: db·kvstore·smtp·authSecret·legacyAuthSecret 전부 true
-- [ ] OP `/healthz` `backend:"postgres"`·`schema:"verified"`(APP 계정으로 형상 검증 통과)
-- [ ] OP `teams_test` `{ok:true}` (secret의 `TEAMS_WEBHOOK_URL` 주입 — 담당자 팀 채널에 테스트 카드 1건 도착)
-- [ ] OP `telegram_test` `{ok:true}` (secret의 `TELEGRAM_*` 주입 + pod → api.telegram.org 아웃바운드 실측 — 차단이면 텔레그램 병행 포기, Teams만) + 예약 1건으로 비식별 요약 형식 확인(성명 없음)
+- [x] OP `/healthz` `backend:"postgres"`·`schema:"verified"`·`authSecret:"env"` — **✅ 2026-10-30**(Vault AVP 10키, ArgoCD Synced/Healthy)
+- [x] OP `teams_test` `{ok:true}` — **✅ 2026-10-30**
+- [x] OP `telegram_test` `{ok:true}` — **✅ 2026-10-30**(pod → api.telegram.org 도달 확인 → Teams+텔레그램 병행 확정) / [ ] 예약 1건으로 비식별 요약 형식 확인(성명 없음)
 - [ ] OP `mail_status` smtp / `egress_check` ok / SSO 예외 5종 로그인 없이 열림
 - [ ] Reader instance 추가·failover 테스트 완료 통보(§1 T-2주 요청) — 테스트 중 `/healthz` pod 이름 불변 확인
 - [ ] QA 리허설 건수 일치 기록 있음
