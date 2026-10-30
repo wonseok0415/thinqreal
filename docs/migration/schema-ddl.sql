@@ -1,4 +1,8 @@
 -- ThinQ Real 컨테이너 저장소 DDL — OP 초기 형상 (MGR 계정이 DB-i로 1회 실행, 설계 §8-18)
+-- ✅ 2026-10-29 OP 실행 완료: MGR(SEAgent+DB-i, DBeaver) 접속 → SET ROLE <스키마 소유 역할> → 전체 실행 → 표 14개·오류 0·소유자=스키마 소유 역할·APP DML 권한 확인.
+--    실측 계정명: APP = THINQREAL_APP(대문자 — DB_USER 값도 대문자 그대로), 스키마 = thinqreal.
+-- ⚠ 실행 규칙(DB팀 지침 2026-10-29): 반드시 "MGR 접속 → SET ROLE <스키마 소유 역할>" 선행 후 DDL. 하단 「델타」 ALTER도 같은 방식.
+--    Vault DB_CREDENTIAL(개인 임시 계정)은 SET ROLE 불가·운영 DDL 비권고 → 아래 0-b 경로는 사용하지 않음(기록용으로만 남김).
 -- 생성 기준: server/src/lib/constants.js 상수 + store/postgres/index.js applyDdl (2026-09-30). 전 컬럼 TEXT, rid BIGSERIAL PK — 설계 §3·§8-15.
 -- DB팀 정책(9/30): 서비스 계정 thinqreal_APP은 DML·조회만(DDL 없음) → 테이블 생성·컬럼 추가는 MGR이 이 파일로 수행.
 -- 앱은 기동 시 DDL을 시도하다 권한 오류가 나면 형상 검증 모드로 넘어간다(/healthz schema:"verified") — 누락이 있으면 기동 실패 메시지에 목록이 찍힌다.
