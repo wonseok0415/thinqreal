@@ -18,7 +18,7 @@
 | 시점 | 할 일 | 담당 | 끝의 정의 |
 |---|---|---|---|
 | **T-4주** | OP 자원 완료: Aurora·valkey 생성(DBSUPPORT JIRA — ✅ 9/29) → **APP 계정 생성(Next Spoc) → 서비스 계정 SG 허용·권한(JIRA DB계정 변경승인요청, 작업일 최소 7일 전)** → 엔드포인트·계정 수령 | 담당자·DB팀 | internal-context §2-a·§2-b에 엔드포인트·계정명 기록 |
-| T-4주 | **MGR(DB-i)로 `schema-ddl.sql` 1회 실행**(테이블 14종 + APP GRANT — 앱 첫 기동 전 필수, 설계 §8-18) | 담당자(SEAgent+DB-i)·DB팀 | `SELECT count(*) FROM information_schema.tables WHERE table_schema='<스키마명>'` = 14 |
+| T-4주 | **MGR(DB-i)로 `schema-ddl.sql` 1회 실행** — **✅ 2026-10-29 완료**(DBeaver, `SET ROLE` 선행, 14표·오류 0·APP DML 확인. 이후 델타 ALTER도 같은 방식 — DB팀 지침) | 담당자(SEAgent+DB-i)·DB팀 | 14표 확인됨 |
 | T-4주 | OP env 주입 — **secret 10키는 Vault(인프라팀 secret store, BE팀 10/26 확인: OP는 kubeseal 불가)**, configmap 6키는 overlay. 절차는 키트 M2 §4(Vault 가이드 판독 후 확정). ST 리허설(`LEGACY_AUTH_SECRET`, SealedSecret cert 파일 방식) **✅ 10/26 통과 — 에지 2단계 가동** | 담당자·사내 Claude·인프라팀(Vault) | OP `/healthz` `backend:"postgres"`·`schema:"verified"`·`kv:"shared"`·`authSecret:"env"` |
 | T-4주 | 과제 D 키트 v5 배포(`admin_import` + 관리자 「데이터 이행」 패널) | 외부 트랙·사내 Claude | QA에서 스냅샷 업로드 dry-run 통과 |
 | **T-3주** | 협업자 UAT 1~8 완료(QA) + 차이 보고 판독·수정 키트 반영 | 협업자·외부 트랙 | 차이 항목 0 또는 "무해" 합의 |

@@ -69,9 +69,9 @@ del secrets.env
 | 5 | Token 전달 | 서비스별 Token이면 BE팀 등록용 — **평문 Teams·메일 금지**, 전달 채널은 BE팀과 합의(사내 암호화 파일 공유 등). 공용이면 전달 불요 |
 | 6 | `deploy/kic-op/secret.yaml` | 절차표 §4 완성본 채택(이름·kustomization·deployment 무변경, `sealedsecrets.bitnami.com/managed` 주석 제거). 적용 시점은 **⑤ 14표 확인 후**, 같은 커밋에 configmap 6키 + `config-rev` +1 |
 | 7 | 값 등록 방식 | **Vault UI 우선**(CLI는 쉘 히스토리에 값이 남음). Token 정책 밖 403 배너는 정상 거부 — 경로로 직접 진입 |
-| 8 | ⑤ DDL 실행 경로 | **두 경로 병행 허용**: (A) MGR 계정 + SEAgent/DB-i(Next SPoC 진행 중) (B) **Vault `-ddl` Role 임시 자격증명(10/27 발급 성공)** — 단 임시 계정이 만든 표의 **소유자 문제**(9/30 열린 위험) 때문에 `schema-ddl.sql` 0-b 쿼리로 고정 역할 멤버십을 확인하고 `SET ROLE`이 되는 경우에만 (B) 사용. 안 되면 (A) |
+| 8 | ⑤ DDL 실행 경로 | **✅ 10/29 완료 — (A) MGR + SEAgent/DB-i + DBeaver, `SET ROLE <스키마 소유 역할>` 선행 → 14표·오류 0·소유자=스키마 소유 역할·APP DML 확인.** (B) Vault `-ddl` 임시 계정은 DB팀 지침(SET ROLE 불가·운영 DDL 비권고)으로 **폐기**. 실측: APP 계정명 **`THINQREAL_APP`(대문자)**, 스키마 `thinqreal` → Vault `DB_USER` 값이 대문자인지 확인 필수 |
 
-**순서(현재 기준)**: ⓐ BE팀 확인 a·b·c·g·h(절차표 §6, 문안은 migration-log 10/27) → ⓑ Catoz 「Vault Cloud Key CSR Req」 신청(`key_kvstore`·Depth1 `thinq-real`·CIDR) → ⓒ ✅(10/29) 승인 Token·CSR 번호 → 55-credentials `vault-kv-token` + internal-context §2-e → ⓓ ✅(10/29) Vault UI(LDAP)에서 10키 등록, kv v2 실측(`DB_PASSWORD`는 기존 값 — 암호 초기화 생략 결정 10/28; 등록값 정확성은 ⓗ `env_keys`·`/healthz`로 사후 검증) → ⓔ BE팀 Token 등록(서비스별인 경우) → ⓕ ⑤ 14표 확인 → ⓖ `secret.yaml`+configmap+config-rev 커밋 → ⓗ 검증: `/healthz` `authSecret:"env"`·`schema:"verified"`·`backend:"postgres"` → `env_keys` 10키 → `teams_test`·`telegram_test`.
+**순서(현재 기준)**: ⓐ BE팀 확인 a·b·c·g·h(절차표 §6, 문안은 migration-log 10/27) → ⓑ Catoz 「Vault Cloud Key CSR Req」 신청(`key_kvstore`·Depth1 `thinq-real`·CIDR) → ⓒ ✅(10/29) 승인 Token·CSR 번호 → 55-credentials `vault-kv-token` + internal-context §2-e → ⓓ ✅(10/29) Vault UI(LDAP)에서 10키 등록, kv v2 실측(`DB_PASSWORD`는 기존 값 — 암호 초기화 생략 결정 10/28; 등록값 정확성은 ⓗ `env_keys`·`/healthz`로 사후 검증) → ⓔ BE팀 Token 등록(서비스별인 경우) → ⓕ ✅(10/29) ⑤ 14표 확인 → ⓖ `secret.yaml`+configmap+config-rev 커밋 → ⓗ 검증: `/healthz` `authSecret:"env"`·`schema:"verified"`·`backend:"postgres"` → `env_keys` 10키 → `teams_test`·`telegram_test`.
 
 **넣을 값(10키, 55-credentials)**: `DB_HOST`(Cluster Writer) `DB_PORT`(비표준) `DB_NAME` `DB_USER`(0번 쿼리 대소문자) `DB_PASSWORD`(초기화 후) `AUTH_SECRET`(신규) `LEGACY_AUTH_SECRET` `TEAMS_WEBHOOK_URL` `TELEGRAM_BOT_TOKEN` `TELEGRAM_CHAT_ID`. Vault 키 이름 = env 이름 동일 철자.
 
