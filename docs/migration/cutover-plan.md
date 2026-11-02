@@ -7,11 +7,11 @@
 ### 0-a. 확정 일정 (2026-10-30 — 담당자 지시 "11/30 이전 반드시 마무리", 협업자 UAT 보류)
 | 날짜 | 할 일 | 누가 | 선행 |
 |---|---|---|---|
-| ~11/6 | valkey SG DBSUPPORT-JIRA 처리(10/30 발행) → `/healthz kv:"shared"`(안 돌아오면 config-rev +1) → **OP 마무리 검증**: 관리자 로그인·`env_keys`·데이터 이행 패널 진입·예약 1건(비식별 텔레그램·Teams 카드) | 담당자 | — |
-| valkey 종결 직후(~11/6) | **reader instance + failover 테스트 JIRA 발행**(DB자원 변경승인요청, 오픈 예정일 명시·테스트 11/16까지 요청 — 본문은 migration-log 10/30) — 담당자 결정: valkey 건 종료 후 발행 | 담당자 | valkey JIRA 종료 |
+| ~~~11/6~~ **✅ 11/2** | valkey SG 처리·`kv:shared`·OP 마무리 검증(env_keys 16키·db_probe·teams/telegram·관리자 로그인) 완료 | 담당자 | — |
+| **11/2 (지금)** | **reader instance + failover 테스트 JIRA 발행**(DB자원 변경승인요청, 오픈 예정일 명시·테스트 11/16까지 요청 — 본문은 migration-log 10/30) — 담당자 결정: valkey 건 종료 후 발행 | 담당자 | valkey JIRA 종료 |
 | 11/13~16 | reader 생성 → DB팀 failover 테스트(우리는 `/healthz` pod 불변·예약 조회 확인) | DB팀·담당자 | reader JIRA |
 | 11/17(화) | 전환 안내 예고(담당자 3·팀장), D-day 전후 확정 예약 점검, §5 D-1 체크 전부 ☑ | 담당자 | — |
-| **11/18(수) D-day** | §2 실행: 동결 → OP 패널 적재(≤5분) → 검증 → 현행 트리거 정지 → OP 스케줄러 → `thinqreal.com` 리다이렉트 → 안내 메일 | 담당자·사내 Claude·외부 트랙 | 위 전부 |
+| **11/18(수) D-day** | **런북 `dday-runbook.md`**(§2 실행: 동결 → OP 패널 적재(≤5분) → 검증 → 현행 트리거 정지 → OP 스케줄러 → 현행 사이트 안내 배너 → 안내 메일) | 담당자·사내 Claude·운영 세션·외부 트랙 | 위 전부 |
 | 11/19~20 | 모니터링, 되돌리기 창(§6) 유지 | 담당자 | — |
 | 11/23(월) | 전환 종료 선언, 월간 리포트 수신자 DL 직접 등록 복원(§3), 현행은 외부 접점 3종만 유지 | 담당자 | — |
 | 예비 | 두 JIRA 중 하나라도 지연 시 D-day **11/25(수)**(종료 11/27). 12월 첫째 수요일(12/2) 리포트 자동 발송은 OP가 첫 발송 | — | — |
@@ -88,15 +88,15 @@
 
 ## 5. 사전 조건 체크(D-1 저녁까지 전부 ☑)
 
-- [~] OP `/healthz`: `backend:postgres` ✅(10/30)·`kv:shared` **✗ degraded(valkey SG — DBSUPPORT-JIRA 발행, ③ 재개)**·`env:kic-op` ✅·`version` 최신 ✅
-- [ ] OP `env_keys`: db·kvstore·smtp·authSecret·legacyAuthSecret 전부 true
+- [x] OP `/healthz`: `backend:postgres`·`kv:shared`(pod 2개 모두)·`env:kic-op`·`version` 최신 — **✅ 2026-11-02**(valkey SG에 KIC-OP EKS SG 등록, DB팀)
+- [x] OP `env_keys`: Secret 10키 + configmap 6키 전부 존재 — **✅ 2026-11-02**. `db_probe` RDS·valkey ok. 관리자 로그인 정상
 - [x] OP `/healthz` `backend:"postgres"`·`schema:"verified"`·`authSecret:"env"` — **✅ 2026-10-30**(Vault AVP 10키, ArgoCD Synced/Healthy)
 - [x] OP `teams_test` `{ok:true}` — **✅ 2026-10-30**
-- [x] OP `telegram_test` `{ok:true}` — **✅ 2026-10-30**(pod → api.telegram.org 도달 확인 → Teams+텔레그램 병행 확정) / [ ] 예약 1건으로 비식별 요약 형식 확인(성명 없음)
+- [x] OP `telegram_test` `{ok:true}` — **✅ 2026-10-30**(pod → api.telegram.org 도달 확인 → Teams+텔레그램 병행 확정) / [ ] 예약 1건으로 비식별 요약 형식 확인(성명 없음) — D-day 9단계에서
 - [ ] OP `mail_status` smtp / `egress_check` ok / SSO 예외 5종 로그인 없이 열림
 - [ ] Reader instance 추가·failover 테스트 완료 통보(§1 T-2주 요청) — 테스트 중 `/healthz` pod 이름 불변 확인
 - [ ] QA 리허설 건수 일치 기록 있음
-- [ ] UAT 1~9 판정 기입, △·× 처리 완료
+- [~] UAT 1~9 — **협업자 UAT 보류(10/30 담당자 결정)**, OP 마무리 검증(11/2)·D-day 9단계 실거래로 대체
 - [ ] 전환 안내문 확정, 발송 대상 목록
 - [ ] 되돌리기 담당·연락 경로 확인(§6)
 
