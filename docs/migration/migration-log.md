@@ -815,3 +815,10 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - 남은 ⑥ 검증: `env_keys`(10+6키), 관리자 로그인(코드 메일은 사내 SMTP로 수신 확인됨), 데이터 이행 패널 진입, 예약 1건 비식별 요약 확인. cutover §5 D-1 체크 3건 ✅, CLAUDE.md 상태 줄 갱신(OP Aurora·Vault 전환 완료).
 - **10/30 후속**: PR #206 머지. **③ valkey SG DBSUPPORT-JIRA 발행 완료**(담당자) — 처리 후 `/healthz kv:"shared"` 확인이 다음 트리거. **협업자 UAT는 보류**(담당자 결정 — 협업자 타 업무 과중). 진척률 보고: 코드·인프라 약 85% — 남은 것은 kv 복구 검증, OP 관리자 로그인·`env_keys`·이행 패널 진입, D-day 확정, 오픈 2주 전 reader instance+failover JIRA, D-day 실행(동결→적재→현행 트리거 정지→CNAME/리다이렉트→안내), 사후(리포트 수신자 DL 복원 등).
 - **10/30 일정 확정**: 담당자 "11/30 이전 반드시 마무리·가능하면 단축". 제안(reader JIRA 즉시 병렬 발행 → D-day 11/11)에 대해 담당자 결정 **"reader JIRA는 valkey JIRA 종료 후 발행"** → D-day **11/18(수)** 목표, 예비 11/25, cutover-plan §0-a에 날짜 표 신설. reader/failover 설명(복사본 1대 추가·30초 자동 승격·DB팀 강제 전환 테스트, 앱은 writer 엔드포인트+v5.3 내성으로 무변경) 전달. reader JIRA 본문: 다른 AZ reader 1대(writer 동일 사양) + failover 테스트 1회(시각 통보 요청), 오픈 예정일 명시, 테스트 11/16까지.
+
+## 작업 내역 (2026-11-02 — ✅ OP 사전 검증 전부 통과(kv shared), reader JIRA 발행 시점, D-day 런북 신설)
+
+- **사내(11/2)**: DB팀이 valkey SG에 KIC-OP EKS SG 등록 → OP `/healthz` postgres·verified·authSecret env·**kv shared(pod 2개 모두)**, `env_keys` Secret 10+configmap 6키 전부, `db_probe` RDS·valkey ok, `teams_test`·`telegram_test` ok(도착 확인), **관리자 로그인 정상**. cutover §5 D-1 체크 중 인프라 항목 전부 ☑. ③ valkey SG 종결(JIRA 10/30 발행 → 11/2 처리).
+- **사내 Claude "다음" 목록 교정**: `JOBS_DISABLED` 해제는 **D-day 6단계에서만**(현행 트리거 삭제 직후 — 메일 이중 발송 금지 원칙, cutover §0). 월간 리포트 DL 수신 테스트는 **별도 발송으로 하지 않음**(테스트 메일이 DL 56명에게 감) → 12/2 첫 자동 발송에서 운영자+DL 멤버 1명 수신 확인, 실패 시 운영자 전달 폴백(런북 §3-C). failover JIRA는 지금 발행. 과제 D 적재는 D-day 3단계.
+- **신설 `dday-runbook.md`**: D-1 체크·D-day 08:00~11:00 타임라인(동결→상태값 메모→패널 로그인·검사·적재·검증·상태값→샘플 대조→GO/NO-GO→현행 트리거 삭제→JOBS_DISABLED 제거+리포트 수신자 복원→현행 사이트 안내 PR 머지→안내 발송→첫 실거래→기록)·D+1~2 모니터링·붙여넣을 것 4종(운영 세션 PR 요청문·사내 Claude 프롬프트·수신자 규칙·안내문)·기록 칸. OP 테스트 행 삭제는 kic-op 패널에 숨김이라 사내 Claude SQL 경유로 명시. cutover §0-a 11/2 ✅, CLAUDE.md 상태 줄·문서 목록.
+- **reader JIRA 본문(11/2 발행용)**: 다른 AZ reader 1대(writer 동일 사양) + failover 테스트 1회(시각 통보), 오픈 예정일 11/18(수), 테스트 11/16(월)까지 요청.
