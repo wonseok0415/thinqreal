@@ -32,7 +32,7 @@
 |---|---|---|---|
 | **T-4주** | OP 자원 완료: Aurora·valkey 생성(DBSUPPORT JIRA — ✅ 9/29) → **APP 계정 생성(Next Spoc) → 서비스 계정 SG 허용·권한(JIRA DB계정 변경승인요청, 작업일 최소 7일 전)** → 엔드포인트·계정 수령 | 담당자·DB팀 | internal-context §2-a·§2-b에 엔드포인트·계정명 기록 |
 | T-4주 | **MGR(DB-i)로 `schema-ddl.sql` 1회 실행** — **✅ 2026-10-29 완료**(DBeaver, `SET ROLE` 선행, 14표·오류 0·APP DML 확인. 이후 델타 ALTER도 같은 방식 — DB팀 지침) | 담당자(SEAgent+DB-i)·DB팀 | 14표 확인됨 |
-| T-4주 | OP env 주입 — **✅ 2026-10-30 완료**: secret 10키 Vault KV(`key_kvstore`, kv v2) + ArgoCD `op_vault_plugin` 치환, configmap 6키, 옛 SealedSecret prune·Secret 재생성. `/healthz` postgres·verified·env, teams·telegram ok. **잔여: `kv:degraded`(valkey SG → ③ JIRA)** | 담당자·사내 Claude | OP `/healthz` `backend:"postgres"`·`schema:"verified"`·`authSecret:"env"` ✅ / `kv:"shared"` 대기 |
+| T-4주 | OP env 주입 — **✅ 2026-10-30 완료**: secret 10키 Vault KV(`key_kvstore`, kv v2) + ArgoCD `op_vault_plugin` 치환, configmap 6키(+ 11/2 메일 링크 2키 `GUIDE_URL`·`SURVEY_FORM_URL`), 옛 SealedSecret prune·Secret 재생성. `/healthz` postgres·verified·env, teams·telegram ok. **잔여: `kv:degraded`(valkey SG → ③ JIRA)** | 담당자·사내 Claude | OP `/healthz` `backend:"postgres"`·`schema:"verified"`·`authSecret:"env"` ✅ / `kv:"shared"` 대기 |
 | T-4주 | 과제 D 키트 v5 배포(`admin_import` + 관리자 「데이터 이행」 패널) | 외부 트랙·사내 Claude | QA에서 스냅샷 업로드 dry-run 통과 |
 | **T-3주** | 협업자 UAT 1~8 완료(QA) + 차이 보고 판독·수정 키트 반영 | 협업자·외부 트랙 | 차이 항목 0 또는 "무해" 합의 |
 | T-3주 | **QA 리허설** — **✅ 2026-10-23 통과**: 현행 직접 pull(키트 v5.5·5.6) → 12표 적재 **2분 이내·오류 0** → 검증 전 테이블 일치(QA 테스트 행 2건은 초과 행 삭제로 정리). 건수: bookings 150·survey 37·visitors 105·articles 18·insights 25·best 9·ledger 9·roi 2·slot_blocks 30·health 612 | 담당자 | D-day 적재 예상 소요 ≤5분(현행 건수 증가분 포함) |
@@ -108,6 +108,14 @@
 | D-day §2-3 적재 실패 | 사내 쪽만 정리(멱등 재적재 또는 표 비우기). 현행은 손대지 않았으므로 **아무 영향 없음** — 동결 해제 공지 후 재시도일 잡기 |
 | §2-5 이후(현행 트리거 삭제 후) 사내 장애 | 현행 사이트 안내 배너 제거(§2-7 revert) → `installMonthlyReportTrigger()`·`installSurveyInviteTrigger()` 재실행 → OP `JOBS_DISABLED=true` 복원. 동결 이후 사내에 들어온 예약은 **수동으로 시트 백필**(CLAUDE.md 백필 규칙) |
 | 부분 장애(메일만 안 감 등) | 사내 유지 + 담당자가 확정 메일 수동 발송, 원인 수정 키트 |
+
+## 6-b. 도메인 종료 절차 (D-day 이후 — 2026-11-02 담당자 확정)
+`thinqreal.com`은 이관 완료 후 **종료**(비용·보안팀 인지 사항). 외부 접점 3종은 도메인이 아니라 Google(Apps Script URL 직접 호출·GitHub Pages 기본 주소)에 붙어 있어 **종료 후에도 동작**(11/2 코드 점검: 방문자 설문 페이지는 Apps Script 절대 주소·루트 절대경로 없음 / 장비·edge-sync는 Apps Script URL 직접 / `.gs`에 도메인·Referer 검사 없음). 보안팀 추가 문의는 하지 않음(담당자 판단). 순서(포스터 교체 전 도메인을 끊지 않는다):
+1. QR 포스터를 `https://wonseok0415.github.io/thinqreal/ThinQ_Real_Visitor_Survey.html`로 재인쇄·교체
+2. GitHub `CNAME` 파일 삭제(운영 세션 PR) → 기본 주소 서빙
+3. Cloudflare DNS 정리 → 갱신 중단(만료 또는 해지)
+4. 안내문·문서의 "기존 주소" 표기를 github.io로 갱신
+전환 후에도 **GitHub Pages(기본 주소)·Apps Script·시트 3탭은 유지**(개인 계정 기반 — 팀 공유 사항, 브리핑 §3-i).
 
 ## 7. 미결 (확정되면 본문에 반영)
 
