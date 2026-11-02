@@ -22,7 +22,7 @@
 | 08:15 | 3-b | **현행 로그인(패널 안)** | 소스 「현행 시스템에서 직접」 → 메일 → [코드 받기] → 6자리 → [로그인] → "현행 토큰 확보" | 상태 문구 | 코드 재요청 |
 | 08:20 | 3-c | **① 검사** | [검사] → 표별 「파일 행」이 1단계 캡처 건수와 일치(bookings 등), 빈 id·중복 0, `export_log`는 미조회 안내 | 12표 판독 | 건수 불일치면 현행에서 동결 후 수정이 있었는지 확인 → 재검사 |
 | 08:30 | 3-d | **② 적재** | 전 테이블 체크, 모드 `skip` → [적재] → 완료(≤5분) | 오류 0 | 오류 표만 재적재(멱등) |
-| 08:40 | 3-e | **③ 검증** | [검증] → 「전 테이블 일치」 | 일치 | ✗ 표: OP에만 있는 행이면 「4 초과 행 삭제」(OP 테스트 행 — kic-op에서는 패널에 숨김이라 **사내 Claude에 삭제 SQL 요청**), 현행에만 있으면 재적재 |
+| 08:40 | 3-e | **③ 검증** | [검증] → 「전 테이블 일치」 | 일치 | ✗ 표: OP에만 있는 행이면 「4 초과 행 삭제」(OP 테스트 행 — kic-op에서는 패널에 숨김이라 **사내 Claude 초안 SQL을 담당자가 DBeaver에서 MGR 접속 → `SET ROLE <스키마 소유 역할>` 후 실행** — 소유 역할이라 DELETE 권한 있음, DDL 때와 같은 경로), 현행에만 있으면 재적재 |
 | 08:50 | 3-f | **⑤ 상태값** | 2단계 메모 2값 입력 → 저장 | 저장 | — |
 | 09:00 | 4 | **샘플 대조** | OP 관리자 페이지: 최근 예약 5건(상태·슬롯·책임자)·설문 3건·대장 2건을 현행 캡처와 대조, 슬롯 차단·ROI 📌 지정·기사 큐레이션 표시 | 전부 일치 | 불일치 → 3-d로(멱등) |
 | 09:20 | — | **GO/NO-GO** | 여기까지 전부 ✓이면 진행. 아니면 **중지·동결 해제**(현행 무영향) | 결정 기록 | — |
@@ -51,12 +51,12 @@ PR 제목 "chore: 사내 전환 안내 배너 + 예약 접수 중단(D-day 머�
 ```
 ### 3-B. 사내 Claude D-day 프롬프트(6·6-b단계)
 ```
-D-day 6단계. deploy/kic-op/configmap.yaml에서 JOBS_DISABLED 줄을 삭제하고, MONTHLY_REPORT_TO=<DL 주소 + 개인 명단, internal-context §2-f>, MONTHLY_REPORT_TEST_TO=<운영자 메일>을 추가/갱신, deploy/base/deployment.yaml config-rev +1.
+D-day 6단계. deploy/kic-op/configmap.yaml에서 JOBS_DISABLED 줄을 삭제하고, MONTHLY_REPORT_TO=<DL 주소 + 개인 명단, internal-context §2-h>, MONTHLY_REPORT_TEST_TO=<운영자 메일>을 추가/갱신, deploy/base/deployment.yaml config-rev +1.
 다른 키는 건드리지 마. 커밋 "chore: D-day — OP 스케줄러 가동(JOBS_DISABLED 제거) + 리포트 수신자 복원", push는 git pull --rebase origin main && git push origin main.
 push 후 내가 /healthz·env_keys 결과를 붙이면 pod 교체·JOBS_DISABLED 부재·MONTHLY_REPORT_TO 존재를 판정해줘. internal-worklog에 시각과 함께 기록.
 ```
-### 3-C. 리포트 수신자(6-b) — 값은 internal-context §2-f에 미리 적어 둔다
-`MONTHLY_REPORT_TO` = `DL-pbc-leaderonly` 주소 + 10/6 전환 전 백업해 둔 구 명단 중 DL 비포함자(쉼표 구분). 운영자 본인 포함. **DL 수신 실측은 D-day 전 별도 발송으로 하지 않는다**(테스트 메일이 56명에게 감) — 12/2 첫 자동 발송 때 운영자 수신 + DL 멤버 1명 수신 확인으로 대체. 실패 시 10/6 방식(운영자 전달)으로 즉시 폴백.
+### 3-C. 리포트 수신자(6-b) — 값은 internal-context §2-h에 미리 적어 둔다(사내 파일 절 번호 기준, 11/2 정정)
+`MONTHLY_REPORT_TO` = `DL-pbc-leaderonly` 주소 + 10/6 전환 전 백업해 둔 구 명단 중 DL 비포함자(쉼표 구분). 운영자 본인 포함. **구 명단 백업은 운영자 보관**(10/6 운영 세션이 Script Property 교체 전 백업 — Outlook 연락처 그룹 또는 운영자 메모; 리포에는 없음) → 담당자가 찾아 §2-h에 기입. **DL 수신 실측은 D-day 전 별도 발송으로 하지 않는다**(테스트 메일이 56명에게 감) — 12/2 첫 자동 발송 때 운영자 수신 + DL 멤버 1명 수신 확인으로 대체. 실패 시 10/6 방식(운영자 전달)으로 즉시 폴백.
 ### 3-D. 전환 안내문(8단계)
 ```
 [안내] ThinQ Real 예약 시스템 사내 전환 완료
