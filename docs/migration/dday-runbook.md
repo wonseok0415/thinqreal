@@ -10,6 +10,7 @@
 | 오전 | 11/18~19 확정 예약 유무 확인 — 있으면 방문 담당자에게 "당일 시스템 전환, 방문은 정상" 구두 안내 | 담당자 | 건수 |
 | 오후 | 운영 세션에 **현행 사이트 안내 PR**(§3-A 문안) 준비 요청 — **머지는 D-day 7단계에서** | 담당자→운영 세션 | PR 번호 |
 | 오후 | OP `/healthz` 4값(`postgres`·`verified`·`shared`·`env`), `mail_status smtp`, `egress_check ok` 재확인 | 담당자 | 치트시트 B |
+| 오후 | **라이브 정적 재병합 확인**: GitHub에서 `git log --since=2026-09-22 -- '*.html' images`가 비어 있으면 Gitea `public/`은 최신(9/22 키트 v4.1 동기본). 변경이 있으면 사내 Claude에 "미러 루트 HTML 7종·images → Gitea public/ 복사, `fix:` 커밋"(SCRIPT_URL은 서빙 시 치환이라 수정 없이 복사). **D-day 7단계의 안내 배너 PR은 public/에 복사하지 않는다**(OP는 배너 없는 버전) | 담당자·사내 Claude | 변경 0건 또는 복사 완료 |
 | 오후 | 사내 Claude에 §3-B D-day 프롬프트 전달해 두기(실행은 당일) | 담당자 | — |
 | 저녁 | cutover §5 체크 전부 ☑ 확인 | 담당자 | ☑ |
 
