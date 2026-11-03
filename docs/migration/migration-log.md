@@ -835,3 +835,4 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **사내(11/3)**: OP configmap `GUIDE_URL`·`SURVEY_FORM_URL` 추가 + config-rev 3 → 롤아웃 검증: `env_keys`에 두 키, 기존 키·`JOBS_DISABLED` 유지, 새 pod 2개 kv shared·postgres·verified·authSecret env. 기준선 pod 이름은 internal-context에(리포 미기재).
 - **사내 Claude 판단 요청 "failover 통과 기준 — pod 이름 불변만으로는 컨테이너 재시작 미검출"** → **수용**. `/healthz`에 `uptime`(프로세스 가동 초) 추가 — **키트 v5.8**(`src/app.js` 1줄, `fix:`): 같은 pod에서 값이 줄면 재시작. 통과 기준 5항목으로 보강(cutover §5): 10초 간격 반복 호출 ok 연속(공백 ≤60초)·pod 불변+uptime 단조 증가·예약 조회(읽기)·예약 1건 접수→삭제(쓰기, writer 추종 확인)·kv shared. api-contract 갱신.
 - **키트 v5.8 파일**: `src/app.js`(`fix:`). 테스트 전(11/13까지) 적용 권장 — 미적용이어도 ①③④⑤로 판정 가능(②는 pod 이름만).
+- **11/3 후속(사내)**: 키트 v5.8 적용(`fix:`, 미러와 diff 1줄 동일 — 사내 PC node 미설치라 구문 검사는 롤아웃 후 `/healthz uptime` 노출로 실증). OP 이행 패널 진입 확인(토큰 있음). failover 판정표·10초 수집 스니펫 준비. **OP 관리자 3인(담당자) 로그인 성공** — 협업자 UAT 보류의 공백을 실사용자 로그인으로 일부 대체. 다음: 롤아웃 후 uptime 확인·기준선 갱신, DB팀 시각 회신 대기.
