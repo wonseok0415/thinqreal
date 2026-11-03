@@ -64,6 +64,7 @@ export function createApp(store) {
     ok: true, backend: store.backend, schema: store.schemaMode || null, kv: kvStatus(), pod: os.hostname(), version: appVersion, env: config.environment || 'local',
     authSecret: authSecretSource(),
     node: process.version, // 런타임 패치 레벨 (2026-10-27 BE팀 Node.js RCE 패치 — 베이스 이미지 고정이 실제 롤아웃됐는지 kubectl 없이 확인)
+    uptime: Math.round(process.uptime()), // 프로세스 가동 초 (2026-11-03 키트 v5.8 — failover 테스트 중 pod 이름은 그대로인데 컨테이너만 재시작된 경우를 검출: 값이 줄어들면 재시작)
   }));
 
   // API — 단일 경로 + type 라우팅 (api-contract.md 계약 불변)

@@ -829,3 +829,9 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **✅ 11/2 reader+failover JIRA 발행**(담당자+사내 Claude, 티켓 번호는 internal-context — 리포 미기재): 다른 AZ reader 1대·동일 사양·failover 1회, 오픈 11/18·테스트 11/16까지 명시. DB팀 작업 시각 회신 대기(11/9 이후). 사내 측 다음: 시각 통보 시 `/healthz` pod 불변 확인, 11/16 미완료면 D-day 영향 보고(→ 예비 11/25). **이로써 D-day 선행 항목 중 외부 의존은 이 티켓 하나.** 안내문(런북 §3-D)에 "확정 일정은 관리자 페이지에서 확인(캘린더 연동 추후)" 한 줄 추가.
 - **11/2 담당자 결정 — `thinqreal.com` 도메인은 이관 후 종료**(비용·보안팀 인지), 외부 Google 경로(Apps Script·GitHub Pages 기본 주소·시트 3탭)는 유지, **보안팀 추가 문의는 하지 않음**. 코드 점검: 방문자 설문 페이지 Apps Script 절대 주소·루트 절대경로 없음, 장비·edge-sync는 Apps Script URL 직접, `.gs` Referer 검사 없음 → 도메인 종료 후에도 3종 동작. **발견: 컨테이너 `GUIDE_URL`·`SURVEY_FORM_URL` 기본값이 thinqreal.com**(OP configmap엔 `ADMIN_PAGE_URL`만) → OP configmap 2키 추가 지시(config-rev +1), 키트 M2 §4 configmap 목록·런북 9-b 추가. cutover §6-b 도메인 종료 절차(포스터 교체 → CNAME 삭제 → DNS 정리 → 안내 갱신) 신설.
 - **11/2 사내 Claude 우려 "lge.com 링크가 SSO 뒤라 사내 계정 아닌 수신자는 못 연다"** → 해당 사례 없음으로 종결: 확정·설문 초대 메일 수신자는 전원 `@lge.com`(게이트·발송 규칙, 백필 경로는 무발송), 모바일도 Outlook 앱 SSO 환경(담당자 확인). github.io로 두면 설문 응답이 시트로 들어가 OP DB와 갈라지므로 불가. `GUIDE_URL`·`SURVEY_FORM_URL`=lge.com 확정.
+
+## 작업 내역 (2026-11-03 — OP 메일 링크 2키 반영 ✅, failover 통과 기준 보강(키트 v5.8 `uptime`))
+
+- **사내(11/3)**: OP configmap `GUIDE_URL`·`SURVEY_FORM_URL` 추가 + config-rev 3 → 롤아웃 검증: `env_keys`에 두 키, 기존 키·`JOBS_DISABLED` 유지, 새 pod 2개 kv shared·postgres·verified·authSecret env. 기준선 pod 이름은 internal-context에(리포 미기재).
+- **사내 Claude 판단 요청 "failover 통과 기준 — pod 이름 불변만으로는 컨테이너 재시작 미검출"** → **수용**. `/healthz`에 `uptime`(프로세스 가동 초) 추가 — **키트 v5.8**(`src/app.js` 1줄, `fix:`): 같은 pod에서 값이 줄면 재시작. 통과 기준 5항목으로 보강(cutover §5): 10초 간격 반복 호출 ok 연속(공백 ≤60초)·pod 불변+uptime 단조 증가·예약 조회(읽기)·예약 1건 접수→삭제(쓰기, writer 추종 확인)·kv shared. api-contract 갱신.
+- **키트 v5.8 파일**: `src/app.js`(`fix:`). 테스트 전(11/13까지) 적용 권장 — 미적용이어도 ①③④⑤로 판정 가능(②는 pod 이름만).
