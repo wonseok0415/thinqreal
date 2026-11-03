@@ -95,7 +95,7 @@
 - [x] OP `teams_test` `{ok:true}` — **✅ 2026-10-30**
 - [x] OP `telegram_test` `{ok:true}` — **✅ 2026-10-30**(pod → api.telegram.org 도달 확인 → Teams+텔레그램 병행 확정) / [ ] 예약 1건으로 비식별 요약 형식 확인(성명 없음) — D-day 9단계에서
 - [ ] OP `mail_status` smtp / `egress_check` ok / SSO 예외 5종 로그인 없이 열림
-- [ ] Reader instance 추가·failover 테스트 완료 통보(§1 T-2주 요청) — 테스트 중 `/healthz` pod 이름 불변 확인
+- [ ] Reader instance 추가·failover 테스트 완료 통보(11/2 JIRA) — **통과 기준(11/3 보강, 사내 Claude 제안 수용)**: 테스트 창 동안 `/healthz`를 10초 간격으로 반복 호출해 ① `ok:true`·`backend:"postgres"` 연속 유지(허용 공백 ≤60초) ② `pod` 이름 불변 **+ `uptime` 단조 증가**(키트 v5.8 — 값이 줄면 컨테이너 재시작) ③ 전환 직후 관리자 페이지 예약 조회 성공(읽기) ④ 예약 1건 접수→삭제 성공(쓰기 — 새 writer로 따라갔는지) ⑤ `kv:"shared"` 유지. 실패 시 LENS 로그(`[store:postgres] idle client error`)와 함께 보고
 - [ ] QA 리허설 건수 일치 기록 있음
 - [~] UAT 1~9 — **협업자 UAT 보류(10/30 담당자 결정)**, OP 마무리 검증(11/2)·D-day 9단계 실거래로 대체
 - [ ] 전환 안내문 확정, 발송 대상 목록
