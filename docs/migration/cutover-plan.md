@@ -9,7 +9,7 @@
 |---|---|---|---|
 | ~~~11/6~~ **✅ 11/2** | valkey SG 처리·`kv:shared`·OP 마무리 검증(env_keys 16키·db_probe·teams/telegram·관리자 로그인) 완료 | 담당자 | — |
 | ~~11/2~~ **✅ 11/2 발행** | reader instance + failover 테스트 JIRA(DB자원 변경승인요청 — 다른 AZ reader 1대·동일 사양·failover 1회, 오픈 11/18·테스트 11/16까지 명시. 티켓 번호는 internal-context) — DB팀 작업 시각 회신 대기(리드타임 7일 → 11/9 이후) | 담당자·사내 Claude | ✅ |
-| 11/13~16 | reader 생성 → DB팀 failover 테스트(우리는 `/healthz` pod 불변·예약 조회 확인) | DB팀·담당자 | reader JIRA |
+| ~~11/13~16~~ **11/4(수) 10:00** | reader 생성 → DB팀 failover 테스트 — **담당자 요청으로 앞당김(DB팀 11/3 회신)**. 통과 기준 §5 5항목(10초 간격 `/healthz`·pod 불변+uptime·예약 조회·예약 접수→삭제·kv shared) | DB팀·담당자·사내 Claude | reader JIRA ✅ |
 | 11/17(화) | 전환 안내 예고(담당자 3·팀장), D-day 전후 확정 예약 점검, §5 D-1 체크 전부 ☑ | 담당자 | — |
 | **11/18(수) D-day** | **런북 `dday-runbook.md`**(§2 실행: 동결 → OP 패널 적재(≤5분) → 검증 → 현행 트리거 정지 → OP 스케줄러 → 현행 사이트 안내 배너 → 안내 메일) | 담당자·사내 Claude·운영 세션·외부 트랙 | 위 전부 |
 | 11/19~20 | 모니터링, 되돌리기 창(§6) 유지 | 담당자 | — |
