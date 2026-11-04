@@ -14,6 +14,11 @@
 --    같은 값이 OP secret의 DB_USER가 된다.
 SELECT rolname FROM pg_roles WHERE rolname ILIKE 'thinqreal%';
 
+-- 0-a) (2026-11-04 추가) 접속한 인스턴스가 writer인지 확인 — DB-i 수동매핑은 특정 인스턴스를 가리키므로 failover(11/5 테스트·실장애) 뒤에는
+--      그 인스턴스가 reader가 되어 DDL·DELETE가 "cannot execute ... in a read-only transaction"으로 실패한다. false여야 진행.
+--      true면 DB-i 매핑을 현재 writer 인스턴스로 바꾸거나(DB팀), 양쪽 인스턴스 매핑이 있으면 다른 쪽으로 접속.
+SELECT pg_is_in_recovery();  -- false = writer, true = reader(읽기 전용)
+
 -- 0-b) Vault DB_CREDENTIAL(-ddl Role, TTL 1일 임시 계정)로 접속해 실행하는 경우에만 — 임시 계정이 만든 표는 소유자가 그 계정이 되어
 --      계정 만료·회수 시 ALTER·GRANT가 막힐 수 있다(2026-09-30 열린 위험). 아래로 현재 계정이 상속하는 고정 역할을 확인하고,
 --      결과에 thinqreal_MGR(대소문자는 0번 결과)이 있으면 바로 다음 줄의 SET ROLE을 실행한 뒤 DDL을 진행한다.
