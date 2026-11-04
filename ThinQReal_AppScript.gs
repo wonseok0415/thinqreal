@@ -2411,8 +2411,9 @@ function buildMonthlyReportHtml(d) {
   // ── 1) Executive 요약 — KPI 3카드 (당월 건수·인원 + MoM / NPS)
   //    (§8-7 2의 26년 누적 카드·요약 3줄은 2026-08-03 렌더 리뷰로 삭제 — 누적 진척은 ROI 스냅샷이 단일 위치)
   // Executive 카드 셀 — 라벨(상) → 값(중) → 보조 줄(하: 누적) (2026-08-04 팀장 리뷰 — MoM 표기 대신 26년 누적)
+  // width·bgcolor는 HTML 속성 병기 (Word 엔진이 CSS를 버려도 유지 — 2026-11-04 Word-안전 규칙)
   const execCell = (label, value, unit, sub) =>
-    '<td valign="top" align="center" style="padding:16px 8px;background:#f5f5f7;border-radius:10px;">' +
+    '<td valign="top" align="center" width="32%" bgcolor="#f5f5f7" style="width:32%;padding:16px 8px;background:#f5f5f7;border-radius:10px;">' +
       '<div style="font-size:12px;color:#6e6e73;font-weight:500;">' + escapeHtml(label) + '</div>' +
       '<div style="line-height:1.1;margin-top:7px;">' +
         '<span style="font-size:21px;font-weight:700;color:#3a5035;">' + escapeHtml(String(value)) + '</span>' +
@@ -2434,12 +2435,15 @@ function buildMonthlyReportHtml(d) {
     satCardSub = '응답 ' + satAll.oldCount + '건';
   }
   const rfx = d.roiFixed || ROI_FIXED;
+  // 카드 간격은 cellspacing(CSS성 간격 — Word 재작성 시 소실돼 세 카드가 한 장으로 붙음)이 아니라
+  // 스페이서 셀(구조)로 확보 — Word 엔진은 셀 자체를 버리지 못함 (2026-11-04)
+  const kpiGap = '<td width="10" style="width:10px;font-size:0;line-height:0;">&nbsp;</td>';
   const kpiTable =
     '<tr><td style="padding:0 28px 16px;">' +
-      '<table role="presentation" cellspacing="10" cellpadding="0" border="0" style="border-collapse:separate;width:100%;">' +
+      '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:separate;width:100%;">' +
         '<tr>' +
-          execCell('당월 방문 건수', d.kpi.confirmed, '건', d.ytd ? '26년 누적 ' + d.ytd.confirmed + '건' : '') +
-          execCell('당월 방문 인원', d.kpi.visitors, '명', d.ytd ? '26년 누적 ' + d.ytd.visitors + '명' : '') +
+          execCell('당월 방문 건수', d.kpi.confirmed, '건', d.ytd ? '26년 누적 ' + d.ytd.confirmed + '건' : '') + kpiGap +
+          execCell('당월 방문 인원', d.kpi.visitors, '명', d.ytd ? '26년 누적 ' + d.ytd.visitors + '명' : '') + kpiGap +
           execCell(satCardLabel, satCardValue, satCardUnit, satCardSub) +
         '</tr>' +
       '</table>' +
