@@ -9,7 +9,7 @@
 |---|---|---|---|
 | ~~~11/6~~ **✅ 11/2** | valkey SG 처리·`kv:shared`·OP 마무리 검증(env_keys 16키·db_probe·teams/telegram·관리자 로그인) 완료 | 담당자 | — |
 | ~~11/2~~ **✅ 11/2 발행** | reader instance + failover 테스트 JIRA(DB자원 변경승인요청 — 다른 AZ reader 1대·동일 사양·failover 1회, 오픈 11/18·테스트 11/16까지 명시. 티켓 번호는 internal-context) — DB팀 작업 시각 회신 대기(리드타임 7일 → 11/9 이후) | 담당자·사내 Claude | ✅ |
-| ~~11/13~16~~ **11/5(목)** | **09:00 reader 추가 → 10:20 failover 1회(failback 없음 — DB팀 계획서)**. 우리 몫: 08:50 기준선, 10:10·10:30 서비스 확인, 10:15~10:35 10초 간격 `/healthz` — **담당자 요청으로 앞당김(DB팀 11/3 회신)**. 통과 기준 §5 5항목(10초 간격 `/healthz`·pod 불변+uptime·예약 조회·예약 접수→삭제·kv shared) | DB팀·담당자·사내 Claude | reader JIRA ✅ |
+| ~~11/13~16~~ **✅ 11/5(목)** | reader 추가 → failover 1회 **통과**(중단 13초, 5항목 ○). writer 교대 → 두 번째 인스턴스 DB-i 등록 Next SPoC 신청(11/17 전 완료 목표) | DB팀·담당자·사내 Claude | ✅ |
 | 11/17(화) | 전환 안내 예고(담당자 3·팀장), D-day 전후 확정 예약 점검, §5 D-1 체크 전부 ☑ | 담당자 | — |
 | **11/18(수) D-day** | **런북 `dday-runbook.md`**(§2 실행: 동결 → OP 패널 적재(≤5분) → 검증 → 현행 트리거 정지 → OP 스케줄러 → 현행 사이트 안내 배너 → 안내 메일) | 담당자·사내 Claude·운영 세션·외부 트랙 | 위 전부 |
 | 11/19~20 | 모니터링, 되돌리기 창(§6) 유지 | 담당자 | — |
@@ -95,7 +95,7 @@
 - [x] OP `teams_test` `{ok:true}` — **✅ 2026-10-30**
 - [x] OP `telegram_test` `{ok:true}` — **✅ 2026-10-30**(pod → api.telegram.org 도달 확인 → Teams+텔레그램 병행 확정) / [ ] 예약 1건으로 비식별 요약 형식 확인(성명 없음) — D-day 9단계에서
 - [ ] OP `mail_status` smtp / `egress_check` ok / SSO 예외 5종 로그인 없이 열림
-- [ ] Reader instance 추가·failover 테스트 완료 통보(11/2 JIRA) — **통과 기준(11/3 보강, 사내 Claude 제안 수용)**: 테스트 창 동안 `/healthz`를 10초 간격으로 반복 호출해 ① `ok:true`·`backend:"postgres"` 연속 유지(허용 공백 ≤60초) ② `pod` 이름 불변 **+ `uptime` 단조 증가**(키트 v5.8 — 값이 줄면 컨테이너 재시작) ③ 전환 직후 관리자 페이지 예약 조회 성공(읽기) ④ 예약 1건 접수→삭제 성공(쓰기 — 새 writer로 따라갔는지) ⑤ `kv:"shared"` 유지. 실패 시 LENS 로그(`[store:postgres] idle client error`)와 함께 보고
+- [x] Reader instance 추가·failover 테스트 — **✅ 2026-11-05 통과**: 중단 13초(DB팀 통보 10:07:01~14, 기준 ≤60초), pod 2개 불변·uptime 연속(재시작 없음), 예약 조회·접수→삭제 성공(새 writer), kv shared. writer 교대 확인(`pg_is_in_recovery()`=true on 구 writer). **잔여: 두 번째 인스턴스 DB-i 등록(Next SPoC, 11/17 전) → D-1 체크**
 - [ ] QA 리허설 건수 일치 기록 있음
 - [~] UAT 1~9 — **협업자 UAT 보류(10/30 담당자 결정)**, OP 마무리 검증(11/2)·D-day 9단계 실거래로 대체
 - [ ] 전환 안내문 확정, 발송 대상 목록
