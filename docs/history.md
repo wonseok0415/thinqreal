@@ -2019,3 +2019,14 @@ sales 트랙 운영 설문의 8번 블록 컬럼은 2026-07-27 이후 구조적�
 - **수정** (`.gs` buildMonthlyReportHtml KPI 블록): ① 간격을 cellspacing이 아니라 **스페이서 셀**(`<td width="10">&nbsp;</td>` — 실제 구조)로 확보, cellspacing은 0으로 ② 카드 셀에 `width="32%"`·`bgcolor="#f5f5f7"` **HTML 속성 병기** (CSS는 브라우저용으로 유지 — Word가 style을 버려도 속성으로 배경·폭 생존). 브라우저 외관은 기존과 동일(카드 3장·간격 ~10px·균등 폭).
 - 검증: Playwright 9항목 PASS — `.gs` 추출 코드로 실제 HTML 생성(신·구 모두 git에서) → 브라우저 렌더(신·구 동일하게 정상 — 과거 "브라우저에선 멀쩡" 재현) + **Word 재작성 시뮬레이션**(cellspacing 제거·collapse 강제·style의 radius/배경/margin/width 제거) 후 신 마크업은 카드 3장·간격·배경 전부 생존, **구 마크업은 간격 0으로 "한 장" 증상 재현**(진단 타당성). `node --check` PASS.
 - **반영 경로**: 자동 발송은 에디터 반영·**저장**만으로 다음 달(12/2 11월분)부터 적용. [리포트 미리보기]·테스트 발송으로 미리 보려면 **재배포**까지. 11/4 체득 규칙(「PR 머지 ≠ 적용」)대로 머지 당일 반영 권장. CLAUDE.md Word-안전 규칙에 간격·배경·폭 원칙 추가.
+
+---
+
+## 2026-11-06 (1) — 사내 전환 안내 배너 + 예약 접수 중단 (D-day 11/9 머지용 PR — 이관 세션 요청, 런북 §3-A)
+
+- **배경**: 전환 D-day 2026-11-09(월) 확정(예비 11/10·기한 11/18 — `docs/migration/dday-runbook.md`). 런북 D-1 체크리스트에 따라 이관 세션이 운영 세션에 현행 사이트 안내 PR 준비를 요청 — **머지는 담당자가 11/9 10:00 7단계에서** 수행, 머지 전까지 라이브 무변경.
+- **index.html**: ① 전환 배너(`.migrate-banner` — 다크 올리브 #3a5035, 닫기 버튼 없음) 2곳: 게이트 오버레이(`#authGate`) 내부 상단 absolute 스트립(게이트 가림 `body.unauth > *:not(...)` direct-child 선택자와 무관하게 unauth 상태에서 노출 — 요청 5항) + 홈(`#page-home`) 최상단. 문안은 런북 §3-A 확정본 그대로(11/9부터 thinqreal.lge.com, 기존 예약 유지). ② **예약 접수 중단**: `#submitBtn`에 `disabled` + 버튼 아래 같은 톤 안내줄 `#migrateNote`(「예약은 thinqreal.lge.com 에서 진행해 주세요」 — renderFormByPurpose가 버튼과 함께 표시 토글) + `submitBooking()` 선두 가드(alert 안내 후 return — 버튼 강제 활성화 대비 이중 방어). 달력·슬롯 표시는 유지(요청 원문).
+- **thinqreal_admin.html**: 로그인 화면(`#loginScreen`) 상단 absolute 배너(어두운 올리브 #2c3e28 — 로그인 화면 배경이 accent라 한 단계 어둡게) — 본문 「관리자 페이지는 thinqreal.lge.com/thinqreal_admin.html 로 이전, 이 페이지는 열람용으로만 남습니다」. 로그인 기능 무변경.
+- **무변경 확인(요청 3·4항)**: 방문자 설문·후기 설문·privacy·동의서(외부 접점·게이트 밖 문서), `ThinQReal_AppScript.gs`(하이브리드 에지 6종 계속 호출).
+- 검증: Playwright 13항목 PASS — unauth 게이트 배너 노출+게이트 가림 유지(navbar 숨김), 홈 배너, 버튼 disabled·안내줄 토글·달력 존재, submitBooking 가드(fetch 0회), 관리자 배너 노출+로그인 UI 유지·카드 미겹침. 4개 화면 스크린샷 운영자 확인.
+- HTML만 — Apps Script 재배포 불필요. **머지 = 즉시 라이브 게시 — 11/9 10:00 전 머지 금지.** 롤백 = PR revert. OP(Gitea `public/`)에는 이 배너를 복사하지 않음(런북 D-1 항목 — OP는 배너 없는 버전).

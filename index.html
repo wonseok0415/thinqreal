@@ -973,6 +973,18 @@ footer {
 }
 
 /* ── 사이트 접근 통제 (이메일 게이트 4안) ─────────────────── */
+/* ── 사내 전환 안내 배너 (2026-11-09 D-day) — 게이트 오버레이 상단·홈 최상단 공용, 닫기 버튼 없음 ── */
+.migrate-banner {
+  background: var(--c-accent); color: #fff;
+  padding: 14px 20px; text-align: center; line-height: 1.65;
+}
+.migrate-banner strong { display: block; font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.migrate-banner span { font-size: 13px; color: rgba(255,255,255,0.9); }
+.migrate-banner a { color: #fff; font-weight: 600; text-decoration: underline; }
+.auth-gate .migrate-banner { position: absolute; top: 0; left: 0; right: 0; }
+.migrate-note { margin-top: 10px; font-size: 13.5px; font-weight: 600; color: var(--c-accent); text-align: center; }
+.migrate-note a { color: var(--c-accent); }
+
 body.unauth { overflow: hidden; }
 body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !important; }
 .auth-gate {
@@ -1058,6 +1070,10 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
 
 <!-- ══ AUTH GATE — 사이트 접근 통제 (4안 이메일 게이트) ══ -->
 <div id="authGate" class="auth-gate">
+  <div class="migrate-banner">
+    <strong>ThinQ Real 예약은 사내 주소로 이전했습니다</strong>
+    <span>2026년 11월 9일부터 방문 예약과 관리자 페이지는 <a href="https://thinqreal.lge.com" target="_blank" rel="noopener">https://thinqreal.lge.com</a> 에서 이용하실 수 있습니다(사내망·SSO 로그인).<br>이 페이지에서는 더 이상 예약을 받지 않으며, 기존에 접수·확정된 예약은 모두 그대로 유지됩니다.</span>
+  </div>
   <div class="auth-card">
     <div class="auth-brand">
       <img src="images/LG_AI_Home_logo.png" alt="LG AI Home" class="auth-logo">
@@ -1104,6 +1120,11 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
 
 <!-- ══ HOME ══ -->
 <div id="page-home" class="page active">
+
+  <div class="migrate-banner">
+    <strong>ThinQ Real 예약은 사내 주소로 이전했습니다</strong>
+    <span>2026년 11월 9일부터 방문 예약과 관리자 페이지는 <a href="https://thinqreal.lge.com" target="_blank" rel="noopener">https://thinqreal.lge.com</a> 에서 이용하실 수 있습니다(사내망·SSO 로그인).<br>이 페이지에서는 더 이상 예약을 받지 않으며, 기존에 접수·확정된 예약은 모두 그대로 유지됩니다.</span>
+  </div>
 
   <section class="hero">
     <div class="hero-media"></div>
@@ -1495,7 +1516,8 @@ body.unauth > *:not(.auth-gate):not(.toast):not(script) { display: none !importa
             시설환경팀이 선처리 후 해당 비용을 예약 팀에 청구함에 동의합니다.
           </span>
         </label>
-        <button class="btn-submit" id="submitBtn" onclick="submitBooking()" style="display:none;">예약 신청하기</button>
+        <button class="btn-submit" id="submitBtn" onclick="submitBooking()" style="display:none;" disabled>예약 신청하기</button>
+        <p class="migrate-note" id="migrateNote" style="display:none;">예약은 <a href="https://thinqreal.lge.com" target="_blank" rel="noopener">thinqreal.lge.com</a> 에서 진행해 주세요</p>
         <p class="form-hint" id="submitHint" style="display:none;">신청 후 담당자 검토를 거쳐 확정 메일이 발송됩니다.</p>
       </div>
       <div class="success-state" id="successState">
@@ -2299,6 +2321,7 @@ function renderFormByPurpose() {
   const dyn       = document.getElementById('dynamicForm');
   const submit    = document.getElementById('submitBtn');
   const submitHt  = document.getElementById('submitHint');
+  const mgNote    = document.getElementById('migrateNote');
   const agreement = document.getElementById('agreementBox');
   const privacy   = document.getElementById('privacyBoxes');
   const hintEl    = document.getElementById('purposeHint');
@@ -2307,6 +2330,7 @@ function renderFormByPurpose() {
     dyn.style.display = 'none';
     submit.style.display = 'none';
     submitHt.style.display = 'none';
+    mgNote.style.display = 'none';
     agreement.style.display = 'none';
     privacy.style.display = 'none';
     hintEl.style.display = 'none';
@@ -2320,6 +2344,7 @@ function renderFormByPurpose() {
   dyn.style.display = '';
   submit.style.display = '';
   submitHt.style.display = '';
+  mgNote.style.display = '';
   agreement.style.display = '';
   privacy.style.display = '';
 
@@ -2372,6 +2397,9 @@ function renderVisitorRows() {
 
 // ── Submit ────────────────────────────────────────────────
 async function submitBooking() {
+  // 사내 전환(2026-11-09) — 이 페이지의 예약 접수 중단 (버튼 disabled의 이중 방어, booking 엔드포인트 자체는 유지)
+  alert('예약 접수가 사내 시스템으로 이전되었습니다.\nthinqreal.lge.com 에서 예약해 주세요. (사내망)');
+  return;
   if (!selectedDate || selectedSlots.size === 0) { toast('날짜와 시간대를 선택해 주세요.'); return; }
   const purposeKey = document.getElementById('fPurpose').value;
   if (!purposeKey) { toast('방문 목적을 선택해 주세요.'); return; }
