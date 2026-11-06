@@ -90,6 +90,9 @@ export const config = {
   // 인앱 스케줄러 (일일 잡 3종 — lib/scheduler.js). 기본 켜짐 — K8s CronJob 불필요.
   // 잡을 CronJob으로 옮기거나 로컬에서 끄고 싶을 때만 JOBS_DISABLED=true.
   jobsDisabled: env('JOBS_DISABLED') === 'true',
+  // 잡별 건너뛰기 — 쉼표 구분 잡 이름(lib/scheduler.js JOBS/INTERVAL_JOBS의 name). 키트 v5.11(2026-11-06):
+  // FieldCheck 일일 요약은 하이브리드 에지 원칙상 현행 Apps Script 트리거가 계속 보내므로 OP는 `fieldcheck-summary`를 건너뛴다.
+  jobsSkip: env('JOBS_SKIP', '').split(',').map((s) => s.trim()).filter(Boolean),
 
   authSecret,
 

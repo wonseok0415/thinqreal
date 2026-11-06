@@ -20,6 +20,8 @@
 - 5단계(현행 트리거 삭제) 전까지는 현행 무영향이므로 **§1의 2·3-a~3-f·4단계를 오늘 실데이터로 먼저 실행**(동결 공지 없음 — 대신 시작 시 현행 KPI 캡처를 기준점으로). 5단계 이후는 월요일.
 - 월요일은 1단계 동결 → 2단계 상태값 재확인 → 3-c 검사 → **3-d 적재를 `replace` 모드**(주말 사이 현행 변경분 반영 — `skip`은 기존 id를 건너뛰어 승인·거절 등 값 변경이 안 옮겨짐; `replace`는 같은 id를 삭제 후 재삽입) → 3-e 검증 → 4 → 5~10. 예상 1.5시간(09:30 전후 종료).
 - 오늘 OP에 들어간 실데이터는 `JOBS_DISABLED` 상태라 메일·잡이 돌지 않음. OP 관리자 페이지에 실예약이 보이는 것은 정상(담당자 외 접근 없음).
+- **11/6 선적재 결과**: 검사 bookings 159 = KPI, 12표 오류 0, 전 테이블 일치, 상태값 저장, 샘플 일치. 추가 확인: 테스트 확정 메일 이용 안내 링크 `thinqreal.lge.com` ✓(9-b 선검증), 현행 트리거는 **3개**(월간 리포트·설문 초대·FieldCheck 요약 — FieldCheck 것은 남김, 5·6단계 반영), 안내문·동결 메시지 초안 저장.
+- **월요일 08:00~09:20 사이 사내 Claude 선작업**: 키트 v5.11(`src/config.js`·`src/lib/scheduler.js`, `feat:` → 0.23.0) 적용·롤아웃 — 1~4단계와 병행 가능(패널 작업과 무관). 6단계 전 `/healthz version 0.23.0` 확인.
 
 ## 1. D-day 타임라인 (11/9 월)
 | 시각 | # | 단계 | 실행(붙여넣기) | 확인값 | 실패 시 |
@@ -34,8 +36,8 @@
 | 08:50 | 3-f | **⑤ 상태값** | 2단계 메모 2값 입력 → 저장 | 저장 | — |
 | 09:00 | 4 | **샘플 대조** | OP 관리자 페이지: 최근 예약 5건(상태·슬롯·책임자)·설문 3건·대장 2건을 현행 캡처와 대조, 슬롯 차단·ROI 📌 지정·기사 큐레이션 표시 | 전부 일치 | 불일치 → 3-d로(멱등) |
 | 09:20 | — | **GO/NO-GO** | 여기까지 전부 ✓이면 진행. 아니면 **중지·동결 해제**(현행 무영향) | 결정 기록 | — |
-| 09:25 | 5 | **현행 트리거 정지** | script.google.com → 트리거(⏰) → `monthlyReportTrigger`·설문 초대 트리거 **삭제** (스크립트·웹앱은 유지 — 외부 접점 3종 계속) | 트리거 0건 | `installMonthlyReportTrigger()`·`installSurveyInviteTrigger()` 재실행으로 복원 |
-| 09:30 | 6 | **OP 스케줄러 가동** | 사내 Claude: `deploy/kic-op/configmap.yaml`에서 `JOBS_DISABLED` 줄 삭제 + `config-rev` +1 → `chore:` 커밋·push → ArgoCD Synced | `/healthz` pod 교체, `env_keys`에 `JOBS_DISABLED` 없음 | 줄 복원·재커밋 |
+| 09:25 | 5 | **현행 트리거 정지** | script.google.com → 트리거(⏰) → **2개만 삭제**: `monthlyReportTrigger`·`surveyInviteTrigger`. **`sendFieldCheckDailySummary`는 남긴다**(11/6 담당자 판단 — FieldCheck는 하이브리드 에지라 요약 메일도 현행 Apps Script가 계속 보냄, OP는 `JOBS_SKIP`으로 같은 잡을 건너뜀 → 6단계) (스크립트·웹앱은 유지 — 외부 접점 3종 계속) | 트리거 1건(FieldCheck)만 남음 | `installMonthlyReportTrigger()`·`installSurveyInviteTrigger()` 재실행으로 복원 |
+| 09:30 | 6 | **OP 스케줄러 가동** | 사내 Claude: **키트 v5.11(`feat:` → 0.23.0, `JOBS_SKIP` 지원) 선적용·롤아웃 확인 후** `deploy/kic-op/configmap.yaml`에서 `JOBS_DISABLED` 줄 삭제 + **`JOBS_SKIP: "fieldcheck-summary"` 추가** + `config-rev` +1 → `chore:` 커밋·push → ArgoCD Synced | `/healthz` pod 교체, `env_keys`에 `JOBS_DISABLED` 없음·`JOBS_SKIP` 있음 | 줄 복원·재커밋. v5.11 미적용 상태로 6단계를 밟으면 화요일 07:40 FieldCheck 요약이 두 통(테스트 모드 — 운영자만) — 무해, 적용 후 해소 |
 | 09:45 | 6-b | **리포트 수신자 설정** | 같은 커밋 또는 직후: `MONTHLY_REPORT_TO`=운영자+담당자 3명(§3-C, DL 미등록), `MONTHLY_REPORT_TEST_TO`=운영자 | `env_keys` | — |
 | 10:00 | 7 | **현행 사이트 안내** | 운영 세션이 준비한 PR 머지(안내 배너 + 예약 폼 비활성, 관리자 페이지 동일 / 방문자 설문·privacy·동의서는 그대로) | `thinqreal.com`에서 예약 불가·배너 표시(강력 새로고침) | PR revert |
 | 10:15 | 8 | **안내 발송** | 전환 안내문(§3-D) 임직원·담당자·팀장 | 발송 | — |
@@ -65,9 +67,9 @@ PR 제목 "chore: 사내 전환 안내 배너 + 예약 접수 중단 (D-day 머�
 ```
 ### 3-B. 사내 Claude D-day 프롬프트(6·6-b단계)
 ```
-D-day 6단계. deploy/kic-op/configmap.yaml에서 JOBS_DISABLED 줄을 삭제하고, MONTHLY_REPORT_TO=<운영자+담당자 3명 쉼표 구분, internal-context §2-h>, MONTHLY_REPORT_TEST_TO=<운영자 메일>을 추가/갱신, deploy/base/deployment.yaml config-rev +1.
-다른 키는 건드리지 마. 커밋 "chore: D-day — OP 스케줄러 가동(JOBS_DISABLED 제거) + 리포트 수신자 복원", push는 git pull --rebase origin main && git push origin main.
-push 후 내가 /healthz·env_keys 결과를 붙이면 pod 교체·JOBS_DISABLED 부재·MONTHLY_REPORT_TO 존재를 판정해줘. internal-worklog에 시각과 함께 기록.
+D-day 6단계(키트 v5.11이 0.23.0으로 롤아웃된 뒤). deploy/kic-op/configmap.yaml에서 JOBS_DISABLED 줄을 삭제하고, JOBS_SKIP: "fieldcheck-summary"를 추가, MONTHLY_REPORT_TO=<운영자+담당자 3명 쉼표 구분, internal-context §2-h>, MONTHLY_REPORT_TEST_TO=<운영자 메일>을 추가/갱신, deploy/base/deployment.yaml config-rev +1.
+다른 키는 건드리지 마. 커밋 "chore: D-day — OP 스케줄러 가동(JOBS_DISABLED 제거, FieldCheck 요약은 현행 유지) + 리포트 수신자 복원", push는 git pull --rebase origin main && git push origin main.
+push 후 내가 /healthz·env_keys 결과를 붙이면 pod 교체·JOBS_DISABLED 부재·JOBS_SKIP 존재·MONTHLY_REPORT_TO 존재를 판정해줘. internal-worklog에 시각과 함께 기록.
 ```
 ### 3-C. 리포트 수신자(6-b) — 11/6 변경(사내 제안 수용)
 `MONTHLY_REPORT_TO` = **운영자 + 담당자 3명(4명, configmap 평문 — 메일 주소는 비밀값 아님)**. DL(`DL-pbc-leaderonly`)은 **직접 등록하지 않음** — 2027 조직 개편 예정이라 DL 구성 변동 전까지는 담당자가 Outlook에서 4그룹(팀장 요청 범위)에 수동 전달. `MONTHLY_REPORT_TEST_TO` = 운영자. 값은 internal-context §2-h. **12/2 첫 자동 발송 검증 = 4명 수신 + 전달 본문(도넛 cid 이미지·KPI 카드·범례) 정상**. 나중에 DL로 바꿀 때는 configmap 한 줄 + `config-rev` +1만. 구 명단 백업(10/6, 운영자 보관)은 전달 수신자 재료로만 사용.

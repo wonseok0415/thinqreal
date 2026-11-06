@@ -43,7 +43,7 @@ const INTERVAL_JOBS = [
 
 async function tickInterval(store, now) {
   for (const job of INTERVAL_JOBS) {
-    if (!job.enabled()) continue;
+    if (!job.enabled() || config.jobsSkip.includes(job.name)) continue;
     const every = Math.max(1, job.everyMin());
     if (now.getMinutes() % every !== 0) continue;
     const slot = `${formatDateLocal(now)}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -67,6 +67,7 @@ async function tick(store) {
   const now = new Date();
   await tickInterval(store, now);
   for (const job of JOBS) {
+    if (config.jobsSkip.includes(job.name)) continue; // JOBS_SKIP — 잡별 건너뛰기(키트 v5.11)
     if (!inWindow(now, job.hour, job.minute)) continue;
     let locked;
     try {
@@ -91,6 +92,7 @@ export function startScheduler(store) {
   timer.unref(); // 스케줄러가 프로세스 종료를 막지 않게
   console.log('[scheduler] 인앱 스케줄러 시작 — ' +
     JOBS.map((j) => `${j.name} ${String(j.hour).padStart(2, '0')}:${String(j.minute).padStart(2, '0')}`).join(' / ') + ' (KST)' +
-    INTERVAL_JOBS.filter((j) => j.enabled()).map((j) => ` / ${j.name} ${j.everyMin()}분 간격`).join(''));
+    INTERVAL_JOBS.filter((j) => j.enabled()).map((j) => ` / ${j.name} ${j.everyMin()}분 간격`).join('') +
+    (config.jobsSkip.length ? ` / 건너뜀(JOBS_SKIP): ${config.jobsSkip.join(',')}` : ''));
   return timer;
 }
