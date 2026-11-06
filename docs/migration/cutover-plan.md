@@ -2,7 +2,7 @@
 
 > **목적**: 현행(GitHub Pages + Apps Script + Google Sheets)에서 사내(EKS 컨테이너 + Aurora PostgreSQL + valkey, `thinqreal.lge.com`)로 넘어가는 날 전후에 **누가·언제·무엇을** 하는지 한 장으로 고정한다. 오픈 목표 **2026년 11월(잠정)**.
 > **읽는 사람**: 담당자(강원석 책임)·협업자(UAT)·사내 Claude·외부 트랙. 사내 식별자·비밀값은 없다(internal-context 참조).
-> **상태**: **일정 앞당김(2026-11-06) — D-day 목표 11/9(월), 예비 11/10(화)·11/18(수), 기한 11/30.** 선행 전부 종결(failover ✅ 11/5, 두 번째 인스턴스 DB-i ✅ 11/6). 변경 이력은 `migration-log.md`.
+> **상태**: **GO 확정(2026-11-06 저녁) — D-day 11/9(월) 08:00~11:00, 예비 11/10(화)·11/18(수), 기한 11/30.** §5 D-1 체크 전부 ☑(reader·failover 통보 항목 포함). 당일은 `dday-runbook.md`. 변경 이력은 `migration-log.md`.
 
 ### 0-a. 확정 일정 (2026-10-30 — 담당자 지시 "11/30 이전 반드시 마무리", 협업자 UAT 보류)
 | 날짜 | 할 일 | 누가 | 선행 |
@@ -97,9 +97,9 @@
 - [x] OP `mail_status` smtp / `egress_check` ok / SSO 예외 5종(`/healthz`·`/pub`·방문자 설문·privacy·images) 로그인 없이 열림 — **✅ 2026-11-06 실측(사내 Claude)**
 - [x] Reader instance 추가·failover 테스트 — **✅ 2026-11-05 통과**(중단 13초, 5항목 ○, writer 교대). **두 번째 인스턴스 DB-i 등록 ✅ 11/6**(Next SPoC → 사이버보안운영팀 처리, MGR 접속 `pg_is_in_recovery()`=false — D-day 삭제 SQL 경로 확보)
 - [x] QA 리허설 건수 일치 기록 있음 — **기록 위치: 이 문서 §1 T-3주 행 + migration-log 2026-10-23 항목**(bookings 150·survey 37·visitors 105·articles 18·insights 25·best 9·ledger 9·roi 2·slot_blocks 30·health 612·voc 0, 전 테이블 일치)
-- [~] UAT 1~9 — **협업자 UAT 보류(10/30 담당자 결정)**, OP 마무리 검증(11/2)·D-day 9단계 실거래로 대체
-- [ ] 전환 안내문 확정(런북 §3-D — 확정본), 발송 대상 = 담당자 3·팀장 + **현행 관리자 CSV에서 추출한 신청자 이메일 고유 목록(BCC)** — 담당자 결정
-- [ ] 되돌리기 담당·연락 경로 확인(§6) — 제안: 총괄·GO/NO-GO = 담당자 / configmap 복원(`JOBS_DISABLED` 재설정) = 사내 Claude(담당자 push) / 현행 트리거 재설치·배너 PR revert = 담당자(운영 세션) / 연락 경로 = Teams 팀 채널 「ThinQ Real 알림」 + 담당자 3 Teams 그룹
+- [x] UAT 1~9 — 협업자 UAT 보류(10/30 담당자 결정) → OP 마무리 검증(11/2)·관리자 3인 로그인(11/3)·확정 메일 실값 확인(11/6 테스트 예약 승인→삭제)으로 대체
+- [x] 전환 안내문 확정(런북 §3-D), 발송 대상 = 담당자 3·팀장 + 현행 관리자 CSV에서 추출한 신청자 이메일 고유 목록(BCC) — **✅ 11/6 담당자 확정**
+- [x] 되돌리기 담당·연락 경로(§6): 총괄·GO/NO-GO = 담당자 / configmap 복원(`JOBS_DISABLED` 재설정) = 사내 Claude(담당자 push) / 현행 트리거 재설치·배너 PR revert = 담당자(운영 세션) / 연락 경로 = Teams 팀 채널 「ThinQ Real 알림」 + 담당자 3 Teams 그룹 — **✅ 11/6 담당자 확정**
 
 ## 6. 되돌리기(rollback)
 
