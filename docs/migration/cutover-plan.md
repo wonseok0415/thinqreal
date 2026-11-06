@@ -66,7 +66,7 @@
 
 | 기능 | 전환 전 | 전환 후 |
 |---|---|---|
-| 예약 접수·확정 메일 | 현행 Apps Script(Wi-Fi·도어락 값은 `.gs` buildConfirm* 하드코딩) | 사내 컨테이너 — **Wi-Fi SSID 2종·PW·도어락 PIN은 env 4키(`WIFI_SSID_24G`·`WIFI_SSID_5G`·`WIFI_PASSWORD`·`DOORLOCK_PIN`)를 OP configmap에 평문으로**(11/6 담당자 결정: 보안 요소 아님·담당자 누구나 Gitea에서 수정 가능해야 — Vault는 운영자만 수정 가능하므로 제외). 11/6 미주입 발견 → D-1 주입. **전환 후 값 변경 = configmap 한 줄 + config-rev**(`.gs` 수정은 무효). 후속: 관리자 페이지 설정 패널(키트 v5.9, 전환 후)로 Gitea 없이 수정 가능하게 |
+| 예약 접수·확정 메일 | 현행 Apps Script(Wi-Fi·도어락 값은 `.gs` buildConfirm* 하드코딩) | 사내 컨테이너 — **Wi-Fi SSID 2종·PW·도어락 PIN은 관리자 「확정 메일 설정」 패널(키트 v5.9, app_state) → configmap env 4키 → "(미설정)" 순**. 11/6 담당자 결정: 보안 요소 아님·담당자 누구나 수정 가능해야(Vault 제외). 11/6 미주입 발견 → D-1에 패널로 입력. **전환 후 값 변경 = 패널에서 저장(재배포 없음)**, `.gs` 수정은 무효 |
 | Google 캘린더 일정 | 현행 Apps Script(확정 시 생성) | **전환 후 보류(11/2 담당자 결정)** — 컨테이너는 `GOOGLE_SERVICE_ACCOUNT_JSON`·`CALENDAR_ID` 미설정 시 skip. 추후 A) 서비스 계정 키를 Vault에 추가(사내 pod→외부 Google 전송 보안 판단 필요) 또는 B) 사내 Outlook 캘린더로 교체(코드 추가) 중 결정 |
 | 월간 리포트·설문 초대(일일 잡) | 현행 트리거 2종 | OP 인앱 스케줄러(`JOBS_DISABLED` 제거) |
 | 월간 리포트 수신자 | Script Property `MONTHLY_REPORT_TO` = 운영자 1인(10/6 전환 — 외부 Gmail 발신이라 DL 직접 투입 보류, 운영자가 사내 계정에서 전달) | OP configmap `MONTHLY_REPORT_TO` = **운영자 + 담당자 3명(4명)** — **DL 직접 등록은 보류(11/6 사내 제안·외부 동의: 2027 조직 개편 예정)**, 4그룹 전달은 담당자가 Outlook에서 수동. 12/2 첫 발송에서 4명 수신·전달 본문(cid 이미지) 정상 확인. DL 전환 시 configmap 한 줄 + config-rev |

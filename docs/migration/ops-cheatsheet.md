@@ -34,6 +34,7 @@
 | 텔레그램 연동(OP, secret 주입 후) | `<HOST>/api?type=telegram_test` | `ok:true` + 그룹에 테스트 메시지. `exception`이면 pod→api.telegram.org 차단(Teams만 운용). OP 알림은 비식별 요약 |
 | 구비 가전(백엔드 살아 있나) | `<HOST>/api?type=appliances` | `count:45` |
 | 데이터 이행 패널(키트 v5~) | 같은 브라우저에서 `<HOST>/thinqreal_admin.html` 로그인 후 `<HOST>/api?type=admin_import_page` | 상단 「토큰 있음」. 소스는 「현행 시스템에서 직접」(패널 안에서 메일 → 코드 받기 → 6자리 → 로그인 — 파일·개발자 도구 불필요) → ① 검사 → ② 적재 → ③ 검증(전 테이블 일치, export_log 제외) |
+| 확정 메일 설정 패널(키트 v5.9~) | 같은 브라우저에서 `<HOST>/thinqreal_admin.html` 로그인 후 `<HOST>/api?type=admin_mail_settings_page` | Wi-Fi SSID 2종·PW·도어락 PIN 입력 → [저장] → 다음 확정 메일부터 반영(재배포 없음). [확정 메일 미리보기]로 확인. 비우면 env(configmap) 값으로 복귀 |
 | 인증 코드 보기(ST·QA만) | `<HOST>/api?type=auth_code_peek&kind=admin&email=<본인메일>` | `code` 6자리. OP는 404가 정상(메일로 옴) |
 | 코드 요청(주소창, 페이지 안 될 때) | `<HOST>/api?type=admin_auth_request&email=<본인메일>` | `ok:true` (60초 내 재요청은 `cooldown`) |
 | 코드 검증(주소창) | `<HOST>/api?type=admin_auth_verify&email=<본인메일>&code=<6자리>` | `ok:true` + token |

@@ -172,6 +172,6 @@
 
 - 테이블 = 시트 탭 1:1, 테이블·컬럼명은 위 정의 그대로. **전 컬럼 TEXT** (시트가 문자열 저장소였고 소비처가 전부 String/Number 변환을 수행 — 타입 강화는 이관 안정화 후 별도 과제).
 - 추가 컬럼 2종: `rid BIGSERIAL PRIMARY KEY`(시트의 행 순서 대체 — 조회 ORDER BY rid), `monthly_articles.ord BIGINT`(기사 순서 교환용 — article_move).
-- `app_state`는 key/value 2컬럼 + PK(key) — Script Properties 대체 (발송 토큰·수동 발송 이력·ROI pin·월 가드).
+- `app_state`는 key/value 2컬럼 + PK(key) — Script Properties 대체 (발송 토큰·수동 발송 이력·ROI pin·월 가드). **(2026-11-06 키트 v5.9) `mail.WIFI_SSID_24G`·`mail.WIFI_SSID_5G`·`mail.WIFI_PASSWORD`·`mail.DOORLOCK_PIN`** — 확정 메일 설정 패널 값(빈 문자열=미설정→env 폴백). 이행 대상 아님(현행 Script Properties에 없음).
 - 스키마는 앱 기동 시 자동 생성/진화 (CREATE TABLE IF NOT EXISTS + ADD COLUMN IF NOT EXISTS — 상수 배열이 곧 DDL 소스라 applicant 같은 신규 컬럼도 상수 반영 시 자동 추가). 별도 마이그레이션 도구 없음.
 - 시트→PG 실데이터 이행은 과제 D (전환 직전 1회) — 이행 시 컬럼 순서가 아니라 **컬럼명 매칭**으로 넣을 것.

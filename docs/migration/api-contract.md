@@ -112,6 +112,15 @@ id 기준(멱등 키): bookings·roi·slot_blocks·insights·best·export_log·h
 
 패널: `GET /api?type=admin_import_page` — 서버가 직접 서빙하는 HTML(라이브 `thinqreal_admin.html` 무수정). 토큰은 같은 오리진 관리자 페이지의 localStorage 값 재사용. 순서 ① 검사 → ② 적재(테이블 체크·모드) → ③ 검증 → (ST·QA) 초과 행 삭제 → 상태값.
 
+### 컨테이너 전용 — 확정 메일 설정 패널 (2026-11-06, 키트 v5.9)
+확정 메일의 Wi-Fi SSID 2종·비밀번호·도어락 PIN을 관리자가 Gitea·Vault 없이 관리자 페이지 안에서 바꾼다. 우선순위 **패널(app_state `mail.<KEY>`) → env(configmap) → "(미설정)"**, 저장 즉시 다음 확정 메일부터 반영(재배포 없음). 키 4종: `WIFI_SSID_24G`·`WIFI_SSID_5G`·`WIFI_PASSWORD`·`DOORLOCK_PIN`.
+| 엔드포인트 | 인증 | 설명 |
+|---|---|---|
+| `GET /api?type=admin_mail_settings_page` | SSO 뒤(동작은 토큰) | 패널 HTML(서버 서빙, 라이브 admin HTML 무수정). 토큰은 같은 오리진 localStorage 재사용 |
+| `GET /api?type=admin_mail_settings&token=` | 관리자 토큰 | `{ok, keys, labels, values, sources(db\|env\|default), envSet}` — values는 유효값(비밀값이지만 관리자 전용) |
+| `GET /api?type=admin_mail_preview&token=` | 관리자 토큰 | 샘플 예약(홍길동 책임, 가상)으로 렌더한 확정 메일 HTML — 발송 없음 |
+| `POST /api` `type=admin_mail_settings_set` | 관리자 토큰 | body `{settings:{KEY:value}}` — 빈 값=패널 값 해제(env 폴백), env와 같은 값은 저장하지 않음(출처 env 유지), 100자·줄바꿈 금지. 응답 `{ok, applied, values, sources}`. 값은 서버 로그에 남기지 않음 |
+
 ### `booking` 요청 body 주요 필드
 ```
 type, timestamp(ISO), date, slots(number[]), slot, slotLabel,

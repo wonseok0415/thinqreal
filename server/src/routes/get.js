@@ -14,6 +14,9 @@ import {
 } from '../handlers/diagnostics.js';
 import { handleGetSurveyData } from '../handlers/survey.js';
 import { renderImportPage } from '../handlers/importPage.js';
+import { getMailSettings, resolveMailSettings, sampleBookingForPreview } from '../handlers/mailSettings.js';
+import { renderMailSettingsPage } from '../handlers/mailSettingsPage.js';
+import { buildConfirmHtml } from '../mail/templates/confirm.js';
 import { handleGetHealthChecks } from '../handlers/health.js';
 import { handleGetVocReports } from '../handlers/voc.js';
 import { runEdgeSyncJob } from '../jobs/edgeSync.js';
@@ -74,6 +77,19 @@ export function createGetRouter(store) {
           return res.json(await handleEgressCheck(q.token));
         case 'env_keys': // pod에 주입된 env 이름만(값 없음) — 어느 configmap/secret이 도달했는지 판별 (OP 토큰 필수, 2026-09-28)
           return res.json(handleEnvKeys(q.token));
+        case 'admin_mail_settings_page': // 관리자 「확정 메일 설정」 패널 (컨테이너 전용 HTML, 키트 v5.9) — 동작은 토큰 게이트
+          return res.type('html').send(renderMailSettingsPage());
+        case 'admin_mail_settings': { // 현재 유효값·출처 (관리자 토큰)
+          const admin = verifyAdminToken(q.token);
+          if (!admin.ok) return res.json({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
+          return res.json(await getMailSettings(store));
+        }
+        case 'admin_mail_preview': { // 확정 메일 HTML 미리보기 — 샘플 예약 + 현재 설정 (관리자 토큰, 발송 없음)
+          const admin = verifyAdminToken(q.token);
+          if (!admin.ok) return res.json({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
+          const settings = await resolveMailSettings(store);
+          return res.type('html').send(buildConfirmHtml(sampleBookingForPreview(), settings));
+        }
         case 'admin_import_page': // 관리자 「데이터 이행」 패널 (컨테이너 전용 HTML — 라이브 admin HTML 무수정, §8-17). SSO 뒤, 동작은 /api/import 토큰 게이트
           return res.type('html').send(renderImportPage());
         case 'db_probe': // pod → RDS·valkey TCP 도달(SG 허용) 진단 — host&port 지정(amazonaws.com만) 또는 env 대상 (OP 토큰 필수, 키트 v4.12)
