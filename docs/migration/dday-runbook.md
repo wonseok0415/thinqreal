@@ -43,14 +43,19 @@
 - 되돌리기 창: §6 기준. 11/11 종업 후에도 문제 없으면 11/13(금) 종료 선언.
 
 ## 3. 붙여넣을 것
-### 3-A. 운영 세션 요청(현행 사이트 안내 PR — D-1 준비, D-day 머지)
+### 3-A. 운영 세션 요청(현행 사이트 안내 PR — D-1 준비, D-day 머지) — 11/6 문안 다듬음
 ```
-이관 세션 요청(전환 D-day 11/9 머지용 PR, 머지 전까지 라이브 무변경):
-1. index.html — 게이트 앞·홈 상단에 안내 배너 "ThinQ Real 예약 시스템이 사내 주소 https://thinqreal.lge.com 으로 이전했습니다(사내망). 이 페이지에서는 예약을 받지 않습니다." + 예약 탭 폼 제출 비활성(버튼 disabled + 같은 문구).
-2. thinqreal_admin.html — 로그인 화면 상단 같은 안내, 로그인 자체는 유지(열람용).
-3. ThinQ_Real_Visitor_Survey.html·ThinQ_Real_Visit_Survey.html·privacy.html·ThinQ_Real_Visit_Consent.html — 변경 없음(외부 접점·게이트 밖 문서).
-4. .gs — 변경 없음(visitor_submit·health_check·voc_report·survey_data·health_checks·voc_reports는 계속 호출됨).
-PR 제목 "chore: 사내 전환 안내 배너 + 예약 접수 중단(D-day 머지)". 머지는 담당자가 D-day에.
+이관 세션 요청(전환 D-day 11/9(월) 머지용 PR — 머지 전까지 라이브 무변경):
+1. index.html — 게이트 앞과 홈 상단에 안내 배너(다크 올리브 톤, 닫기 버튼 없음):
+   제목: 「ThinQ Real 예약은 사내 주소로 이전했습니다」
+   본문: 「2026년 11월 9일부터 방문 예약과 관리자 페이지는 https://thinqreal.lge.com 에서 이용하실 수 있습니다(사내망·SSO 로그인).
+         이 페이지에서는 더 이상 예약을 받지 않으며, 기존에 접수·확정된 예약은 모두 그대로 유지됩니다.」
+   + 예약 탭: 폼 제출 버튼 disabled, 버튼 아래 같은 톤의 한 줄 「예약은 thinqreal.lge.com 에서 진행해 주세요」. 달력·슬롯 표시는 그대로.
+2. thinqreal_admin.html — 로그인 화면 상단에 같은 배너(본문 「관리자 페이지는 https://thinqreal.lge.com/thinqreal_admin.html 로 이전했습니다. 이 페이지는 열람용으로만 남습니다」). 로그인 기능은 유지.
+3. ThinQ_Real_Visitor_Survey.html · ThinQ_Real_Visit_Survey.html · privacy.html · ThinQ_Real_Visit_Consent.html — 변경 없음(외부 접점·게이트 밖 문서).
+4. ThinQReal_AppScript.gs — 변경 없음(visitor_submit·health_check·voc_report·survey_data·health_checks·voc_reports는 계속 호출됨).
+5. 배너는 body.unauth 게이트 가림 선택자(direct-child) 밖에서도 보이도록 배치 확인.
+PR 제목 "chore: 사내 전환 안내 배너 + 예약 접수 중단 (D-day 머지)". 머지는 담당자가 11/9 10:00 7단계에서.
 ```
 ### 3-B. 사내 Claude D-day 프롬프트(6·6-b단계)
 ```
