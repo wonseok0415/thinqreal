@@ -44,7 +44,17 @@ body {
   min-height:100svh; display:flex; align-items:center; justify-content:center;
   background:var(--c-accent);
   background-image:radial-gradient(ellipse at 65% 25%, #4e6b49 0%, var(--c-accent) 65%);
+  position:relative;
 }
+/* ── 사내 전환 안내 배너 (2026-11-09 D-day) — 로그인 화면 상단, 닫기 버튼 없음 ── */
+.migrate-banner {
+  position:absolute; top:0; left:0; right:0;
+  background:#2c3e28; border-bottom:1px solid rgba(255,255,255,0.22);
+  color:#fff; padding:13px 20px; text-align:center; line-height:1.65;
+}
+.migrate-banner strong { display:block; font-size:14.5px; font-weight:700; margin-bottom:3px; }
+.migrate-banner span { font-size:12.5px; color:rgba(255,255,255,0.88); }
+.migrate-banner a { color:#fff; font-weight:600; text-decoration:underline; word-break:break-all; }
 .login-card {
   background:var(--c-bg); border-radius:var(--radius-lg);
   padding:var(--sp-40); width:min(380px,calc(100vw - 48px));
@@ -1005,6 +1015,10 @@ body {
 
 <!-- Login (관리자 이메일 코드 인증) -->
 <div class="login-screen" id="loginScreen">
+  <div class="migrate-banner">
+    <strong>ThinQ Real 예약은 사내 주소로 이전했습니다</strong>
+    <span>관리자 페이지는 <a href="https://thinqreal.lge.com/thinqreal_admin.html" target="_blank" rel="noopener">https://thinqreal.lge.com/thinqreal_admin.html</a> 로 이전했습니다. 이 페이지는 열람용으로만 남습니다.</span>
+  </div>
   <div class="login-card">
     <div class="login-logo">ThinQ Real</div>
     <div class="login-subtitle">Admin Dashboard</div>
