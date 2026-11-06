@@ -69,7 +69,7 @@
 | 예약 접수·확정 메일 | 현행 Apps Script | 사내 컨테이너 |
 | Google 캘린더 일정 | 현행 Apps Script(확정 시 생성) | **전환 후 보류(11/2 담당자 결정)** — 컨테이너는 `GOOGLE_SERVICE_ACCOUNT_JSON`·`CALENDAR_ID` 미설정 시 skip. 추후 A) 서비스 계정 키를 Vault에 추가(사내 pod→외부 Google 전송 보안 판단 필요) 또는 B) 사내 Outlook 캘린더로 교체(코드 추가) 중 결정 |
 | 월간 리포트·설문 초대(일일 잡) | 현행 트리거 2종 | OP 인앱 스케줄러(`JOBS_DISABLED` 제거) |
-| 월간 리포트 수신자 | Script Property `MONTHLY_REPORT_TO` = 운영자 1인(10/6 전환 — 외부 Gmail 발신이라 사내 DL 직접 투입 보류, 운영자가 사내 계정에서 전달) | OP configmap `MONTHLY_REPORT_TO`에 **DL(`DL-pbc-leaderonly`)+개인 명단 직접 등록** — 사내 SMTP 발신이라 DL 정책 통과 가능. 전환 전 OP에서 `[테스트]` 발송으로 DL 수신 실측(운영 세션 10/6 기록의 "이관 완료 후 복원" 항목) |
+| 월간 리포트 수신자 | Script Property `MONTHLY_REPORT_TO` = 운영자 1인(10/6 전환 — 외부 Gmail 발신이라 DL 직접 투입 보류, 운영자가 사내 계정에서 전달) | OP configmap `MONTHLY_REPORT_TO` = **운영자 + 담당자 3명(4명)** — **DL 직접 등록은 보류(11/6 사내 제안·외부 동의: 2027 조직 개편 예정)**, 4그룹 전달은 담당자가 Outlook에서 수동. 12/2 첫 발송에서 4명 수신·전달 본문(cid 이미지) 정상 확인. DL 전환 시 configmap 한 줄 + config-rev |
 | FieldCheck 일일 요약 | 현행(`FC_TEST_MODE`) | OP 스케줄러 07:40 — **현행 쪽 요약 발송 함수가 별도 트리거면 함께 정지**(FieldCheck 세션 확인) |
 | 방문객 QR 설문·FieldCheck 장비·FieldVoice | Apps Script `visitor_submit`·`health_check`·`voc_report` | **동일(유지)** + 사내 edge-sync pull |
 | 담당자 메신저 알림 | 텔레그램(현행 Apps Script, 상세) | **OP = Teams 웹훅(상세) + 텔레그램(비식별 요약 — 성명·소속·연락처·주제·고객사 없음, 키트 v5.2 kic-op 자동)** — 절충안 2026-10-01. 외부 접점(방문객 설문·FieldCheck·FieldVoice) 제출 알림은 Apps Script가 텔레그램으로 계속 |
