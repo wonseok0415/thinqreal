@@ -11,6 +11,7 @@
 | 오후 | 운영 세션에 **현행 사이트 안내 PR**(§3-A 문안) 준비 요청 — **머지는 D-day 7단계에서** | 담당자→운영 세션 | PR 번호 |
 | 오후 | OP `/healthz` 4값(`postgres`·`verified`·`shared`·`env`), `mail_status smtp`, `egress_check ok` 재확인 | 담당자 | 치트시트 B |
 | 오후 | **DB-i 매핑이 현재 writer를 가리키는지**: 11/5 failover 후 writer가 두 번째 인스턴스로 교대(failback 없음) → 두 번째 인스턴스 DB-i 등록(Next SPoC, 테스트 직후 신청·11/17 전 완료 목표)이 끝났는지 + DBeaver에서 `SELECT pg_is_in_recovery()` = false 확인. 미완료면 3-e 삭제 SQL 불가 → 사내 Claude가 APP 계정 경로 대안 또는 D-day 연기 판단 | 담당자·사내 Claude | false |
+| 오후 | **확정 메일 Wi-Fi·도어락 4키 주입**(11/6 발견 — OP 확정 메일에 "(미설정)"): 담당자가 Vault UI에 `WIFI_SSID_24G`·`WIFI_SSID_5G`·`WIFI_PASSWORD`·`DOORLOCK_PIN` 등록(값은 현행 `.gs` buildConfirm* = CLAUDE.md 규칙 줄) → 사내 Claude가 `deploy/kic-op/secret.yaml`에 자리표시자 4개 추가 + config-rev +1 → `env_keys`에 4키 → 테스트 예약 1건 승인해 확정 메일에 실제 값 확인 후 삭제 | 담당자·사내 Claude | 메일에 SSID·PW·PIN 표시 |
 | 오후 | **라이브 정적 재병합 확인**: GitHub에서 `git log --since=2026-09-22 -- '*.html' images`가 비어 있으면 Gitea `public/`은 최신(9/22 키트 v4.1 동기본). 변경이 있으면 사내 Claude에 "미러 루트 HTML 7종·images → Gitea public/ 복사, `fix:` 커밋"(SCRIPT_URL은 서빙 시 치환이라 수정 없이 복사). **D-day 7단계의 안내 배너 PR은 public/에 복사하지 않는다**(OP는 배너 없는 버전) | 담당자·사내 Claude | 변경 0건 또는 복사 완료 |
 | 오후 | 사내 Claude에 §3-B D-day 프롬프트 전달해 두기(실행은 당일) | 담당자 | — |
 | 저녁 | cutover §5 체크 전부 ☑ 확인 | 담당자 | ☑ |
