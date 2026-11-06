@@ -108,31 +108,36 @@ const KRW_TICK = (v) => {
   return String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 };
 
-/** 방문 목적별 분포 도넛 — 6개 카테고리 전부 레전드 표시 (0건 포함) */
+/** 방문 목적별 분포 도넛 — 현행 .gs renderPurposeDonutBytes와 같은 형상(키트 v5.10, 2026-11-06 선적재 샘플 대조에서 발견).
+ *  .gs는 480×480 정사각 PNG에 도넛만 그리고(외경 0.485·내경 0.30 → cutout ≈62%, 범례 없음) HTML 범례가 따로 붙는다.
+ *  구 컨테이너 렌더는 480×240에 chart.js 범례까지 넣어 width=180 축소 시 도넛이 1/3 크기로 보였음(수치·범례는 동일).
+ *  슬라이스 라벨은 .gs와 같이 숫자만(단위 "건"은 HTML 범례), 5% 미만 슬라이스는 생략. */
 export async function renderPurposeDoughnut(purposeCounts) {
   const canonical = Object.keys(PURPOSE_COLORS);
   const extras = Object.keys(purposeCounts).filter((k) => !PURPOSE_COLORS[k] && purposeCounts[k] > 0);
   const labels = canonical.concat(extras);
   const values = canonical.map((k) => purposeCounts[k] || 0).concat(extras.map((k) => purposeCounts[k]));
   const colors = canonical.map((k) => PURPOSE_COLORS[k]).concat(extras.map(() => '#5e7858'));
+  const total = values.reduce((s, v) => s + v, 0);
 
   return renderPng(() => ({
     type: 'doughnut',
-    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 3, borderColor: '#ffffff' }] },
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
     options: {
-      cutout: '60%',
+      cutout: '62%',
+      layout: { padding: 0 },
       plugins: {
-        legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10, boxWidth: 10, usePointStyle: true } },
+        legend: { display: false },   // 범례는 HTML(색 글자 ●) — Word 엔진 생존 마크업
         datalabels: {
           color: '#ffffff',
-          font: { size: 13, weight: 'bold' },
+          font: { size: 36, weight: 'bold' },   // 480px 캔버스 기준(.gs 글리프 35px) — 180px 표시 시 ≈13.5px
           anchor: 'center',
           align: 'center',
-          formatter: (value) => (value > 0 ? value + '건' : ''),
+          formatter: (value) => (value > 0 && total > 0 && value / total >= 0.05 ? String(value) : ''),
         },
       },
     },
-  }), { w: 480, h: 240 });
+  }), { w: 480, h: 480 });
 }
 
 /** ROI 가치 항목별 비중 도넛 — 라벨/색상은 ROI 툴과 동기화 (ROI_VALUE_LABELS) */
