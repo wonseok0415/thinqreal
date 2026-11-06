@@ -6,6 +6,7 @@ import { verifyAdminToken } from '../auth/token.js';
 import { sendMail } from '../mail/mailer.js';
 import { buildAdminAlertText, buildAdminAlertHtml } from '../mail/templates/adminAlert.js';
 import { buildConfirmText, buildConfirmHtml, buildRejectText, buildRejectHtml } from '../mail/templates/confirm.js';
+import { resolveMailSettings } from './mailSettings.js';
 import { notifyNewBooking, notifyStatusChange } from '../notify/index.js';
 import { normalizeSlotsInput, syncCalendarUpsert, syncCalendarDelete, syncCalendarByStatus } from '../calendar/google.js';
 import { config } from '../config.js';
@@ -57,8 +58,9 @@ async function sendAdminAlert(data, id) {
 }
 
 // 예약자 확정/거절 메일 — HTML + plain-text 동시
-async function sendGuestMail(data) {
+async function sendGuestMail(store, data) {
   const isConfirmed = data.status === '확정';
+  const settings = isConfirmed ? await resolveMailSettings(store) : null;   // Wi-Fi·도어락: 패널 → env (키트 v5.9)
   const subject = isConfirmed
     ? `[ThinQ Real] 예약이 확정되었습니다 — ${data.date} ${data.slotLabel || ''}`
     : `[ThinQ Real] 예약 신청이 거절되었습니다`;
@@ -66,8 +68,8 @@ async function sendGuestMail(data) {
     to: data.email,
     cc: config.adminAlertCc,
     subject,
-    text: isConfirmed ? buildConfirmText(data) : buildRejectText(data),
-    html: isConfirmed ? buildConfirmHtml(data) : buildRejectHtml(data),
+    text: isConfirmed ? buildConfirmText(data, settings) : buildRejectText(data),
+    html: isConfirmed ? buildConfirmHtml(data, settings) : buildRejectHtml(data),
   });
 }
 
@@ -80,7 +82,7 @@ export async function handleUpdateStatus(store, data) {
 
   // 목적은 시트에서 읽은 값을 우선 사용 (현행 동일)
   if (data.email) {
-    await sendGuestMail({ ...data, purpose: data.purpose || booking.purpose || '' });
+    await sendGuestMail(store, { ...data, purpose: data.purpose || booking.purpose || '' });
   }
   await notifyStatusChange({ ...booking, status: data.status }, data.status);
   await syncCalendarByStatus(store, data.id, data.status);

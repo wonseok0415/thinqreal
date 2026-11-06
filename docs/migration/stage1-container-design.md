@@ -489,6 +489,14 @@ Gitea 저장소 원본 검수에서 **HPA min 2 레플리카**가 확인되어(�
 **검증(로컬 PostgreSQL 16)**: 앱 기동 → `pg_terminate_backend`로 앱 커넥션 전부 강제 종료(failover 흉내) → 로그에 `idle client error (failover?): 57P01` → `/healthz` 200 유지(프로세스 생존) → `availability` 조회 정상(재연결). 핸들러 없는 종전 코드였다면 프로세스 종료.
 **운영**: T-2주 reader 추가·failover 테스트 때 OP `/healthz`의 `pod` 이름이 바뀌지 않으면(재시작 없음) 통과. cutover-plan §1·§5 갱신.
 
+### 8-21. 확정 메일 설정 패널 — Wi-Fi·도어락 값의 관리자 자가 수정 (2026-11-06, 키트 v5.9)
+
+**배경**: 11/6 OP 확정 메일에 Wi-Fi·도어락이 "(미설정)" — §8에서 `.gs` 하드코딩을 env 4키로 옮겼는데 OP에 미주입(키트 M2 목록 누락). 담당자 결정: 이 값은 보안 요소가 아니며 **담당자 누구나 바꿀 수 있어야** 한다(Vault는 운영자만 수정 가능) → CLAUDE.md "반복 운영 작업은 관리자 페이지 안에서 완결" 원칙대로 패널화.
+**구현**: `handlers/mailSettings.js`(`resolveMailSettings`: app_state `mail.<KEY>` → env → "(미설정)", `getMailSettings`, `setMailSettings` — env와 같은 값·빈 값은 패널 값으로 저장하지 않음) / `handlers/mailSettingsPage.js`(컨테이너 전용 HTML, 데이터 이행 패널과 같은 토큰 재사용 방식) / `routes/get.js` `admin_mail_settings_page`·`admin_mail_settings`·`admin_mail_preview` / `routes/post.js` `admin_mail_settings_set`(ADMIN_TYPES) / `mail/templates/confirm.js` 빌더 2종에 `settings` 인자(생략 시 env — 구 호출 호환) / `handlers/bookings.js` `sendGuestMail(store, data)`가 확정 시 settings 해석.
+**검증(memory 저장소 E2E + Chromium)**: GET 출처 env/default → SET 3키 → 미리보기에 패널 값·env 값 반영·"(미설정)" 없음 → 빈 값 저장 시 env 폴백 → 잘못된 토큰 unauthorized → 패널에서 저장 후 배지 전환(env 값 그대로 저장해도 출처 env 유지, 수정 시 패널, 비우면 env 복귀).
+**운영**: 전환 후 Wi-Fi·도어락 값의 단일 소스 = 이 패널(없으면 configmap env). `.gs` 수정은 OP에 무효. 값은 메일에만 노출(페이지·로그 미노출). 접근은 관리자 토큰(명단 7명).
+**⚠ 스펙 대비 변경**: §8 "민감 정보 env(secret) 주입" → **app_state 저장 + configmap 폴백(평문)** — 담당자 판단(값이 이미 CLAUDE.md·`.gs`에 공개, 운영 편의 우선).
+
 ### 8-17-b. 이행 소스 추가 — 현행 Apps Script 직접 pull (2026-10-22, 키트 v5.5)
 
 **배경**: QA 리허설 첫 시도에서 **사내 PC의 파일 업로드 차단 정책**으로 xlsx를 패널에 올릴 수 없음이 확인됨(§8-17의 xlsx 전제가 사내에서 성립하지 않음).

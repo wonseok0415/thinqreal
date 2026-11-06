@@ -1,6 +1,6 @@
 // 예약자 확정/거절 메일 — .gs buildConfirmText/Html · buildRejectText/Html 이식.
-// Wi-Fi·도어락 등 민감 정보는 메일에만 (페이지 노출 금지). 값은 env(config)에서 —
-// .gs 하드코딩(공개 리포 노출)을 env로 옮긴 개선점.
+// Wi-Fi·도어락 등 민감 정보는 메일에만 (페이지 노출 금지). 값은 settings(관리자 설정 패널 → env, 키트 v5.9)에서 —
+// 호출부가 resolveMailSettings(store) 결과를 넘긴다. 생략 시 env(config)만 사용(구 동작).
 import { escapeHtml } from '../../lib/html.js';
 import { config } from '../../config.js';
 import { buildAppliancesText, buildAppliancesHtml } from './appliances.js';
@@ -8,10 +8,10 @@ import { buildAppliancesText, buildAppliancesHtml } from './appliances.js';
 const includeAppliancesFor = (purpose) => (purpose || '').indexOf('R&D') >= 0;
 const includeWelcomeBoardFor = (purpose) => /(B2B|홍보)/.test(purpose || '');
 
-export function buildConfirmText(data) {
+export function buildConfirmText(data, settings) {
   const includeAppliances = includeAppliancesFor(data.purpose);
   const includeWelcomeBoard = includeWelcomeBoardFor(data.purpose);
-  const { wifi, doorlockPin } = config;
+  const { wifi, doorlockPin } = settings || config;
 
   const sections = [
     `안녕하세요, ${data.applicant || data.name}님.`,   // 수신자 = 신청자 이메일 → 인사말도 신청자 (2026-09-01)
@@ -78,10 +78,10 @@ export function buildConfirmText(data) {
   return sections.join('\n');
 }
 
-export function buildConfirmHtml(data) {
+export function buildConfirmHtml(data, settings) {
   const includeAppliances = includeAppliancesFor(data.purpose);
   const includeWelcomeBoard = includeWelcomeBoardFor(data.purpose);
-  const { wifi, doorlockPin } = config;
+  const { wifi, doorlockPin } = settings || config;
   const name = escapeHtml(data.applicant || data.name);   // 수신자 = 신청자 (2026-09-01)
   const date = escapeHtml(data.date);
   const slot = escapeHtml(data.slotLabel || '');

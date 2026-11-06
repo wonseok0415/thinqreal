@@ -4,6 +4,7 @@
 import { Router } from 'express';
 import express from 'express';
 import { verifyAdminToken } from '../auth/token.js';
+import { setMailSettings } from '../handlers/mailSettings.js';
 import {
   handleNewBooking, handleUpdateStatus, handleDeleteBooking,
   handleAdminCreateBooking, handleAdminEditBooking,
@@ -33,6 +34,7 @@ const ADMIN_TYPES = new Set([
   'issue_update', 'issue_delete', 'visitor_delete', 'export_log',
   'insight_add', 'insight_delete', 'insight_move',
   'article_add', 'article_delete', 'article_move', 'article_update',
+  'admin_mail_settings_set',   // 확정 메일 설정 패널 저장 (키트 v5.9)
   'best_reviewer_send', 'roi_report_pin',
 ]);
 
@@ -90,6 +92,7 @@ export function createPostRouter(store, { onlyTypes } = {}) {
         if (!admin.ok) {
           return res.json({ error: 'unauthorized', reason: admin.reason || 'invalid_token' });
         }
+        if (data.type === 'admin_mail_settings_set') return res.json(await setMailSettings(store, data.settings, admin.email));
         if (data.type === 'update') return res.json(await handleUpdateStatus(store, data));
         if (data.type === 'booking_delete') return res.json(await handleDeleteBooking(store, data, admin.email));
         if (data.type === 'slot_block') return res.json(await handleSlotBlock(store, data, admin.email));
