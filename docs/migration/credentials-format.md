@@ -140,19 +140,6 @@
 비고      : 평문 Teams·메일 금지. Vault DB_CREDENTIAL(사람용 임시 DB 계정, TTL 1일)은 이 파일에 기록하지 않음 — 매번 Vault에서 발급.
 
 =====
-키        : op-wifi-doorlock
-용도      : OP 확정 메일의 Wi-Fi SSID 2종·비밀번호·도어락 PIN (env 4키 — 컨테이너 설계 §8: .gs 하드코딩을 env로 이동)
-대상      : Vault KV 경로(vault-kv-token 블록과 같은 경로)에 키 4개: WIFI_SSID_24G / WIFI_SSID_5G / WIFI_PASSWORD / DOORLOCK_PIN
-계정      : -
-값        : ******** (현행 .gs buildConfirm* 값과 동일 — 2026-11-06 기준 CLAUDE.md §메일 발송 규칙이 단일 소스)
-발급일    : 2026-11-06 (OP 주입)
-출처      : 현행 Apps Script buildConfirm* (운영 세션 관리)
-주입      : WIFI_SSID_24G / WIFI_SSID_5G / WIFI_PASSWORD / DOORLOCK_PIN (OP Vault → AVP secret.yaml 자리표시자 4개)
-교체 주기 : 도어락 PIN·Wi-Fi PW 변경 시(운영 세션 통보) — Vault 값 수정 + config-rev +1
-교체 이력 : -
-비고      : 전환 후에는 .gs 수정이 확정 메일에 반영되지 않음 — Vault가 단일 소스. 변경 시 CLAUDE.md 규칙 줄과 동시 갱신.
-
-=====
 키        : fc-api-key
 용도      : FieldCheck 점검 장비 키
 대상      : Apps Script Script Property FC_API_KEY ↔ rig config.json
