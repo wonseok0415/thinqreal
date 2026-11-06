@@ -30,7 +30,7 @@
 | 09:20 | — | **GO/NO-GO** | 여기까지 전부 ✓이면 진행. 아니면 **중지·동결 해제**(현행 무영향) | 결정 기록 | — |
 | 09:25 | 5 | **현행 트리거 정지** | script.google.com → 트리거(⏰) → `monthlyReportTrigger`·설문 초대 트리거 **삭제** (스크립트·웹앱은 유지 — 외부 접점 3종 계속) | 트리거 0건 | `installMonthlyReportTrigger()`·`installSurveyInviteTrigger()` 재실행으로 복원 |
 | 09:30 | 6 | **OP 스케줄러 가동** | 사내 Claude: `deploy/kic-op/configmap.yaml`에서 `JOBS_DISABLED` 줄 삭제 + `config-rev` +1 → `chore:` 커밋·push → ArgoCD Synced | `/healthz` pod 교체, `env_keys`에 `JOBS_DISABLED` 없음 | 줄 복원·재커밋 |
-| 09:45 | 6-b | **리포트 수신자 복원** | 같은 커밋 또는 직후: `MONTHLY_REPORT_TO`=DL+개인 명단(§3-C), `MONTHLY_REPORT_TEST_TO`=운영자 | `env_keys` | — |
+| 09:45 | 6-b | **리포트 수신자 설정** | 같은 커밋 또는 직후: `MONTHLY_REPORT_TO`=운영자+담당자 3명(§3-C, DL 미등록), `MONTHLY_REPORT_TEST_TO`=운영자 | `env_keys` | — |
 | 10:00 | 7 | **현행 사이트 안내** | 운영 세션이 준비한 PR 머지(안내 배너 + 예약 폼 비활성, 관리자 페이지 동일 / 방문자 설문·privacy·동의서는 그대로) | `thinqreal.com`에서 예약 불가·배너 표시(강력 새로고침) | PR revert |
 | 10:15 | 8 | **안내 발송** | 전환 안내문(§3-D) 임직원·담당자·팀장 | 발송 | — |
 | 10:30 | 9 | **첫 실거래** | 담당자가 OP에서 예약 1건 접수 → 담당자 알림 메일·Teams 카드·텔레그램 비식별 요약 → 승인 → 확정 메일 → 삭제. **캘린더는 전환 범위 밖(11/2 담당자 결정 — OP env 미설정이라 skip, 추후 방법 결정)** | 메일 2통·카드·텔레그램 1건 | 메일만 실패 → 수동 발송 + 키트 |
@@ -59,12 +59,12 @@ PR 제목 "chore: 사내 전환 안내 배너 + 예약 접수 중단 (D-day 머�
 ```
 ### 3-B. 사내 Claude D-day 프롬프트(6·6-b단계)
 ```
-D-day 6단계. deploy/kic-op/configmap.yaml에서 JOBS_DISABLED 줄을 삭제하고, MONTHLY_REPORT_TO=<DL 주소 + 개인 명단, internal-context §2-h>, MONTHLY_REPORT_TEST_TO=<운영자 메일>을 추가/갱신, deploy/base/deployment.yaml config-rev +1.
+D-day 6단계. deploy/kic-op/configmap.yaml에서 JOBS_DISABLED 줄을 삭제하고, MONTHLY_REPORT_TO=<운영자+담당자 3명 쉼표 구분, internal-context §2-h>, MONTHLY_REPORT_TEST_TO=<운영자 메일>을 추가/갱신, deploy/base/deployment.yaml config-rev +1.
 다른 키는 건드리지 마. 커밋 "chore: D-day — OP 스케줄러 가동(JOBS_DISABLED 제거) + 리포트 수신자 복원", push는 git pull --rebase origin main && git push origin main.
 push 후 내가 /healthz·env_keys 결과를 붙이면 pod 교체·JOBS_DISABLED 부재·MONTHLY_REPORT_TO 존재를 판정해줘. internal-worklog에 시각과 함께 기록.
 ```
-### 3-C. 리포트 수신자(6-b) — 값은 internal-context §2-h에 미리 적어 둔다(사내 파일 절 번호 기준, 11/2 정정)
-`MONTHLY_REPORT_TO` = `DL-pbc-leaderonly` 주소 + 10/6 전환 전 백업해 둔 구 명단 중 DL 비포함자(쉼표 구분). 운영자 본인 포함. **구 명단 백업은 운영자 보관**(10/6 운영 세션이 Script Property 교체 전 백업 — Outlook 연락처 그룹 또는 운영자 메모; 리포에는 없음) → 담당자가 찾아 §2-h에 기입. **DL 수신 실측은 D-day 전 별도 발송으로 하지 않는다**(테스트 메일이 56명에게 감) — 12/2 첫 자동 발송 때 운영자 수신 + DL 멤버 1명 수신 확인으로 대체. 실패 시 10/6 방식(운영자 전달)으로 즉시 폴백.
+### 3-C. 리포트 수신자(6-b) — 11/6 변경(사내 제안 수용)
+`MONTHLY_REPORT_TO` = **운영자 + 담당자 3명(4명, configmap 평문 — 메일 주소는 비밀값 아님)**. DL(`DL-pbc-leaderonly`)은 **직접 등록하지 않음** — 2027 조직 개편 예정이라 DL 구성 변동 전까지는 담당자가 Outlook에서 4그룹(팀장 요청 범위)에 수동 전달. `MONTHLY_REPORT_TEST_TO` = 운영자. 값은 internal-context §2-h. **12/2 첫 자동 발송 검증 = 4명 수신 + 전달 본문(도넛 cid 이미지·KPI 카드·범례) 정상**. 나중에 DL로 바꿀 때는 configmap 한 줄 + `config-rev` +1만. 구 명단 백업(10/6, 운영자 보관)은 전달 수신자 재료로만 사용.
 ### 3-D. 전환 안내문(8단계)
 ```
 [안내] ThinQ Real 예약 시스템 사내 전환 완료
