@@ -70,7 +70,7 @@
 | Google 캘린더 일정 | 현행 Apps Script(확정 시 생성) | **전환 후 보류(11/2 담당자 결정)** — 컨테이너는 `GOOGLE_SERVICE_ACCOUNT_JSON`·`CALENDAR_ID` 미설정 시 skip. 추후 A) 서비스 계정 키를 Vault에 추가(사내 pod→외부 Google 전송 보안 판단 필요) 또는 B) 사내 Outlook 캘린더로 교체(코드 추가) 중 결정 |
 | 월간 리포트·설문 초대(일일 잡) | 현행 트리거 2종 | OP 인앱 스케줄러(`JOBS_DISABLED` 제거) |
 | 월간 리포트 수신자 | Script Property `MONTHLY_REPORT_TO` = 운영자 1인(10/6 전환 — 외부 Gmail 발신이라 DL 직접 투입 보류, 운영자가 사내 계정에서 전달) | OP configmap `MONTHLY_REPORT_TO` = **운영자 + 담당자 3명(4명)** — **DL 직접 등록은 보류(11/6 사내 제안·외부 동의: 2027 조직 개편 예정)**, 4그룹 전달은 담당자가 Outlook에서 수동. 12/2 첫 발송에서 4명 수신·전달 본문(cid 이미지) 정상 확인. DL 전환 시 configmap 한 줄 + config-rev |
-| FieldCheck 일일 요약 | 현행(`FC_TEST_MODE`) | OP 스케줄러 07:40 — **현행 쪽 요약 발송 함수가 별도 트리거면 함께 정지**(FieldCheck 세션 확인) |
+| FieldCheck 일일 요약 | 현행(`FC_TEST_MODE`) | OP 스케줄러 07:40(컨테이너도 `FC_TEST_MODE=true` — 운영자에게만) — **현행 `sendFieldCheckDailySummary` 트리거는 별도 존재(11/6 실측) → 5단계에서 함께 삭제**, 복원은 `setupFieldCheckDailyTrigger()` |
 | 방문객 QR 설문·FieldCheck 장비·FieldVoice | Apps Script `visitor_submit`·`health_check`·`voc_report` | **동일(유지)** + 사내 edge-sync pull |
 | 담당자 메신저 알림 | 텔레그램(현행 Apps Script, 상세) | **OP = Teams 웹훅(상세) + 텔레그램(비식별 요약 — 성명·소속·연락처·주제·고객사 없음, 키트 v5.2 kic-op 자동)** — 절충안 2026-10-01. 외부 접점(방문객 설문·FieldCheck·FieldVoice) 제출 알림은 Apps Script가 텔레그램으로 계속 |
 | 데이터 저장 | Google Sheets | Aurora PostgreSQL(외부 접점 3탭은 시트 원본 + DB 미러) |
@@ -120,7 +120,7 @@
 ## 7. 미결 (확정되면 본문에 반영)
 
 - 전환일(11월 중 평일) · 예약 접수 동결 시간 · 안내문 발송 대상(전 임직원? 최근 방문자?) — 담당자
-- FieldCheck 일일 요약의 현행 트리거 존재 여부·정지 방법 — FieldCheck 세션 확인
+- ~~FieldCheck 일일 요약의 현행 트리거 존재 여부·정지 방법~~ — **✅ 11/6 담당자 실측**: 트리거 `sendFieldCheckDailySummary` 존재 → D-day 5단계에서 다른 2개와 함께 삭제(§3 표). FieldCheck 세션에는 전환 후 통보(트리거 삭제 사실·복원 함수)
 - Teams 웹훅 URL: **✅ 2026-10-23 생성 완료** — 담당자가 Teams 워크플로 앱에서 직접 생성(BE팀 불필요, 템플릿 「채널에 웹후크 알림 보내기」 — 담당자 Teams 팀 채널 대상, 10/26 재생성) → 55-credentials `teams-webhook` 블록 → cert 후 secret 주입 → D-1 `teams_test`. 외부 접점 알림의 Teams 통합 여부는 운영 세션 협의
 - 시트 보존 기간·접근 권한 정리(개인정보 보유 3년 규칙과 정합) — 담당자·법무
 - `thinqreal.com` 만료일과 QR 교체 일정 — 운영 세션

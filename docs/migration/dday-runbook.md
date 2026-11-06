@@ -20,6 +20,7 @@
 - 5단계(현행 트리거 삭제) 전까지는 현행 무영향이므로 **§1의 2·3-a~3-f·4단계를 오늘 실데이터로 먼저 실행**(동결 공지 없음 — 대신 시작 시 현행 KPI 캡처를 기준점으로). 5단계 이후는 월요일.
 - 월요일은 1단계 동결 → 2단계 상태값 재확인 → 3-c 검사 → **3-d 적재를 `replace` 모드**(주말 사이 현행 변경분 반영 — `skip`은 기존 id를 건너뛰어 승인·거절 등 값 변경이 안 옮겨짐; `replace`는 같은 id를 삭제 후 재삽입) → 3-e 검증 → 4 → 5~10. 예상 1.5시간(09:30 전후 종료).
 - 오늘 OP에 들어간 실데이터는 `JOBS_DISABLED` 상태라 메일·잡이 돌지 않음. OP 관리자 페이지에 실예약이 보이는 것은 정상(담당자 외 접근 없음).
+- **11/6 선적재 결과**: 검사 bookings 159 = KPI, 12표 오류 0, 전 테이블 일치, 상태값 저장, 샘플 일치. 추가 확인: 테스트 확정 메일 이용 안내 링크 `thinqreal.lge.com` ✓(9-b 선검증), 현행 트리거는 **3개**(5단계 반영), 안내문·동결 메시지 초안 저장.
 
 ## 1. D-day 타임라인 (11/9 월)
 | 시각 | # | 단계 | 실행(붙여넣기) | 확인값 | 실패 시 |
@@ -34,7 +35,7 @@
 | 08:50 | 3-f | **⑤ 상태값** | 2단계 메모 2값 입력 → 저장 | 저장 | — |
 | 09:00 | 4 | **샘플 대조** | OP 관리자 페이지: 최근 예약 5건(상태·슬롯·책임자)·설문 3건·대장 2건을 현행 캡처와 대조, 슬롯 차단·ROI 📌 지정·기사 큐레이션 표시 | 전부 일치 | 불일치 → 3-d로(멱등) |
 | 09:20 | — | **GO/NO-GO** | 여기까지 전부 ✓이면 진행. 아니면 **중지·동결 해제**(현행 무영향) | 결정 기록 | — |
-| 09:25 | 5 | **현행 트리거 정지** | script.google.com → 트리거(⏰) → `monthlyReportTrigger`·설문 초대 트리거 **삭제** (스크립트·웹앱은 유지 — 외부 접점 3종 계속) | 트리거 0건 | `installMonthlyReportTrigger()`·`installSurveyInviteTrigger()` 재실행으로 복원 |
+| 09:25 | 5 | **현행 트리거 정지** | script.google.com → 트리거(⏰) → **3개 전부 삭제**: `monthlyReportTrigger`·`surveyInviteTrigger`·`sendFieldCheckDailySummary`(11/6 실측 — OP 스케줄러에 같은 07:40 FieldCheck 요약 잡이 있어 안 지우면 중복 발송) (스크립트·웹앱은 유지 — 외부 접점 3종 계속) | 트리거 0건 | `installMonthlyReportTrigger()`·`installSurveyInviteTrigger()`·`setupFieldCheckDailyTrigger()` 재실행으로 복원 |
 | 09:30 | 6 | **OP 스케줄러 가동** | 사내 Claude: `deploy/kic-op/configmap.yaml`에서 `JOBS_DISABLED` 줄 삭제 + `config-rev` +1 → `chore:` 커밋·push → ArgoCD Synced | `/healthz` pod 교체, `env_keys`에 `JOBS_DISABLED` 없음 | 줄 복원·재커밋 |
 | 09:45 | 6-b | **리포트 수신자 설정** | 같은 커밋 또는 직후: `MONTHLY_REPORT_TO`=운영자+담당자 3명(§3-C, DL 미등록), `MONTHLY_REPORT_TEST_TO`=운영자 | `env_keys` | — |
 | 10:00 | 7 | **현행 사이트 안내** | 운영 세션이 준비한 PR 머지(안내 배너 + 예약 폼 비활성, 관리자 페이지 동일 / 방문자 설문·privacy·동의서는 그대로) | `thinqreal.com`에서 예약 불가·배너 표시(강력 새로고침) | PR revert |
