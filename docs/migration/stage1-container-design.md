@@ -337,7 +337,7 @@ Gitea 저장소 원본 검수에서 **HPA min 2 레플리카**가 확인되어(�
 **② 인앱 스케줄러 (`lib/scheduler.js`)** — ⚠ 스펙 대비 변경: K8s CronJob 매니페스트 대신 앱 내부 스케줄러 채택. 이유: release.yml이 deployment.yaml의 이미지 태그만 갱신하므로 CronJob 매니페스트는 릴리스마다 옛 이미지에 고착되고, deploy/ 구조(kustomize·ArgoCD 등록) 수정도 필요해진다. 인앱이면 항상 현재 배포 이미지로 돌고 push 한 번으로 끝. **BE팀 문의 ②(CronJob 등록 방법)는 "불필요해짐"으로 종결 가능.**
 - 1분 tick, 5분 발화 창, KST 고정 시각(07:40 FieldCheck 요약 / 08:30 월간 리포트·설문 초대 — Apps Script 트리거와 동일).
 - 레플리카 중복 방지: Valkey 일일 락 `kvTryLock`(SET NX EX, TTL 20h — kvcache.js에 신설). 각 잡의 자체 멱등 가드(월 가드·surveyInviteSentAt)와 이중.
-- 잡 3종은 `run*Job(store)` 함수로 추출, CLI 직접 실행(`node src/jobs/*.js`)은 `import.meta.url` 가드로 유지. `JOBS_DISABLED=true`로 끔.
+- 잡 3종은 `run*Job(store)` 함수로 추출, CLI 직접 실행(`node src/jobs/*.js`)은 `import.meta.url` 가드로 유지. `JOBS_DISABLED=true`로 전체 끔, **`JOBS_SKIP=<잡 이름,…>`로 잡별 건너뜀(키트 v5.11, 2026-11-06)** — OP는 `fieldcheck-summary`(FieldCheck 요약은 하이브리드 에지 원칙상 현행 Apps Script 트리거가 계속 발송, 컨테이너 잡은 FieldCheck 세션이 정식 운영 전환을 결정할 때까지 대기).
 
 **③ PostgreSQL 어댑터 (`store/postgres/`)** — dynamo 스텁 제거·대체. Store 인터페이스 전체 구현.
 - 테이블 = 시트 탭 1:1(13종 + app_state), 컬럼명 동일, **전 컬럼 TEXT**(시트 동작 승계 — 핸들러가 이미 전부 변환 수행), `rid BIGSERIAL`이 행 순서 대체, monthly_articles만 `ord BIGINT`(article_move 순서 교환).
