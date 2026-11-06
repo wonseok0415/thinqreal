@@ -94,7 +94,7 @@
 - [x] OP `/healthz` `backend:"postgres"`·`schema:"verified"`·`authSecret:"env"` — **✅ 2026-10-30**(Vault AVP 10키, ArgoCD Synced/Healthy)
 - [x] OP `teams_test` `{ok:true}` — **✅ 2026-10-30**
 - [x] OP `telegram_test` `{ok:true}` — **✅ 2026-10-30**(pod → api.telegram.org 도달 확인 → Teams+텔레그램 병행 확정) / [ ] 예약 1건으로 비식별 요약 형식 확인(성명 없음) — D-day 9단계에서
-- [ ] OP `mail_status` smtp / `egress_check` ok / SSO 예외 5종 로그인 없이 열림
+- [x] OP `mail_status` smtp / `egress_check` ok / SSO 예외 5종(`/healthz`·`/pub`·방문자 설문·privacy·images) 로그인 없이 열림 — **✅ 2026-11-06 실측(사내 Claude)**
 - [x] Reader instance 추가·failover 테스트 — **✅ 2026-11-05 통과**(중단 13초, 5항목 ○, writer 교대). **두 번째 인스턴스 DB-i 등록 ✅ 11/6**(Next SPoC → 사이버보안운영팀 처리, MGR 접속 `pg_is_in_recovery()`=false — D-day 삭제 SQL 경로 확보)
 - [x] QA 리허설 건수 일치 기록 있음 — **기록 위치: 이 문서 §1 T-3주 행 + migration-log 2026-10-23 항목**(bookings 150·survey 37·visitors 105·articles 18·insights 25·best 9·ledger 9·roi 2·slot_blocks 30·health 612·voc 0, 전 테이블 일치)
 - [~] UAT 1~9 — **협업자 UAT 보류(10/30 담당자 결정)**, OP 마무리 검증(11/2)·D-day 9단계 실거래로 대체
