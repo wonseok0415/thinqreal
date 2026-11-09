@@ -132,6 +132,57 @@
 | 8-1 | **BE팀 마무리 인사** — 추가 요청 없음(ST·QA 유지 여부 확인 1줄 포함). pod 비배포 교체(11/4 22:38)가 재발하면 그때 이벤트 확인 요청 | 담당자 | 문안 migration-log 11/9 |
 | 8-2 | **Teams 팀 검색 불가** — 비공개 팀은 검색에 안 뜸. 소유자(담당자)가 팀 → ⋯ → 「멤버 추가」로 담당자 3·팀장 직접 추가(또는 팀 설정에서 공개 팀 전환 — 조직 정책 허용 시). 채널이 비공개 채널이면 채널 멤버도 추가 | 담당자 | — |
 | 8-3 | **현행 사이트 은퇴 모드(보안팀 요구)** — 클라이언트 비활성(배너·disabled)은 외관일 뿐. 진짜 통제는 **Apps Script 서버 허용 목록**: 하이브리드 에지 6종(`visitor_submit`·`health_check`·`voc_report`·`health_checks`·`survey_data`·`voc_reports`) + `visitor_delete`(edge delete-through) + 그 토큰 검증(`admin_auth_*`는 OP가 자체 서명하므로 불필요)만 남기고 **나머지 전부 `{error:'migrated'}`**. 페이지: `index.html`·`thinqreal_admin.html` → 게이트·메뉴·폼·로그인 없는 **안내 전용 정적 페이지**, `ThinQ_Real_Visit_Survey.html` → lge.com 설문 주소 안내(전환 전 발송된 초대 링크 대응 — 현행 `survey_submit`이 닫히면 시트 유입 0). 유지: `ThinQ_Real_Visitor_Survey.html`·`privacy.html`·동의서. 운영 세션 요청문은 migration-log 11/9. 도메인 종료(§6-b)는 그 다음 | 운영 세션(라이브)·담당자 | 요청문 작성 완료 |
-| 8-4 | **Google 캘린더 연동(OP)** — **담당자 결정 11/9: 연동 우선 진행, 보안팀이 위반으로 제재하면 그때 해지.** 외부 의견(개인정보 국외 전송 — privacy V3.0 §7 충돌 가능)은 기록으로 남기고, 완화책으로 **키트 v5.12 `CALENDAR_MINIMAL`**(이벤트에서 성명·고객사·주제·활용 방안 제외, 목적·본부·회차·인원만 — 기본 off=현행 동일 표기) 제공, OP에는 **on 권고**(상세는 이벤트 안 관리자 페이지 링크로). 컨테이너 `calendar/google.js`는 기존 구현(서비스 계정 JWT·calendar v3·`CALENDAR_ID` 미설정 시 skip). **절차(담당자 → 사내 Claude)**: ① GCP 콘솔(담당자 Google 계정) → 새 프로젝트 → 「API 및 서비스」에서 Google Calendar API 사용 설정 → IAM → 서비스 계정 생성 → 키 → JSON 다운로드(55-credentials `google-calendar-sa`) ② 팀 캘린더 소유 계정으로 Google 캘린더 → 해당 캘린더 설정 → 「특정 사용자 및 그룹과 공유」 → 서비스 계정 이메일 추가, 권한 「일정 변경」 ③ Vault KV `GOOGLE_SERVICE_ACCOUNT_JSON`(한 줄 JSON)·`CALENDAR_ID`(현행 Script Property 값) 등록 ④ 사내 Claude: 키트 v5.12 적용(`feat:` → 0.24.0) + `secret.yaml` 자리표시자 2개 + configmap `CALENDAR_MINIMAL: "true"` + config-rev → 롤아웃 ⑤ 검증 `…/api?type=calendar_test&token=<관리자 토큰>` → `ok:true`·캘린더 이름·테스트 일정 생성→자동 삭제 → 실제 예약 1건 승인 → 팀 캘린더에 회차별 일정 → 삭제로 제거 확인. 아웃바운드(`oauth2.googleapis.com`·`www.googleapis.com` 443) 차단 시 calendar_test 네트워크 오류 → BE팀 경유 방화벽 요청. **해지 절차**: credentials `google-calendar-sa` 비고(2키 제거 → 공유 해제 → GCP 키 삭제) | 담당자(GCP·공유·Vault)·사내 Claude(키트·secret·configmap) | **진행 — 키트 v5.12 준비 완료** |
+| 8-4 | **Google 캘린더 연동(OP)** — **담당자 결정 11/9: 연동 우선 진행, 보안팀이 위반으로 제재하면 그때 해지.** 외부 의견(개인정보 국외 전송 — privacy V3.0 §7 충돌 가능)은 기록으로 남기고, 완화책으로 **키트 v5.12 `CALENDAR_MINIMAL`**(이벤트에서 성명·고객사·주제·활용 방안 제외, 목적·본부·회차·인원만 — 기본 off=현행 동일 표기) 제공, OP에는 **on 권고**(상세는 이벤트 안 관리자 페이지 링크로). 컨테이너 `calendar/google.js`는 기존 구현(서비스 계정 JWT·calendar v3·`CALENDAR_ID` 미설정 시 skip). **절차(담당자 → 사내 Claude)**: ① GCP 콘솔(담당자 Google 계정) → 새 프로젝트 → 「API 및 서비스」에서 Google Calendar API 사용 설정 → IAM → 서비스 계정 생성 → 키 → JSON 다운로드(55-credentials `google-calendar-sa`) ② 팀 캘린더 소유 계정으로 Google 캘린더 → 해당 캘린더 설정 → 「특정 사용자 및 그룹과 공유」 → 서비스 계정 이메일 추가, 권한 「일정 변경」 ③ Vault KV `GOOGLE_SERVICE_ACCOUNT_JSON`(한 줄 JSON)·`CALENDAR_ID`(현행 Script Property 값) 등록 ④ 사내 Claude: 키트 v5.12 적용(`feat:` → 0.24.0) + `secret.yaml` 자리표시자 2개 + configmap `CALENDAR_MINIMAL: "true"` + config-rev → 롤아웃 ⑤ 검증 `…/api?type=calendar_test&token=<관리자 토큰>` → `ok:true`·캘린더 이름·테스트 일정 생성→자동 삭제 → 실제 예약 1건 승인 → 팀 캘린더에 회차별 일정 → 삭제로 제거 확인. 아웃바운드(`oauth2.googleapis.com`·`www.googleapis.com` 443) 차단 시 calendar_test 네트워크 오류 → BE팀 경유 방화벽 요청. **해지 절차**: credentials `google-calendar-sa` 비고(2키 제거 → 공유 해제 → GCP 키 삭제) | 담당자(GCP·공유·Vault)·사내 Claude(키트·secret·configmap) | **진행 — 키트 v5.12 머지(PR #241), 담당자 선행 3가지 진행 중 → 완료 보고 시 §8-4-b 프롬프트·검증** |
 | 8-5 | D+1~2 모니터링(§2 런북) → 11/13(금) 종료 선언. 12/2 첫 OP 리포트 검증(4명 수신+cid). 2027 DL 전환 | 담당자 | — |
 
+
+### 8-4-b. 캘린더 연동 착수 — 사내 Claude 프롬프트·검증 순서 (담당자 선행 3가지 완료 후, 2026-11-09 준비)
+
+**전제(담당자 "3개 완료" 보고)**: ① GCP 서비스 계정 JSON 키 발급(55-credentials `google-calendar-sa`) ② 팀 캘린더에 서비스 계정 이메일 「일정 변경」 공유 ③ Vault KV `GOOGLE_SERVICE_ACCOUNT_JSON`(한 줄 JSON, `{` 시작)·`CALENDAR_ID` 등록. **③이 끝나기 전에 secret.yaml 자리표시자를 넣으면 AVP가 값을 못 찾아 sync가 깨지므로 순서 엄수.**
+
+**순서는 2커밋 — 코드(feat) 먼저, 주입(chore)은 0.24.0 롤아웃 확인 뒤.** 이유: 0.23.0에도 `calendar/google.js`가 이미 있어 `CALENDAR_ID`가 먼저 도달하면 그 사이 승인 건이 **전체 표기(성명·고객사 포함)로 Google에 기록**된다. 비식별 코드가 먼저 떠 있어야 한다.
+
+프롬프트 1 (키트 v5.12 코드 — 57번 미러 `git pull` 후):
+```
+키트 v5.12 적용. 미러(57번 폴더)의 아래 파일을 Gitea 같은 경로로 복사해줘(미러 server/ = Gitea 루트):
+server/src/config.js → src/config.js
+server/src/calendar/google.js → src/calendar/google.js
+server/.env.example → .env.example
+deploy/·secret·configmap은 이번 커밋에서 건드리지 마. 커밋 메시지는 반드시 "feat: 키트 v5.12 — CALENDAR_MINIMAL 캘린더 이벤트 비식별 모드" (feat 접두여야 빌드가 돎 → 0.24.0). push 명령은 git pull --rebase origin main && git push origin main 형태로 알려줘.
+```
+→ 담당자: Gitea Actions `chore: release thinq-real 0.24.0` 확인 → `<OP>/healthz` ×3에서 `version:"0.24.0"`·pod 이름 교체. **0.24.0이 뜨기 전에는 프롬프트 2로 넘어가지 않는다**(치트시트 D — Gitea 반영 ≠ 롤아웃).
+
+프롬프트 2 (주입 — 0.24.0 확인 뒤):
+```
+0.24.0 롤아웃 확인됨. 캘린더 연동 주입 커밋 1건:
+1) deploy/kic-op/secret.yaml — 기존 10키 자리표시자 형식 그대로 2개 추가: GOOGLE_SERVICE_ACCOUNT_JSON: <GOOGLE_SERVICE_ACCOUNT_JSON | base64encode> / CALENDAR_ID: <CALENDAR_ID | base64encode> (→ 12키). AVP 주석·path·이름은 무변경.
+2) deploy/kic-op/configmap.yaml — CALENDAR_MINIMAL: "true" 1줄 추가. 다른 키는 건드리지 마.
+3) deploy/base/deployment.yaml pod template annotations의 thinqreal/config-rev 현재 값 +1.
+커밋 "chore: OP 캘린더 연동 — secret 2키(서비스 계정·캘린더 ID) + CALENDAR_MINIMAL on + config-rev", push는 git pull --rebase origin main && git push origin main.
+push 후 내가 /healthz·env_keys·calendar_test 결과를 붙이면 pod 교체·3키 도달·ok 여부를 판정해줘. 값은 채팅에 절대 적지 않고 internal-worklog에 시각과 함께 기록.
+```
+
+**검증 순서(담당자, 프롬프트 2 push 후 pod 교체 뒤 — 값은 리포에 적지 않음)**
+| # | 확인 | 주소 | 정상 | 아니면 |
+|---|---|---|---|---|
+| 1 | 롤아웃 | `<OP>/healthz` | `version:"0.24.0"`, pod 이름 다시 교체 | 교체 안 됨 → config-rev 반영 여부(사내 Claude에 `git show --stat HEAD`) |
+| 2 | env 도달 | `<OP>/api?type=env_keys&token=<토큰>` | `names`에 `GOOGLE_SERVICE_ACCOUNT_JSON`·`CALENDAR_ID`·`CALENDAR_MINIMAL` 3개 | 2키 없음 → AVP가 Vault에서 못 읽음(키 철자·경로, ArgoCD sync 상태) / `CALENDAR_MINIMAL` 없음 → configmap |
+| 3 | 연동 | `<OP>/api?type=calendar_test&token=<토큰>` | `ok:true`, `calendarName`=팀 캘린더 이름, `testedEventId` 있음 | 아래 분기표 |
+| 4 | 잔존 없음 | 팀 캘린더(Google) 오늘 1시간 뒤 | 「🧪 … 테스트 (자동 삭제됨)」 일정이 **없어야** 정상 | 남아 있으면 delete 권한만 실패 — 공유 권한 「일정 변경」 재확인 후 수동 삭제 |
+| 5 | 실거래 | OP 관리자 → 예약 추가(담당자 본인 메일·목적·본부 입력) → 승인 | 팀 캘린더에 **회차별** 일정, 제목 `[목적] 본부`, 본문 목적·본부·회차·인원·관리자 링크만 — **성명·고객사·주제·활용 방안 없음** | 성명이 보이면 `CALENDAR_MINIMAL` 미도달(2번) |
+| 6 | 제거 | 같은 건 거절(또는 삭제) | 회차별 일정 전부 사라짐 | 남으면 `calendarEventId` write-back 확인(사내 Claude에 로그 요청) |
+| 7 | 기록 | — | 사내 Claude internal-worklog + 외부 트랙에 `healthz` 1줄·`calendar_test` JSON(`calendarId` 마스킹) 보고 → cutover §8-4 상태 ✅, 치트시트 A에 calendar_test 행 | — |
+
+**calendar_test 분기표**
+| 응답 | 뜻 | 조치 |
+|---|---|---|
+| `reason:"not_configured"` | `CALENDAR_ID` env 미도달 | 2번(env_keys)으로 — secret.yaml 자리표시자·Vault 키 철자 |
+| `reason:"no_access"` | 서비스 계정 JSON을 못 읽음 | Vault 값이 **한 줄 JSON이고 `{`로 시작**하는지(줄바꿈·따옴표 감싸기·파일 경로 입력 아님), base64 이중 인코딩 아닌지 |
+| `write_failed` + `error`에 `403`/`forbidden`/`writer access` | 캘린더 공유 권한 부족 | 팀 캘린더 공유 대상이 **서비스 계정 이메일**(…@…iam.gserviceaccount.com)이고 권한이 「일정 변경」인지 |
+| `write_failed` + `404`/`notFound` | 캘린더 ID 오타·다른 캘린더 | `CALENDAR_ID` = 현행 Script Property 값(캘린더 설정 → 「캘린더 통합」의 캘린더 ID) |
+| `write_failed` + `invalid_grant`/`unauthorized_client` | 키 비활성·삭제·시계 오차 | GCP에서 키 상태 확인, 필요 시 재발급 → Vault 갱신 → config-rev |
+| `write_failed` + `accessNotConfigured`/`API has not been used` | Calendar API 미사용 설정 | GCP 「API 및 서비스」 → Google Calendar API 사용 설정 → 수 분 뒤 재시도 |
+| `write_failed` + `ENOTFOUND`/`ETIMEDOUT`/`ECONNREFUSED`/`EAI_AGAIN` | pod 아웃바운드 차단 | BE팀 경유 방화벽: `oauth2.googleapis.com`·`www.googleapis.com` 443 허용 요청(§8-4) |
+
+- 참고(코드 실측 11/9): 컨테이너 `calendar_test`는 `telegram_test`·`teams_test`와 같은 진단류로 **핸들러 자체는 토큰을 검증하지 않음**(OP는 사내망+SSO 뒤). `&token=`은 붙여도 무해하며 치트시트 관례대로 붙인다. 테스트 일정은 생성 직후 삭제되고 쓰기 범위는 해당 캘린더 1개.
+- 해지가 필요해지면 §8-4 해지 절차(2키 제거+config-rev → 공유 해제 → GCP 키 삭제) — credentials `google-calendar-sa` 비고.
