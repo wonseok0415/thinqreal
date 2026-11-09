@@ -61,8 +61,10 @@ export function buildCalendarEvents(b) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return [];
 
   const purpose = String(b.purpose || '').trim();
-  const subject = String(b.subject || b.org || '').trim();
-  const title = '[' + (purpose || 'ThinQ Real') + '] ' + (subject || '예약') + (b.name ? ' · ' + b.name : '');
+  const minimal = !!config.calendarMinimal;   // 키트 v5.12 — 비식별 모드(성명·고객사·주제·활용 방안 제외)
+  const division = String(b.division || b.org || '').trim();
+  const subject = minimal ? division : String(b.subject || b.org || '').trim();
+  const title = '[' + (purpose || 'ThinQ Real') + '] ' + (subject || '예약') + (!minimal && b.name ? ' · ' + b.name : '');
   const location = '마곡 LG사이언스파크 W6동 1층';
 
   const hhmm = ([h, m]) => `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
@@ -71,12 +73,16 @@ export function buildCalendarEvents(b) {
     const t = SLOT_TIMES[n];
     const lines = [];
     if (purpose) lines.push('목적: ' + purpose);
-    if (subject) lines.push('주제: ' + subject);
-    if (b.clientCompany) lines.push('고객사: ' + b.clientCompany);
+    if (minimal) {
+      if (division) lines.push('본부: ' + division);
+    } else {
+      if (subject) lines.push('주제: ' + subject);
+      if (b.clientCompany) lines.push('고객사: ' + b.clientCompany);
+    }
     lines.push('회차: ' + (SLOT_LABEL_TEXT[n] || (n + '회차')));
     if (b.count !== '' && b.count != null) lines.push('인원: ' + b.count + '명');
-    if (b.name) lines.push('책임자: ' + b.name);
-    if (b.usagePlan) lines.push('', '활용 방안:', String(b.usagePlan));
+    if (!minimal && b.name) lines.push('책임자: ' + b.name);
+    if (!minimal && b.usagePlan) lines.push('', '활용 방안:', String(b.usagePlan));
     lines.push('', '— 상세는 관리자 페이지에서 확인', config.adminPageUrl);
 
     return {

@@ -506,3 +506,9 @@ Gitea 저장소 원본 검수에서 **HPA min 2 레플리카**가 확인되어(�
 **⚠ 스펙 대비 변경**: §8-17 "입력 = xlsx 1파일" → **기본 = 현행 직접 pull, xlsx는 예비**. 사유: 사내 업로드 차단 정책.
 
 **보강(2026-10-23, 키트 v5.6)**: 담당자가 개발자 도구로 현행 토큰을 복사하는 단계에서 반복 실패(콘솔이 다른 탭에 붙음) → 패널 안에서 현행 코드 인증을 대행. `legacy_code`(현행 `admin_auth_request`)·`legacy_login`(현행 `admin_auth_verify` → 토큰을 브라우저로 반환, 서버 미보관). 현행의 `{ok:false,error}`는 그대로 전달(`legacyGetRaw`). E2E: 비관리자 메일 거부·코드 요청·잘못된 코드 거부·로그인 성공 + Chromium에서 메일→코드→로그인→검사 14행. 수동 붙여넣기 입력란은 접힌 채 유지(예비).
+
+### 8-22. 캘린더 연동 착수 + 비식별 모드 (2026-11-09, 키트 v5.12)
+- **배경**: 전환 범위 밖이던 Google 캘린더 미러링을 담당자 결정으로 착수("연동 우선, 보안팀 제재 시 해지"). 구현은 §2-⑥ 그대로(`calendar/google.js`, 서비스 계정 JWT) — 설정 2키(`GOOGLE_SERVICE_ACCOUNT_JSON`·`CALENDAR_ID`, Vault)만 추가.
+- **⚠ 스펙 대비 변경 — 외부 판단으로 추가한 스위치**: 사내 OP에서 Google(국외)로 책임자 성명·고객사·주제·활용 방안이 나가는 것은 privacy.html V3.0 §7(국외 이전 없음)과 충돌 소지 → `CALENDAR_MINIMAL=true`면 이벤트를 목적·본부(`division`, 없으면 `org`)·회차·인원 + 관리자 페이지 링크만으로 구성(제목 `[목적] 본부`). 기본 false = 현행 `.gs` 표기와 동일(이식 원칙 유지). OP는 on 권고, 최종 선택은 담당자. 캘린더 쓰기 범위는 변함없이 **방문자 명단·연락처 미표기**(기존 원칙).
+- 파일: `src/config.js`(`calendarMinimal`) · `src/calendar/google.js`(`buildCalendarEvents`) · `.env.example`.
+
