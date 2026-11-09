@@ -142,7 +142,7 @@
 =====
 키        : google-calendar-sa
 용도      : OP 컨테이너 → 팀 Google 캘린더 동기화용 서비스 계정 JSON 키 (2026-11-09 담당자 결정 — 연동 우선, 보안팀 제재 시 해지)
-대상      : GCP 프로젝트(담당자 Google 계정) 서비스 계정 ↔ 팀 캘린더(현행 CALENDAR_ID와 동일 캘린더)
+대상      : GCP 프로젝트 thinqreal-cse(담당자 Google 계정, CSE 키와 공유) 서비스 계정 ↔ 팀 캘린더(현행 CALENDAR_ID와 동일 캘린더 — 팀원 소유, 신규 생성 아님)
 계정      : <서비스 계정 이메일 — ...@<프로젝트>.iam.gserviceaccount.com> (캘린더 공유 대상이므로 기록)
 값        : ******** (JSON 키 파일 전체 — 한 줄로 변환한 사본도 함께)
 발급일    : -
