@@ -2030,3 +2030,15 @@ sales 트랙 운영 설문의 8번 블록 컬럼은 2026-07-27 이후 구조적�
 - **무변경 확인(요청 3·4항)**: 방문자 설문·후기 설문·privacy·동의서(외부 접점·게이트 밖 문서), `ThinQReal_AppScript.gs`(하이브리드 에지 6종 계속 호출).
 - 검증: Playwright 13항목 PASS — unauth 게이트 배너 노출+게이트 가림 유지(navbar 숨김), 홈 배너, 버튼 disabled·안내줄 토글·달력 존재, submitBooking 가드(fetch 0회), 관리자 배너 노출+로그인 UI 유지·카드 미겹침. 4개 화면 스크린샷 운영자 확인.
 - HTML만 — Apps Script 재배포 불필요. **머지 = 즉시 라이브 게시 — 11/9 10:00 전 머지 금지.** 롤백 = PR revert. OP(Gitea `public/`)에는 이 배너를 복사하지 않음(런북 D-1 항목 — OP는 배너 없는 버전).
+
+---
+
+## 2026-11-09 (1) — 현행 사이트 은퇴 모드 (사내 전환 완료 후속 — 보안팀 요구, 이관 세션 요청)
+
+- **배경**: 11/9 D-day 전환 완료(thinqreal.lge.com 가동, 데이터 이행·트리거 삭제·안내 배너 머지까지 런북 전 단계 종결). 보안팀이 구 사이트의 "모든 기능 비활성"을 요구하며 개발자 도구·URL 직접 호출 우회를 시험 — 클라이언트 비활성은 외관일 뿐이므로 **서버(Apps Script) 허용 목록을 차단의 본체**로 구현. 하이브리드 에지(방문객 QR 설문·FieldCheck·FieldVoice + 사내 컨테이너 pull) 경로만 유지.
+- **ThinQReal_AppScript.gs**: `retiredGate(type)` 신설 — doGet(type 추출 직후)·doPost(JSON 파싱 직후) **라우팅 앞단**에서 허용 7종 외 모든 type(미지정·미지원 포함)에 `{error:'migrated', redirect:'https://thinqreal.lge.com'}` 반환. 허용 7종 = `visitor_submit`·`health_check`·`voc_report`(외부 접점, 기존 인증 그대로) / `survey_data`·`health_checks`·`voc_reports`(컨테이너 pull) / `visitor_delete`(컨테이너 관리) — `survey_data`·`voc_reports`·`visitor_delete`는 기존 `verifyAdminToken` 유지(컨테이너가 `LEGACY_AUTH_SECRET`으로 직접 서명). **핸들러·트리거 함수 코드는 전부 보존** — 롤백은 `RETIRED_MODE=false`+재배포, 임의 해제 금지.
+- **안내 전용 정적 페이지 4종 교체** (스크립트·외부 리소스·Apps Script 호출 0, 다크 올리브 톤 유지): ① `index.html` — 전환 배너 문안+thinqreal.lge.com 링크+후기 설문 안내+privacy 링크 (게이트·네비·예약 폼·공간 소개·이용 안내 제거) ② `thinqreal_admin.html` — 사내 관리자 주소 안내 (로그인·대시보드 제거) ③ `ThinQ_Real_Visit_Survey.html` — 전환 전 발송된 초대 링크 대응 안내(새 설문 주소는 담당자 메일로 재안내 — 사내 주소는 이관 세션 별도 전달 예정) ④ `ThinQ_Real_ROI_Tool.html` — roi_* 폐쇄로 기능 불가, 안내로 교체.
+- **무변경**: `ThinQ_Real_Visitor_Survey.html`(외부 접점 — QR 설문 계속 동작)·`privacy.html`·`ThinQ_Real_Visit_Consent.html`·images·CNAME(도메인 종료는 별도 단계).
+- 검증: 17항목 PASS — `.gs` 추출 게이트 실행으로 허용 7종 통과 + **소스 전수 추출한 닫힌 42종 전부 migrated**(미지정·빈 type 포함) + 게이트가 양 라우팅 앞단임을 소스 순서로 확인, 정적 4종은 `<script>`/`<form>`/`<input>`/외부 리소스/Apps Script URL 0 + Chromium 렌더에서 비 file 네트워크 요청 0건·JS 오류 0건·이동 링크 정확. `node --check` PASS. 커밋 전 민감 단가 grep 0건.
+- **적용 순서 (운영자)**: ① `.gs` 에디터 반영·저장 + **재배포**("배포 관리→편집→새 버전" — 웹 경로 변경) ② PR 머지(정적 페이지 라이브) ③ 확인 — thinqreal.com에서 예약·로그인·설문 제출 경로 부재, 구 URL 직접 호출 시 migrated 응답, **방문자 QR 설문 정상 제출**.
+- 기록: CLAUDE.md 메인 사이트·관리자·Apps Script 연동 절 은퇴 모드 갱신(과거 명세는 OP 동일 구현 참고 기준으로 보존 표기), api-contract.md 상단 ⚠ 은퇴 모드 절(허용 7종/닫힌 42종) 추가.
