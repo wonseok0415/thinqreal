@@ -75,6 +75,8 @@ del secrets.env
 
 **넣을 값(14키, 55-credentials)**: `DB_HOST`(Cluster Writer) `DB_PORT`(비표준) `DB_NAME` `DB_USER`(0번 쿼리 대소문자) `DB_PASSWORD` `AUTH_SECRET`(신규) `LEGACY_AUTH_SECRET` `TEAMS_WEBHOOK_URL` `TELEGRAM_BOT_TOKEN` `TELEGRAM_CHAT_ID` . **Wi-Fi·도어락 4키(`WIFI_SSID_24G` `WIFI_SSID_5G` `WIFI_PASSWORD` `DOORLOCK_PIN`)는 Vault가 아니라 OP configmap(평문)** — 11/6 담당자 결정(보안 요소 아님, 담당자 누구나 수정 가능해야; Vault는 운영자만 수정 가능). 미주입이면 확정 메일에 "(미설정)"(11/6 OP 실측). Vault 키 이름 = env 이름 동일 철자, secret.yaml 자리표시자는 10개 유지. **키트 v5.9(같은 날)부터는 관리자 「확정 메일 설정」 패널이 우선** — configmap 4키는 폴백(없어도 패널 값으로 동작).
 
+**§4-b. Google 캘린더 연동 2키 추가(11/9 담당자 결정 — "우선 연동, 보안팀 제재 시 해지")**: Vault KV에 `GOOGLE_SERVICE_ACCOUNT_JSON`(서비스 계정 JSON 키 파일 내용 **한 줄**로 — 줄바꿈 제거, `{`로 시작해야 config가 문자열로 인식) · `CALENDAR_ID`(팀 캘린더 주소 — 현행 Script Property 값과 동일) → `secret.yaml` 자리표시자 2개 추가(`<GOOGLE_SERVICE_ACCOUNT_JSON | base64encode>` 형식 동일) → **12키**. configmap에 `CALENDAR_MINIMAL: "true"`(키트 v5.12 — 비식별 모드, 외부 권고) 또는 미설정(현행 .gs와 동일 전체 표기 — 담당자 선택) → config-rev +1. 선행: 담당자가 GCP에서 서비스 계정 생성·키 발급 + 팀 캘린더를 서비스 계정 이메일에 「일정 변경」 권한으로 공유(절차는 cutover §8-4). 검증: `/api?type=calendar_test&token=<관리자 토큰>` → `ok:true, calendarName` + 테스트 일정 생성·자동 삭제. 아웃바운드 `oauth2.googleapis.com`·`www.googleapis.com` 443이 막혀 있으면 calendar_test가 네트워크 오류 → 방화벽 허용 요청(BE팀 경유).
+
 ## 5. 하지 않는 것
 - `deploy/kic-qa/secret.yaml`은 건드리지 않는다(QA는 BE 제공 DB 그대로, 리허설 완료). **OP에 kubeseal을 쓰지 않는다**(BE팀 정책).
 - Vault `DB_CREDENTIAL`(사람용 임시 DB 계정)을 앱 env에 쓰지 않는다 — TTL 1일이라 pod가 하루 뒤 접속 불가. 앱은 Next SPoC 발급 `THINQREAL_APP` 고정 계정만.

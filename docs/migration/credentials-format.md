@@ -140,6 +140,19 @@
 비고      : 평문 Teams·메일 금지. Vault DB_CREDENTIAL(사람용 임시 DB 계정, TTL 1일)은 이 파일에 기록하지 않음 — 매번 Vault에서 발급.
 
 =====
+키        : google-calendar-sa
+용도      : OP 컨테이너 → 팀 Google 캘린더 동기화용 서비스 계정 JSON 키 (2026-11-09 담당자 결정 — 연동 우선, 보안팀 제재 시 해지)
+대상      : GCP 프로젝트(담당자 Google 계정) 서비스 계정 ↔ 팀 캘린더(현행 CALENDAR_ID와 동일 캘린더)
+계정      : <서비스 계정 이메일 — ...@<프로젝트>.iam.gserviceaccount.com> (캘린더 공유 대상이므로 기록)
+값        : ******** (JSON 키 파일 전체 — 한 줄로 변환한 사본도 함께)
+발급일    : -
+출처      : GCP 콘솔 → IAM → 서비스 계정 → 키 → JSON
+주입      : GOOGLE_SERVICE_ACCOUNT_JSON (Vault KV, 한 줄 JSON) + CALENDAR_ID (Vault KV) — 키트 M2 §4-b
+교체 주기 : - (키 유출 의심 시 GCP에서 키 삭제·재발급 → Vault 갱신 → config-rev)
+교체 이력 : -
+비고      : 해지 시 순서 — configmap/secret에서 2키 제거(config-rev) → 캘린더 공유 해제 → GCP 키 삭제. JSON 키는 Teams·메일 첨부 금지.
+
+=====
 키        : fc-api-key
 용도      : FieldCheck 점검 장비 키
 대상      : Apps Script Script Property FC_API_KEY ↔ rig config.json

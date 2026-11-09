@@ -99,6 +99,9 @@ export const config = {
   sheetId: env('SHEET_ID', '1-Z158TV46MtSEArir9bW4h4KQ438NCuhb3qaGyOooA0'),
   googleServiceAccountJson: env('GOOGLE_SERVICE_ACCOUNT_JSON'), // 파일 경로 또는 JSON 문자열
   calendarId: env('CALENDAR_ID'),
+  // 캘린더 이벤트 비식별 모드(키트 v5.12, 2026-11-09) — true면 제목·본문에서 책임자 성명·고객사·주제·활용 방안을 빼고
+  // 목적·본부·회차·인원만 쓴다(개인정보·B2B 정보의 국외(Google) 전송 회피 — privacy V3.0 §7 정합). 기본 false = 현행 .gs와 동일 표기.
+  calendarMinimal: env('CALENDAR_MINIMAL') === 'true',
 
   // PostgreSQL (STORE_BACKEND=postgres) — 사내 K8s는 deploy/<env>/secret.yaml이 DB_* 6종을 주입.
   // OP는 인프라팀 제공 DB로 교체 예정(decisions §6-1 ⑥)이지만 env 이름은 동일하게 유지한다.
