@@ -29,6 +29,7 @@
 | 메일 설정 | `<HOST>/api?type=mail_status` | OP `mailMode:"smtp"`·`smtpPort:25` / ST·QA `console` / `forceSend:false` |
 | pod에 들어온 env 이름 | `<HOST>/api?type=env_keys&token=<토큰>` | `groups`의 db·kvstore·smtp·environment true. `names`에서 Ctrl+F로 키 이름 확인 |
 | 인터넷 아웃바운드 | `<HOST>/api?type=egress_check&token=<토큰>` | `ok:true`, `count:45` |
+| 캘린더 연동 | `<HOST>/api?type=calendar_test&token=<토큰>` | `ok:true`, `calendarName`=팀 캘린더, `testedEventId` 있음(테스트 일정은 즉시 삭제). 실패 분기는 cutover §8-4-b 표 |
 | DB·valkey에 pod가 닿나(SG 확인, 키트 v4.12~) | `<HOST>/api?type=db_probe&token=<토큰>&host=<RDS Cluster Writer 엔드포인트>&port=<RDS 포트>` (⚠ RDS 포트는 표준 5432가 아님 — internal-context §2-a 값. valkey는 `host=<clustercfg 엔드포인트>&port=6379`) | `results[0].ok:true`. `ETIMEDOUT`이면 SG 미허용, `ENOTFOUND`면 주소 오타. 엔드포인트는 internal-context §2-a·§2-b 값(꺾쇠 없이). 응답의 host는 마스킹되어 있으니 외부 보고에 그대로 붙여도 됨 |
 | Teams 연동(OP, secret 주입 후) | `<HOST>/api?type=teams_test` | `ok:true` + 채널에 테스트 카드. `reason:"not_configured"`면 `TEAMS_WEBHOOK_URL` 미주입. ST·QA는 발송 억제 |
 | 텔레그램 연동(OP, secret 주입 후) | `<HOST>/api?type=telegram_test` | `ok:true` + 그룹에 테스트 메시지. `exception`이면 pod→api.telegram.org 차단(Teams만 운용). OP 알림은 비식별 요약 |
