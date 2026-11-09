@@ -60,7 +60,8 @@
 | 담당자 알림 수신(ADMIN_EMAILS) | 이철호(ch275.lee) · 서문수(moonsu.seo) · 김현진(hj8462.kim) |
 | CC(CC_EMAIL) | kang.wonseok@lge.com |
 
-- **엔드포인트 전체 스펙은 `docs/migration/api-contract.md`가 단일 소스** (GET 18종 + POST 30종 — 2026-08-26 기준, 인증 모델·메일 규칙·스케줄 포함). 여기엔 요약만 둔다:
+- **⚠ 은퇴 모드 (2026-11-09)**: doGet/doPost는 `retiredGate()`로 **허용 7종만 동작** — `visitor_submit`·`health_check`·`voc_report`(외부 접점) / `survey_data`·`health_checks`·`voc_reports`(컨테이너 pull) / `visitor_delete`(컨테이너 관리, 토큰) — 그 외 42종 전부 `{error:'migrated', redirect:'https://thinqreal.lge.com'}`. 핸들러·트리거 함수 코드는 보존(롤백=`RETIRED_MODE=false`+재배포, 임의 해제 금지). 월간 리포트·설문 초대 시간 트리거는 D-day 5단계에서 담당자가 삭제함.
+- **엔드포인트 전체 스펙은 `docs/migration/api-contract.md`가 단일 소스** (GET 18종 + POST 30종 — 2026-08-26 기준, 인증 모델·메일 규칙·스케줄 포함 — **은퇴 모드로 42종 폐쇄, 상단 ⚠ 참조**). 여기엔 요약만 둔다:
   - 공개: `booking`(예약 접수→알림 메일+텔레그램), `survey_submit`(설문→파생 행+텔레그램), `visitor_submit`(방문자 현장 설문→텔레그램, 파생 없음), `availability`, `appliances`, `auth_*`/`admin_auth_*`(코드 인증)
   - 관리자 토큰 필수: `bookings` 조회, `update`(확정/거절→예약자 메일+캘린더), `booking_delete`, `admin_booking_create/edit`(알림 미발송 — 백필용), `slot_block/unblock`, `survey/ledger/issue`의 update·delete, `export_log`, `survey_data`
   - ROI `roi_snapshot`/`roi_delete`는 토큰 미적용 (별창 열림 → 토큰 전달 경로 없음, 저위험 수용)
@@ -86,7 +87,7 @@
 (구 시간표 09:00 시작은 2026-08-31 운영자 지시로 개편 — 개편 전 예약 행의 slotLabel은 구 시간 그대로 보존, 관리자 표시도 저장 라벨 우선)
 
 ## 메인 사이트 (index.html)
-- **⚠ 사내 전환 안내 모드 (2026-11-09 D-day 머지, 런북 §3-A)**: 게이트 오버레이 상단·홈 최상단에 전환 배너(`.migrate-banner`, 다크 올리브·닫기 없음 — 게이트 가림 direct-child 선택자와 무관하게 unauth에서도 노출). **예약 접수 중단**: `#submitBtn` disabled + 아래 안내줄(`#migrateNote`, renderFormByPurpose가 버튼과 함께 토글) + `submitBooking()` 선두 가드(alert 후 return — 이중 방어). 달력·슬롯 표시·`booking` 엔드포인트는 유지(외부 접점·백필 경로). 롤백은 PR revert(런북 7단계 실패 시).
+- **⚠ 은퇴 모드 (2026-11-09 사내 전환 완료 후속 — 보안팀 요구)**: index.html은 **안내 전용 정적 1페이지** (스크립트·외부 리소스·Apps Script 호출 0 — 전환 배너 문안 + thinqreal.lge.com 링크 + 후기 설문 안내 + privacy 링크). 게이트·네비·예약 폼·공간 소개·이용 안내는 제거됨. **차단의 본체는 서버**: `.gs` `retiredGate()`가 허용 7종 외 모든 type에 `{error:'migrated', redirect}` 응답 (개발자 도구·URL 직접 호출 우회 불가). 아래 과거 구현 명세는 **사내 컨테이너(OP)가 서빙 중인 동일 구현의 참고 기준**으로 보존 — 라이브 index.html에는 더 이상 없음.
 - **이메일 게이트**: `@lge.com` 6자리 코드 인증 → HMAC 토큰 30일 (`AUTH_ALLOWED_DOMAINS` ↔ index.html 정규식 동기화 필수). 외부 손님은 게이트 통과 불가 → 관리자가 시트 백필.
 - **홈**: 쇼룸 지원 → 기술 연구·검증 → 데이터 축적 카드 (순서 유지). ABOUT 우측은 `<video>` 배경 (autoplay muted loop playsinline + poster).
 - **공간 소개**: 01 거실 → 02 주방 → 03 침실 → 04 런드레스룸 → 05 욕실 → 06 현관·복도
@@ -95,7 +96,7 @@
 - **이용 안내**: 유의사항 5그룹(공통/가전/공간/욕실/ThinQ — 구조 유지, 홈초대 규정은 ThinQ 그룹이 단일 소스) → 기타 이용 안내 → 주차(지하/지상 2카드 + 인라인 SVG 약도) → 웰컴 보드 → 담당자.
 
 ## 관리자 대시보드 (thinqreal_admin.html)
-- **⚠ 사내 전환 안내 (2026-11-09 D-day 머지)**: 로그인 화면 상단에 전환 배너(관리자 페이지 → `thinqreal.lge.com/thinqreal_admin.html` 이전, 이 페이지는 열람용) — 로그인·기능은 전부 유지(열람용 존치).
+- **⚠ 은퇴 모드 (2026-11-09 사내 전환 완료 후속 — 보안팀 요구)**: thinqreal_admin.html은 **안내 전용 정적 1페이지** (로그인·대시보드 제거, `thinqreal.lge.com/thinqreal_admin.html` 안내만). 서버 측도 `admin_auth_*`·`bookings` 등 관리자 엔드포인트 전부 migrated 응답 — 아래 과거 구현 명세는 **사내 컨테이너(OP) 동일 구현의 참고 기준**으로 보존. ROI 툴(`ThinQ_Real_ROI_Tool.html`)·후기 설문(`ThinQ_Real_Visit_Survey.html`)도 같은 날 안내 전용으로 은퇴 (방문자 현장 설문·privacy·동의서는 유지).
 - **인증**: 관리자 이메일 코드 (명단 7명 한정) → 토큰 90일. 클라이언트 게이트는 편의일 뿐 — **백엔드 `verifyAdminToken`이 진짜 방어선**.
 - **관리 탭**: 📋 예약 관리(KPI·필터·승인/거절·상세 모달·이력 추가/수정·영구 삭제·CSV 내보내기·**동의서 인쇄** — 상세 모달 🖨: 방문일·회사·안내 담당자(=방문 책임자 `name`, 2026-09-20)·방문자 명단 프리필로 서면 동의서 열기, 해시 전달이라 성명이 호스팅 로그에 안 남음, 2026-08-31) / 📊 통계 / 🚫 슬롯 제어 / 🔐 연동 계정 / 🎬 시연 시나리오 / 💡 조명 스위치 / ⚙️ 시스템 구성 / 📦 구비 가전(45개, `?type=appliances` fetch)
 - **분석 탭**: 📈 ROI 분석(iframe, `ROI_BUILD` 캐시 토큰) / 📝 설문·대장 — **서브탭 4분할**(2026-08-22 A안 + 🏆 분리): 응답·대장·이슈(파생 관계 세트) / 방문자 / 베스트 리뷰어(월 현황·발송 이력·당월 후보) / 리포트 준비. 마지막 뷰는 localStorage(`thinqreal_admin_sv_subtab`) 기억, 렌더는 전 섹션 공통(표시만 전환). 필터 스코프: 트랙=응답 전용(main만 표시), 월=응답·대장·이슈·방문자 공용(베스트 리뷰어·리포트 준비는 자체 월 선택기). 응답 상세 모달에서 베스트 리뷰어 발송(🏆 마커·월 현황 표시)

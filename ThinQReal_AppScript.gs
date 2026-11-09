@@ -160,12 +160,36 @@ const APPLIANCES = [
 
 
 // ============================================================
+//  은퇴 모드 (2026-11-09 사내 전환 완료 — 보안팀 요구)
+//  - thinqreal.com은 안내 전용으로 은퇴. 클라이언트 비활성은 외관일 뿐이므로
+//    서버 허용 목록이 차단의 본체 — 허용 7종 외 모든 type은 migrated 응답.
+//  - 허용 7종 = 하이브리드 에지 경로(방문객 QR 설문·FieldCheck·FieldVoice + 사내 컨테이너 pull).
+//    survey_data·voc_reports·visitor_delete는 기존 verifyAdminToken 유지
+//    (사내 컨테이너가 LEGACY_AUTH_SECRET으로 토큰을 직접 서명해 호출).
+//  - 트리거·내부 함수는 보존 (닫힌 핸들러도 코드 삭제 안 함 — 롤백 대비).
+//    롤백은 RETIRED_MODE=false + 재배포. 임의 해제 금지.
+// ============================================================
+const RETIRED_MODE = true;
+const RETIRED_ALLOWED_TYPES = [
+  'visitor_submit', 'health_check', 'voc_report',          // 외부 접점 3종 (공개/키 인증)
+  'survey_data', 'health_checks', 'voc_reports',           // 사내 컨테이너 pull 조회
+  'visitor_delete',                                        // 사내 컨테이너 관리 경로 (토큰 필수)
+];
+function retiredGate(type) {
+  if (!RETIRED_MODE) return null;
+  if (RETIRED_ALLOWED_TYPES.indexOf(String(type || '')) !== -1) return null;
+  return jsonResponse({ error: 'migrated', redirect: 'https://thinqreal.lge.com' });
+}
+
+// ============================================================
 //  GET 요청 처리
 //  - ?type=bookings       → 전체 예약 목록 반환 (관리자용)
 //  - ?type=availability&date=YYYY-MM-DD → 해당 날짜 마감 슬롯 반환
 // ============================================================
 function doGet(e) {
   const type = e.parameter.type;
+  const retired = retiredGate(type);
+  if (retired) return retired;
 
   if (type === 'availability') {
     return handleAvailability(e.parameter.date);
@@ -356,6 +380,9 @@ function doPost(e) {
   } catch(err) {
     return jsonResponse({ error: 'Invalid JSON' });
   }
+
+  const retired = retiredGate(data.type);
+  if (retired) return retired;
 
   if (data.type === 'booking') return handleNewBooking(data);
   if (data.type === 'survey_submit') return handleSurveySubmit(data);

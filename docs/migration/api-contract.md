@@ -4,6 +4,13 @@
 > 현재 구현: Google Apps Script Web App (단일 엔드포인트 + `type` 파라미터 라우팅).
 > 기준 코드: `ThinQReal_AppScript.gs` (2026-07-05 기준)
 
+## ⚠ 은퇴 모드 (2026-11-09 사내 전환 완료 — 보안팀 요구, 운영 세션 기록)
+
+현행 Apps Script는 **허용 목록 7종 외 모든 `type`에 `{ "error": "migrated", "redirect": "https://thinqreal.lge.com" }`**를 반환한다 (`retiredGate()` — doGet·doPost 라우팅 앞단, 미지정·미지원 type 포함 전부 차단. 코드·핸들러·트리거 함수는 삭제하지 않고 보존 — 롤백은 `RETIRED_MODE=false`+재배포).
+
+- **허용 7종 (하이브리드 에지 경로)**: `visitor_submit` · `health_check` · `voc_report` (외부 접점 3종, 기존 인증 그대로) / `survey_data` · `health_checks` · `voc_reports` (사내 컨테이너 pull 조회) / `visitor_delete` (사내 컨테이너 관리 경로). `survey_data`·`voc_reports`·`visitor_delete`는 **기존 `verifyAdminToken` 유지** — 사내 컨테이너가 `LEGACY_AUTH_SECRET`으로 토큰을 직접 서명해 호출.
+- **그 외 42종**(booking·update·bookings·auth_*·admin_auth_*·availability·roi_*·article_*·insight_*·survey_submit·survey_update/delete·ledger_*·issue_*·export_log·monthly_report_*·best_reviewer_send·slot_*·mail_*·telegram_test·calendar_test·appliances·quote·admin_booking_* 등)은 전부 **migrated** — 아래 본문 스펙은 사내 컨테이너 구현의 기준으로만 유효.
+
 ## 공통 사항
 
 - **단일 URL** 아래 `type` 값으로 라우팅. GET은 쿼리스트링, POST는 JSON body.
