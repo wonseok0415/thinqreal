@@ -870,3 +870,22 @@ ST(0.9.0)는 키트 v3 시점 기준이라 D+7로 동작 — ST 내 달력·서�
 - **11/6 저녁 담당자 정정 — FieldCheck 요약 트리거는 남긴다(위 "3개 삭제" 철회)**: 담당자 지적 "FieldCheck는 하이브리드로 동작하므로 트리거가 Apps Script에 남아야 하고 사내로 옮기면 안 되는 것 아닌가" → 수용. 근거: ① 하이브리드 에지 원칙 — 외부 접점(장비 POST)과 그 요약 메일을 한 곳(Apps Script)·한 세션(FieldCheck)에 둔다 ② FieldCheck 세션이 `.gs`를 계속 고치는 중이라 컨테이너 사본(`jobs/fieldcheckSummary.js`)이 드리프트할 위험 ③ 현재 `FC_TEST_MODE`라 운영자 1인 수신 — 사내 SMTP로 옮길 실익 없음. **키트 v5.11(`feat:` → 0.23.0)**: `src/config.js` `jobsSkip`(env `JOBS_SKIP` 쉼표 목록) + `src/lib/scheduler.js` 일일·간격 잡 모두 건너뜀 + 기동 로그 표시. OP configmap `JOBS_SKIP: "fieldcheck-summary"`는 D-day 6단계 커밋에 합침(v5.11을 6단계 전 롤아웃 — 1~4단계와 병행). 미적용 시 영향은 화요일 07:40 요약 두 통(운영자만)으로 무해. 런북 5단계(2개 삭제)·6단계·§3-B·§0-b, cutover §3·§7, 설계서, `.env.example`, 릴리스 이력 정정. 컨테이너 잡은 FieldCheck 세션이 정식 운영 전환 시 env 한 줄로 켤 수 있게 유지.
 - **11/6 저녁 PR #226(현행 사이트 안내 배너·예약 접수 중단) 선머지** — 담당자 제안 "지금 머지해도 괜찮지 않나" → 동의: 7단계가 당일 확인만으로 줄고 Pages 캐시가 주말에 풀림, 배너 문구 "11월 9일부터"라 선게시 무리 없음. 조건 2: ① 담당자 3명 Teams 고지(현행 접수 닫힘, 주말 문의는 월 11:00 이후 새 주소 안내·관리자/시트 편집은 월 08:00 동결 전까지 가능) ② 월요일 3-e에서 bookings OP-only 행은 삭제 전 실예약 여부 확인(배너 본 직원이 주말에 OP로 직접 예약 가능). 런북 7단계 ✅·3-e 주의 반영. 월요일 남은 단계: 1·2·3-c~3-f(replace)·4·5(2개)·6(v5.11 선롤아웃 + JOBS_SKIP)·8·9·9-b·10.
 - **11/6 저녁 마감**: thinqreal.com 배너·예약 버튼 비활성 담당자 확인 완료, 담당자 3명 Teams 고지 완료. D-day 선행 전부 종결 — 월요일은 런북 §1 1~6·8~10(7은 확인만). 사내 Claude에 준비 현황·결정 변경 2건·v5.11 월요일 아침 적용 전달.
+
+## 작업 내역 (2026-11-09 — ✅ D-day 전환 완료)
+
+- **사내 Claude 보고(6~9단계)**: 5단계 트리거 2개 삭제·`sendFieldCheckDailySummary` 잔존 ✓ / 6·6-b 커밋 1건(JOBS_DISABLED 제거·`JOBS_SKIP`·수신자 4명·config-rev 4) → 두 pod 교체·**0.23.0**·kv shared·`env_keys` 판정 ✓ / 7단계 배너·예약 불가·관리자 인증 화면 ✓ / 9·9-b 첫 실거래 메일 2통·Teams 카드·텔레그램 비식별·링크 lge.com ✓. FieldCheck 세션 통보문 작성.
+- **⚠ 런북 대비 변경 — 3단계(월요일 replace 재적재) 생략**: 사내 판단 "현행 KPI·시트 버전 이력에 주말 수정 없음 → 금요일 선적재 유효, 샘플 대조로 대체". 외부 수용(시트 버전 이력은 Apps Script 쓰기 포함 전체 수정 기록이라 근거 충분). 단 11/6 15:10 선적재 ~ 18:00 배너 게시 사이의 현행 변경 가능성은 버전 이력 "무수정"으로 커버됨.
+- **담당자 지적 — Teams 알림 카드가 일부 구성원에게 안 보임(팀 검색 불가)** → cutover §8-2(비공개 팀은 검색에 안 뜸, 소유자가 멤버 직접 추가).
+- **담당자 질문 4건 → cutover §8 후속 표**: BE팀 마무리(8-1) / Teams 멤버(8-2) / **보안팀 요구 — 현행 사이트 은퇴 모드(8-3)** / **캘린더 연동(8-4 — 컨테이너에 이미 구현, 설정만)**.
+- **8-3 핵심 판단**: 보안팀이 "복잡한 방법으로 침투해 페이지가 열리는지" 본다면 클라이언트 비활성(배너·disabled·CSS 게이트)은 통과 못 한다 — 게이트는 `body.unauth` CSS라 개발자 도구로 걷히고, Apps Script 엔드포인트는 URL 직접 호출이 가능. **진짜 통제는 서버(Apps Script) 허용 목록**: 하이브리드 에지 7종만 남기고 나머지 `{error:'migrated'}`. 페이지는 안내 전용 정적으로 교체. 라이브 파일은 운영 세션 소관 → 요청문 아래.
+- **운영 세션 요청문(8-3)**:
+  ```
+  이관 세션 요청(전환 완료 후속 — 현행 사이트 은퇴 모드, 보안팀 요구):
+  1. index.html — 게이트·네비·예약 폼·공간 소개 전부 제거, 안내 전용 정적 1페이지(배너 문안 유지 + lge.com 링크 + "방문 후기 설문은 사내 주소에서" 안내). 외부 스크립트·Apps Script 호출 0.
+  2. thinqreal_admin.html — 로그인·대시보드 제거, 같은 안내 1페이지("관리자 페이지는 thinqreal.lge.com/thinqreal_admin.html").
+  3. ThinQ_Real_Visit_Survey.html — 폼 제거, "설문은 사내 주소 <SURVEY_FORM_URL>에서" 안내(전환 전 발송된 초대 링크 대응).
+  4. ThinQReal_AppScript.gs — doGet/doPost 허용 목록: visitor_submit · health_check · voc_report · health_checks · survey_data · voc_reports · visitor_delete(토큰 검증 포함). 그 외 type은 전부 {error:'migrated', redirect:'https://thinqreal.lge.com'} 응답(booking·update·bookings·admin_auth_*·auth_*·availability·roi_*·article_*·insight_*·survey_submit·survey_update/delete·ledger_*·issue_*·export_log·monthly_report_*·best_reviewer_send·slot_*·mail_test·telegram_test·calendar_test·appliances·quote·admin_booking_*). 재배포 필요(웹 경로 변경).
+  5. 유지: ThinQ_Real_Visitor_Survey.html · privacy.html · ThinQ_Real_Visit_Consent.html · images.
+  6. 순서: 4(재배포) → 1~3 머지. 그 다음 cutover §6-b 도메인 종료(QR 포스터 → CNAME → DNS).
+  ```
+- **8-4 캘린더**: 컨테이너 `calendar/google.js`가 CalendarApp 이식본(서비스 계정 JWT, 캘린더 "변경 권한" 공유 전제, 방문자 명단·연락처 미표기 유지). 설정 4단계는 cutover §8-4. 보안 관점: OP(사내)에서 개인 Gmail 캘린더로 아웃바운드 — 담당자가 보안팀 입장 확인 후 착수. 대안 B(Apps Script 중계 엔드포인트)는 외부 의존 역방향이라 비권장, 대안 C(Outlook 캘린더/Graph)는 별도 검토.
