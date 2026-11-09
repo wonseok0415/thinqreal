@@ -84,10 +84,10 @@ push 후 내가 /healthz·env_keys 결과를 붙이면 pod 교체·JOBS_DISABLED
 ## 4. 기록 칸 (당일 채움 → migration-log)
 | 항목 | 값 |
 |---|---|
-| 동결 시각 / 해제 시각 | |
-| 적재 건수(bookings·survey·visitors·articles·insights·best·ledger·roi·slot_blocks·health·voc) | |
-| 적재 소요 / 오류 | |
-| 검증 결과 / 초과 행 처리 | |
-| 트리거 삭제 시각 / JOBS_DISABLED 제거 커밋 | |
-| 첫 실거래 결과(메일 2·Teams·텔레그램·캘린더) | |
-| 문제·판단 | |
+| 동결 시각 / 해제 시각 | 11/9 08:40 동결 → 오전 중 해제(안내 발송·해제 공지 완료) |
+| 적재 건수(bookings·survey·visitors·articles·insights·best·ledger·roi·slot_blocks·health·voc) | 11/6 선적재(bookings 159, 12표) — 월요일 재적재 생략(시트 버전 이력 주말 무수정, ⚠ 런북 대비 변경) |
+| 적재 소요 / 오류 | 11/6 — 오류 0 |
+| 검증 결과 / 초과 행 처리 | 11/6 전 테이블 일치 / 초과 행 없음 |
+| 트리거 삭제 시각 / JOBS_DISABLED 제거 커밋 | 11/9 오전 — 2개 삭제(FieldCheck 요약 존속) / 사내 Gitea 커밋 1건(JOBS_SKIP·수신자 4명·config-rev 4) → 0.23.0 |
+| 첫 실거래 결과(메일 2·Teams·텔레그램·캘린더) | 메일 2·Teams 카드·텔레그램 비식별 ○, 링크 lge.com ○, 캘린더 범위 밖(skip) |
+| 문제·판단 | Teams 카드가 일부 구성원에게 미표시(새 Teams 통합 보기 추정 — cutover §8-2) / 후속 4건 cutover §8 |
