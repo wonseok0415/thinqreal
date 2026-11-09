@@ -2,7 +2,7 @@
 
 > **목적**: 현행(GitHub Pages + Apps Script + Google Sheets)에서 사내(EKS 컨테이너 + Aurora PostgreSQL + valkey, `thinqreal.lge.com`)로 넘어가는 날 전후에 **누가·언제·무엇을** 하는지 한 장으로 고정한다. 오픈 목표 **2026년 11월(잠정)**.
 > **읽는 사람**: 담당자(강원석 책임)·협업자(UAT)·사내 Claude·외부 트랙. 사내 식별자·비밀값은 없다(internal-context 참조).
-> **상태**: **GO 확정(2026-11-06 저녁) — D-day 11/9(월) 08:00~11:00, 예비 11/10(화)·11/18(수), 기한 11/30.** §5 D-1 체크 전부 ☑(reader·failover 통보 항목 포함). 당일은 `dday-runbook.md`. 변경 이력은 `migration-log.md`.
+> **상태**: **✅ 전환 완료 — 2026-11-09(월) 오전.** 5·6·6-b·7·9·9-b 통과(3단계 재적재는 시트 버전 이력 "주말 무수정"+샘플 대조로 생략 — ⚠ 런북 대비 변경). 전환 후 후속은 **§8**. 변경 이력은 `migration-log.md`.
 
 ### 0-a. 확정 일정 (2026-10-30 — 담당자 지시 "11/30 이전 반드시 마무리", 협업자 UAT 보류)
 | 날짜 | 할 일 | 누가 | 선행 |
@@ -124,3 +124,14 @@
 - Teams 웹훅 URL: **✅ 2026-10-23 생성 완료** — 담당자가 Teams 워크플로 앱에서 직접 생성(BE팀 불필요, 템플릿 「채널에 웹후크 알림 보내기」 — 담당자 Teams 팀 채널 대상, 10/26 재생성) → 55-credentials `teams-webhook` 블록 → cert 후 secret 주입 → D-1 `teams_test`. 외부 접점 알림의 Teams 통합 여부는 운영 세션 협의
 - 시트 보존 기간·접근 권한 정리(개인정보 보유 3년 규칙과 정합) — 담당자·법무
 - `thinqreal.com` 만료일과 QR 교체 일정 — 운영 세션
+
+## 8. 전환 후 후속 (2026-11-09 담당자 질문 4건 → 작업 항목)
+
+| # | 항목 | 담당 | 상태 |
+|---|---|---|---|
+| 8-1 | **BE팀 마무리 인사** — 추가 요청 없음(ST·QA 유지 여부 확인 1줄 포함). pod 비배포 교체(11/4 22:38)가 재발하면 그때 이벤트 확인 요청 | 담당자 | 문안 migration-log 11/9 |
+| 8-2 | **Teams 팀 검색 불가** — 비공개 팀은 검색에 안 뜸. 소유자(담당자)가 팀 → ⋯ → 「멤버 추가」로 담당자 3·팀장 직접 추가(또는 팀 설정에서 공개 팀 전환 — 조직 정책 허용 시). 채널이 비공개 채널이면 채널 멤버도 추가 | 담당자 | — |
+| 8-3 | **현행 사이트 은퇴 모드(보안팀 요구)** — 클라이언트 비활성(배너·disabled)은 외관일 뿐. 진짜 통제는 **Apps Script 서버 허용 목록**: 하이브리드 에지 6종(`visitor_submit`·`health_check`·`voc_report`·`health_checks`·`survey_data`·`voc_reports`) + `visitor_delete`(edge delete-through) + 그 토큰 검증(`admin_auth_*`는 OP가 자체 서명하므로 불필요)만 남기고 **나머지 전부 `{error:'migrated'}`**. 페이지: `index.html`·`thinqreal_admin.html` → 게이트·메뉴·폼·로그인 없는 **안내 전용 정적 페이지**, `ThinQ_Real_Visit_Survey.html` → lge.com 설문 주소 안내(전환 전 발송된 초대 링크 대응 — 현행 `survey_submit`이 닫히면 시트 유입 0). 유지: `ThinQ_Real_Visitor_Survey.html`·`privacy.html`·동의서. 운영 세션 요청문은 migration-log 11/9. 도메인 종료(§6-b)는 그 다음 | 운영 세션(라이브)·담당자 | 요청문 작성 완료 |
+| 8-4 | **Google 캘린더 연동(OP)** — 컨테이너에 이미 구현됨(`calendar/google.js`, 서비스 계정 JWT·calendar v3, `CALENDAR_ID` 미설정 시 skip). 필요한 것은 코드가 아니라 설정 4개: ① 담당자 Google 계정에서 GCP 프로젝트 → Calendar API 사용 → 서비스 계정 생성 → JSON 키 ② 팀 캘린더(`thinq_real_calendar@gmail.com`)를 서비스 계정 이메일에 「변경 권한」으로 공유 ③ Vault KV 2키 `GOOGLE_SERVICE_ACCOUNT_JSON`(JSON 문자열 1줄)·`CALENDAR_ID` → `secret.yaml` 자리표시자 2개 → config-rev ④ OP pod → `oauth2.googleapis.com`·`www.googleapis.com` 아웃바운드 확인(`calendar_test` 엔드포인트). 사내 OP에서 개인 Gmail 캘린더로 쓰는 구조라 보안팀 관점 확인 후 진행 | 담당자(Vault·GCP)·사내 Claude(secret.yaml) | 설계 완료, 착수 대기 |
+| 8-5 | D+1~2 모니터링(§2 런북) → 11/13(금) 종료 선언. 12/2 첫 OP 리포트 검증(4명 수신+cid). 2027 DL 전환 | 담당자 | — |
+
